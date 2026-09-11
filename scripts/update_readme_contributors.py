@@ -15,7 +15,7 @@ README = Path(__file__).resolve().parents[1] / "README.md"
 START = "<!-- contributors:start -->"
 END = "<!-- contributors:end -->"
 PER_PAGE = 100
-MAINTAINERS = {"re-bin", "chengyongru"}
+MAINTAINERS = {"re-bin", "loorksy"}
 
 
 class Contributor(TypedDict):

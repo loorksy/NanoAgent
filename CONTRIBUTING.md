@@ -17,7 +17,7 @@ Maintainers are community stewards who help review, organize, and maintain the p
 | Maintainer | Role |
 |------------|------|
 | [@re-bin](https://github.com/re-bin) | Project lead; reviews community PRs and handles merges |
-| [@chengyongru](https://github.com/chengyongru) | Reviews community PRs and may approve them; merges are handled by the project lead |
+| [@loorksy](https://github.com/loorksy) | Reviews community PRs and may approve them; merges are handled by the project lead |
 
 ## Contribution Flow
 
