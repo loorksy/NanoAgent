@@ -557,7 +557,16 @@ class MemoryStore:
             for e in batch
         )
         template = self._dream_template()
+        decisions_block = ""
+        try:
+            from nanobot.trading.memory.decisions import format_decisions_for_dream
+
+            decisions_block = format_decisions_for_dream(limit=10)
+        except Exception:
+            decisions_block = ""
         prompt = f"{template}\n\n## Conversation History\n{history_text}"
+        if decisions_block:
+            prompt = f"{prompt}\n\n{decisions_block}"
         return (prompt, batch[-1]["cursor"])
 
     def dream_content_diff(self) -> str:
@@ -572,45 +581,18 @@ class MemoryStore:
 
     def build_dream_tools(self) -> ToolRegistry:
         """Build the restricted tool registry used by Dream runs."""
-        from nanobot.agent.skills import BUILTIN_SKILLS_DIR
-        from nanobot.agent.tools.apply_patch import ApplyPatchTool
-        from nanobot.agent.tools.file_state import FileStates
-        from nanobot.agent.tools.filesystem import EditFileTool, ReadFileTool, WriteFileTool
+        from nanobot.agent.memory_file_tools import (
+            DreamEditFileTool,
+            DreamReadFileTool,
+            DreamWriteFileTool,
+        )
         from nanobot.agent.tools.registry import ToolRegistry
 
         tools = ToolRegistry()
-        file_states = FileStates()
-        workspace = self.workspace
-        skills_dir = workspace / "skills"
-        skills_dir.mkdir(parents=True, exist_ok=True)
-
-        extra_read = [BUILTIN_SKILLS_DIR] if BUILTIN_SKILLS_DIR.exists() else None
-        editable_files = [self.memory_file, self.soul_file, self.user_file]
-
-        tools.register(ReadFileTool(
-            workspace=workspace,
-            allowed_dir=workspace,
-            extra_read_allowed_dirs=extra_read,
-            file_states=file_states,
-        ))
-        tools.register(EditFileTool(
-            workspace=workspace,
-            allowed_dir=skills_dir,
-            extra_write_allowed_files=editable_files,
-            file_states=file_states,
-        ))
-        tools.register(ApplyPatchTool(
-            workspace=workspace,
-            allowed_dir=skills_dir,
-            extra_write_allowed_files=editable_files,
-            file_states=file_states,
-        ))
-        tools.register(WriteFileTool(
-            workspace=workspace,
-            allowed_dir=skills_dir,
-            extra_write_allowed_files=editable_files,
-            file_states=file_states,
-        ))
+        editable_files = (self.memory_file, self.soul_file, self.user_file)
+        tools.register(DreamReadFileTool(allowed_files=editable_files))
+        tools.register(DreamEditFileTool(allowed_files=editable_files))
+        tools.register(DreamWriteFileTool(allowed_files=editable_files))
         return tools
 
     @staticmethod

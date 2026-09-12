@@ -199,8 +199,10 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
 
 def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
+    from nanobot.trading.memory.decisions import list_recent_decisions
 
     recs = list_recommendations(limit=200)
+    decisions = list_recent_decisions(limit=20)
     open_count = sum(1 for row in recs if row.get("status") == "open")
     closed_count = sum(1 for row in recs if row.get("status") != "open")
     directions = {"buy": 0, "sell": 0, "wait": 0}
@@ -219,6 +221,7 @@ def handle_trading_performance(_request: WsRequest) -> Response:
         "directionBreakdown": directions,
         "paperActions": paper_actions,
         "recentRecommendations": recs[:10],
+        "recentDecisions": decisions,
     })
 
 

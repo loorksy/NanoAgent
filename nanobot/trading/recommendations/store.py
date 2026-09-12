@@ -96,6 +96,9 @@ def store_recommendation(
             ),
         )
         conn.commit()
+    from nanobot.trading.memory.decisions import record_trade_decision
+
+    record_trade_decision(rec_id, decision, market, interval=rec.interval or "15m")
     return rec_id
 
 

@@ -1683,6 +1683,8 @@ class AgentLoop:
         await self._run_turn_stage(ctx, "compact", self._compact_session)
         if await self._run_turn_stage(ctx, "command", self._dispatch_command):
             return ctx.outbound
+        if await self._run_turn_stage(ctx, "gold_fast_path", self._dispatch_gold_fast_path):
+            return ctx.outbound
         await self._run_turn_stage(ctx, "build", self._build_turn)
         await self._run_turn_stage(ctx, "run", self._run_turn)
         await self._run_turn_stage(ctx, "save", self._persist_turn)
@@ -1812,6 +1814,36 @@ class AgentLoop:
             ctx.session_key,
         )
         ctx.pending_summary = pending
+
+    async def _dispatch_gold_fast_path(self, ctx: TurnContext) -> bool:
+        if ctx.kind is not TurnKind.USER or ctx.msg.channel == "system":
+            return False
+        text = ctx.original_user_text or ctx.msg.content
+        from nanobot.trading.fast_path import try_gold_fast_path
+
+        result = await try_gold_fast_path(
+            text,
+            channel=ctx.msg.channel,
+            chat_id=ctx.msg.chat_id,
+            bus=self.bus,
+        )
+        if result is None:
+            return False
+        session = ctx.require_session()
+        ctx.outbound = result
+        ctx.final_content = result.content
+        ctx.input_persisted_early = self._persist_user_message_early(ctx.msg, session)
+        session.add_message("assistant", result.content, _gold_fast_path=True)
+        self._clear_pending_user_turn(session)
+        self.sessions.save(session)
+        if not ctx.ephemeral:
+            await self.runtime_event_publisher.session_turn_persisted(
+                ctx.msg,
+                ctx.session_key,
+                turn_id=ctx.turn_id,
+                attributes=ctx.attributes,
+            )
+        return True
 
     async def _dispatch_command(self, ctx: TurnContext) -> bool:
         if ctx.kind is TurnKind.SYSTEM or ctx.msg.channel == "system":
