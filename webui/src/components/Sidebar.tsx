@@ -6,14 +6,12 @@ import {
 } from "react";
 import {
   Archive,
-  Brain,
-  CalendarClock,
-  MessageCircle,
+  BarChart3,
+  Newspaper,
   PanelLeftClose,
   Search,
   Settings,
   SquarePen,
-  Blocks,
   Inbox,
   LineChart,
 } from "lucide-react";
@@ -66,15 +64,13 @@ interface SidebarProps {
   onRequestRenameProject: (projectKey: string, label: string) => void;
   onNewChatInProject: (projectPath: string, projectName: string) => void;
   onOpenSettings: () => void;
-  onOpenApps: () => void;
-  onOpenSkills: () => void;
   onOpenChart?: () => void;
-  onOpenInbox?: () => void;
-  onOpenAutomations: () => void;
-  onOpenChannels: () => void;
+  onOpenPerformance?: () => void;
+  onOpenRecommendations?: () => void;
+  onOpenBriefing?: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
-  activeUtility?: "apps" | "chart" | "inbox" | "skills" | "automations" | "channels" | null;
+  activeUtility?: "chart" | "performance" | "recommendations" | "briefing" | null;
   onToggleArchived: () => void;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -213,17 +209,39 @@ export function Sidebar(props: SidebarProps) {
         )}
       >
         {collapsed && <>{newChatButton}{searchButton}</>}
-        <SidebarActionButton
-          collapsed={collapsed}
-          label={t("sidebar.apps")}
-          shortcut={sidebarShortcutLabel("apps", apple)}
-          ariaKeyShortcuts={sidebarShortcutAria("apps")}
-          onClick={props.onOpenApps}
-          onIntent={props.onSettingsIntent}
-          active={props.activeUtility === "apps"}
-          selectionRef={activeActionRef}
-          icon={<Blocks className="h-4 w-4" />}
-        />
+        {props.onOpenPerformance ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Performance"
+            onClick={props.onOpenPerformance}
+            onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "performance"}
+            selectionRef={activeActionRef}
+            icon={<BarChart3 className="h-4 w-4" />}
+          />
+        ) : null}
+        {props.onOpenRecommendations ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Recommendations"
+            onClick={props.onOpenRecommendations}
+            onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "recommendations"}
+            selectionRef={activeActionRef}
+            icon={<Inbox className="h-4 w-4" />}
+          />
+        ) : null}
+        {props.onOpenBriefing ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Briefing"
+            onClick={props.onOpenBriefing}
+            onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "briefing"}
+            selectionRef={activeActionRef}
+            icon={<Newspaper className="h-4 w-4" />}
+          />
+        ) : null}
         {props.onOpenChart ? (
           <SidebarActionButton
             collapsed={collapsed}
@@ -235,50 +253,6 @@ export function Sidebar(props: SidebarProps) {
             icon={<LineChart className="h-4 w-4" />}
           />
         ) : null}
-        {props.onOpenInbox ? (
-          <SidebarActionButton
-            collapsed={collapsed}
-            label="Inbox"
-            onClick={props.onOpenInbox}
-            onIntent={props.onSettingsIntent}
-            active={props.activeUtility === "inbox"}
-            selectionRef={activeActionRef}
-            icon={<Inbox className="h-4 w-4" />}
-          />
-        ) : null}
-        <SidebarActionButton
-          collapsed={collapsed}
-          label={t("sidebar.skills.title")}
-          shortcut={sidebarShortcutLabel("skills", apple)}
-          ariaKeyShortcuts={sidebarShortcutAria("skills")}
-          onClick={props.onOpenSkills}
-          onIntent={props.onSettingsIntent}
-          active={props.activeUtility === "skills"}
-          selectionRef={activeActionRef}
-          icon={<Brain className="h-4 w-4" />}
-        />
-        <SidebarActionButton
-          collapsed={collapsed}
-          label={t("sidebar.automations", { defaultValue: "Automations" })}
-          shortcut={sidebarShortcutLabel("automations", apple)}
-          ariaKeyShortcuts={sidebarShortcutAria("automations")}
-          onClick={props.onOpenAutomations}
-          onIntent={props.onSettingsIntent}
-          active={props.activeUtility === "automations"}
-          selectionRef={activeActionRef}
-          icon={<CalendarClock className="h-4 w-4" />}
-        />
-        <SidebarActionButton
-          collapsed={collapsed}
-          label={t("settings.nav.channels")}
-          shortcut={sidebarShortcutLabel("channels", apple)}
-          ariaKeyShortcuts={sidebarShortcutAria("channels")}
-          onClick={props.onOpenChannels}
-          onIntent={props.onSettingsIntent}
-          active={props.activeUtility === "channels"}
-          selectionRef={activeActionRef}
-          icon={<MessageCircle className="h-4 w-4" />}
-        />
         {props.archivedCount ? (
           <SidebarActionButton
             collapsed={collapsed}

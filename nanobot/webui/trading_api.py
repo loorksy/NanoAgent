@@ -197,6 +197,31 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
     return _http_json_response({"recommendations": list_recommendations()})
 
 
+def handle_trading_performance(_request: WsRequest) -> Response:
+    from nanobot.config.paths import get_data_dir
+
+    recs = list_recommendations(limit=200)
+    open_count = sum(1 for row in recs if row.get("status") == "open")
+    closed_count = sum(1 for row in recs if row.get("status") != "open")
+    directions = {"buy": 0, "sell": 0, "wait": 0}
+    for row in recs:
+        direction = str(row.get("direction", "wait")).lower()
+        if direction in directions:
+            directions[direction] += 1
+    paper_path = get_data_dir() / "trading" / "paper_ledger.jsonl"
+    paper_actions = 0
+    if paper_path.exists():
+        paper_actions = sum(1 for line in paper_path.read_text(encoding="utf-8").splitlines() if line.strip())
+    return _http_json_response({
+        "totalRecommendations": len(recs),
+        "openRecommendations": open_count,
+        "closedRecommendations": closed_count,
+        "directionBreakdown": directions,
+        "paperActions": paper_actions,
+        "recentRecommendations": recs[:10],
+    })
+
+
 def handle_trading_briefing(_request: WsRequest) -> Response:
     from nanobot.trading.config import load_trading_config
     from nanobot.trading.oanda import fetch_quote
@@ -247,6 +272,8 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_recommendations(request)
     if path == "/api/trading/briefing":
         return handle_trading_briefing(request)
+    if path == "/api/trading/performance":
+        return handle_trading_performance(request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
     return None

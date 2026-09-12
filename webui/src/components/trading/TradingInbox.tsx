@@ -62,7 +62,7 @@ export function TradingInbox() {
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recommendations inbox</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Recommendations</h1>
           <p className="text-sm text-muted-foreground">
             Stored gold recommendations from agent analysis runs
           </p>

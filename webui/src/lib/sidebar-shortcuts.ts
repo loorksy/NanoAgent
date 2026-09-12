@@ -1,10 +1,10 @@
 export const SIDEBAR_SHORTCUTS = {
   newChat: { key: "O", shift: true },
   search: { key: "K", shift: false },
-  apps: { key: "1", shift: true },
-  skills: { key: "2", shift: true },
-  automations: { key: "3", shift: true },
-  channels: { key: "4", shift: true },
+  performance: { key: "1", shift: true },
+  recommendations: { key: "2", shift: true },
+  briefing: { key: "3", shift: true },
+  chart: { key: "4", shift: true },
   settings: { key: ",", shift: false },
 } as const;
 

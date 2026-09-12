@@ -20,6 +20,22 @@ if TYPE_CHECKING:
 _SKIP_MODULES = frozenset({
     "base", "schema", "registry", "context", "loader", "config",
     "file_state", "sandbox", "mcp", "__init__", "runtime_control",
+    # Internal helpers and legacy config-only stubs — not discoverable tools
+    "path_utils", "execution", "_windows_job", "mcp_oauth",
+    "shell", "filesystem", "cli_apps", "self", "image_generation", "exec_session",
+})
+
+# Gold-only agent: general coding / dev tools are removed from the repo.
+_GOLD_AGENT_MODULES = frozenset({
+    "trading_chart",
+    "trading_team",
+    "web",
+    "message",
+    "spawn",
+    "cron",
+    "long_task",
+    "sessions",
+    "session_messages",
 })
 
 
@@ -41,7 +57,11 @@ class ToolLoader:
         seen: set[int] = set()
         results: list[type[Tool]] = []
         for _importer, module_name, _ispkg in pkgutil.iter_modules(self._package.__path__):
-            if module_name.startswith("_") or module_name in _SKIP_MODULES:
+            if (
+                module_name.startswith("_")
+                or module_name in _SKIP_MODULES
+                or module_name not in _GOLD_AGENT_MODULES
+            ):
                 continue
             try:
                 module = importlib.import_module(f".{module_name}", self._package.__name__)

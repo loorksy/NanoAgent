@@ -57,6 +57,33 @@ class TradingStagePublisher:
             payload,
             content=f"{decision}: {summary}" if summary else decision,
         )
+        if self._bus is None or not self._channel or not self._chat_id:
+            return
+        if self._channel == "telegram":
+            from nanobot.channels.telegram.trading_cards import render_recommendation_card
+
+            card = render_recommendation_card(payload)
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=self._channel,
+                    chat_id=self._chat_id,
+                    content=card,
+                    event=ProgressEvent(content=card),
+                    metadata={"parse_mode": "HTML"},
+                )
+            )
+        elif self._channel == "whatsapp":
+            from nanobot.channels.whatsapp.trading_cards import render_recommendation_card
+
+            card = render_recommendation_card(payload)
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=self._channel,
+                    chat_id=self._chat_id,
+                    content=card,
+                    event=ProgressEvent(content=card),
+                )
+            )
 
     async def _agent_ui(
         self,
@@ -91,7 +118,7 @@ class TradingStagePublisher:
             event.to_wire(),
             content=label,
         )
-        if self._channel == "telegram":
+        if self._channel in ("telegram", "whatsapp"):
             self._telegram_rows = apply_stage_event(self._telegram_rows, event)
             checklist = render_arabic_progress(self._telegram_rows)
             await self._bus.publish_outbound(

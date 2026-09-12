@@ -1,6 +1,10 @@
 from websockets.http11 import Request
 
-from nanobot.webui.trading_api import handle_trading_klines, handle_trading_status
+from nanobot.webui.trading_api import (
+    handle_trading_klines,
+    handle_trading_performance,
+    handle_trading_status,
+)
 
 
 def _request(path: str) -> Request:
@@ -13,6 +17,14 @@ def test_trading_status_without_oanda() -> None:
     body = response.body.decode("utf-8")
     assert "XAUUSD" in body
     assert "oanda_configured" in body
+
+
+def test_trading_performance_payload() -> None:
+    response = handle_trading_performance(_request("/api/trading/performance"))
+    assert response.status_code == 200
+    body = response.body.decode("utf-8")
+    assert "totalRecommendations" in body
+    assert "paperActions" in body
 
 
 def test_trading_klines_unconfigured() -> None:

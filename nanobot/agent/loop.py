@@ -451,6 +451,9 @@ class AgentLoop:
         if model_preset:
             self.set_model_preset(model_preset, publish_update=False)
         self._register_default_tools(provider_snapshot_loader=provider_snapshot_loader)
+        from nanobot.trading.gold_intent_context import gold_intent_runtime_context
+
+        self.register_runtime_context_provider(gold_intent_runtime_context)
         self.commands = CommandRouter()
         register_builtin_commands(self.commands)
 

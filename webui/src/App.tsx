@@ -127,7 +127,13 @@ const TOKEN_REFRESH_MIN_DELAY_MS = 5_000;
 const PAIRING_POLL_INTERVAL_MS = 5_000;
 const PAIRING_IDLE_POLL_INTERVAL_MS = 15_000;
 const PAIRING_DISMISS_SNOOZE_MS = 30_000;
-type ShellView = "chat" | "chart" | "inbox" | "settings" | "apps" | "automations" | "skills" | "channels";
+type ShellView =
+  | "chat"
+  | "chart"
+  | "performance"
+  | "recommendations"
+  | "briefing"
+  | "settings";
 type ShellRoute = {
   view: ShellView;
   activeKey: string | null;
@@ -165,6 +171,18 @@ const TradingChartSidecar = lazy(async () => {
 const TradingInbox = lazy(async () => {
   const module = await import("@/components/trading/TradingInbox");
   return { default: module.TradingInbox };
+});
+const TradingPerformance = lazy(async () => {
+  const module = await import("@/components/trading/TradingPerformance");
+  return { default: module.TradingPerformance };
+});
+const TradingBriefingPanel = lazy(async () => {
+  const module = await import("@/components/trading/TradingBriefingPanel");
+  return { default: module.TradingBriefingPanel };
+});
+const TradingChartBottomSheet = lazy(async () => {
+  const module = await import("@/components/trading/TradingChartBottomSheet");
+  return { default: module.TradingChartBottomSheet };
 });
 
 function SurfaceLoadingFallback({ label }: { label?: string }) {
@@ -209,8 +227,7 @@ function defaultShellRoute(): ShellRoute {
   return { view: "chat", activeKey: null, settingsSection: "overview" };
 }
 
-function shellViewForSettingsSection(section: SettingsSectionKey): ShellView {
-  if (section === "apps" || section === "automations" || section === "skills" || section === "channels") return section;
+function shellViewForSettingsSection(_section: SettingsSectionKey): ShellView {
   return "settings";
 }
 
@@ -272,23 +289,17 @@ function readShellRoute(): ShellRoute {
       settingsSection,
     };
   }
-  if (path === "/apps") {
-    return { view: "apps", activeKey, settingsSection: "apps" };
-  }
-  if (path === "/automations") {
-    return { view: "automations", activeKey, settingsSection: "automations" };
-  }
-  if (path === "/channels") {
-    return { view: "channels", activeKey, settingsSection: "channels" };
-  }
-  if (path === "/skills") {
-    return { view: "skills", activeKey, settingsSection: "skills" };
-  }
   if (path === "/chart") {
     return { view: "chart", activeKey, settingsSection: "overview" };
   }
-  if (path === "/inbox") {
-    return { view: "inbox", activeKey, settingsSection: "overview" };
+  if (path === "/performance") {
+    return { view: "performance", activeKey, settingsSection: "overview" };
+  }
+  if (path === "/briefing") {
+    return { view: "briefing", activeKey, settingsSection: "overview" };
+  }
+  if (path === "/recommendations" || path === "/inbox") {
+    return { view: "recommendations", activeKey, settingsSection: "overview" };
   }
   if (path.startsWith("/temporary/")) {
     const encoded = path.slice("/temporary/".length);
@@ -1353,6 +1364,8 @@ function Shell({
     return subscribeTradingSession((chatId) => {
       const session = sessions.find((row) => row.chatId === chatId);
       if (!session || !getTradingSession(chatId).chartOpen) return;
+      navigate({ view: "chat", activeKey: session.key, settingsSection: "overview" });
+      if (mobileWorkbench) return;
       const chartPaneKey = tradingChartPaneKey(session.key);
       updateWorkbenchState((current) => {
         const tab = workbenchTabForPane(current, session.key);
@@ -1360,9 +1373,8 @@ function Shell({
         const next = addWorkbenchPane(current, session.key, chartPaneKey);
         return setWorkbenchLayout(next, tab.tabKey, "columns");
       });
-      navigate({ view: "chat", activeKey: session.key, settingsSection: "overview" });
     });
-  }, [navigate, sessions, updateWorkbenchState]);
+  }, [mobileWorkbench, navigate, sessions, updateWorkbenchState]);
 
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
@@ -1993,54 +2005,59 @@ function Shell({
     onOpenSettings("models");
   }, [onOpenSettings]);
 
-  const onOpenApps = useCallback(() => {
-    setSessionSearchOpen(false);
-    navigate({ view: "apps", activeKey, settingsSection: "apps" });
-    setMobileSidebarOpen(false);
-  }, [activeKey, navigate]);
-
-  const onOpenAutomations = useCallback(() => {
-    setSessionSearchOpen(false);
-    navigate({ view: "automations", activeKey, settingsSection: "automations" });
-    setMobileSidebarOpen(false);
-  }, [activeKey, navigate]);
-
-  const onOpenChannels = useCallback(() => {
-    setSessionSearchOpen(false);
-    navigate({ view: "channels", activeKey, settingsSection: "channels" });
-    setMobileSidebarOpen(false);
-  }, [activeKey, navigate]);
-
-  const onOpenSkills = useCallback(() => {
-    setSessionSearchOpen(false);
-    navigate({ view: "skills", activeKey, settingsSection: "skills" });
-    setMobileSidebarOpen(false);
-  }, [activeKey, navigate]);
-
   const onOpenChart = useCallback(() => {
     setSessionSearchOpen(false);
     navigate({ view: "chart", activeKey, settingsSection: "overview" });
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
-  const onOpenInbox = useCallback(() => {
+  const onOpenPerformance = useCallback(() => {
     setSessionSearchOpen(false);
-    navigate({ view: "inbox", activeKey, settingsSection: "overview" });
+    navigate({ view: "performance", activeKey, settingsSection: "overview" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
+
+  const onOpenRecommendations = useCallback(() => {
+    setSessionSearchOpen(false);
+    navigate({ view: "recommendations", activeKey, settingsSection: "overview" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
+
+  const onOpenBriefing = useCallback(() => {
+    setSessionSearchOpen(false);
+    navigate({ view: "briefing", activeKey, settingsSection: "overview" });
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
   useEffect(() => {
-    const actions = { newChat: onNewChat, search: onOpenSessionSearch, apps: onOpenApps,
-      skills: onOpenSkills, automations: onOpenAutomations, channels: onOpenChannels, settings: () => onOpenSettings() };
+    const actions: Partial<Record<ReturnType<typeof matchSidebarShortcut> & string, () => void>> = {
+      newChat: onNewChat,
+      search: onOpenSessionSearch,
+      performance: onOpenPerformance,
+      recommendations: onOpenRecommendations,
+      briefing: onOpenBriefing,
+      chart: onOpenChart,
+      settings: () => onOpenSettings(),
+    };
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       const action = matchSidebarShortcut(event);
       if (!action) return;
+      const handler = actions[action];
+      if (!handler) return;
       event.preventDefault();
-      actions[action]();
+      handler();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onNewChat, onOpenSessionSearch, onOpenApps, onOpenSkills, onOpenAutomations, onOpenChannels, onOpenSettings]);
+  }, [
+    onNewChat,
+    onOpenSessionSearch,
+    onOpenSettings,
+    onOpenPerformance,
+    onOpenRecommendations,
+    onOpenBriefing,
+    onOpenChart,
+  ]);
 
   const onSettingsSectionChange = useCallback(
     (section: SettingsSectionKey) => {
@@ -2521,26 +2538,20 @@ function Shell({
       });
       return;
     }
-    if (view === "apps") {
-      document.title = t("app.documentTitle.chat", {
-        title: t("settings.nav.apps", { defaultValue: "Apps" }),
-      });
+    if (view === "performance") {
+      document.title = t("app.documentTitle.chat", { title: "Performance" });
       return;
     }
-    if (view === "automations") {
-      document.title = t("app.documentTitle.chat", {
-        title: t("settings.nav.automations", { defaultValue: "Automations" }),
-      });
+    if (view === "recommendations") {
+      document.title = t("app.documentTitle.chat", { title: "Recommendations" });
       return;
     }
-    if (view === "channels") {
-      document.title = t("app.documentTitle.chat", { title: t("settings.nav.channels") });
+    if (view === "briefing") {
+      document.title = t("app.documentTitle.chat", { title: "Briefing" });
       return;
     }
-    if (view === "skills") {
-      document.title = t("app.documentTitle.chat", {
-        title: t("settings.nav.skills", { defaultValue: "Skills" }),
-      });
+    if (view === "chart") {
+      document.title = t("app.documentTitle.chat", { title: "Gold chart" });
       return;
     }
     document.title = activeSession
@@ -2595,15 +2606,19 @@ function Shell({
     onRequestRenameProject,
     onNewChatInProject,
     onOpenSettings,
-    onOpenApps,
-    onOpenAutomations,
-    onOpenChannels,
-    onOpenSkills,
     onOpenChart,
-    onOpenInbox,
+    onOpenPerformance,
+    onOpenRecommendations,
+    onOpenBriefing,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: view === "apps" || view === "chart" || view === "inbox" || view === "automations" || view === "skills" || view === "channels" ? view : null,
+    activeUtility:
+      view === "chart"
+      || view === "performance"
+      || view === "recommendations"
+      || view === "briefing"
+        ? view
+        : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,
@@ -2893,6 +2908,11 @@ function Shell({
                   />
                 </Suspense>
               </ThreadVisibilityContext.Provider>
+              {mobileWorkbench && activeChatId ? (
+                <Suspense fallback={null}>
+                  <TradingChartBottomSheet chatId={activeChatId} />
+                </Suspense>
+              ) : null}
             </div>
             {view === "chart" && (
               <div className="absolute inset-0 flex flex-col">
@@ -2901,14 +2921,28 @@ function Shell({
                 </Suspense>
               </div>
             )}
-            {view === "inbox" && (
+            {view === "performance" && (
               <div className="absolute inset-0 flex flex-col">
-                <Suspense fallback={<SurfaceLoadingFallback label="Loading inbox…" />}>
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading performance…" />}>
+                  <TradingPerformance />
+                </Suspense>
+              </div>
+            )}
+            {view === "recommendations" && (
+              <div className="absolute inset-0 flex flex-col">
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading recommendations…" />}>
                   <TradingInbox />
                 </Suspense>
               </div>
             )}
-            {view !== "chat" && view !== "chart" && view !== "inbox" && (
+            {view === "briefing" && (
+              <div className="absolute inset-0 flex flex-col">
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading briefing…" />}>
+                  <TradingBriefingPanel />
+                </Suspense>
+              </div>
+            )}
+            {view === "settings" && (
               <div className="absolute inset-0 flex flex-col">
                 <Suspense fallback={<SurfaceLoadingFallback />}>
                   <SettingsView
@@ -2916,7 +2950,7 @@ function Shell({
                     theme={theme}
                     initialSection={settingsInitialSection}
                     initialSettings={settingsSnapshot}
-                    showSidebar={view === "settings"}
+                    showSidebar
                     onToggleTheme={toggle}
                     onBackToChat={onBackToChat}
                     onModelNameChange={onModelNameChange}
