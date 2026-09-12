@@ -269,10 +269,15 @@ export function ProviderOAuthLoginDialog({
 }) {
   const { t } = useTranslation();
   const expectsCallbackUrl = flow?.completion_input === "callback_url";
+  const isClaudeCodeCli = flow?.provider === "claude_code_cli";
   const inputId = expectsCallbackUrl ? "provider-oauth-callback" : "provider-oauth-code";
   const inputLabel = expectsCallbackUrl
     ? t("settings.oauth.callbackUrl")
-    : t("settings.oauth.authorizationCode");
+    : isClaudeCodeCli
+      ? t("settings.providers.claudeCodeAuthCode", {
+          defaultValue: "Authorization code from Claude",
+        })
+      : t("settings.oauth.authorizationCode");
 
   return (
     <Dialog
@@ -292,13 +297,18 @@ export function ProviderOAuthLoginDialog({
           <DialogHeader>
             <DialogTitle>{providerLabel}</DialogTitle>
             <DialogDescription>
-              {expectsCallbackUrl
-                ? remoteBrowserAccess
-                  ? t("settings.oauth.remoteCallbackHelp")
-                  : t("settings.oauth.localCallbackHelp")
-                : remoteBrowserAccess
-                  ? t("settings.oauth.remoteCodeHelp")
-                  : t("settings.oauth.localCodeHelp")}
+              {isClaudeCodeCli
+                ? t("settings.providers.claudeCodeConnectDialogHelp", {
+                    defaultValue:
+                      "Finish sign-in on the Claude page. It shows a code (often code#state). Paste that here — Anthropic does not redirect back to this site.",
+                  })
+                : expectsCallbackUrl
+                  ? remoteBrowserAccess
+                    ? t("settings.oauth.remoteCallbackHelp")
+                    : t("settings.oauth.localCallbackHelp")
+                  : remoteBrowserAccess
+                    ? t("settings.oauth.remoteCodeHelp")
+                    : t("settings.oauth.localCodeHelp")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 rounded-control border border-border/45 bg-muted/35 px-3 py-2.5 text-[12px] text-muted-foreground">
@@ -658,6 +668,7 @@ export function ProvidersSettings({
   onCreateCustomProvider,
   onProviderOAuthLogin,
   onProviderOAuthLogout,
+  onClaudeCodeConnect,
 }: {
   settings: SettingsPayload;
   nanobotFeatures: NanobotFeaturesPayload | null;
@@ -676,6 +687,7 @@ export function ProvidersSettings({
   onChangeProviderForm: (provider: string, value: Partial<ProviderForm>) => void;
   onSaveProvider: (provider: string, options?: { clear?: boolean }) => void;
   onCreateCustomProvider: (draft: CustomProviderDraft) => Promise<boolean>;
+  onClaudeCodeConnect: () => void;
   onProviderOAuthLogin: (provider: string) => void;
   onProviderOAuthLogout: (provider: string) => void;
 }) {
@@ -818,14 +830,43 @@ export function ProvidersSettings({
             ) : null}
             {isCliOAuthProvider ? (
               <>
+                <div className="flex flex-col gap-3 rounded-floating border border-border/45 bg-background/75 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-foreground">
+                      {tx("settings.providers.claudeCodeConnectTitle", "Claude account")}
+                    </p>
+                    <p className="mt-1 text-[12px] text-muted-foreground">
+                      {cliOAuthConfigured
+                        ? t("settings.providers.claudeCodeTokenConfigured", {
+                            hint: cliOAuthHint ?? "••••",
+                            defaultValue: "Connected · last 4 {{hint}}",
+                          })
+                        : tx(
+                            "settings.providers.claudeCodeConnectHelp",
+                            "Open Claude in this browser to link your subscription. NanoAgent stores CLAUDE_CODE_OAUTH_TOKEN the same way as a pasted setup-token.",
+                          )}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onClaudeCodeConnect()}
+                    disabled={saving}
+                    className="rounded-full"
+                  >
+                    {saving
+                      ? t("settings.oauth.signingIn")
+                      : tx("settings.providers.claudeCodeConnect", "ربط / Connect")}
+                  </Button>
+                </div>
                 <label className="block space-y-1.5">
                   <span className="text-[12px] font-medium text-muted-foreground">
-                    {tx("settings.providers.claudeCodeToken", "Claude Code CLI token")}
+                    {tx("settings.providers.claudeCodeTokenPasteAlt", "أو الصق التوكن")}
                   </span>
                   <p className="text-[12px] text-muted-foreground">
                     {tx(
                       "settings.providers.claudeCodeTokenHelp",
-                      "Paste CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. The official Claude CLI reads this environment variable on the next call. Do not run `claude login` on the server.",
+                      "Or paste CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token` if you already generated one. The official Claude CLI reads this environment variable on the next call.",
                     )}
                   </p>
                   <div className="relative">
@@ -842,7 +883,7 @@ export function ProvidersSettings({
                               ? t("settings.byok.apiKeyConfiguredPlaceholder")
                               : tx(
                                   "settings.providers.claudeCodeTokenPlaceholder",
-                                  "Paste token from claude setup-token",
+                                  "أو الصق التوكن",
                                 )
                           }
                           autoCapitalize="none"
@@ -876,7 +917,7 @@ export function ProvidersSettings({
                           {cliOAuthHint
                             ? t("settings.providers.claudeCodeTokenConfigured", {
                                 hint: cliOAuthHint,
-                                defaultValue: "Configured · last 4 {{hint}}",
+                                defaultValue: "Connected · last 4 {{hint}}",
                               })
                             : t("settings.byok.configured")}
                         </div>
@@ -903,7 +944,7 @@ export function ProvidersSettings({
                       disabled={saving}
                       className="rounded-full"
                     >
-                      {tx("settings.providers.claudeCodeClearToken", "Clear token")}
+                      {tx("settings.providers.claudeCodeClearToken", "Disconnect")}
                     </Button>
                   ) : null}
                   <Button

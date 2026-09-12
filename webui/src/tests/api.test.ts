@@ -56,6 +56,8 @@ import {
   updateModelConfiguration,
   updateMcpServerTools,
   updateNetworkSafetySettings,
+  completeClaudeCodeOAuthConnect,
+  startClaudeCodeOAuthConnect,
   updateClaudeCodeOAuthToken,
   updateProviderSettings,
   updateSkillEnabled,
@@ -598,6 +600,22 @@ describe("webui API helpers", () => {
     expect(requestMutation).toHaveBeenCalledWith(
       "settings.claude_code_oauth.update",
       { clear: true },
+      20_000,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("starts and completes Claude Code CLI browser connect", async () => {
+    await startClaudeCodeOAuthConnect(mutationTransport);
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.claude_code_oauth.connect",
+      {},
+      20_000,
+    );
+    await completeClaudeCodeOAuthConnect(mutationTransport, "flow-claude", "code#state");
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.claude_code_oauth.callback",
+      { flow_id: "flow-claude", authorization_response: "code#state" },
       20_000,
     );
     expect(fetch).not.toHaveBeenCalled();

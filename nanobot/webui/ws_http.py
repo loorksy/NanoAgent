@@ -162,6 +162,8 @@ _WEBUI_MUTATION_PATHS = {
     "settings.provider.oauth_complete": "/api/settings/provider/oauth-login/complete",
     "settings.provider.oauth_logout": "/api/settings/provider/oauth-logout",
     "settings.claude_code_oauth.update": "/api/settings/claude-code-oauth",
+    "settings.claude_code_oauth.connect": "/api/settings/claude-code-oauth/connect",
+    "settings.claude_code_oauth.callback": "/api/settings/claude-code-oauth/callback",
     "settings.web_search.update": "/api/settings/web-search/update",
     "settings.api_service.start": "/api/settings/api-service/start",
     "settings.api_service.stop": "/api/settings/api-service/stop",

@@ -887,12 +887,13 @@ describe("Settings providers", () => {
     renderSettingsView({ initialSection: "models", initialSettings: payload });
     await chooseProviderToConfigure("Claude Code CLI");
 
-    expect(screen.getByText("Claude Code CLI token")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ربط / Connect" })).toBeInTheDocument();
+    expect(screen.getByText("أو الصق التوكن")).toBeInTheDocument();
     expect(screen.getByText(/CLAUDE_CODE_OAUTH_TOKEN/)).toBeInTheDocument();
     expect(screen.getByText(/claude setup-token/)).toBeInTheDocument();
     expect(screen.queryByText(secret)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("Paste token from claude setup-token"), {
+    fireEvent.change(screen.getByPlaceholderText("أو الصق التوكن"), {
       target: { value: secret },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save provider" }));
@@ -906,8 +907,108 @@ describe("Settings providers", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: "Claude Code CLI" }));
-    expect(screen.getByText(/Configured · last 4 ••••AB12/)).toBeInTheDocument();
+    expect(screen.getByText(/Connected · last 4 ••••AB12/)).toBeInTheDocument();
     expect(screen.queryByDisplayValue(secret)).not.toBeInTheDocument();
     expect(screen.queryByText(secret)).not.toBeInTheDocument();
+  });
+
+  it("starts Claude Code CLI connect from the ربط / Connect button", async () => {
+    const claudeProvider = {
+      name: "claude_code_cli",
+      label: "Claude Code CLI",
+      configured: false,
+      auth_type: "cli_oauth" as const,
+      api_key_required: false,
+      api_key_hint: null,
+      cli_oauth_hint: null,
+      api_base: null,
+      default_api_base: null,
+    };
+    const payload: SettingsPayload = {
+      ...settingsPayload(),
+      providers: [claudeProvider],
+      claude_code_oauth: {
+        configured: false,
+        hint: null,
+        env_key: "CLAUDE_CODE_OAUTH_TOKEN",
+      },
+    };
+    const connected: SettingsPayload = {
+      ...payload,
+      providers: [{
+        ...claudeProvider,
+        configured: true,
+        cli_oauth_hint: "••••QQ77",
+      }],
+      claude_code_oauth: {
+        configured: true,
+        hint: "••••QQ77",
+        env_key: "CLAUDE_CODE_OAUTH_TOKEN",
+      },
+    };
+    const authorization = {
+      status: "authorization_required" as const,
+      provider: "claude_code_cli",
+      flow_id: "flow-claude",
+      authorization_url: "https://claude.com/cai/oauth/authorize?state=claude-state",
+      expires_in: 600,
+      completion_input: "authorization_code" as const,
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/settings") return jsonResponse(payload);
+      if (url === "/api/settings/cli-apps") {
+        return jsonResponse({ apps: [], installed_count: 0 });
+      }
+      if (url === "/api/settings/mcp-presets") {
+        return jsonResponse({ presets: [], installed_count: 0 });
+      }
+      return jsonResponse({});
+    }));
+    requestMutationMock
+      .mockResolvedValueOnce(authorization)
+      .mockResolvedValueOnce(connected);
+    const popup = {
+      opener: window,
+      location: { href: "about:blank" },
+      close: vi.fn(),
+    };
+    vi.stubGlobal("open", vi.fn(() => popup));
+
+    renderSettingsView({ initialSection: "models", initialSettings: payload });
+    await chooseProviderToConfigure("Claude Code CLI");
+    fireEvent.click(screen.getByRole("button", { name: "ربط / Connect" }));
+
+    await waitFor(() =>
+      expect(requestMutationMock).toHaveBeenCalledWith(
+        "settings.claude_code_oauth.connect",
+        {},
+        20_000,
+      ),
+    );
+    expect(popup.opener).toBeNull();
+    expect(popup.location.href).toBe(authorization.authorization_url);
+    expect(
+      screen.getByText(/Finish sign-in on the Claude page/),
+    ).toBeInTheDocument();
+
+    const codeInput = await screen.findByRole("textbox", {
+      name: "Authorization code from Claude",
+    });
+    fireEvent.change(codeInput, { target: { value: "auth-code#claude-state" } });
+    fireEvent.click(screen.getByRole("button", { name: "Finish sign-in" }));
+
+    await waitFor(() =>
+      expect(requestMutationMock).toHaveBeenCalledWith(
+        "settings.claude_code_oauth.callback",
+        {
+          flow_id: "flow-claude",
+          authorization_response: "auth-code#claude-state",
+        },
+        20_000,
+      ),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Claude Code CLI" }));
+    expect(screen.getByText(/Connected · last 4 ••••QQ77/)).toBeInTheDocument();
   });
 });

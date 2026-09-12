@@ -22,6 +22,7 @@ from nanobot.webui import settings_models as models
 from nanobot.webui import settings_runtime as runtime
 from nanobot.webui import settings_system as system
 from nanobot.webui.claude_code_oauth import apply_claude_code_oauth_token, public_status
+from nanobot.webui.claude_code_oauth_flow import complete_connect, start_connect_payload
 from nanobot.webui.settings_contracts import QueryParams, WebUISettingsError
 from nanobot.webui.workspaces import write_webui_default_access_mode
 
@@ -346,6 +347,32 @@ def update_claude_code_oauth_settings(
         apply_claude_code_oauth_token(None)
     else:
         apply_claude_code_oauth_token(raw_token)
+    return settings_payload(config_path=config_path)
+
+
+def start_claude_code_oauth_connect(
+    *,
+    oauth_flows: "WebUIOAuthFlowRegistry",
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    _ = config_path
+    return start_connect_payload(oauth_flows)
+
+
+def complete_claude_code_oauth_connect(
+    query: QueryParams,
+    authorization_response: str | None = None,
+    *,
+    oauth_flows: "WebUIOAuthFlowRegistry",
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    complete_connect(
+        oauth_flows=oauth_flows,
+        flow_id=contracts.query_first(query, "flow_id"),
+        authorization_response=authorization_response,
+        code=contracts.query_first(query, "code"),
+        state=contracts.query_first(query, "state"),
+    )
     return settings_payload(config_path=config_path)
 
 

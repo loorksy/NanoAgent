@@ -171,6 +171,7 @@ export function SettingsPage({
     remoteBrowserAccess,
     resetWebSearchDraft,
     restartViaSettingsSurface,
+    connectClaudeCodeOAuth,
     runProviderOAuth,
     saveImageGenerationSettings,
     saveModelSettings,
@@ -391,6 +392,7 @@ export function SettingsPage({
               }
               onSaveProvider={saveProvider}
               onCreateCustomProvider={createCustomProvider}
+              onClaudeCodeConnect={connectClaudeCodeOAuth}
               onProviderOAuthLogin={(provider) => runProviderOAuth(provider, "login")}
               onProviderOAuthLogout={(provider) => runProviderOAuth(provider, "logout")}
             />

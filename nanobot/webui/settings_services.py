@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -80,6 +81,30 @@ class WebUIOAuthFlowRegistry:
             self._flows.pop(flow_id, None)
         flow.cancel()
         return None
+
+    def get_by_state(self, provider_name: str, state: str) -> Any | None:
+        """Return the unused flow whose CSRF state matches, or ``None``."""
+        if not state:
+            return None
+
+        with self._lock:
+            expired: list[tuple[str, Any]] = []
+            matched: Any | None = None
+            for flow_id, (registered_provider, flow) in list(self._flows.items()):
+                if flow.expired:
+                    expired.append((flow_id, flow))
+                    continue
+                candidate_state = getattr(flow, "state", None)
+                if (
+                    registered_provider == provider_name
+                    and isinstance(candidate_state, str)
+                    and hmac.compare_digest(state, candidate_state)
+                ):
+                    matched = flow
+            for flow_id, flow in expired:
+                self._flows.pop(flow_id, None)
+                flow.cancel()
+            return matched
 
     def remove(
         self,

@@ -16,6 +16,7 @@ import type { ModelSettingsState } from "@/components/settings/models/useModelSe
 import { normalizeContextWindowTokens } from "@/components/settings/shared/ModelControls";
 import {
   ApiError,
+  completeClaudeCodeOAuthConnect,
   completeProviderOAuth,
   createModelConfiguration,
   createProviderSettings,
@@ -23,6 +24,7 @@ import {
   loginProviderOAuth,
   logoutProviderOAuth,
   migrateModelConfigurations,
+  startClaudeCodeOAuthConnect,
   updateClaudeCodeOAuthToken,
   updateModelCallOrder,
   updateModelConfiguration,
@@ -506,6 +508,45 @@ export function useModelSettingsActions({
     }
   };
 
+  const connectClaudeCodeOAuth = async () => {
+    if (providerSaving) return;
+    let popup: Window | null = null;
+    try {
+      popup = window.open("about:blank", "_blank");
+      if (popup) popup.opener = null;
+    } catch {
+      popup = null;
+    }
+    setProviderSaving("claude_code_cli");
+    try {
+      const payload = await startClaudeCodeOAuthConnect(client);
+      if (isProviderOAuthAuthorizationRequired(payload)) {
+        try {
+          if (popup && !popup.closed) popup.location.href = payload.authorization_url;
+        } catch {
+          // Dialog keeps the authorization link if the popup was blocked.
+        }
+        providerOAuthFlowRef.current = payload;
+        setProviderOAuthFlow(payload);
+        setProviderOAuthResponse("");
+        setProviderOAuthDialogError(null);
+        setExpandedProvider("claude_code_cli");
+        setError(null);
+        return;
+      }
+      popup?.close();
+      closeProviderOAuthFlow();
+      applyPayload(payload);
+      setExpandedProvider("claude_code_cli");
+      setError(null);
+    } catch (err) {
+      popup?.close();
+      setError((err as Error).message);
+    } finally {
+      setProviderSaving(null);
+    }
+  };
+
   const runProviderOAuth = async (providerName: string, action: "login" | "logout") => {
     if (providerSaving) return;
     let popup: Window | null = null;
@@ -565,12 +606,14 @@ export function useModelSettingsActions({
     setProviderOAuthCompleting(true);
     setProviderOAuthDialogError(null);
     try {
-      const payload = await completeProviderOAuth(
-        client,
-        flow.provider,
-        flow.flow_id,
-        authorizationResponse,
-      );
+      const payload = flow.provider === "claude_code_cli"
+        ? await completeClaudeCodeOAuthConnect(client, flow.flow_id, authorizationResponse)
+        : await completeProviderOAuth(
+          client,
+          flow.provider,
+          flow.flow_id,
+          authorizationResponse,
+        );
       if (providerOAuthFlowRef.current?.flow_id !== flow.flow_id) return;
       if (isProviderOAuthPending(payload)) return;
       applyPayload(payload);
@@ -640,6 +683,7 @@ export function useModelSettingsActions({
     handleMigrateModelConfigurations,
     handleToggleProvider,
     resetProviderDraft,
+    connectClaudeCodeOAuth,
     runProviderOAuth,
     saveModelSettings,
     saveProvider,

@@ -72,6 +72,8 @@ class ModelSettingsOperations:
     oauth_complete: SettingsOperation
     oauth_logout: SettingsOperation
     update_claude_oauth: SettingsOperation
+    connect_claude_oauth: SettingsOperation
+    complete_claude_oauth: SettingsOperation
     apply_image_runtime_change: Callable[
         [dict[str, Any]],
         Awaitable[tuple[dict[str, Any], bool]],
@@ -1795,6 +1797,30 @@ class ModelSettingsHandler:
             }.get(action)
             if mutation is not None:
                 payload = self.settings.mutate(mutation, request.query)
+                self._refresh_runtime_config()
+                return SettingsRouteResult.success(payload, decorate_restart=True)
+
+            if action == "claude-oauth-connect":
+                payload = await asyncio.to_thread(
+                    self.settings.read,
+                    operations.connect_claude_oauth,
+                    oauth_flows=self.settings.oauth_flows,
+                )
+                return SettingsRouteResult.success(payload)
+
+            if action == "claude-oauth-callback":
+                raw_response = (request.payload or {}).get("authorization_response")
+                if raw_response is not None and not isinstance(raw_response, str):
+                    raise WebUISettingsError(
+                        "OAuth authorization response must be a string"
+                    )
+                payload = await asyncio.to_thread(
+                    self.settings.read,
+                    operations.complete_claude_oauth,
+                    request.query,
+                    raw_response or None,
+                    oauth_flows=self.settings.oauth_flows,
+                )
                 self._refresh_runtime_config()
                 return SettingsRouteResult.success(payload, decorate_restart=True)
 

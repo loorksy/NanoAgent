@@ -53,6 +53,8 @@ from nanobot.webui.settings_api import (
     update_model_call_order,
     update_model_configuration,
     update_network_safety_settings,
+    complete_claude_code_oauth_connect,
+    start_claude_code_oauth_connect,
     update_claude_code_oauth_settings,
     update_provider_settings,
     update_runtime_config_settings,
@@ -117,6 +119,8 @@ _MODEL_ROUTES = {
     "/api/settings/provider/oauth-login/complete": "oauth-complete",
     "/api/settings/provider/oauth-logout": "oauth-logout",
     "/api/settings/claude-code-oauth": "claude-oauth-update",
+    "/api/settings/claude-code-oauth/connect": "claude-oauth-connect",
+    "/api/settings/claude-code-oauth/callback": "claude-oauth-callback",
 }
 
 _CAPABILITY_ROUTES = {
@@ -166,6 +170,8 @@ _SETTINGS_MUTATION_PATHS = frozenset({
     "/api/settings/provider/oauth-login/complete",
     "/api/settings/provider/oauth-logout",
     "/api/settings/claude-code-oauth",
+    "/api/settings/claude-code-oauth/connect",
+    "/api/settings/claude-code-oauth/callback",
     "/api/settings/web-search/update",
     "/api/settings/api-service/start",
     "/api/settings/api-service/stop",
@@ -491,6 +497,8 @@ class WebUISettingsRouter:
             oauth_complete=complete_oauth_provider,
             oauth_logout=logout_oauth_provider,
             update_claude_oauth=update_claude_code_oauth_settings,
+            connect_claude_oauth=start_claude_code_oauth_connect,
+            complete_claude_oauth=complete_claude_code_oauth_connect,
             apply_image_runtime_change=self._apply_image_generation_runtime_change_result,
         )
 

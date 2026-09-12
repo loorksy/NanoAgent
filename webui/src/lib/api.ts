@@ -974,6 +974,30 @@ export async function updateClaudeCodeOAuthToken(
   });
 }
 
+export async function startClaudeCodeOAuthConnect(
+  transport: WebUIMutationTransport,
+): Promise<ProviderOAuthLoginResult> {
+  return mutation<ProviderOAuthLoginResult>(
+    transport,
+    "settings.claude_code_oauth.connect",
+  );
+}
+
+export async function completeClaudeCodeOAuthConnect(
+  transport: WebUIMutationTransport,
+  flowId: string,
+  authorizationResponse?: string,
+): Promise<ProviderOAuthCompletionResult> {
+  return mutation<ProviderOAuthCompletionResult>(
+    transport,
+    "settings.claude_code_oauth.callback",
+    {
+      flow_id: flowId,
+      ...(authorizationResponse ? { authorization_response: authorizationResponse } : {}),
+    },
+  );
+}
+
 export async function createProviderSettings(
   transport: WebUIMutationTransport,
   update: ProviderCreationUpdate,
