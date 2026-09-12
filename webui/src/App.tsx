@@ -120,7 +120,7 @@ const TOKEN_REFRESH_MIN_DELAY_MS = 5_000;
 const PAIRING_POLL_INTERVAL_MS = 5_000;
 const PAIRING_IDLE_POLL_INTERVAL_MS = 15_000;
 const PAIRING_DISMISS_SNOOZE_MS = 30_000;
-type ShellView = "chat" | "settings" | "apps" | "automations" | "skills" | "channels";
+type ShellView = "chat" | "chart" | "settings" | "apps" | "automations" | "skills" | "channels";
 type ShellRoute = {
   view: ShellView;
   activeKey: string | null;
@@ -146,6 +146,10 @@ const DeleteConfirm = lazy(async () => {
 const RenameChatDialog = lazy(async () => {
   const module = await import("@/components/RenameChatDialog");
   return { default: module.RenameChatDialog };
+});
+const GoldChartPanel = lazy(async () => {
+  const module = await import("@/components/trading/GoldChartPanel");
+  return { default: module.GoldChartPanel };
 });
 
 function SurfaceLoadingFallback({ label }: { label?: string }) {
@@ -264,6 +268,9 @@ function readShellRoute(): ShellRoute {
   }
   if (path === "/skills") {
     return { view: "skills", activeKey, settingsSection: "skills" };
+  }
+  if (path === "/chart") {
+    return { view: "chart", activeKey, settingsSection: "overview" };
   }
   if (path.startsWith("/temporary/")) {
     const encoded = path.slice("/temporary/".length);
@@ -1976,6 +1983,12 @@ function Shell({
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
+  const onOpenChart = useCallback(() => {
+    setSessionSearchOpen(false);
+    navigate({ view: "chart", activeKey, settingsSection: "overview" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
+
   useEffect(() => {
     const actions = { newChat: onNewChat, search: onOpenSessionSearch, apps: onOpenApps,
       skills: onOpenSkills, automations: onOpenAutomations, channels: onOpenChannels, settings: () => onOpenSettings() };
@@ -2535,9 +2548,10 @@ function Shell({
     onOpenAutomations,
     onOpenChannels,
     onOpenSkills,
+    onOpenChart,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: view === "apps" || view === "automations" || view === "skills" || view === "channels" ? view : null,
+    activeUtility: view === "apps" || view === "chart" || view === "automations" || view === "skills" || view === "channels" ? view : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,
@@ -2818,7 +2832,14 @@ function Shell({
                 </Suspense>
               </ThreadVisibilityContext.Provider>
             </div>
-            {view !== "chat" && (
+            {view === "chart" && (
+              <div className="absolute inset-0 flex flex-col">
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading chart…" />}>
+                  <GoldChartPanel />
+                </Suspense>
+              </div>
+            )}
+            {view !== "chat" && view !== "chart" && (
               <div className="absolute inset-0 flex flex-col">
                 <Suspense fallback={<SurfaceLoadingFallback />}>
                   <SettingsView

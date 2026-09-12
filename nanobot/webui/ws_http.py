@@ -113,6 +113,7 @@ from nanobot.webui.sidebar_state import (
     read_webui_sidebar_state,
     write_webui_sidebar_state,
 )
+from nanobot.webui.trading_api import dispatch_trading_route
 from nanobot.webui.skills_api import (
     SkillManagementError,
     delete_webui_skill,
@@ -538,6 +539,13 @@ class GatewayHTTPHandler:
         # Automation routes
         response = await self._dispatch_automation_routes(request, got)
         if response is not None:
+            return response
+
+        # Trading routes
+        response = dispatch_trading_route(request, got)
+        if response is not None:
+            if got.startswith("/api/trading/") and not self.check_api_token(request):
+                return _http_error(401, "Unauthorized")
             return response
 
         # Misc routes

@@ -14,6 +14,7 @@ import {
   Settings,
   SquarePen,
   Blocks,
+  LineChart,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -66,11 +67,12 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenApps: () => void;
   onOpenSkills: () => void;
+  onOpenChart?: () => void;
   onOpenAutomations: () => void;
   onOpenChannels: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
-  activeUtility?: "apps" | "skills" | "automations" | "channels" | null;
+  activeUtility?: "apps" | "chart" | "skills" | "automations" | "channels" | null;
   onToggleArchived: () => void;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -220,6 +222,17 @@ export function Sidebar(props: SidebarProps) {
           selectionRef={activeActionRef}
           icon={<Blocks className="h-4 w-4" />}
         />
+        {props.onOpenChart ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Gold chart"
+            onClick={props.onOpenChart}
+            onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "chart"}
+            selectionRef={activeActionRef}
+            icon={<LineChart className="h-4 w-4" />}
+          />
+        ) : null}
         <SidebarActionButton
           collapsed={collapsed}
           label={t("sidebar.skills.title")}
