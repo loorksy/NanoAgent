@@ -14,6 +14,7 @@ CARD_ORDER = [
     "invalidation",
     "gate_checklist",
     "visual_review",
+    "macro_drivers",
     "key_reasons",
     "risk_warnings",
     "tracked_recommendation",
@@ -84,6 +85,25 @@ def derive_cards(result: AgentFinalResult) -> list[dict[str, Any]]:
                 else [result.market.interval if result.market else "15m"],
                 "missing": review.missing if review else [],
                 "notes": review.notes if review else "",
+            }
+        )
+
+    if result.macro_drivers:
+        cards.append(
+            {
+                "kind": "macro_drivers",
+                "drivers": [
+                    {
+                        "name": str(item.get("driver") or ""),
+                        "bias": str(item.get("bias") or "neutral"),
+                        "strength": item.get("strength"),
+                        "one_line_rationale": str(item.get("one_line_rationale") or ""),
+                        "ran": bool(item.get("ran")),
+                        "reason": str(item.get("reason") or ""),
+                    }
+                    for item in result.macro_drivers
+                    if isinstance(item, dict)
+                ],
             }
         )
 

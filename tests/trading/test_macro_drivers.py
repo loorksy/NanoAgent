@@ -12,6 +12,8 @@ from nanobot.trading.agents.macro_drivers import (
     DRIVER_SEASONAL,
     DRIVER_US_REAL_YIELDS_FOMC,
     format_team_briefing,
+    outlet_from_url,
+    parse_web_search_results,
     reset_macro_cache_for_tests,
     run_macro_drivers,
     select_drivers,
@@ -63,15 +65,63 @@ def test_select_skips_fresh_cache_unless_calendar_hits() -> None:
     assert any(name == DRIVER_US_REAL_YIELDS_FOMC for name, _reason in forced)
 
 
-def test_seasonal_only_in_festival_months() -> None:
+def test_seasonal_dropped_from_default_set() -> None:
     reset_macro_cache_for_tests()
+    from nanobot.trading.agents.macro_drivers import _in_festival_window
+
     july = datetime(2026, 7, 8, 12, 0, tzinfo=UTC).timestamp()
     selected_july = select_drivers(events=[], now_ts=july, cache={})
     assert DRIVER_SEASONAL not in {name for name, _ in selected_july}
 
     jan = _wednesday_january_ts()
     selected_jan = select_drivers(events=[], now_ts=jan, cache={})
-    assert DRIVER_SEASONAL in {name for name, _ in selected_jan}
+    # Festival-month heuristic + generic search was always-neutral; not default.
+    assert DRIVER_SEASONAL not in {name for name, _ in selected_jan}
+    assert _in_festival_window(datetime(2026, 1, 7, tzinfo=UTC))
+    assert not _in_festival_window(datetime(2026, 7, 8, tzinfo=UTC))
+
+
+def test_parse_web_search_prefers_url_and_skips_twitter() -> None:
+    blob = (
+        "Results for: DXY US dollar index\n\n"
+        "1. Dollar slips as Fed turns dovish\n"
+        "   https://www.reuters.com/markets/dollar-slips\n"
+        "   DXY falls after a dovish FOMC hold.\n"
+        "2. Just posted\n"
+        "   https://x.com/someone/status/1\n"
+        "   ignore me\n"
+        "3. Gold vs Dollar Index (DXY) — Live Correlation Chart | WatchGold\n"
+        "   https://watchgold.org/en/gold-vs-dxy\n"
+        "   widget\n"
+    )
+    rows = parse_web_search_results(blob)
+    assert rows[0]["url"] == "https://www.reuters.com/markets/dollar-slips"
+    assert outlet_from_url(rows[0]["url"]) == "Reuters"
+
+
+@pytest.mark.asyncio
+async def test_verdict_source_is_outlet_url() -> None:
+    reset_macro_cache_for_tests()
+
+    async def search(query: str) -> str:
+        return (
+            "Results for: gold\n\n"
+            "1. PBOC extends gold buying streak\n"
+            "   https://www.reuters.com/markets/pboc-gold\n"
+            "   China official reserves rose as the PBOC kept buying.\n"
+        )
+
+    verdicts = await run_macro_drivers(
+        search=search,
+        events=[],
+        now=_friday_ts,
+        cache={},
+    )
+    ran = [item for item in verdicts if item.ran]
+    assert ran
+    assert any(item.source.startswith("https://www.reuters.com") for item in ran)
+    assert all("twitter" not in item.source.lower() and "x.com" not in item.source.lower() for item in ran)
+    assert all(not item.one_line_rationale.startswith("Results for:") for item in ran)
 
 
 @pytest.mark.asyncio
@@ -92,7 +142,7 @@ async def test_run_macro_drivers_uses_injected_search() -> None:
     ran = [item for item in verdicts if item.ran]
     assert ran
     assert queries
-    assert all(item.source == "web_search" for item in ran)
+    assert all(item.source in {"web_search"} or item.source.startswith("http") for item in ran)
     assert any(item.bias == "bullish" for item in ran)
     briefing = format_team_briefing(verdicts)
     assert "macroDrivers" in briefing

@@ -38,6 +38,15 @@ _DECISION = {
     "sell": ("🔴", "بيع", "SELL"),
     "wait": ("⚪", "انتظار", "WAIT"),
 }
+_DRIVER_AR = {
+    "geopolitical_safehaven": "ملاذ جيوسياسي",
+    "dxy": "الدولار",
+    "us_macro_data": "بيانات أمريكية",
+    "us_real_yields_fomc": "العوائد / الفيدرالي",
+    "fund_flows_positioning": "تدفقات الصناديق",
+    "central_bank_demand": "طلب البنوك المركزية",
+    "seasonal_physical_demand": "الطلب الموسمي",
+}
 
 
 def format_price(value: Any) -> str:
@@ -113,6 +122,44 @@ def _reasons(payload: dict[str, Any]) -> list[str]:
     return reasons
 
 
+def _macro_driver_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    raw = payload.get("macroDrivers") or payload.get("macro_drivers") or []
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, dict)]
+
+
+def format_macro_driver_line(item: dict[str, Any], *, html_escape: bool = False) -> str:
+    name = _DRIVER_AR.get(str(item.get("driver") or item.get("name") or ""), "") or str(
+        item.get("driver") or item.get("name") or "driver"
+    )
+    ran = item.get("ran")
+    if ran is False:
+        line = f"{name}: تخطى — كاش/غير ذي صلة"
+    else:
+        bias_key = str(item.get("bias") or "neutral").lower()
+        bias = _BIAS_AR.get(bias_key, bias_key)
+        strength = item.get("strength")
+        try:
+            strength_txt = str(int(strength))
+        except (TypeError, ValueError):
+            strength_txt = "—"
+        rationale = str(item.get("one_line_rationale") or "").strip()
+        line = f"{name}: {bias} {strength_txt}"
+        if rationale:
+            line = f"{line} — {rationale}"
+    return html.escape(line) if html_escape else line
+
+
+def _macro_section_lines(payload: dict[str, Any], *, html_escape: bool) -> list[str]:
+    rows = _macro_driver_rows(payload)
+    if not rows:
+        return []
+    lines = ["", "🌐 محركات الاقتصاد الكلي:"]
+    lines.extend(f"• {format_macro_driver_line(item, html_escape=html_escape)}" for item in rows[:7])
+    return lines
+
+
 def _gates_passed(payload: dict[str, Any]) -> bool | None:
     chain = payload.get("gateChain") or payload.get("gate_chain")
     if not isinstance(chain, dict):
@@ -149,6 +196,7 @@ def render_telegram_card(payload: dict[str, Any]) -> str:
         lines.append("")
         lines.append("📋 الأسباب:")
         lines.extend(f"• {html.escape(reason)}" for reason in reasons)
+    lines.extend(_macro_section_lines(payload, html_escape=True))
     gates = _gates_passed(payload)
     if gates is True:
         lines.append("\n✅ جميع البوابات (G1-G7) ناجحة")
@@ -184,6 +232,7 @@ def render_whatsapp_card(payload: dict[str, Any]) -> str:
         lines.append("")
         lines.append("📋 الأسباب:")
         lines.extend(f"• {reason}" for reason in reasons)
+    lines.extend(_macro_section_lines(payload, html_escape=False))
     gates = _gates_passed(payload)
     if gates is True:
         lines.append("\n✅ جميع البوابات (G1-G7) ناجحة")

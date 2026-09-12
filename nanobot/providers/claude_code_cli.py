@@ -4,6 +4,21 @@ This backend shells out to the already-authenticated Claude Code CLI
 (`claude -p … --output-format json`). Billing is the host's Claude Code
 subscription: token counts are reported when the CLI exposes them, but
 there is no per-token dollar estimate (LLMUsage has no cost field).
+
+Headless / systemd (VPS user ``nanoagent``, HOME=/opt/nanoagent):
+``claude login`` is interactive and cannot run under systemd. On Linux the
+CLI stores the subscription session in ``$HOME/.claude/.credentials.json``
+(mode 0600) plus ``$HOME/.claude.json``. The gateway unit sets
+HOME=/opt/nanoagent and PATH to the venv plus /usr/bin — so either:
+
+1. Put ``CLAUDE_CODE_OAUTH_TOKEN`` (from ``claude setup-token`` on a
+   browser-equipped host) in ``/opt/nanoagent/.env`` (EnvironmentFile), or
+2. Copy ``.credentials.json`` to ``/opt/nanoagent/.claude/`` owned by
+   ``nanoagent`` mode 0600 and install the ``claude`` binary on that PATH.
+
+Without (1) or (2) this provider cannot authenticate as the service user.
+Do not use ``--bare`` here: bare mode ignores OAuth/subscription files and
+requires ``ANTHROPIC_API_KEY``.
 """
 
 from __future__ import annotations
@@ -264,7 +279,10 @@ async def _run_claude_cli(
         return LLMResponse(
             content=(
                 "Claude Code CLI is installed but not authenticated. "
-                "Run `claude` in a terminal and complete login. "
+                "Interactive `claude login` needs a browser. For systemd user "
+                "nanoagent (HOME=/opt/nanoagent) set CLAUDE_CODE_OAUTH_TOKEN "
+                "from `claude setup-token`, or place "
+                "/opt/nanoagent/.claude/.credentials.json mode 0600. "
                 "This provider does not use ANTHROPIC_API_KEY."
             ),
             finish_reason="error",

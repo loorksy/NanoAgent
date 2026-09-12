@@ -18,6 +18,23 @@ def _payload() -> dict:
             "Setup: structure_break R:R 2.67",
         ],
         "gateChain": {"allowed": True},
+        "macroDrivers": [
+            {
+                "driver": "dxy",
+                "bias": "bearish",
+                "strength": 70,
+                "one_line_rationale": "DXY slipped after a dovish hold",
+                "ran": True,
+            },
+            {
+                "driver": "seasonal_physical_demand",
+                "bias": "neutral",
+                "strength": 0,
+                "one_line_rationale": "",
+                "ran": False,
+                "reason": "cache_hit",
+            },
+        ],
         "recommendation": {
             "entry": 4349.42,
             "stopLoss": 4358.8748214285715,
@@ -52,6 +69,9 @@ def test_telegram_card_is_arabic_and_rounded() -> None:
     assert "Opening" not in card
     assert "الشارت" not in card
     assert "G1-G7" in card
+    assert "محركات الاقتصاد الكلي" in card
+    assert "الدولار" in card
+    assert "تخطى — كاش/غير ذي صلة" in card
 
 
 def test_whatsapp_card_is_arabic() -> None:
@@ -59,3 +79,5 @@ def test_whatsapp_card_is_arabic() -> None:
     assert "*توصية:" in card
     assert "بيع" in card
     assert "$4,349.42" in card
+    assert "محركات الاقتصاد الكلي" in card
+    assert "تخطى — كاش/غير ذي صلة" in card

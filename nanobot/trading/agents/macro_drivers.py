@@ -16,6 +16,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any, Awaitable, Callable
+from urllib.parse import urlparse
 
 from loguru import logger
 
@@ -205,8 +206,9 @@ def select_drivers(
     if not _cached_fresh(DRIVER_CENTRAL_BANK):
         selected.append((DRIVER_CENTRAL_BANK, "cache_miss_slow"))
 
-    if not _cached_fresh(DRIVER_SEASONAL) and _in_festival_window(now):
-        selected.append((DRIVER_SEASONAL, "festival_window"))
+    # seasonal_physical_demand is intentionally not in the default set.
+    # There is no clean free API; the month heuristic + generic festival
+    # search produced always-neutral landing-page copy in live traces.
 
     # Deduplicate while keeping first reason.
     seen: set[str] = set()
@@ -224,15 +226,145 @@ def format_team_briefing(verdicts: list[MacroVerdict]) -> str:
     return json.dumps({"macroDrivers": payload}, ensure_ascii=False)
 
 
+_RESULT_RE = re.compile(
+    r"(?m)^(?P<n>\d+)\.\s+(?P<title>.+?)\n[ \t]+(?P<url>https?://\S+)?(?:\n[ \t]+(?P<snippet>.+))?"
+)
+_BLOCKED_HOSTS = frozenset(
+    {
+        "twitter.com",
+        "www.twitter.com",
+        "mobile.twitter.com",
+        "x.com",
+        "www.x.com",
+        "t.co",
+    }
+)
+_JUNK_HOSTS = frozenset(
+    {
+        "watchgold.org",
+        "www.watchgold.org",
+    }
+)
+_JUNK_TITLE_MARKERS = (
+    "live correlation chart",
+    "live chart |",
+    "— live correlation",
+)
+_OUTLET_ALIASES = {
+    "reuters.com": "Reuters",
+    "bloomberg.com": "Bloomberg",
+    "ft.com": "Financial Times",
+    "wsj.com": "WSJ",
+    "cnbc.com": "CNBC",
+    "marketwatch.com": "MarketWatch",
+    "investing.com": "Investing.com",
+    "kitco.com": "Kitco",
+    "gold.org": "World Gold Council",
+    "federalreserve.gov": "Federal Reserve",
+    "bls.gov": "BLS",
+    "cftc.gov": "CFTC",
+    "lseg.com": "LSEG",
+    "cmegroup.com": "CME",
+}
+
+
+def _host_from_url(url: str) -> str:
+    try:
+        return urlparse(url).netloc.lower()
+    except ValueError:
+        return ""
+
+
+def _root_host(host: str) -> str:
+    host = host.removeprefix("www.")
+    parts = host.split(".")
+    if len(parts) >= 2:
+        return ".".join(parts[-2:])
+    return host
+
+
+def outlet_from_url(url: str, title: str = "") -> str:
+    """Named outlet or host from a result URL. Never Twitter/X."""
+    host = _host_from_url(url)
+    if not host:
+        return (title.split("—")[0].split("|")[0].strip()[:48] or "web_search")
+    if host in _BLOCKED_HOSTS or _root_host(host) in {"twitter.com", "x.com", "t.co"}:
+        return ""
+    alias = _OUTLET_ALIASES.get(host) or _OUTLET_ALIASES.get(_root_host(host))
+    if alias:
+        return alias
+    return _root_host(host) or host
+
+
+def parse_web_search_results(text: str) -> list[dict[str, str]]:
+    """Parse titles/URLs/snippets from WebSearchTool plaintext output."""
+    rows: list[dict[str, str]] = []
+    for match in _RESULT_RE.finditer(text or ""):
+        title = (match.group("title") or "").strip()
+        url = (match.group("url") or "").strip()
+        snippet = (match.group("snippet") or "").strip()
+        if not title and not url:
+            continue
+        rows.append({"title": title, "url": url, "snippet": snippet})
+    if rows:
+        return rows
+    # Injected tests may pass a single prose blob with no numbered hits.
+    blob = re.sub(r"\s+", " ", (text or "").strip())
+    if blob and not blob.lower().startswith("results for:"):
+        return [{"title": "", "url": "", "snippet": blob}]
+    return []
+
+
+def _is_junk_result(item: dict[str, str]) -> bool:
+    host = _host_from_url(item.get("url") or "")
+    if host in _BLOCKED_HOSTS or _root_host(host) in {"twitter.com", "x.com", "t.co"}:
+        return True
+    if host in _JUNK_HOSTS:
+        return True
+    title = (item.get("title") or "").lower()
+    return any(marker in title for marker in _JUNK_TITLE_MARKERS)
+
+
+def _usable_results(text: str) -> list[dict[str, str]]:
+    parsed = parse_web_search_results(text)
+    kept = [item for item in parsed if not _is_junk_result(item)]
+    return kept or [item for item in parsed if _host_from_url(item.get("url") or "") not in _BLOCKED_HOSTS]
+
+
 def _verdict_from_snippets(driver: str, snippets: str, reason: str) -> MacroVerdict:
-    bias, strength = _bias_from_text(snippets)
-    one_line = re.sub(r"\s+", " ", snippets).strip()[:220] or "No usable snippets."
+    kept = _usable_results(snippets)
+    scored_text = " ".join(
+        f"{item.get('title') or ''} {item.get('snippet') or ''}" for item in kept[:4]
+    )
+    bias, strength = _bias_from_text(scored_text)
+    if not kept:
+        return MacroVerdict(
+            driver=driver,
+            bias="neutral",
+            strength=0,
+            one_line_rationale="No usable non-social search hits.",
+            source="web_search",
+            ran=True,
+            reason=f"{reason}:no_usable_snippets",
+        )
+
+    best = kept[0]
+    outlet = outlet_from_url(best.get("url") or "", best.get("title") or "")
+    source = (best.get("url") or "").strip() or outlet or "web_search"
+    sentence = (best.get("snippet") or best.get("title") or "").strip()
+    sentence = re.sub(r"\s+", " ", sentence)
+    rationale = f"{outlet}: {sentence}".strip(": ").strip()[:220] if outlet else sentence[:220]
+    if not rationale:
+        rationale = "No usable snippets."
+    # Chart-widget leftovers and equal-token ties stay weak.
+    if bias == "neutral" and strength >= 50:
+        strength = 25
     return MacroVerdict(
         driver=driver,
         bias=bias,
-        strength=strength,
-        one_line_rationale=one_line,
-        source="web_search",
+        strength=_clamp_strength(strength),
+        one_line_rationale=rationale,
+        source=source,
         ran=True,
         reason=reason,
     )

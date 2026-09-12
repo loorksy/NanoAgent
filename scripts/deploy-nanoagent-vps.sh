@@ -107,6 +107,14 @@ sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate
   'segno>=1.6.1,<2.0.0'"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 
+# Claude Code CLI (optional agents.defaults.provider=claude_code_cli):
+# Interactive `claude login` cannot run as this systemd unit. Seed auth
+# before enabling that provider:
+#   - CLAUDE_CODE_OAUTH_TOKEN in $INSTALL_DIR/.env (from `claude setup-token`
+#     on a host with a browser), or
+#   - $INSTALL_DIR/.claude/.credentials.json mode 0600 owned by $SERVICE_USER
+# HOME below is $INSTALL_DIR, so ~/.claude is /opt/nanoagent/.claude — not
+# /home/nanoagent. Also install the `claude` binary on PATH (venv or /usr/bin).
 cat > /etc/systemd/system/nanoagent-gateway.service <<UNIT
 [Unit]
 Description=NanoAgent Gold Trading Gateway

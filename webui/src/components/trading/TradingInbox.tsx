@@ -18,6 +18,7 @@ interface InboxRow {
 }
 
 function rowToResult(row: InboxRow): TradingResultWire {
+  // recommendations.db has no macroDrivers column — history cards cannot show them.
   return {
     decision: row.direction,
     confidence: row.confidence,

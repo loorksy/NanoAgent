@@ -14,6 +14,17 @@ export interface TradingRecommendationWire {
   executionState?: string;
 }
 
+export interface TradingMacroDriverWire {
+  driver?: string;
+  name?: string;
+  bias?: string;
+  strength?: number;
+  one_line_rationale?: string;
+  source?: string;
+  ran?: boolean;
+  reason?: string;
+}
+
 export interface TradingResultWire {
   decision: string;
   confidence: number;
@@ -24,6 +35,7 @@ export interface TradingResultWire {
   cards?: Array<Record<string, unknown>>;
   stages?: TradingStageWire[];
   teamMode?: string;
+  macroDrivers?: TradingMacroDriverWire[];
   drawings?: Array<Record<string, unknown>>;
   interval?: string;
   recommendation?: TradingRecommendationWire;

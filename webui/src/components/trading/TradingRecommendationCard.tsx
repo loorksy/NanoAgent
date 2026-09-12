@@ -74,6 +74,37 @@ export function TradingRecommendationCard({
         <p className="mb-2 text-xs text-muted-foreground">{paperStatus}</p>
       ) : null}
 
+      {result.macroDrivers && result.macroDrivers.length > 0 ? (
+        <div className="mb-3 rounded-lg border bg-muted/20 p-3">
+          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Macro drivers
+          </div>
+          <ul className="space-y-1 text-xs">
+            {result.macroDrivers.map((item, index) => {
+              const name = item.driver || item.name || `driver-${index}`;
+              if (item.ran === false) {
+                return (
+                  <li key={`${name}-${index}`} className="text-muted-foreground">
+                    <span className="font-medium">{name}</span>
+                    {" — skipped — cache/not relevant"}
+                  </li>
+                );
+              }
+              const rationale = item.one_line_rationale || "";
+              return (
+                <li key={`${name}-${index}`}>
+                  <span className="font-medium">{name}</span>
+                  {": "}
+                  {item.bias || "neutral"}
+                  {item.strength != null ? ` ${item.strength}` : ""}
+                  {rationale ? ` — ${rationale}` : ""}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
       {showStages && stages && stages.length > 0 ? (
         <div className="mb-3">
           <TradingStageChecklist stages={stages} compact />
