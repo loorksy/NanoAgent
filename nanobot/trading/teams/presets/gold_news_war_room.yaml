@@ -1,0 +1,33 @@
+name: gold_news_war_room
+title: Gold News War Room
+description: Scan news, analyze events, plan scenarios
+
+agents:
+  - id: news_scanner
+    role: News Scanner
+  - id: event_analyst
+    role: Event Analyst
+  - id: scenario_planner
+    role: Scenario Planner
+
+tasks:
+  - id: task-scan
+    agent_id: news_scanner
+    prompt_template: "Scan macro calendar and headlines for {target}."
+    depends_on: []
+  - id: task-analyze
+    agent_id: event_analyst
+    prompt_template: "Analyze event risk.\n{upstream_context}"
+    depends_on: [task-scan]
+    input_from:
+      scan: task-scan
+  - id: task-plan
+    agent_id: scenario_planner
+    prompt_template: "Plan bull/base/bear scenarios.\n{upstream_context}"
+    depends_on: [task-analyze]
+    input_from:
+      analyze: task-analyze
+
+variables:
+  - name: target
+    required: true

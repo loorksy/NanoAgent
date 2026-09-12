@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Deploy NanoAgent gold trading gateway to VPS in isolation from other projects.
+# Does NOT modify foxagent, aichart, zorroagent, or other /opt/* trees.
+#
+# Required env: VPS, VPSPASS
+# Optional: NANOAGENT_DOMAIN (default nanoagent.lork.cloud)
+#           NANOAGENT_BRANCH (default cursor/gold-trading-chat-first-aba3)
+#           NANOAGENT_WEB_TOKEN (auto-generated if unset)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DOMAIN="${NANOAGENT_DOMAIN:-nanoagent.lork.cloud}"
+BRANCH="${NANOAGENT_BRANCH:-cursor/gold-trading-chat-first-aba3}"
+INSTALL_DIR="/opt/nanoagent"
+SERVICE_USER="nanoagent"
+WEB_PORT=8766
+HEALTH_PORT=18791
+REPO_URL="https://github.com/loorksy/NanoAgent.git"
+
+if [[ -z "${VPS:-}" || -z "${VPSPASS:-}" ]]; then
+  echo "deploy: VPS and VPSPASS must be set" >&2
+  exit 1
+fi
+
+command -v sshpass >/dev/null || { echo "deploy: sshpass required" >&2; exit 1; }
+
+WEB_TOKEN="${NANOAGENT_WEB_TOKEN:-$(openssl rand -hex 24)}"
+
+REMOTE_SCRIPT=$(cat <<'EOS'
+set -euo pipefail
+INSTALL_DIR="$1"
+SERVICE_USER="$2"
+WEB_PORT="$3"
+HEALTH_PORT="$4"
+DOMAIN="$5"
+BRANCH="$6"
+REPO_URL="$7"
+WEB_TOKEN="$8"
+
+id "$SERVICE_USER" &>/dev/null || useradd --system --home "$INSTALL_DIR" --shell /bin/bash "$SERVICE_USER"
+
+mkdir -p "$INSTALL_DIR"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+
+if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+else
+  cd "$INSTALL_DIR"
+  git fetch origin "$BRANCH"
+  git checkout "$BRANCH"
+  git pull --ff-only origin "$BRANCH" || git reset --hard "origin/$BRANCH"
+fi
+
+cd "$INSTALL_DIR"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip wheel
+pip install -e .
+
+# OANDA from foxagent (read-only)
+if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
+  bash scripts/sync-oanda-from-foxagent.sh || true
+fi
+
+export PATH="$HOME/.bun/bin:$PATH"
+if ! command -v bun >/dev/null; then
+  curl -fsSL https://bun.sh/install | bash
+  export PATH="$HOME/.bun/bin:$PATH"
+fi
+cd webui && bun install && bun run build
+cd "$INSTALL_DIR"
+
+CONFIG_DIR="/home/$SERVICE_USER/.nanobot"
+mkdir -p "$CONFIG_DIR"
+if [[ ! -f "$CONFIG_DIR/config.json" ]]; then
+  sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/nanobot" onboard --yes 2>/dev/null || true
+fi
+
+python3 - "$CONFIG_DIR/config.json" "$WEB_PORT" "$HEALTH_PORT" "$WEB_TOKEN" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+web_port, health_port, token = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+cfg = {}
+if path.exists():
+    cfg = json.loads(path.read_text())
+cfg.setdefault("gateway", {})["host"] = "0.0.0.0"
+cfg["gateway"]["port"] = health_port
+cfg.setdefault("channels", {}).setdefault("websocket", {})
+ws = cfg["channels"]["websocket"]
+ws["enabled"] = True
+ws["host"] = "0.0.0.0"
+ws["port"] = web_port
+ws["tokenIssueSecret"] = token
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(cfg, indent=2) + "\n")
+PY
+chown -R "$SERVICE_USER:$SERVICE_USER" "/home/$SERVICE_USER/.nanobot"
+
+cat > /etc/systemd/system/nanoagent-gateway.service <<UNIT
+[Unit]
+Description=NanoAgent Gold Trading Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$INSTALL_DIR
+Environment=PATH=$INSTALL_DIR/.venv/bin:/usr/bin:/bin
+EnvironmentFile=-$INSTALL_DIR/.env
+ExecStart=$INSTALL_DIR/.venv/bin/nanobot gateway --foreground --port $HEALTH_PORT
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable nanoagent-gateway.service
+systemctl restart nanoagent-gateway.service
+
+cat > /etc/nginx/sites-available/nanoagent.lork.cloud <<NGX
+server {
+    listen 80;
+    server_name $DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:$WEB_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+    }
+}
+NGX
+
+ln -sf /etc/nginx/sites-available/nanoagent.lork.cloud /etc/nginx/sites-enabled/nanoagent.lork.cloud
+nginx -t && systemctl reload nginx
+
+echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT token=$WEB_TOKEN"
+EOS
+)
+
+echo "Deploying NanoAgent to ${VPS} (${DOMAIN})..."
+OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no "root@${VPS}" \
+  "bash -s" -- "$INSTALL_DIR" "$SERVICE_USER" "$WEB_PORT" "$HEALTH_PORT" "$DOMAIN" "$BRANCH" "$REPO_URL" "$WEB_TOKEN" <<< "$REMOTE_SCRIPT")
+
+echo "$OUT"
+echo ""
+echo "WebUI: http://${DOMAIN}/"
+echo "Bootstrap token (save this): ${WEB_TOKEN}"

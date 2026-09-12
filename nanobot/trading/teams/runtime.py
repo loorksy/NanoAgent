@@ -16,6 +16,10 @@ from nanobot.trading.types import AgentFinalResult
 _PRESETS_DIR = Path(__file__).parent / "presets"
 
 
+def list_presets() -> list[str]:
+    return sorted(path.stem for path in _PRESETS_DIR.glob("*.yaml"))
+
+
 def load_preset(name: str) -> SwarmPreset:
     path = _PRESETS_DIR / f"{name}.yaml"
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))

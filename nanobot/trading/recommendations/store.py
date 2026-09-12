@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 
 from nanobot.config.paths import get_data_dir
+from nanobot.trading.recommendations.tradability import assess_plan_tradability
 from nanobot.trading.types import AgentMarketContext, ChartDrawing, FinalDecisionResult
 
 _DB_PATH = get_data_dir() / "trading" / "recommendations.db"
@@ -45,9 +46,10 @@ def store_recommendation(
     drawings: list[ChartDrawing],
     market: AgentMarketContext,
 ) -> str:
-    rec = decision.recommendation
-    if rec.action not in ("buy", "sell"):
+    tradable, _reason = assess_plan_tradability(decision)
+    if not tradable:
         return ""
+    rec = decision.recommendation
     if not rec.entry or not rec.stop_loss or not rec.targets:
         return ""
 
@@ -95,6 +97,30 @@ def store_recommendation(
         )
         conn.commit()
     return rec_id
+
+
+def get_recommendation(rec_id: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, summary, confidence, created_at "
+            "FROM recommendations WHERE id = ?",
+            (rec_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "symbol": row[1],
+        "interval": row[2],
+        "direction": row[3],
+        "entry": row[4],
+        "stop_loss": row[5],
+        "targets": json.loads(row[6] or "[]"),
+        "status": row[7],
+        "summary": row[8],
+        "confidence": row[9],
+        "created_at": row[10],
+    }
 
 
 def list_recommendations(limit: int = 20) -> list[dict]:

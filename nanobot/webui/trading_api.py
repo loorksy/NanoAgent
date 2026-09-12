@@ -197,6 +197,31 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
     return _http_json_response({"recommendations": list_recommendations()})
 
 
+def handle_trading_briefing(_request: WsRequest) -> Response:
+    from nanobot.trading.config import load_trading_config
+    from nanobot.trading.oanda import fetch_quote
+    from nanobot.trading.recommendations.followup import latest_open_recommendation
+
+    config = load_trading_config()
+    quote = fetch_quote("XAUUSD", config=config) if config.oanda_configured else None
+    latest = latest_open_recommendation()
+    recs = list_recommendations(limit=5)
+    return _http_json_response({
+        "symbol": "XAUUSD",
+        "quote": {
+            "mid": quote.mid if quote else None,
+            "bid": quote.bid if quote else None,
+            "ask": quote.ask if quote else None,
+        },
+        "openRecommendation": latest,
+        "recentRecommendations": recs,
+        "summary": (
+            f"Gold {quote.mid:.2f}" if quote and quote.mid is not None
+            else "Gold — quote unavailable"
+        ),
+    })
+
+
 def handle_trading_paper(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     rec_id = _query_first(params, "recommendation_id") or ""
@@ -220,6 +245,8 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
         return handle_trading_recommendations(request)
+    if path == "/api/trading/briefing":
+        return handle_trading_briefing(request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
     return None

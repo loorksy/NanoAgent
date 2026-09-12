@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
+import { TradingStatusBar } from "@/components/trading/TradingStatusBar";
 import { TvChart } from "@/components/trading/TvChart";
+import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
 import { Button } from "@/components/ui/button";
 import { useClient } from "@/providers/ClientProvider";
 import { fetchWithTimeout } from "@/lib/http";
@@ -39,6 +41,7 @@ interface AnalysisResult {
     targets?: number[];
   };
   recommendationId?: string;
+  drawings?: Array<Record<string, unknown>>;
 }
 
 export function GoldChartPanel() {
@@ -48,6 +51,7 @@ export function GoldChartPanel() {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const chartWidgetRef = useRef<import("../../../vendor/tradingview/charting_library/charting_library").IChartingLibraryWidget | null>(null);
 
   const authHeaders = useCallback((): Record<string, string> => {
     const token = getToken();
@@ -110,6 +114,14 @@ export function GoldChartPanel() {
       }
       const payload = await res.json() as AnalysisResult;
       setAnalysis(payload);
+      if (payload.drawings?.length) {
+        void applyTradingDrawings(chartWidgetRef.current, payload.drawings as Array<{
+          type: string;
+          label: string;
+          color: string;
+          points: Array<{ time?: number; price?: number }>;
+        }>);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -143,6 +155,8 @@ export function GoldChartPanel() {
         </div>
       </div>
 
+      <TradingStatusBar />
+
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
@@ -159,7 +173,12 @@ export function GoldChartPanel() {
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="relative min-h-[420px] overflow-hidden rounded-xl border bg-card">
-          <TvChart getAuthToken={getToken} />
+          <TvChart
+            getAuthToken={getToken}
+            onWidgetReady={(widget) => {
+              chartWidgetRef.current = widget;
+            }}
+          />
           <ChartTradeOverlay recommendation={analysis?.recommendation ?? null} />
         </div>
         <div className="min-h-0 overflow-auto rounded-xl border bg-card p-3">

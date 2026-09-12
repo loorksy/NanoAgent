@@ -618,10 +618,19 @@ def _run_gateway(
                 prune_dream_sessions(agent.sessions)
             return None
 
-        if job.name == "gold_scan":
-            from nanobot.trading.cron import run_gold_scan_job
+        if job.name in {"gold_scan", "gold_news", "gold_rec_followup"}:
+            from nanobot.trading.cron import (
+                run_gold_followup_job,
+                run_gold_news_job,
+                run_gold_scan_job,
+            )
 
-            alert = await run_gold_scan_job()
+            if job.name == "gold_news":
+                alert = await run_gold_news_job()
+            elif job.name == "gold_rec_followup":
+                alert = await run_gold_followup_job()
+            else:
+                alert = await run_gold_scan_job()
             if not alert:
                 return None
             channel, chat_id = _pick_heartbeat_target()

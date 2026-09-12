@@ -1,0 +1,39 @@
+name: gold_mtf_panel
+title: Gold MTF Panel
+description: H1, H4, D1 parallel analysts then MTF synthesizer
+
+agents:
+  - id: h1_analyst
+    role: H1 Analyst
+  - id: h4_analyst
+    role: H4 Analyst
+  - id: d1_analyst
+    role: D1 Analyst
+  - id: mtf_synthesizer
+    role: MTF Synthesizer
+
+tasks:
+  - id: task-h1
+    agent_id: h1_analyst
+    prompt_template: "H1 structure for {target}."
+    depends_on: []
+  - id: task-h4
+    agent_id: h4_analyst
+    prompt_template: "H4 structure for {target}."
+    depends_on: []
+  - id: task-d1
+    agent_id: d1_analyst
+    prompt_template: "D1 structure for {target}."
+    depends_on: []
+  - id: task-synth
+    agent_id: mtf_synthesizer
+    prompt_template: "Synthesize MTF bias.\n{upstream_context}"
+    depends_on: [task-h1, task-h4, task-d1]
+    input_from:
+      h1: task-h1
+      h4: task-h4
+      d1: task-d1
+
+variables:
+  - name: target
+    required: true
