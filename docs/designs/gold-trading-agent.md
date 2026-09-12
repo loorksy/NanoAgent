@@ -453,7 +453,7 @@ flowchart TD
 
 **Exit:** User gets recommendation card with chart overlays; approve/reject updates paper journal.
 
-### Phase 4 — Operations + WhatsApp + Sidecars
+### Phase 5 — Operations + WhatsApp + Sidecars
 
 | Task | Notes |
 |------|-------|
