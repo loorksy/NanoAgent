@@ -37,7 +37,11 @@ export function TradingBriefingPanel() {
     <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
       <header className="mb-4">
         <h1 className="text-lg font-semibold">Briefing</h1>
-        <p className="text-sm text-muted-foreground">Live gold market snapshot and open setup</p>
+        <p className="text-sm text-muted-foreground">
+          Live gold market snapshot and open setup. Connect Telegram or WhatsApp from
+          <span className="font-medium"> Channels </span>
+          in the sidebar to chat with the agent outside the browser.
+        </p>
       </header>
       <TradingStatusBar />
       {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}

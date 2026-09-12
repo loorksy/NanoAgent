@@ -14,6 +14,7 @@ import {
   SquarePen,
   Inbox,
   LineChart,
+  MessageCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -68,6 +69,7 @@ interface SidebarProps {
   onOpenPerformance?: () => void;
   onOpenRecommendations?: () => void;
   onOpenBriefing?: () => void;
+  onOpenChannels?: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
   activeUtility?: "chart" | "performance" | "recommendations" | "briefing" | null;
@@ -251,6 +253,16 @@ export function Sidebar(props: SidebarProps) {
             active={props.activeUtility === "chart"}
             selectionRef={activeActionRef}
             icon={<LineChart className="h-4 w-4" />}
+          />
+        ) : null}
+        {props.onOpenChannels ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Channels"
+            onClick={props.onOpenChannels}
+            onIntent={props.onSettingsIntent}
+            selectionRef={activeActionRef}
+            icon={<MessageCircle className="h-4 w-4" />}
           />
         ) : null}
         {props.archivedCount ? (

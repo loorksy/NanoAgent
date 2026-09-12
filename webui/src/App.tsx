@@ -2029,6 +2029,10 @@ function Shell({
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
+  const onOpenChannels = useCallback(() => {
+    onOpenSettings("channels");
+  }, [onOpenSettings]);
+
   useEffect(() => {
     const actions: Partial<Record<ReturnType<typeof matchSidebarShortcut> & string, () => void>> = {
       newChat: onNewChat,
@@ -2610,6 +2614,7 @@ function Shell({
     onOpenPerformance,
     onOpenRecommendations,
     onOpenBriefing,
+    onOpenChannels,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
     activeUtility:
