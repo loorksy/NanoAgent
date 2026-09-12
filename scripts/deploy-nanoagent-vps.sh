@@ -92,10 +92,19 @@ ws["host"] = "0.0.0.0"
 ws["port"] = web_port
 existing = ws.get("tokenIssueSecret")
 ws["tokenIssueSecret"] = existing or token
+tools = cfg.setdefault("tools", {})
+tools["webuiAllowRemotePackageInstall"] = True
 print("ISSUED_TOKEN=" + ws["tokenIssueSecret"])
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
+
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U \
+  'python-telegram-bot[socks,webhooks]>=22.6,<23.0' \
+  'socksio>=1.0.0,<2.0.0' \
+  'python-socks[asyncio]>=2.8.0,<3.0.0' \
+  'neonize>=0.4.3.post0,<0.5.0' \
+  'segno>=1.6.1,<2.0.0'"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 
 cat > /etc/systemd/system/nanoagent-gateway.service <<UNIT
@@ -155,7 +164,7 @@ if command -v certbot >/dev/null; then
   nginx -t && systemctl reload nginx || true
 fi
 
-echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT token=$WEB_TOKEN"
+echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT"
 EOS
 )
 
@@ -165,5 +174,6 @@ OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no "root@${VPS}" \
 
 echo "$OUT"
 echo ""
-echo "WebUI: https://${DOMAIN}/ (or http if certbot pending)"
-echo "Bootstrap token (save this): ${WEB_TOKEN}"
+echo "WebUI: https://${DOMAIN}/#/connect"
+ISSUED=$(printf '%s\n' "$OUT" | awk -F= '/^ISSUED_TOKEN=/{print $2}' | tail -1)
+echo "Bootstrap token (save this): ${ISSUED:-$WEB_TOKEN}"
