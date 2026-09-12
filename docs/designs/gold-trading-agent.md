@@ -19,11 +19,176 @@ Convert NanoAgent (Python nanobot runtime) into a **gold-only (XAUUSD) recommend
 - **Recommendations only** — no broker execution
 - **UI language:** English for now
 - **Telegram:** stage progress notifications in **Arabic** only
-- **WhatsApp:** last priority (Phase 3)
+- **WhatsApp:** last priority (Phase 4)
+- **Multi-Agent Trading Teams:** inspired by `loorksy/foxagent` + `HKUDS/Vibe-Trading`
 
 ---
 
-## Chart Policy — TradingView Integrated System (NOT a Bridge)
+## Multi-Agent Trading Teams
+
+NanoAgent already has **`spawn`** + **`SubagentManager`** (unlimited on-demand agents, default 4 concurrent). We extend this into **three team modes** — not replacing the AiChart core pipeline, but augmenting it.
+
+### Three team layers (combined model)
+
+```mermaid
+flowchart TB
+  USER[User request] --> ROUTE{Team mode?}
+
+  ROUTE -->|default| CORE[AiChart Core Pipeline]
+  ROUTE -->|debate| CREW[FoxAgent-style Crew]
+  ROUTE -->|on-demand| SWARM[Vibe-Trading-style Swarm]
+  ROUTE -->|background| BOTS[Autonomous Bot Team]
+
+  CORE --> GATES[G1-G7 + Recommendation]
+  CREW --> GATES
+  SWARM --> GATES
+  BOTS --> ALERTS[Alerts + optional analysis trigger]
+```
+
+| Layer | Source inspiration | When it runs | Agent roles |
+|-------|-------------------|--------------|-------------|
+| **1. Core Fleet** | AiChart `orchestrator.ts` | Every full gold analysis (default) | structure, liquidity, supply_demand, MTF, news, risk, synthesizer |
+| **2. Debate Crew** | foxagent `crew.py` | User asks for recommendation / complex setup | Technical, Fundamental, **Bull**, **Bear**, RiskManager |
+| **3. Swarm Teams** | Vibe-Trading `swarm/presets/*.yaml` | User explicitly requests team / committee | YAML-defined DAG teams (parallel layers) |
+| **4. Bot Scanners** | foxagent `trading_bot/coordinator.py` | Cron / heartbeat (always-on) | multi_strategy, pattern_notes, news_candle |
+
+### Layer 1 — Core Fleet (already in plan)
+
+Deterministic specialists run inside `trading/orchestrator.py` — same as AiChart steps 7–20. This is the **default path** for every recommendation. Not optional.
+
+### Layer 2 — Debate Crew (foxagent pattern)
+
+From `foxagent/backend/app/services/crew.py`:
+
+```
+TechnicalAgent → brief
+FundamentalAgent → brief (if macro keywords / recommendation intent)
+BullResearcher ↔ BearResearcher  (2 rounds, 90s cap)
+RiskManagerAgent → validate + send_recommendation
+```
+
+**NanoAgent mapping:**
+
+| foxagent | NanoAgent module |
+|----------|------------------|
+| `crew.py` pipeline | `nanobot/trading/crew/debate.py` |
+| `intent.py` routing | extends `trading/intent_router.py` |
+| `run_agent_turn()` per role | `spawn(wait=True)` with role-specific system prompts |
+| SSE `agent_debate_message` | WebUI `TradingTeamPanel.tsx` + Telegram Arabic stage |
+
+**Integration with core pipeline:** Debate crew **replaces** the single `runFinalDecisionSynthesizer` call when `team_mode=debate`. Bull/Bear briefs feed into RiskManager, whose output becomes the plan that enters **G1–G7** (gates stay mandatory).
+
+### Layer 3 — Swarm Teams (Vibe-Trading pattern)
+
+From `Vibe-Trading/agent/src/swarm/`:
+
+- YAML presets define `agents[]` + `tasks[]` DAG with `depends_on` + `input_from`
+- Parallel layers via thread pool; serial between layers
+- Main agent calls `run_swarm` on demand
+
+**NanoAgent mapping:**
+
+| Vibe-Trading | NanoAgent module |
+|--------------|------------------|
+| `swarm/presets/*.yaml` | `nanobot/trading/teams/presets/*.yaml` |
+| `SwarmRuntime` | `nanobot/trading/teams/runtime.py` |
+| `run_worker()` | `SubagentManager.spawn(wait=True)` per task |
+| `run_swarm` tool | `nanobot/agent/tools/trading_team.py` |
+
+**Gold-specific presets to ship:**
+
+| Preset | Roles | DAG |
+|--------|-------|-----|
+| `gold_analysis_committee` | macro_analyst, structure_analyst, liquidity_analyst, risk_officer, lead_analyst | macro ∥ structure ∥ liquidity → risk → lead |
+| `gold_debate_desk` | bull_advocate, bear_advocate, risk_manager | bull ∥ bear → risk |
+| `gold_news_war_room` | news_scanner, event_analyst, scenario_planner | scan → analyze → plan |
+| `gold_mtf_panel` | h1_analyst, h4_analyst, d1_analyst, mtf_synthesizer | h1 ∥ h4 ∥ d1 → synth |
+
+User triggers: *"run the gold committee"* / *"شغّل فريق التحليل"* → `run_trading_team(preset="gold_analysis_committee")`.
+
+**No limit on concurrent teams** — uses existing `spawn` with configurable `max_concurrent_subagents` (default 4, user can raise).
+
+### Layer 4 — Autonomous Bot Team (foxagent bots)
+
+From `foxagent/backend/app/services/trading_bot/`:
+
+```
+coordinator.run_cycle():
+  news_candle → multi_strategy → pattern_notes
+       ↓ all signals → risk gate → save_signal → alert user
+```
+
+**NanoAgent mapping:**
+
+| foxagent | NanoAgent module |
+|----------|------------------|
+| `TradingBotCoordinator` | `nanobot/trading/bots/coordinator.py` |
+| `MultiStrategyAgent` | `nanobot/trading/bots/multi_strategy.py` |
+| `PatternNotesAgent` | `nanobot/trading/bots/pattern_notes.py` |
+| `NewsCandleAgent` | `nanobot/trading/bots/news_candle.py` |
+| `BotInstance` config | `~/.nanobot/trading/bots.json` |
+| Cron trigger | `nanobot/cron/` + heartbeat |
+
+Bots run on **cron/heartbeat**, scan XAUUSD, emit alerts via `message` tool to Telegram/Web. User can promote a bot signal to full analysis (triggers Layer 1 pipeline).
+
+### How layers interact
+
+| Scenario | Layers used |
+|----------|-------------|
+| "What's gold price?" | Core fleet step 7 only (market data) |
+| "Analyze gold now" | Core fleet full pipeline |
+| "Give me a recommendation with debate" | Debate crew → G1–G7 |
+| "Run the gold committee" | Swarm preset → G1–G7 |
+| Background monitoring | Bot team → alert → optional full pipeline |
+| User spawns custom agent | `spawn` tool (existing nanobot, any task) |
+
+**G1–G7 gates always run** regardless of which team layer produced the plan. No team can bypass gates.
+
+### UI surfaces
+
+| Surface | What user sees |
+|---------|----------------|
+| WebUI `TradingTeamPanel` | Live agent timeline (like foxagent `ChatReasoning.tsx`) |
+| WebUI `SwarmProgressCard` | DAG layer progress (like Vibe-Trading status card) |
+| WebUI `BotDashboard` | Active bot instances + last signals |
+| Telegram | Arabic stage labels per agent in crew/swarm |
+| Existing subagent panel | nanobot subagent status (reuse) |
+
+### New directory layout (teams)
+
+```
+nanobot/trading/
+  crew/
+    debate.py              # foxagent Bull/Bear/Risk pipeline
+    roles.py               # role prompts (Technical, Bull, Bear, Risk)
+  teams/
+    presets/
+      gold_analysis_committee.yaml
+      gold_debate_desk.yaml
+      gold_news_war_room.yaml
+      gold_mtf_panel.yaml
+    runtime.py             # Vibe-Trading-style DAG executor
+    models.py              # SwarmTask, SwarmAgent, SwarmRun
+  bots/
+    coordinator.py         # foxagent bot cycle
+    multi_strategy.py
+    pattern_notes.py
+    news_candle.py
+  agent/tools/
+    trading_team.py        # run_trading_team(preset) tool
+```
+
+### Phase assignment for teams
+
+| Phase | Team feature |
+|-------|-------------|
+| **2** | Core fleet (Layer 1) — required |
+| **3** | Debate crew (Layer 2) + first swarm preset `gold_debate_desk` |
+| **4** | Full swarm presets + bot scanners (Layer 3 + 4) + BotDashboard UI |
+
+---
+
+## Chart Policy — TradingView Advanced Charts (from odysseusai)
 
 AiChart embeds the library directly. We copy **that** pattern, not `infra/tradingview/bridge.py`.
 
