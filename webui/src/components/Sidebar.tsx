@@ -14,6 +14,7 @@ import {
   Settings,
   SquarePen,
   Blocks,
+  Inbox,
   LineChart,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -68,11 +69,12 @@ interface SidebarProps {
   onOpenApps: () => void;
   onOpenSkills: () => void;
   onOpenChart?: () => void;
+  onOpenInbox?: () => void;
   onOpenAutomations: () => void;
   onOpenChannels: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
-  activeUtility?: "apps" | "chart" | "skills" | "automations" | "channels" | null;
+  activeUtility?: "apps" | "chart" | "inbox" | "skills" | "automations" | "channels" | null;
   onToggleArchived: () => void;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -231,6 +233,17 @@ export function Sidebar(props: SidebarProps) {
             active={props.activeUtility === "chart"}
             selectionRef={activeActionRef}
             icon={<LineChart className="h-4 w-4" />}
+          />
+        ) : null}
+        {props.onOpenInbox ? (
+          <SidebarActionButton
+            collapsed={collapsed}
+            label="Inbox"
+            onClick={props.onOpenInbox}
+            onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "inbox"}
+            selectionRef={activeActionRef}
+            icon={<Inbox className="h-4 w-4" />}
           />
         ) : null}
         <SidebarActionButton

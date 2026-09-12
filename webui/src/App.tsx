@@ -36,6 +36,13 @@ import {
   workbenchTabForPane,
   type WorkbenchState,
 } from "@/components/workbench/workbench-model";
+import {
+  anchorPaneKeyFromTradingChart,
+  getTradingSession,
+  isTradingChartPaneKey,
+  subscribeTradingSession,
+  tradingChartPaneKey,
+} from "@/lib/trading/session-store";
 import { floatingSurfaceElevationClassName } from "@/components/ui/floating-surface";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
@@ -120,7 +127,7 @@ const TOKEN_REFRESH_MIN_DELAY_MS = 5_000;
 const PAIRING_POLL_INTERVAL_MS = 5_000;
 const PAIRING_IDLE_POLL_INTERVAL_MS = 15_000;
 const PAIRING_DISMISS_SNOOZE_MS = 30_000;
-type ShellView = "chat" | "chart" | "settings" | "apps" | "automations" | "skills" | "channels";
+type ShellView = "chat" | "chart" | "inbox" | "settings" | "apps" | "automations" | "skills" | "channels";
 type ShellRoute = {
   view: ShellView;
   activeKey: string | null;
@@ -150,6 +157,14 @@ const RenameChatDialog = lazy(async () => {
 const GoldChartPanel = lazy(async () => {
   const module = await import("@/components/trading/GoldChartPanel");
   return { default: module.GoldChartPanel };
+});
+const TradingChartSidecar = lazy(async () => {
+  const module = await import("@/components/trading/TradingChartSidecar");
+  return { default: module.TradingChartSidecar };
+});
+const TradingInbox = lazy(async () => {
+  const module = await import("@/components/trading/TradingInbox");
+  return { default: module.TradingInbox };
 });
 
 function SurfaceLoadingFallback({ label }: { label?: string }) {
@@ -271,6 +286,9 @@ function readShellRoute(): ShellRoute {
   }
   if (path === "/chart") {
     return { view: "chart", activeKey, settingsSection: "overview" };
+  }
+  if (path === "/inbox") {
+    return { view: "inbox", activeKey, settingsSection: "overview" };
   }
   if (path.startsWith("/temporary/")) {
     const encoded = path.slice("/temporary/".length);
@@ -1330,6 +1348,22 @@ function Shell({
     [sessions],
   );
   const activeChatId = activePaneSession?.chatId ?? null;
+
+  useEffect(() => {
+    return subscribeTradingSession((chatId) => {
+      const session = sessions.find((row) => row.chatId === chatId);
+      if (!session || !getTradingSession(chatId).chartOpen) return;
+      const chartPaneKey = tradingChartPaneKey(session.key);
+      updateWorkbenchState((current) => {
+        const tab = workbenchTabForPane(current, session.key);
+        if (tab.tab.paneKeys.includes(chartPaneKey)) return current;
+        const next = addWorkbenchPane(current, session.key, chartPaneKey);
+        return setWorkbenchLayout(next, tab.tabKey, "columns");
+      });
+      navigate({ view: "chat", activeKey: session.key, settingsSection: "overview" });
+    });
+  }, [navigate, sessions, updateWorkbenchState]);
+
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
     if (!activeChatId) return;
@@ -1989,6 +2023,12 @@ function Shell({
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
+  const onOpenInbox = useCallback(() => {
+    setSessionSearchOpen(false);
+    navigate({ view: "inbox", activeKey, settingsSection: "overview" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
+
   useEffect(() => {
     const actions = { newChat: onNewChat, search: onOpenSessionSearch, apps: onOpenApps,
       skills: onOpenSkills, automations: onOpenAutomations, channels: onOpenChannels, settings: () => onOpenSettings() };
@@ -2344,14 +2384,25 @@ function Shell({
     && (activeTabState.explicit || activeTabState.paneKeys.length > 1),
   );
   const renderedWorkbenchPanes = useMemo(() => {
-    if (paneChromeEnabled) {
-      return workbenchPaneSessions.map((session) => ({
-        key: session.key,
-        reactKey: session.key === activeTabState?.paneKeys[0]
-          ? "tab-root"
-          : `pane:${session.key}`,
-        title: titleForSession(session),
-      }));
+    if (paneChromeEnabled && activeTabState) {
+      const sessionsByKey = new Map(sessions.map((session) => [session.key, session]));
+      return activeTabState.paneKeys.map((paneKey) => {
+        if (isTradingChartPaneKey(paneKey)) {
+          return {
+            key: paneKey,
+            reactKey: `pane:${paneKey}`,
+            title: "Gold chart",
+          };
+        }
+        const session = sessionsByKey.get(paneKey);
+        return {
+          key: paneKey,
+          reactKey: paneKey === activeTabState.paneKeys[0]
+            ? "tab-root"
+            : `pane:${paneKey}`,
+          title: session ? titleForSession(session) : paneKey,
+        };
+      });
     }
     return [{
       key: activeKey ?? "new-topic",
@@ -2360,11 +2411,11 @@ function Shell({
     }];
   }, [
     activeKey,
-    activeTabState?.paneKeys,
+    activeTabState,
     headerTitle,
     paneChromeEnabled,
+    sessions,
     titleForSession,
-    workbenchPaneSessions,
   ]);
   const renderedActivePaneKey = activeKey ?? renderedWorkbenchPanes[0].key;
   const renderedWorkbenchLayout = paneChromeEnabled && activeTabState
@@ -2549,9 +2600,10 @@ function Shell({
     onOpenChannels,
     onOpenSkills,
     onOpenChart,
+    onOpenInbox,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: view === "apps" || view === "chart" || view === "automations" || view === "skills" || view === "channels" ? view : null,
+    activeUtility: view === "apps" || view === "chart" || view === "inbox" || view === "automations" || view === "skills" || view === "channels" ? view : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,
@@ -2736,6 +2788,16 @@ function Shell({
                       ));
                     }}
                     renderPane={(pane, context) => {
+                      if (isTradingChartPaneKey(pane.key)) {
+                        const anchorKey = anchorPaneKeyFromTradingChart(pane.key);
+                        const anchorSession = sessions.find((row) => row.key === anchorKey);
+                        if (!anchorSession) return null;
+                        return (
+                          <Suspense fallback={<SurfaceLoadingFallback label="Loading chart…" />}>
+                            <TradingChartSidecar chatId={anchorSession.chatId} />
+                          </Suspense>
+                        );
+                      }
                       if (!paneChromeEnabled) {
                         return (
                           <ThreadShell
@@ -2839,7 +2901,14 @@ function Shell({
                 </Suspense>
               </div>
             )}
-            {view !== "chat" && view !== "chart" && (
+            {view === "inbox" && (
+              <div className="absolute inset-0 flex flex-col">
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading inbox…" />}>
+                  <TradingInbox />
+                </Suspense>
+              </div>
+            )}
+            {view !== "chat" && view !== "chart" && view !== "inbox" && (
               <div className="absolute inset-0 flex flex-col">
                 <Suspense fallback={<SurfaceLoadingFallback />}>
                   <SettingsView

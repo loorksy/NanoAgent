@@ -1,0 +1,85 @@
+import type { TradingResultWire, TradingSessionState, TradingStageWire } from "@/lib/trading/types";
+
+const DEFAULT_STATE: TradingSessionState = {
+  chartOpen: false,
+  interval: "15m",
+  stages: [],
+  result: null,
+};
+
+const sessions = new Map<string, TradingSessionState>();
+const listeners = new Set<(chatId: string) => void>();
+
+function snapshot(chatId: string): TradingSessionState {
+  return sessions.get(chatId) ?? DEFAULT_STATE;
+}
+
+function notify(chatId: string) {
+  for (const listener of listeners) listener(chatId);
+}
+
+export function getTradingSession(chatId: string): TradingSessionState {
+  return snapshot(chatId);
+}
+
+export function subscribeTradingSession(listener: (chatId: string) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function openTradingChart(chatId: string, interval = "15m") {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen: true,
+    interval,
+  });
+  notify(chatId);
+}
+
+export function pushTradingStage(chatId: string, stage: TradingStageWire) {
+  const prev = snapshot(chatId);
+  const stages = [...prev.stages];
+  const index = stages.findIndex((row) => row.stage === stage.stage);
+  if (index >= 0) {
+    stages[index] = stage;
+  } else {
+    stages.push(stage);
+  }
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen: true,
+    stages,
+  });
+  notify(chatId);
+}
+
+export function setTradingResult(chatId: string, result: TradingResultWire) {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen: true,
+    interval: result.interval ?? prev.interval,
+    result,
+  });
+  notify(chatId);
+}
+
+export function resetTradingSession(chatId: string) {
+  sessions.delete(chatId);
+  notify(chatId);
+}
+
+export const TRADING_CHART_PANE_PREFIX = "trading-chart:";
+
+export function tradingChartPaneKey(anchorPaneKey: string): string {
+  return `${TRADING_CHART_PANE_PREFIX}${anchorPaneKey}`;
+}
+
+export function isTradingChartPaneKey(key: string): boolean {
+  return key.startsWith(TRADING_CHART_PANE_PREFIX);
+}
+
+export function anchorPaneKeyFromTradingChart(key: string): string {
+  return key.slice(TRADING_CHART_PANE_PREFIX.length);
+}

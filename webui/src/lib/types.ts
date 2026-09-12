@@ -5,7 +5,7 @@ type Role = "user" | "assistant" | "tool" | "system";
 
 /** "trace" rows are intermediate agent breadcrumbs (tool-call hints,
  * progress pings) that should not be rendered as conversational replies. */
-type MessageKind = "message" | "trace" | "compaction";
+type MessageKind = "message" | "trace" | "compaction" | "trading";
 
 export interface UIContextCompaction extends ContextCompaction {
   /** Live wire transitions announce; hydrated transcript rows stay silent. */
@@ -131,6 +131,8 @@ export interface UIMessage {
   deliveryStatus?: MessageDeliveryStatus;
   /** Structured rejection reason shown with a failed optimistic message. */
   deliveryErrorKind?: MessageDeliveryErrorKind;
+  /** Gold trading recommendation rendered inline in chat. */
+  trading?: import("@/lib/trading/types").TradingResultWire;
 }
 
 export interface UICliAppAttachment {

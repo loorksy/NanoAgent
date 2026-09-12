@@ -31,6 +31,12 @@ import {
 } from "@/lib/thread-event-projection";
 import type { UIMessageTurnFields } from "@/lib/thread-event-projection";
 import { formatQuotedUserMessage } from "@/lib/user-message-quote";
+import {
+  openTradingChart,
+  pushTradingStage,
+  setTradingResult,
+} from "@/lib/trading/session-store";
+import type { TradingResultWire, TradingStageWire } from "@/lib/trading/types";
 import { readLocalPreferences } from "@/lib/local-preferences";
 import type {
   InboundEvent,
@@ -1137,6 +1143,35 @@ export function useNanobotStream(
         // Attach them to the last trace row if it was the last emitted item
         // so a sequence of calls collapses into one compact trace group.
         if (ev.kind === "tool_hint" || ev.kind === "progress") {
+          const agentUi = ev.agent_ui;
+          if (agentUi?.kind === "trading_chart_open") {
+            const data = agentUi.data as { interval?: string } | undefined;
+            openTradingChart(chatId, data?.interval ?? "15m");
+            return;
+          }
+          if (agentUi?.kind === "trading_stage") {
+            const stage = agentUi.data as TradingStageWire;
+            pushTradingStage(chatId, stage);
+            return;
+          }
+          if (agentUi?.kind === "trading_result") {
+            const result = agentUi.data as TradingResultWire;
+            setTradingResult(chatId, result);
+            const turn = turnFieldsFromEvent(ev, "answer");
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `trading-${Date.now()}`,
+                role: "assistant",
+                content: result.summary,
+                kind: "trading",
+                trading: result,
+                createdAt: Date.now(),
+                ...turn,
+              },
+            ]);
+            return;
+          }
           const structuredEvents = normalizeToolProgressEvents(ev.tool_events);
           const turn = turnFieldsFromEvent(ev, "activity");
           setMessages((prev) => {

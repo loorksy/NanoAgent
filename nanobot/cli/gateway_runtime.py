@@ -618,6 +618,21 @@ def _run_gateway(
                 prune_dream_sessions(agent.sessions)
             return None
 
+        if job.name == "gold_scan":
+            from nanobot.trading.cron import run_gold_scan_job
+
+            alert = await run_gold_scan_job()
+            if not alert:
+                return None
+            channel, chat_id = _pick_heartbeat_target()
+            if channel == "cli":
+                return None
+            await _deliver_to_channel(
+                OutboundMessage(channel=channel, chat_id=chat_id, content=alert),
+                record=True,
+            )
+            return alert
+
         # Heartbeat is a system job that checks HEARTBEAT.md for active tasks.
         if job.name == "heartbeat":
             heartbeat_file = config.workspace_path / "HEARTBEAT.md"
@@ -845,6 +860,10 @@ def _run_gateway(
         ))
     else:
         cron.remove_system_job("heartbeat")
+
+    from nanobot.trading.cron import register_trading_cron_jobs
+
+    register_trading_cron_jobs(cron, config.agents.defaults.timezone)
 
     cron_status = cron.status()
     cron_job_count = cast(int, cron_status["jobs"])

@@ -27,6 +27,7 @@ import { ImageLightbox } from "@/components/ImageLightbox";
 import { MarkdownText } from "@/components/MarkdownText";
 import { SlashCommandText } from "@/components/SlashCommandText";
 import { ReasoningRow } from "@/components/thread/activity/ReasoningRow";
+import { TradingRecommendationCard } from "@/components/trading/TradingRecommendationCard";
 import { ContextCompactionNotice } from "@/components/thread/ContextCompactionNotice";
 import { UserMessageText } from "@/components/UserMessageText";
 import {
@@ -348,6 +349,14 @@ export function MessageBubble({
 
   if (message.kind === "compaction" && message.compaction) {
     return <ContextCompactionNotice compaction={message.compaction} />;
+  }
+
+  if (message.kind === "trading" && message.trading) {
+    return (
+      <div className="max-w-3xl">
+        <TradingRecommendationCard result={message.trading} />
+      </div>
+    );
   }
 
   if (message.kind === "trace") {

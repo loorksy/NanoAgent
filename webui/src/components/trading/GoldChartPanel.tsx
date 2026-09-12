@@ -125,7 +125,7 @@ export function GoldChartPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Gold Chart</h1>
           <p className="text-sm text-muted-foreground">
-            XAUUSD · TradingView Advanced Charts · OANDA datafeed
+            XAUUSD · TradingView Advanced Charts · ask the agent in chat to analyze gold
           </p>
         </div>
         <div className="flex items-center gap-2">

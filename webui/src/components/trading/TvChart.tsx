@@ -70,6 +70,7 @@ export interface TvChartProps {
   interval?: string;
   className?: string;
   getAuthToken?: () => string;
+  onWidgetReady?: (widget: IChartingLibraryWidget) => void;
 }
 
 export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
@@ -78,6 +79,7 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
     interval = "15m",
     className,
     getAuthToken,
+    onWidgetReady,
   },
   ref,
 ) {
@@ -123,7 +125,11 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
           enabled_features: ["study_templates"],
           datafeed: createTradingDatafeed({ getAuthToken }),
         };
-        widgetRef.current = new Widget(options);
+        const widget = new Widget(options);
+        widgetRef.current = widget;
+        widget.onChartReady(() => {
+          if (!cancelled) onWidgetReady?.(widget);
+        });
         setLoading(false);
       })
       .catch((err: Error) => {
@@ -138,7 +144,7 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
       widgetRef.current?.remove();
       widgetRef.current = null;
     };
-  }, [getAuthToken, interval, symbol]);
+  }, [getAuthToken, interval, onWidgetReady, symbol]);
 
   return (
     <div className={cn("relative h-full min-h-[420px] w-full", className)}>

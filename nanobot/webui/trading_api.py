@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-from dataclasses import asdict
 from typing import Any, TypeVar
 
 from websockets.http11 import Request as WsRequest
@@ -17,6 +16,7 @@ from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.store import list_recommendations
+from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.teams.runtime import run_swarm
 from nanobot.webui.http_utils import http_error as _http_error
@@ -169,40 +169,6 @@ def handle_trading_runtime_update(request: WsRequest) -> Response:
     return _http_json_response({"runtime": state.to_dict()})
 
 
-def _result_to_json(result: Any) -> dict[str, Any]:
-    d = result.decision
-    payload: dict[str, Any] = {
-        "decision": d.decision,
-        "confidence": d.confidence,
-        "summary": d.summary,
-        "keyReasons": d.key_reasons,
-        "riskWarnings": d.risk_warnings,
-        "recommendationId": result.recommendation_id,
-        "cards": result.cards,
-        "stages": result.stages,
-        "teamMode": result.team_mode,
-        "drawings": [asdict(x) for x in result.drawings],
-    }
-    if d.gate_chain:
-        payload["gateChain"] = {
-            "allowed": d.gate_chain.allowed,
-            "confidenceDelta": d.gate_chain.confidence_delta,
-            "verdicts": [asdict(v) for v in d.gate_chain.verdicts],
-        }
-    if d.refusal_summary:
-        payload["refusalSummary"] = d.refusal_summary
-    rec = d.recommendation
-    payload["recommendation"] = {
-        "action": rec.action,
-        "entry": rec.entry,
-        "stopLoss": rec.stop_loss,
-        "targets": rec.targets,
-        "planType": d.plan_type,
-        "executionState": d.execution_state,
-    }
-    return payload
-
-
 def handle_trading_analyze(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
@@ -222,7 +188,7 @@ def handle_trading_analyze(request: WsRequest) -> Response:
             )
         if result is None:
             return _http_error(500, "Analysis produced no result")
-        return _http_json_response(_result_to_json(result))
+        return _http_json_response(result_to_wire(result))
     except Exception as exc:
         return _http_error(500, f"Analysis failed: {exc}")
 
