@@ -133,6 +133,7 @@ type ShellView =
   | "performance"
   | "recommendations"
   | "briefing"
+  | "connect"
   | "settings";
 type ShellRoute = {
   view: ShellView;
@@ -183,6 +184,10 @@ const TradingBriefingPanel = lazy(async () => {
 const TradingChartBottomSheet = lazy(async () => {
   const module = await import("@/components/trading/TradingChartBottomSheet");
   return { default: module.TradingChartBottomSheet };
+});
+const TradingConnect = lazy(async () => {
+  const module = await import("@/components/trading/TradingConnect");
+  return { default: module.TradingConnect };
 });
 
 function SurfaceLoadingFallback({ label }: { label?: string }) {
@@ -300,6 +305,9 @@ function readShellRoute(): ShellRoute {
   }
   if (path === "/recommendations" || path === "/inbox") {
     return { view: "recommendations", activeKey, settingsSection: "overview" };
+  }
+  if (path === "/connect" || path === "/channels") {
+    return { view: "connect", activeKey, settingsSection: "channels" };
   }
   if (path.startsWith("/temporary/")) {
     const encoded = path.slice("/temporary/".length);
@@ -2030,8 +2038,10 @@ function Shell({
   }, [activeKey, navigate]);
 
   const onOpenChannels = useCallback(() => {
-    onOpenSettings("channels");
-  }, [onOpenSettings]);
+    setSessionSearchOpen(false);
+    navigate({ view: "connect", activeKey, settingsSection: "channels" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
 
   useEffect(() => {
     const actions: Partial<Record<ReturnType<typeof matchSidebarShortcut> & string, () => void>> = {
@@ -2554,6 +2564,10 @@ function Shell({
       document.title = t("app.documentTitle.chat", { title: "Briefing" });
       return;
     }
+    if (view === "connect") {
+      document.title = t("app.documentTitle.chat", { title: "Connect" });
+      return;
+    }
     if (view === "chart") {
       document.title = t("app.documentTitle.chat", { title: "Gold chart" });
       return;
@@ -2622,6 +2636,7 @@ function Shell({
       || view === "performance"
       || view === "recommendations"
       || view === "briefing"
+      || view === "connect"
         ? view
         : null,
     onToggleArchived,
@@ -2944,6 +2959,13 @@ function Shell({
               <div className="absolute inset-0 flex flex-col">
                 <Suspense fallback={<SurfaceLoadingFallback label="Loading briefing…" />}>
                   <TradingBriefingPanel />
+                </Suspense>
+              </div>
+            )}
+            {view === "connect" && (
+              <div className="absolute inset-0 flex flex-col">
+                <Suspense fallback={<SurfaceLoadingFallback label="Loading channels…" />}>
+                  <TradingConnect />
                 </Suspense>
               </div>
             )}

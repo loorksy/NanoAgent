@@ -72,7 +72,7 @@ interface SidebarProps {
   onOpenChannels?: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
-  activeUtility?: "chart" | "performance" | "recommendations" | "briefing" | null;
+  activeUtility?: "chart" | "performance" | "recommendations" | "briefing" | "connect" | null;
   onToggleArchived: () => void;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -258,9 +258,10 @@ export function Sidebar(props: SidebarProps) {
         {props.onOpenChannels ? (
           <SidebarActionButton
             collapsed={collapsed}
-            label="Channels"
+            label="Telegram / WhatsApp"
             onClick={props.onOpenChannels}
             onIntent={props.onSettingsIntent}
+            active={props.activeUtility === "connect"}
             selectionRef={activeActionRef}
             icon={<MessageCircle className="h-4 w-4" />}
           />

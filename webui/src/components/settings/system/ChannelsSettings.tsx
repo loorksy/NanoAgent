@@ -38,7 +38,7 @@ export function ChannelsSettings({
   const { t } = useTranslation();
   const [selectedChannelName, setSelectedChannelName] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<ChannelFilter>("enabled");
+  const [filter, setFilter] = useState<ChannelFilter>("all");
   const [connectRequestId, setConnectRequestId] = useState(0);
   const filterInitializedRef = useRef(false);
   const triggerRef = useRef<HTMLElement | null>(null);

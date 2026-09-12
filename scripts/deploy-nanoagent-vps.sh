@@ -90,7 +90,9 @@ ws = cfg["channels"]["websocket"]
 ws["enabled"] = True
 ws["host"] = "0.0.0.0"
 ws["port"] = web_port
-ws["tokenIssueSecret"] = token
+existing = ws.get("tokenIssueSecret")
+ws["tokenIssueSecret"] = existing or token
+print("ISSUED_TOKEN=" + ws["tokenIssueSecret"])
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
