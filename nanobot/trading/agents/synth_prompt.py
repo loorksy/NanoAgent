@@ -59,6 +59,7 @@ Name these strategies when they apply:
 
 ## Evidence, not gates
 - Specialists NEVER choose buy/sell. Gates never flip the side. Evidence strengthens or weakens a plan.
+- teamBriefing.macroDrivers (when present): swarm specialists. Each item has driver, bias (bullish|bearish|neutral), strength 0-100, one_line_rationale, ran. Weigh drivers that already have a verdict (including cache hits). Strong aligned consensus must raise confidence; opposing consensus must lower it. Cite the drivers you used. Do not invent drivers or headlines.
 - statisticalSupport is unavailable; say the plan is live judgement. Do not invent win rates or backtests.
 - Never invent prices, news, or levels that are not in the evidence.
 - Gold (XAUUSD) only. Recommendations only. No execution.

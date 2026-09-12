@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -21,7 +22,61 @@ from nanobot.trading.types import (
 )
 
 GOLD_FOLLOW_THROUGH_POINTS = 12.5
+# Max ±confidence from teamBriefing.macroDrivers consensus (documented rule).
+MACRO_CONFIDENCE_WEIGHT = 0.12
 _JSON_DIR = re.compile(r"^(buy|sell)$", re.I)
+
+
+def parse_macro_drivers(snapshot: EvidenceSnapshot) -> list[dict[str, Any]]:
+    """Read teamBriefing JSON (string or object) from the frozen evidence snapshot."""
+    raw = (snapshot.payload or {}).get("teamBriefing") if snapshot else None
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+    if isinstance(raw, dict):
+        drivers = raw.get("macroDrivers") or raw.get("macro_drivers") or []
+    elif isinstance(raw, list):
+        drivers = raw
+    else:
+        return []
+    return [item for item in drivers if isinstance(item, dict)]
+
+
+def macro_alignment_score(direction: Decision, drivers: list[dict[str, Any]]) -> float:
+    """Signed consensus in [-1, 1]. Buy aligns with bullish; sell with bearish.
+
+    Neutral and strength-0 drivers do not vote. Cache-hit (ran=false) still
+    votes because the stored verdict is current evidence.
+    """
+    signed = 0.0
+    weight = 0.0
+    for item in drivers:
+        bias = str(item.get("bias") or "").lower()
+        try:
+            strength = max(0, min(100, int(item.get("strength") or 0)))
+        except (TypeError, ValueError):
+            strength = 0
+        if strength <= 0 or bias not in ("bullish", "bearish"):
+            continue
+        signed += (1.0 if bias == "bullish" else -1.0) * strength
+        weight += strength
+    if weight <= 0:
+        return 0.0
+    consensus = signed / weight
+    if direction == "buy":
+        return consensus
+    if direction == "sell":
+        return -consensus
+    return 0.0
+
+
+def apply_macro_confidence(confidence: float, alignment: float) -> float:
+    """Add up to ±MACRO_CONFIDENCE_WEIGHT when macro consensus agrees or fights the side."""
+    return max(0.05, min(0.95, confidence + MACRO_CONFIDENCE_WEIGHT * alignment))
 
 
 def _round2(value: float) -> float:
@@ -443,11 +498,31 @@ def apply_model_decision(
     except (TypeError, ValueError):
         conf = 0.55
 
+    # Documented rule: teamBriefing.macroDrivers adjust confidence after the model
+    # answers. Specialists still never flip the side.
+    reasons = _clean_strings(parsed.get("keyReasons") or parsed.get("key_reasons"), 6)
+    drivers = parse_macro_drivers(snapshot)
+    alignment = macro_alignment_score(direction, drivers)
+    if drivers and abs(alignment) > 1e-9:
+        before = conf
+        conf = apply_macro_confidence(conf, alignment)
+        if abs(conf - before) >= 0.01:
+            voted = sum(
+                1
+                for item in drivers
+                if str(item.get("bias") or "").lower() in ("bullish", "bearish")
+            )
+            note = (
+                f"Macro drivers {alignment:+.2f} alignment ({voted} voted) "
+                f"→ confidence {before:.2f}→{conf:.2f}"
+            )
+            reasons = [*reasons[:5], note]
+
     return FinalDecisionResult(
         decision=direction,
         confidence=conf,
         summary=str(parsed.get("summary") or f"Gold {direction.upper()}")[:900],
-        key_reasons=_clean_strings(parsed.get("keyReasons") or parsed.get("key_reasons"), 6),
+        key_reasons=reasons[:6],
         risk_warnings=warnings,
         recommendation=rec,
         plan_type=plan_type,
