@@ -204,15 +204,77 @@ class GateChainResult:
 
 
 @dataclass
+class EntryZone:
+    low: float
+    high: float
+
+
+@dataclass
+class ScenarioWaypoint:
+    bars_ahead: int
+    price: float
+    label: str = ""
+
+
+@dataclass
+class TimeframeRoles:
+    lead: str = "15m"
+    context: str = "4h"
+    timing: str = "5m"
+
+
+@dataclass
+class DecisionHypothesis:
+    scenario: str
+    supporting: list[str] = field(default_factory=list)
+    opposing: list[str] = field(default_factory=list)
+
+
+@dataclass
+class DecisionTrace:
+    hypotheses: list[DecisionHypothesis] = field(default_factory=list)
+    chosen_because: str = ""
+    plan_type_because: str = ""
+
+
+@dataclass
+class VisualReview:
+    state: Literal["checked", "not_checked", "partial"] = "not_checked"
+    requested: list[str] = field(default_factory=list)
+    captured: list[str] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+    notes: str = ""
+
+
+@dataclass
+class EvidenceSnapshot:
+    payload: dict[str, Any] = field(default_factory=dict)
+    evidence_levels: list[float] = field(default_factory=list)
+
+
+@dataclass
 class AgentRecommendation:
     action: Decision
     plan_type: PlanType | None = None
     execution_state: ExecutionState | None = None
     entry: float | None = None
     entry_type: str | None = None
+    entry_zone: EntryZone | None = None
     stop_loss: float | None = None
     targets: list[float] = field(default_factory=list)
+    take_profit: float | None = None
+    activation_condition: str | None = None
     activation_rule: dict[str, Any] | None = None
+    invalidation_rule: str | None = None
+    invalidation_level: float | None = None
+    alternative_scenario: str | None = None
+    validity_candles: int | None = None
+    timeframe_roles: TimeframeRoles | None = None
+    decision_trace: DecisionTrace | None = None
+    scenario_path: list[ScenarioWaypoint] = field(default_factory=list)
+    alternative_scenario_path: list[ScenarioWaypoint] = field(default_factory=list)
+    rr: float | None = None
+    net_rr: float | None = None
     anchor_time: int | None = None
     symbol: str = "XAUUSD"
     interval: str = "15m"
@@ -231,6 +293,9 @@ class FinalDecisionResult:
     public_reasoning_summary: list[str] = field(default_factory=list)
     gate_chain: GateChainResult | None = None
     refusal_summary: str | None = None
+    visual_review: VisualReview | None = None
+    evidence_snapshot: EvidenceSnapshot | None = None
+    team_briefing: str | None = None
 
 
 @dataclass

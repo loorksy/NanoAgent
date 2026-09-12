@@ -11,7 +11,10 @@ from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.intent_router import resolve_team_preset
 from nanobot.trading.oanda import fetch_quote
+from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.teams.runtime import run_swarm
@@ -147,7 +150,14 @@ async def try_gold_fast_path(
     if not text:
         return None
 
-    turn = plan_turn(text)
+    ctx = current_request_context()
+    session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
+    live = latest_live_recommendation(session_key)
+    turn = plan_turn(text, active_recommendation_live=bool(live))
+
+    if turn.mode == "recommendation_followup":
+        graded = grade_live_recommendation(live, operator_text=text)
+        return OutboundMessage(channel=channel, chat_id=chat_id, content=graded.summary)
 
     if turn.mode == "market_data_only":
         if turn.intent.confidence < _PRICE_CONFIDENCE_MIN:

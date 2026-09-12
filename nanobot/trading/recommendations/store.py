@@ -12,12 +12,14 @@ from nanobot.config.paths import get_data_dir
 from nanobot.trading.recommendations.tradability import assess_plan_tradability
 from nanobot.trading.types import AgentMarketContext, ChartDrawing, FinalDecisionResult
 
-_DB_PATH = get_data_dir() / "trading" / "recommendations.db"
+def _db_path() -> Path:
+    return get_data_dir() / "trading" / "recommendations.db"
 
 
 def _conn() -> sqlite3.Connection:
-    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(_DB_PATH)
+    path = _db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS recommendations (
@@ -33,10 +35,14 @@ def _conn() -> sqlite3.Connection:
             confidence REAL,
             drawings_json TEXT,
             gate_json TEXT,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            session_key TEXT
         )
         """
     )
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(recommendations)")}
+    if "session_key" not in cols:
+        conn.execute("ALTER TABLE recommendations ADD COLUMN session_key TEXT")
     conn.commit()
     return conn
 
@@ -45,12 +51,16 @@ def store_recommendation(
     decision: FinalDecisionResult,
     drawings: list[ChartDrawing],
     market: AgentMarketContext,
+    *,
+    session_key: str | None = None,
 ) -> str:
     tradable, _reason = assess_plan_tradability(decision)
     if not tradable:
         return ""
     rec = decision.recommendation
     if not rec.entry or not rec.stop_loss or not rec.targets:
+        return ""
+    if session_key and latest_live_recommendation(session_key):
         return ""
 
     rec_id = str(uuid.uuid4())
@@ -76,8 +86,8 @@ def store_recommendation(
             """
             INSERT INTO recommendations
             (id, symbol, interval, direction, entry, stop_loss, targets_json, status,
-             summary, confidence, drawings_json, gate_json, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             summary, confidence, drawings_json, gate_json, created_at, session_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 rec_id,
@@ -93,6 +103,7 @@ def store_recommendation(
                 drawings_json,
                 gate_json,
                 int(time.time() * 1000),
+                session_key,
             ),
         )
         conn.commit()
@@ -123,6 +134,36 @@ def get_recommendation(rec_id: str) -> dict | None:
         "summary": row[8],
         "confidence": row[9],
         "created_at": row[10],
+    }
+
+
+def latest_live_recommendation(session_key: str | None) -> dict | None:
+    """One live plan per conversation. session_key None → no conversation lock."""
+    if not session_key:
+        return None
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, "
+            "summary, confidence, created_at, session_key "
+            "FROM recommendations WHERE session_key = ? AND status IN ('valid_now', 'awaiting_activation') "
+            "ORDER BY created_at DESC LIMIT 1",
+            (session_key,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "symbol": row[1],
+        "interval": row[2],
+        "direction": row[3],
+        "entry": row[4],
+        "stop_loss": row[5],
+        "targets": json.loads(row[6] or "[]"),
+        "status": row[7],
+        "summary": row[8],
+        "confidence": row[9],
+        "created_at": row[10],
+        "session_key": row[11],
     }
 
 

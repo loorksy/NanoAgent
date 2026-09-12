@@ -1,19 +1,42 @@
-"""Build chart drawing plan from analysis results."""
+"""Build chart drawing plan: S/R, zones, and Lonora scenario paths."""
 
 from __future__ import annotations
 
 from nanobot.trading.types import (
+    AgentMarketContext,
     ChartDrawing,
     FinalDecisionResult,
+    ScenarioWaypoint,
     StructureResult,
     SupplyDemandResult,
 )
+
+_MAX_OBJECTS = 12
+
+
+def _path_points(
+    waypoints: list[ScenarioWaypoint],
+    *,
+    start_price: float,
+    start_time: float,
+    bar_ms: int,
+) -> list[dict[str, float]]:
+    points = [{"time": start_time, "price": start_price}]
+    last_time = start_time
+    for wp in waypoints:
+        t = start_time + wp.bars_ahead * bar_ms
+        if t <= last_time:
+            t = last_time + bar_ms
+        points.append({"time": float(t), "price": wp.price})
+        last_time = t
+    return points
 
 
 def build_drawing_plan(
     structure: StructureResult,
     supply_demand: SupplyDemandResult,
     decision: FinalDecisionResult,
+    market: AgentMarketContext | None = None,
 ) -> list[ChartDrawing]:
     drawings: list[ChartDrawing] = []
     for level in structure.support[:2]:
@@ -55,6 +78,44 @@ def build_drawing_plan(
             )
         )
     rec = decision.recommendation
+    start_price = rec.entry or (market.last_close if market else 0.0)
+    start_time = float(rec.anchor_time or (market.candles[-1].time_ms if market and market.candles else 0))
+    bar_ms = 15 * 60 * 1000
+    if rec.scenario_path and start_price:
+        drawings.append(
+            ChartDrawing(
+                type="forecast_path",
+                confidence=80,
+                label="Scenario",
+                color="#38bdf8",
+                semantic_role="scenario_path",
+                points=_path_points(
+                    rec.scenario_path,
+                    start_price=start_price,
+                    start_time=start_time,
+                    bar_ms=bar_ms,
+                ),
+                meta={"role": "primary"},
+            )
+        )
+    if rec.alternative_scenario_path and start_price:
+        drawings.append(
+            ChartDrawing(
+                type="forecast_path",
+                confidence=70,
+                label="Alternative",
+                color="#f97316",
+                style="dashed",
+                semantic_role="alternative_scenario_path",
+                points=_path_points(
+                    rec.alternative_scenario_path,
+                    start_price=start_price,
+                    start_time=start_time,
+                    bar_ms=bar_ms,
+                ),
+                meta={"role": "alternative"},
+            )
+        )
     if rec.action in ("buy", "sell") and rec.entry and rec.stop_loss:
         drawings.append(
             ChartDrawing(
@@ -64,8 +125,8 @@ def build_drawing_plan(
                 color="#f59e0b",
                 semantic_role="invalidation",
                 points=[
-                    {"time": float(rec.anchor_time or 0), "price": rec.stop_loss},
+                    {"time": float(rec.anchor_time or start_time), "price": rec.stop_loss},
                 ],
             )
         )
-    return drawings[:9]
+    return drawings[:_MAX_OBJECTS]

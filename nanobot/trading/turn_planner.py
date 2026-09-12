@@ -1,4 +1,4 @@
-"""Minimal turn planner for gold trading entry points."""
+"""Lonora turn planner — one live recommendation per conversation."""
 
 from __future__ import annotations
 
@@ -8,11 +8,21 @@ from typing import Literal
 from nanobot.trading.intent_router import IntentKind, RoutedIntent, route_intent
 
 TurnMode = Literal[
-    "market_data_only",
     "full_analysis",
+    "recommendation_followup",
+    "specialist",
+    "conversation",
+    "reevaluation",
+    "market_data_only",
     "team_swarm",
-    "general_chat",
 ]
+
+
+@dataclass(frozen=True)
+class TurnTools:
+    fetch_market_data: bool = False
+    capture_charts: bool = False
+    run_full_pipeline: bool = False
 
 
 @dataclass(frozen=True)
@@ -20,14 +30,111 @@ class TurnPlan:
     mode: TurnMode
     intent: RoutedIntent
     emit_stages: bool
+    reason: str = ""
+    redirected_from_analysis: bool = False
+    requested_new_plan: bool = False
+    tools: TurnTools = TurnTools()
 
 
-def plan_turn(message: str) -> TurnPlan:
+_EXPLICIT_NEW_ANALYSIS = (
+    "حلل",
+    "حلّل",
+    "تحليل جديد",
+    "توصية جديدة",
+    "توصيه جديدة",
+    "توصية ثانية",
+    "فرصة جديدة",
+    "صفقة جديدة",
+    "أعطني توصية",
+    "اعطني توصية",
+    "اعطيني توصية",
+    "بدي توصية",
+    "أريد توصية",
+    "اريد توصية",
+    "analyze",
+    "analyse",
+    "reanalyze",
+    "re-analyze",
+    "new recommendation",
+    "another recommendation",
+    "fresh analysis",
+    "give me a recommendation",
+)
+
+_SPECIALIST_KINDS: frozenset[IntentKind] = frozenset({"price_query"})
+_ANALYSIS_KINDS: frozenset[IntentKind] = frozenset(
+    {"gold_analysis", "recommendation", "team_swarm"}
+)
+
+NO_TOOLS = TurnTools()
+FOLLOWUP_TOOLS = TurnTools(fetch_market_data=True)
+FULL_TOOLS = TurnTools(fetch_market_data=True, capture_charts=True, run_full_pipeline=True)
+
+
+def wants_explicit_new_analysis(message: str) -> bool:
+    text = (message or "").lower()
+    return any(phrase.lower() in text for phrase in _EXPLICIT_NEW_ANALYSIS)
+
+
+def plan_turn(
+    message: str,
+    *,
+    active_recommendation_live: bool = False,
+    reevaluation: bool = False,
+) -> TurnPlan:
     intent = route_intent(message)
+    if reevaluation:
+        return TurnPlan(
+            "reevaluation",
+            intent,
+            emit_stages=True,
+            reason="internal_reevaluation",
+            tools=FULL_TOOLS,
+        )
     if intent.kind == "price_query":
-        return TurnPlan("market_data_only", intent, emit_stages=True)
+        return TurnPlan(
+            "market_data_only",
+            intent,
+            emit_stages=False,
+            reason="specialist_intent",
+            tools=TurnTools(fetch_market_data=True),
+        )
+    if intent.kind not in _ANALYSIS_KINDS:
+        specialist = intent.kind in _SPECIALIST_KINDS
+        return TurnPlan(
+            "specialist" if specialist else "conversation",
+            intent,
+            emit_stages=False,
+            reason="specialist_intent" if specialist else "no_trade_signal",
+            tools=NO_TOOLS,
+        )
+    if active_recommendation_live:
+        requested = wants_explicit_new_analysis(message)
+        return TurnPlan(
+            "recommendation_followup",
+            intent,
+            emit_stages=False,
+            reason=(
+                "explicit_new_analysis_with_live_recommendation"
+                if requested
+                else "ambiguous_with_live_recommendation"
+            ),
+            redirected_from_analysis=True,
+            requested_new_plan=requested,
+            tools=FOLLOWUP_TOOLS,
+        )
     if intent.kind == "team_swarm":
-        return TurnPlan("team_swarm", intent, emit_stages=True)
-    if intent.kind in ("gold_analysis", "recommendation"):
-        return TurnPlan("full_analysis", intent, emit_stages=True)
-    return TurnPlan("general_chat", intent, emit_stages=False)
+        return TurnPlan(
+            "team_swarm",
+            intent,
+            emit_stages=True,
+            reason="no_active_recommendation",
+            tools=FULL_TOOLS,
+        )
+    return TurnPlan(
+        "full_analysis",
+        intent,
+        emit_stages=True,
+        reason="no_active_recommendation",
+        tools=FULL_TOOLS,
+    )

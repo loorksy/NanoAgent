@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nanobot.agent.tools.context import RequestContext
 from nanobot.runtime_context import RuntimeContextBlock, wrap_runtime_context_lines
+from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
 _MODE_TOOL_HINTS: dict[str, str] = {
@@ -13,12 +14,18 @@ _MODE_TOOL_HINTS: dict[str, str] = {
         "For committee/debate/swarm requests use run_trading_team."
     ),
     "team_swarm": "Use run_trading_team with the matching gold preset.",
-    "general_chat": "",
+    "recommendation_followup": (
+        "A live recommendation already exists. Do not mint a second plan. "
+        "Call analyze_gold only to grade the live plan (follow-up)."
+    ),
+    "conversation": "",
+    "specialist": "",
 }
 
 
-def gold_intent_plan(message: str) -> TurnPlan:
-    return plan_turn(message)
+def gold_intent_plan(message: str, *, session_key: str | None = None) -> TurnPlan:
+    live = latest_live_recommendation(session_key)
+    return plan_turn(message, active_recommendation_live=bool(live))
 
 
 async def gold_intent_runtime_context(
@@ -27,8 +34,9 @@ async def gold_intent_runtime_context(
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    turn = plan_turn(text)
-    if turn.mode == "general_chat":
+    live = latest_live_recommendation(request.session_key)
+    turn = plan_turn(text, active_recommendation_live=bool(live))
+    if turn.mode == "conversation":
         return None
     tool_hint = _MODE_TOOL_HINTS.get(turn.mode, "")
     lines = [

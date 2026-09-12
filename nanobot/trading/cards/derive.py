@@ -74,11 +74,16 @@ def derive_cards(result: AgentFinalResult) -> list[dict[str, Any]]:
         )
 
     if d.decision in ("buy", "sell"):
+        review = d.visual_review
         cards.append(
             {
                 "kind": "visual_review",
-                "state": "not_checked",
-                "timeframes": [result.market.interval if result.market else "15m"],
+                "state": review.state if review else "not_checked",
+                "timeframes": review.requested
+                if review
+                else [result.market.interval if result.market else "15m"],
+                "missing": review.missing if review else [],
+                "notes": review.notes if review else "",
             }
         )
 

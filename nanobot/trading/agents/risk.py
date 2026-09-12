@@ -27,44 +27,35 @@ def run_risk_agent(
     price = market.last_close
     candidates: list[TradeCandidate] = []
 
-    if structure.trend == "uptrend" or (
-        structure.latest_structure_event and structure.latest_structure_event.direction == "bullish"
-    ):
-        stop = price - atr * 1.5
-        t1 = price + atr * 2
-        t2 = price + atr * 4
-        candidates.append(
-            TradeCandidate(
-                id="cand-bull-1",
-                action="buy",
-                entry=price,
-                entry_type="market",
-                stop_loss=stop,
-                targets=[t1, t2],
-                rr=_rr(price, stop, t2, "buy"),
-                quality_score=0.65,
-                setup_type="structure_break",
-            )
+    # Menu only — both sides. The synthesizer chooses the direction.
+    stop_buy = price - atr * 1.5
+    candidates.append(
+        TradeCandidate(
+            id="cand-bull-1",
+            action="buy",
+            entry=price,
+            entry_type="market",
+            stop_loss=stop_buy,
+            targets=[price + atr * 2, price + atr * 4],
+            rr=_rr(price, stop_buy, price + atr * 4, "buy"),
+            quality_score=0.65 if structure.trend == "uptrend" else 0.45,
+            setup_type="structure_break",
         )
-    if structure.trend == "downtrend" or (
-        structure.latest_structure_event and structure.latest_structure_event.direction == "bearish"
-    ):
-        stop = price + atr * 1.5
-        t1 = price - atr * 2
-        t2 = price - atr * 4
-        candidates.append(
-            TradeCandidate(
-                id="cand-bear-1",
-                action="sell",
-                entry=price,
-                entry_type="market",
-                stop_loss=stop,
-                targets=[t1, t2],
-                rr=_rr(price, stop, t2, "sell"),
-                quality_score=0.65,
-                setup_type="structure_break",
-            )
+    )
+    stop_sell = price + atr * 1.5
+    candidates.append(
+        TradeCandidate(
+            id="cand-bear-1",
+            action="sell",
+            entry=price,
+            entry_type="market",
+            stop_loss=stop_sell,
+            targets=[price - atr * 2, price - atr * 4],
+            rr=_rr(price, stop_sell, price - atr * 4, "sell"),
+            quality_score=0.65 if structure.trend == "downtrend" else 0.45,
+            setup_type="structure_break",
         )
+    )
 
     if supply_demand.nearest_demand and not candidates:
         z = supply_demand.nearest_demand

@@ -53,6 +53,11 @@ async def apply_g7_reprice_loop(
             break
         plan.entry = new_entry
         recommendation.entry = new_entry
+        recommendation.plan_type = "immediate"
+        recommendation.entry_type = "market"
+        recommendation.activation_rule = None
+        recommendation.activation_condition = None
+        recommendation.execution_state = "valid_now"
         follow_up = await run_gate_chain([g6, g7])
         current = _merge_gate_chains(current, follow_up)
         if not current.allowed:
