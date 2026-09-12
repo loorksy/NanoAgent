@@ -42,20 +42,22 @@ id "$SERVICE_USER" &>/dev/null || useradd --system --home "$INSTALL_DIR" --shell
 mkdir -p "$INSTALL_DIR"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
+git_safe() {
+  sudo -u "$SERVICE_USER" git -C "$INSTALL_DIR" "$@"
+}
+
 if [[ ! -d "$INSTALL_DIR/.git" ]]; then
-  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+  sudo -u "$SERVICE_USER" git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 else
-  cd "$INSTALL_DIR"
-  git fetch origin "$BRANCH"
-  git checkout "$BRANCH"
-  git pull --ff-only origin "$BRANCH" || git reset --hard "origin/$BRANCH"
+  git_safe config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+  git_safe fetch origin "$BRANCH"
+  git_safe checkout "$BRANCH"
+  git_safe pull --ff-only origin "$BRANCH" || git_safe reset --hard "origin/$BRANCH"
 fi
 
 cd "$INSTALL_DIR"
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip wheel
-pip install -e .
+sudo -u "$SERVICE_USER" python3 -m venv .venv
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U pip wheel && pip install -e ."
 
 # OANDA from foxagent (read-only)
 if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
@@ -67,7 +69,7 @@ if ! command -v bun >/dev/null; then
   curl -fsSL https://bun.sh/install | bash
   export PATH="$HOME/.bun/bin:$PATH"
 fi
-cd webui && bun install && bun run build
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR/webui' && export PATH=\"\$HOME/.bun/bin:\$PATH\" && bun install && bun run build"
 cd "$INSTALL_DIR"
 
 CONFIG_DIR="$INSTALL_DIR/.nanobot"
