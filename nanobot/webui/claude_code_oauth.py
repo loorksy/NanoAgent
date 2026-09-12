@@ -125,8 +125,8 @@ def apply_claude_code_oauth_token(
     """Update in-process env and persist to the service dotenv file."""
     path = env_file or resolve_env_file_path()
     if token is None:
-        os.environ.pop(ENV_KEY, None)
         upsert_dotenv_key(path, ENV_KEY, None)
+        os.environ.pop(ENV_KEY, None)
         logger.info("Cleared Claude Code CLI OAuth token from process env and dotenv")
         return public_status()
 
@@ -134,7 +134,7 @@ def apply_claude_code_oauth_token(
     if not cleaned:
         raise WebUISettingsError("Claude Code CLI token is required")
 
-    os.environ[ENV_KEY] = cleaned
     upsert_dotenv_key(path, ENV_KEY, cleaned)
+    os.environ[ENV_KEY] = cleaned
     logger.info("Updated Claude Code CLI OAuth token in process env and dotenv")
     return public_status()

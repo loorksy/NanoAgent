@@ -79,6 +79,38 @@ def test_resolve_env_file_prefers_override_then_home(
     monkeypatch.delenv("NANOAGENT_ENV_FILE")
     monkeypatch.setenv("HOME", str(tmp_path))
     assert resolve_env_file_path() == tmp_path / ".env"
+    monkeypatch.delenv("HOME")
+    assert resolve_env_file_path() == Path(".env")
+
+
+def test_upsert_replaces_existing_and_export_lines(isolated_env: Path) -> None:
+    isolated_env.write_text(
+        "export CLAUDE_CODE_OAUTH_TOKEN=old-token-0000\nOANDA_API_TOKEN=keep-me\n"
+    )
+    apply_claude_code_oauth_token("new-token-value-1111")
+    text = isolated_env.read_text(encoding="utf-8")
+    assert "old-token-0000" not in text
+    assert "new-token-value-1111" in text
+    assert text.count("CLAUDE_CODE_OAUTH_TOKEN=") == 1
+    assert "OANDA_API_TOKEN=keep-me" in text
+
+
+def test_upsert_cleans_tempfile_when_replace_fails(
+    isolated_env: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    isolated_env.write_text("OANDA_API_TOKEN=keep-me\n")
+
+    def boom(src: str, dst: str) -> None:
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(os, "replace", boom)
+    with pytest.raises(OSError, match="replace failed"):
+        apply_claude_code_oauth_token("temp-cleanup-token-2222")
+    leftovers = list(isolated_env.parent.glob(".env.*.tmp"))
+    assert leftovers == []
+    assert ENV_KEY not in isolated_env.read_text(encoding="utf-8")
+    assert ENV_KEY not in os.environ
 
 
 def test_apply_persists_mode_0600_updates_process_env_and_preserves_other_keys(
