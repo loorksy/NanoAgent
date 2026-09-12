@@ -99,6 +99,18 @@ class _LivenessTrackedRequest(BaseRequest):
         return result
 
 
+def _split_telegram_html(content: str, max_len: int) -> list[str]:
+    """Split pre-rendered HTML without markdown conversion."""
+    if not content:
+        return []
+    content = content.lstrip()
+    if not content:
+        return []
+    if len(content) <= max_len:
+        return [content]
+    return split_message(content, max_len)
+
+
 def _split_telegram_markdown(content: str, max_len: int) -> list[str]:
     """Split raw Telegram Markdown without leaving fenced code blocks unbalanced."""
     if not content:
@@ -1183,13 +1195,19 @@ class TelegramChannel(BaseChannel):
                 if rich_ok:
                     return
 
-            chunks = _split_telegram_markdown(text, TELEGRAM_MAX_MESSAGE_LEN)
+            force_html = msg.metadata.get("parse_mode") == "HTML"
+            chunks = (
+                _split_telegram_html(text, TELEGRAM_HTML_MAX_LEN)
+                if force_html
+                else _split_telegram_markdown(text, TELEGRAM_MAX_MESSAGE_LEN)
+            )
             for i, chunk in enumerate(chunks):
                 is_last = (i == len(chunks) - 1)
                 await self._send_text(
                     chat_id, chunk, reply_params, thread_kwargs,
                     render_as_blockquote=render_as_blockquote,
                     reply_markup=reply_markup if is_last else None,
+                    force_html=force_html,
                 )
 
     async def _call_with_retry(
@@ -1235,11 +1253,19 @@ class TelegramChannel(BaseChannel):
         thread_kwargs: dict[str, int] | None = None,
         render_as_blockquote: bool = False,
         reply_markup: InlineKeyboardMarkup | None = None,
+        force_html: bool = False,
     ) -> None:
         """Send a plain text message with HTML fallback."""
         app = self._require_app()
         try:
-            html = _tool_hint_to_telegram_blockquote(text) if render_as_blockquote else _markdown_to_telegram_html(text)
+            if force_html:
+                html = _tool_hint_to_telegram_blockquote(text) if render_as_blockquote else text
+            else:
+                html = (
+                    _tool_hint_to_telegram_blockquote(text)
+                    if render_as_blockquote
+                    else _markdown_to_telegram_html(text)
+                )
             await self._call_with_retry(
                 app.bot.send_message,
                 chat_id=chat_id, text=html, parse_mode="HTML",

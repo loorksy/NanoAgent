@@ -10,7 +10,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DOMAIN="${NANOAGENT_DOMAIN:-nanoagent.lork.cloud}"
-BRANCH="${NANOAGENT_BRANCH:-cursor/gold-agent-aichart-aba3}"
+BRANCH="${NANOAGENT_BRANCH:-main}"
 INSTALL_DIR="/opt/nanoagent"
 SERVICE_USER="nanoagent"
 WEB_PORT=8766
