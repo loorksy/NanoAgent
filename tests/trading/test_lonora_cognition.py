@@ -1,5 +1,4 @@
 import json
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,7 +9,6 @@ from nanobot.trading.agents.apply_model_decision import (
     apply_revision,
     entry_print_state,
 )
-from nanobot.trading.types import EvidenceSnapshot
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.drawings.plan import build_drawing_plan
 from nanobot.trading.orchestrator import run_unified_chart_agent
@@ -21,10 +19,10 @@ from nanobot.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
     Candle,
+    EvidenceSnapshot,
     FinalDecisionResult,
     GateChainResult,
     GateVerdict,
-    LiquidityResult,
     MarketSync,
     MultiTimeframeResult,
     NewsMacroResult,
@@ -279,13 +277,11 @@ async def test_synthesizer_no_usable_decision_without_provider() -> None:
 async def test_synthesizer_uses_bound_request_provider() -> None:
     from nanobot.utils.llm_runtime import LLMRuntime
 
-    provider = MagicMock()
+    class _FakeProvider:
+        async def chat(self, **_kwargs):
+            return LLMResponse(content=json.dumps(_parsed()))
 
-    async def chat(**_kwargs):
-        return LLMResponse(content=json.dumps(_parsed()))
-
-    provider.chat = chat
-    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    runtime = LLMRuntime.capture(_FakeProvider(), "test-model", context_window_tokens=128_000)
     with request_context(RequestContext(channel="webui", chat_id="analyze", runtime=runtime)):
         result = await _synth_default_complete()
     assert result.decision == "sell"

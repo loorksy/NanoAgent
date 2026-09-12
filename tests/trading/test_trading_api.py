@@ -17,7 +17,7 @@ from nanobot.webui.trading_api import (
 
 
 def _request(path: str) -> Request:
-    return Request("GET", path, [])
+    return Request(path, [])
 
 
 def test_trading_status_without_oanda() -> None:

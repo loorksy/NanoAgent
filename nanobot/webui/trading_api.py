@@ -28,7 +28,6 @@ from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
 from nanobot.webui.http_utils import query_first as _query_first
 
-
 _T = TypeVar("_T")
 
 
