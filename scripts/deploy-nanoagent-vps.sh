@@ -50,9 +50,8 @@ if [[ ! -d "$INSTALL_DIR/.git" ]]; then
   sudo -u "$SERVICE_USER" git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 else
   git_safe config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
-  git_safe fetch origin "$BRANCH"
-  git_safe checkout "$BRANCH"
-  git_safe pull --ff-only origin "$BRANCH" || git_safe reset --hard "origin/$BRANCH"
+  git_safe fetch --depth 1 origin "$BRANCH"
+  git_safe checkout -B "$BRANCH" "origin/$BRANCH"
 fi
 
 cd "$INSTALL_DIR"
