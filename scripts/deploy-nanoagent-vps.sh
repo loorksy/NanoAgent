@@ -64,10 +64,8 @@ if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
   bash scripts/sync-oanda-from-foxagent.sh || true
 fi
 
-export PATH="$HOME/.bun/bin:$PATH"
-if ! command -v bun >/dev/null; then
-  curl -fsSL https://bun.sh/install | bash
-  export PATH="$HOME/.bun/bin:$PATH"
+if ! sudo -u "$SERVICE_USER" bash -lc 'command -v bun >/dev/null'; then
+  sudo -u "$SERVICE_USER" bash -lc 'curl -fsSL https://bun.sh/install | bash'
 fi
 sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR/webui' && export PATH=\"\$HOME/.bun/bin:\$PATH\" && bun install && bun run build"
 cd "$INSTALL_DIR"
