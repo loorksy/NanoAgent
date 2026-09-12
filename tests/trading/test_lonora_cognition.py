@@ -1,7 +1,10 @@
 import json
+from unittest.mock import MagicMock
 
 import pytest
 
+from nanobot.agent.tools.context import RequestContext, request_context
+from nanobot.providers.base import LLMResponse
 from nanobot.trading.agents.apply_model_decision import (
     apply_model_decision,
     apply_revision,
@@ -226,6 +229,68 @@ async def test_synthesizer_uses_fake_llm_not_selected_candidate() -> None:
     )
     assert result.decision == "buy"
     assert result.recommendation.action == "buy"
+
+
+def _synth_market() -> AgentMarketContext:
+    return AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=[Candle(1, 1, 1, 1, 2400, 0)],
+        last_close=2400.0,
+        atr=8.0,
+        sync=MarketSync(ok=True),
+        quote_mid=2400.0,
+    )
+
+
+def _synth_risk() -> RiskAgentResult:
+    return RiskAgentResult(
+        proposed_trade=TradeCandidate("x", "sell", 2400, "market", 2415, [2380], 2, 0.9),
+        validation=TradeValidationResult(accepted=True, reasons=[]),
+        selected_candidate=TradeCandidate("cand-bear-1", "sell", 2400, "market", 2415, [2380], 2, 0.9),
+        candidates=[
+            TradeCandidate("cand-bull-1", "buy", 2400, "market", 2385, [2420, 2440], 2, 0.4),
+            TradeCandidate("cand-bear-1", "sell", 2400, "market", 2415, [2380, 2360], 2, 0.9),
+        ],
+    )
+
+
+async def _synth_default_complete(**kwargs):
+    return await run_final_decision_synthesizer(
+        _synth_risk(),
+        StructureResult("downtrend", [], [], [], []),
+        MultiTimeframeResult("bearish", "bearish", "bearish", False),
+        NewsMacroResult("low", "unknown", [], [], True, ""),
+        market=_synth_market(),
+        **kwargs,
+    )
+
+
+@pytest.mark.asyncio
+async def test_synthesizer_no_usable_decision_without_provider() -> None:
+    """HTTP analyze used to skip request context; Lonora then WAIT @ 0.0."""
+    result = await _synth_default_complete()
+    assert result.decision == "wait"
+    assert result.confidence == 0.0
+    assert "no usable decision" in result.summary.lower()
+
+
+@pytest.mark.asyncio
+async def test_synthesizer_uses_bound_request_provider() -> None:
+    from nanobot.utils.llm_runtime import LLMRuntime
+
+    provider = MagicMock()
+
+    async def chat(**_kwargs):
+        return LLMResponse(content=json.dumps(_parsed()))
+
+    provider.chat = chat
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    with request_context(RequestContext(channel="webui", chat_id="analyze", runtime=runtime)):
+        result = await _synth_default_complete()
+    assert result.decision == "sell"
+    assert result.confidence > 0
+    assert "no usable decision" not in result.summary.lower()
 
 
 @pytest.mark.asyncio

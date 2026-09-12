@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+from dataclasses import replace
 from typing import Any, TypeVar
 
 from websockets.http11 import Request as WsRequest
 from websockets.http11 import Response
 
+from nanobot.agent.tools.context import RequestContext, current_request_context, request_context
+from nanobot.providers.factory import load_provider_snapshot
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
@@ -19,6 +22,7 @@ from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.teams.runtime import run_swarm
+from nanobot.utils.llm_runtime import runtime_from_provider_snapshot
 from nanobot.webui.http_utils import http_error as _http_error
 from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
@@ -169,6 +173,44 @@ def handle_trading_runtime_update(request: WsRequest) -> Response:
     return _http_json_response({"runtime": state.to_dict()})
 
 
+def analyze_request_context() -> RequestContext:
+    """Request context with the configured default LLM runtime (same as chat).
+
+    HTTP analyze runs outside AgentLoop, so Lonora's synthesizer otherwise
+    sees no provider and returns WAIT / "no usable decision".
+    """
+    existing = current_request_context()
+    runtime = existing.runtime if existing is not None else None
+    if runtime is None:
+        try:
+            runtime = runtime_from_provider_snapshot(load_provider_snapshot())
+        except ValueError:
+            runtime = None
+    if existing is not None:
+        return existing if existing.runtime is runtime else replace(existing, runtime=runtime)
+    return RequestContext(
+        channel="webui",
+        chat_id="trading-analyze",
+        runtime=runtime,
+    )
+
+
+async def _run_trading_analyze(
+    interval: str,
+    team_mode: str,
+    preset: str | None,
+) -> Any:
+    """Run analyze inside a bound default-LLM context (thread-pool safe)."""
+    with request_context(analyze_request_context()):
+        if team_mode == "debate":
+            debate = await run_debate_crew()
+            return debate.final
+        if team_mode == "swarm":
+            swarm = await run_swarm(preset or "gold_analysis_committee")
+            return swarm["final"]
+        return await run_unified_chart_agent(interval=interval, team_mode=team_mode)
+
+
 def handle_trading_analyze(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
@@ -176,16 +218,7 @@ def handle_trading_analyze(request: WsRequest) -> Response:
     preset = _query_first(params, "preset")
 
     try:
-        if team_mode == "debate":
-            debate = _run_async(run_debate_crew())
-            result = debate.final
-        elif team_mode == "swarm":
-            swarm = _run_async(run_swarm(preset or "gold_analysis_committee"))
-            result = swarm["final"]
-        else:
-            result = _run_async(
-                run_unified_chart_agent(interval=interval, team_mode=team_mode)
-            )
+        result = _run_async(_run_trading_analyze(interval, team_mode, preset))
         if result is None:
             return _http_error(500, "Analysis produced no result")
         return _http_json_response(result_to_wire(result))
