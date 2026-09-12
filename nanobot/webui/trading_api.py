@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 from dataclasses import asdict
-from typing import Any
+from typing import Any, TypeVar
 
 from websockets.http11 import Request as WsRequest
 from websockets.http11 import Response
@@ -22,6 +23,19 @@ from nanobot.webui.http_utils import http_error as _http_error
 from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
 from nanobot.webui.http_utils import query_first as _query_first
+
+
+_T = TypeVar("_T")
+
+
+def _run_async(coro: Any) -> _T:
+    """Run a coroutine from sync HTTP handlers (works inside a running event loop)."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
 
 
 def _parse_int(value: str | None) -> int | None:
@@ -197,13 +211,15 @@ def handle_trading_analyze(request: WsRequest) -> Response:
 
     try:
         if team_mode == "debate":
-            debate = asyncio.run(run_debate_crew())
+            debate = _run_async(run_debate_crew())
             result = debate.final
         elif team_mode == "swarm" and preset:
-            swarm = asyncio.run(run_swarm(preset))
+            swarm = _run_async(run_swarm(preset))
             result = swarm["final"]
         else:
-            result = asyncio.run(run_unified_chart_agent(interval=interval, team_mode=team_mode))
+            result = _run_async(
+                run_unified_chart_agent(interval=interval, team_mode=team_mode)
+            )
         if result is None:
             return _http_error(500, "Analysis produced no result")
         return _http_json_response(_result_to_json(result))
