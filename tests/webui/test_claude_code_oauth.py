@@ -18,7 +18,12 @@ from nanobot.webui.claude_code_oauth import (
     public_status,
     resolve_env_file_path,
 )
-from nanobot.webui.claude_code_oauth_flow import parse_authorization_response
+from nanobot.webui.claude_code_oauth_flow import (
+    create_connect_flow,
+    exchange_authorization_code,
+    parse_authorization_response,
+    token_url,
+)
 from nanobot.webui.http_utils import http_json_response
 from nanobot.webui.settings_api import settings_payload, update_claude_code_oauth_settings
 from nanobot.webui.settings_contracts import WebUISettingsError
@@ -71,6 +76,111 @@ def test_parse_authorization_response_accepts_code_hash_state() -> None:
     assert state == "url-state"
     with pytest.raises(WebUISettingsError, match="state"):
         parse_authorization_response("only-a-code")
+    code, state = parse_authorization_response(
+        "https://platform.claude.com/oauth/code/callback#frag-code#frag-state"
+    )
+    assert code == "frag-code"
+    assert state == "frag-state"
+    with pytest.raises(WebUISettingsError, match="code"):
+        parse_authorization_response("   ")
+
+
+def test_connect_flow_cancel_and_token_url_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flow = create_connect_flow(timeout_s=30)
+    assert flow.remaining_seconds > 0
+    flow.cancel()
+    assert flow.expired is True
+    assert flow.remaining_seconds == 0
+    monkeypatch.setenv("NANOAGENT_CLAUDE_OAUTH_TOKEN_URL", "https://oauth.test/token")
+    assert token_url() == "https://oauth.test/token"
+
+
+def test_exchange_authorization_code_uses_post_fn_and_hides_secrets() -> None:
+    class _Response:
+        status_code = 200
+
+        def json(self) -> dict[str, str]:
+            return {"access_token": "sk-ant-oat-exchanged-4411"}
+
+    captured: dict[str, object] = {}
+
+    def post_fn(url: str, payload: dict[str, str]) -> _Response:
+        captured["url"] = url
+        captured["payload"] = payload
+        return _Response()
+
+    token = exchange_authorization_code(
+        code="auth-code",
+        state="csrf-state",
+        code_verifier="verifier-secret",
+        post_fn=post_fn,
+    )
+    assert token == "sk-ant-oat-exchanged-4411"
+    assert captured["payload"]["code_verifier"] == "verifier-secret"
+    assert captured["payload"]["grant_type"] == "authorization_code"
+
+    class _Bad:
+        status_code = 400
+
+        def json(self) -> dict[str, str]:
+            return {"error": "invalid_grant"}
+
+    with pytest.raises(WebUISettingsError, match="failed"):
+        exchange_authorization_code(
+            code="auth-code",
+            state="csrf-state",
+            code_verifier="verifier-secret",
+            post_fn=lambda _url, _payload: _Bad(),
+        )
+    with pytest.raises(WebUISettingsError, match="failed"):
+        exchange_authorization_code(
+            code="auth-code",
+            state="csrf-state",
+            code_verifier="verifier-secret",
+            post_fn=lambda _url, _payload: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+
+
+@pytest.mark.asyncio
+async def test_callback_accepts_state_without_flow_id(
+    isolated_env: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text("{}\n")
+    router = _router(config_path=config_path)
+    start = await router.dispatch(
+        None,
+        _mutation_request("/api/settings/claude-code-oauth/connect", {}),
+        "/api/settings/claude-code-oauth/connect",
+    )
+    assert start is not None
+    flow = json.loads(start.body)
+    from urllib.parse import parse_qs, urlsplit
+
+    state = parse_qs(urlsplit(flow["authorization_url"]).query)["state"][0]
+    token = "sk-ant-oat-state-only-7788"
+    monkeypatch.setattr(
+        "nanobot.webui.claude_code_oauth_flow.exchange_authorization_code",
+        lambda **_kwargs: token,
+    )
+    response = await router.dispatch(
+        None,
+        _mutation_request(
+            "/api/settings/claude-code-oauth/callback",
+            {"code": "auth-code-value", "state": state},
+        ),
+        "/api/settings/claude-code-oauth/callback",
+    )
+    assert response is not None
+    assert response.status_code == 200
+    payload = json.loads(response.body)
+    assert token not in response.body.decode("utf-8")
+    assert payload["claude_code_oauth"]["hint"] == "••••7788"
+    assert os.environ[ENV_KEY] == token
 
 
 def test_mask_token_last4_never_returns_full_secret() -> None:

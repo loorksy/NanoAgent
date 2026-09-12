@@ -148,10 +148,9 @@ def parse_authorization_response(
             fragment = parse_qs(parsed.fragment)
             code = code or _first_query(query, "code") or _first_query(fragment, "code")
             state = state or _first_query(query, "state") or _first_query(fragment, "state")
-            if not code and parsed.fragment and "#" not in parsed.fragment:
-                # Official page uses ``code#state`` in the fragment.
-                left, _, right = parsed.fragment.partition("#")
-                if left and right:
+            if not code and parsed.fragment:
+                left, sep, right = parsed.fragment.partition("#")
+                if sep and left and right:
                     code = left.strip()
                     state = state or right.strip()
         elif not code:

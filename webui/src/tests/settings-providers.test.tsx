@@ -889,7 +889,7 @@ describe("Settings providers", () => {
 
     expect(screen.getByRole("button", { name: "ربط / Connect" })).toBeInTheDocument();
     expect(screen.getByText("أو الصق التوكن")).toBeInTheDocument();
-    expect(screen.getByText(/CLAUDE_CODE_OAUTH_TOKEN/)).toBeInTheDocument();
+    expect(screen.getAllByText(/CLAUDE_CODE_OAUTH_TOKEN/).length).toBeGreaterThan(0);
     expect(screen.getByText(/claude setup-token/)).toBeInTheDocument();
     expect(screen.queryByText(secret)).not.toBeInTheDocument();
 
@@ -907,7 +907,7 @@ describe("Settings providers", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: "Claude Code CLI" }));
-    expect(screen.getByText(/Connected · last 4 ••••AB12/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Connected · last 4 ••••AB12/).length).toBeGreaterThan(0);
     expect(screen.queryByDisplayValue(secret)).not.toBeInTheDocument();
     expect(screen.queryByText(secret)).not.toBeInTheDocument();
   });
@@ -1008,7 +1008,6 @@ describe("Settings providers", () => {
         20_000,
       ),
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Claude Code CLI" }));
-    expect(screen.getByText(/Connected · last 4 ••••QQ77/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Connected · last 4 ••••QQ77/)).length).toBeGreaterThan(0);
   });
 });
