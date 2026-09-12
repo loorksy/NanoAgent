@@ -32,7 +32,7 @@ def test_format_price_rounds_ugly_floats() -> None:
 
 def test_translate_structure_reasons() -> None:
     assert translate_reason("Structure trend: down") == "📉 الاتجاه: هابط"
-    assert translate_reason("MTF bias: bearish").startswith("📊 التحيز:")
+    assert translate_reason("MTF bias: bearish") == "📊 التحيز: هبوطي"
     assert "كسر هيكل" in translate_reason("Setup: structure_break R:R 2.67")
 
 

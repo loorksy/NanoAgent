@@ -16,6 +16,15 @@ _TREND_AR = {
     "sideways": "عرضي",
     "range": "عرضي",
 }
+_BIAS_AR = {
+    "up": "صعودي",
+    "down": "هبوطي",
+    "bullish": "صعودي",
+    "bearish": "هبوطي",
+    "neutral": "محايد",
+    "sideways": "عرضي",
+    "range": "عرضي",
+}
 _SETUP_AR = {
     "structure_break": "كسر هيكل",
     "structure": "هيكل",
@@ -83,7 +92,7 @@ def translate_reason(reason: str) -> str:
     match = re.match(r"MTF bias:\s*(\w+)", text, re.I)
     if match:
         key = match.group(1).lower()
-        return f"📊 التحيز: {_TREND_AR.get(key, match.group(1))}"
+        return f"📊 التحيز: {_BIAS_AR.get(key, match.group(1))}"
     match = re.match(r"Setup:\s*(\S+)", text, re.I)
     if match:
         setup = match.group(1)
