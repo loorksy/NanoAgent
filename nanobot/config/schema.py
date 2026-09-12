@@ -237,6 +237,14 @@ class BedrockProviderConfig(ProviderConfig):
     profile: str | None = None  # Optional AWS shared config profile
 
 
+class ClaudeCodeCliProviderConfig(ProviderConfig):
+    """Local Claude Code CLI provider (subscription login, no API key)."""
+
+    timeout_s: float = Field(default=90.0, ge=5.0, le=3600.0)
+    max_concurrent: int = Field(default=2, ge=1, le=16)
+    binary: str = "claude"
+
+
 class ProvidersConfig(Base):
     """Configuration for LLM providers.
 
@@ -250,6 +258,7 @@ class ProvidersConfig(Base):
     azure_openai: ProviderConfig = Field(default_factory=ProviderConfig)  # Azure OpenAI (model = deployment name)
     bedrock: BedrockProviderConfig = Field(default_factory=BedrockProviderConfig)  # AWS Bedrock Converse
     anthropic: ProviderConfig = Field(default_factory=ProviderConfig)
+    claude_code_cli: ClaudeCodeCliProviderConfig = Field(default_factory=ClaudeCodeCliProviderConfig)
     openai: ProviderConfig = Field(default_factory=ProviderConfig)
     openrouter: ProviderConfig = Field(default_factory=ProviderConfig)
     orcarouter: ProviderConfig = Field(default_factory=ProviderConfig)  # OrcaRouter API gateway

@@ -179,8 +179,8 @@ def handle_trading_analyze(request: WsRequest) -> Response:
         if team_mode == "debate":
             debate = _run_async(run_debate_crew())
             result = debate.final
-        elif team_mode == "swarm" and preset:
-            swarm = _run_async(run_swarm(preset))
+        elif team_mode == "swarm":
+            swarm = _run_async(run_swarm(preset or "gold_analysis_committee"))
             result = swarm["final"]
         else:
             result = _run_async(

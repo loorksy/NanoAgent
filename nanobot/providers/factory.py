@@ -208,6 +208,16 @@ def _make_provider_core(
             extra_headers=_provider_extra_headers(spec, p),
             provider_name=provider_name,
         )
+    elif backend == "claude_code_cli":
+        from nanobot.providers.claude_code_cli import ClaudeCodeCliProvider
+
+        provider = ClaudeCodeCliProvider(
+            default_model=model,
+            provider_name=provider_name,
+            timeout_s=float(getattr(p, "timeout_s", 90.0) or 90.0) if p else 90.0,
+            max_concurrent=int(getattr(p, "max_concurrent", 2) or 2) if p else 2,
+            binary=str(getattr(p, "binary", "claude") or "claude") if p else "claude",
+        )
     elif backend == "bedrock":
         from nanobot.providers.bedrock_provider import BedrockProvider
 

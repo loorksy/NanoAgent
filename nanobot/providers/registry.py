@@ -51,7 +51,7 @@ class ProviderSpec:
 
     # which provider implementation to use
     # "openai_compat" | "anthropic" | "azure_openai" | "openai_codex" | "xai_grok"
-    # | "github_copilot" | "bedrock"
+    # | "github_copilot" | "bedrock" | "claude_code_cli"
     backend: str = "openai_compat"
 
     # extra env vars / request headers supplied by the provider integration.
@@ -394,6 +394,19 @@ PROVIDERS: tuple[ProviderSpec, ...] = (
         display_name="Anthropic",
         backend="anthropic",
         supports_prompt_caching=True,
+    ),
+    ProviderSpec(
+        name="claude_code_cli",
+        keywords=("claude-code-cli", "claude_code_cli"),
+        env_key="",
+        display_name="Claude Code CLI",
+        backend="claude_code_cli",
+        is_direct=True,
+        builtin_models=(
+            ProviderModelSpec(id="sonnet", label="Claude Sonnet (CLI alias)"),
+            ProviderModelSpec(id="opus", label="Claude Opus (CLI alias)"),
+            ProviderModelSpec(id="haiku", label="Claude Haiku (CLI alias)"),
+        ),
     ),
     # OpenAI: SDK default base URL (no override needed)
     ProviderSpec(

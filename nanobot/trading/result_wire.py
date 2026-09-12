@@ -30,6 +30,7 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
         "cards": result.cards,
         "stages": result.stages,
         "teamMode": result.team_mode,
+        "macroDrivers": list(result.macro_drivers or []),
         "drawings": [asdict(x) for x in result.drawings],
         "interval": d.recommendation.interval if d.recommendation else "15m",
     }

@@ -21,6 +21,7 @@ KNOWN_STAGES = frozenset({
     "execution_guard",
     "general",
     "research",
+    "macro_drivers",
 })
 
 STAGE_LABEL_EN: dict[str, str] = {
@@ -36,6 +37,7 @@ STAGE_LABEL_EN: dict[str, str] = {
     "execution_guard": "Execution guard",
     "general": "Answer",
     "research": "Research",
+    "macro_drivers": "Macro drivers",
 }
 
 STAGE_LABEL_AR: dict[str, str] = {
@@ -51,6 +53,7 @@ STAGE_LABEL_AR: dict[str, str] = {
     "execution_guard": "حارس التنفيذ",
     "general": "الإجابة",
     "research": "البحث",
+    "macro_drivers": "محركات الاقتصاد الكلي",
 }
 
 
