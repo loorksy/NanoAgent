@@ -67,8 +67,8 @@ export function TradingConnect() {
       <header className="mb-6">
         <h1 className="text-lg font-semibold">Connect Telegram & WhatsApp</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Paste the bot token or scan the WhatsApp QR here. The agent then chats on those
-          channels the same way it does on the web.
+          Paste the Telegram bot token from @BotFather, or scan the WhatsApp QR.
+          This is the only setup screen you need — no extra install step.
         </p>
       </header>
 

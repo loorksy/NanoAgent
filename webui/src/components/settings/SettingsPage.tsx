@@ -35,7 +35,7 @@ import {
   AutomationEditDialog,
   AutomationsSettings,
 } from "@/components/settings/system/AutomationsSettings";
-import { ChannelsSettings } from "@/components/settings/system/ChannelsSettings";
+import { TradingConnect } from "@/components/trading/TradingConnect";
 import { RUNTIME_CONFIG_FIELDS, type RuntimeConfigPage } from "@/components/settings/system/runtime-config-fields";
 import { RuntimeConfigSettings } from "@/components/settings/system/RuntimeConfigSettings";
 import { RuntimeSettings } from "@/components/settings/system/RuntimeSettings";
@@ -204,8 +204,6 @@ export function SettingsPage({
     setModelPresetNameError,
     setModelPresetPendingDelete,
     setNanobotFeatureConfirm,
-    setNanobotFeatures,
-    setNanobotFeaturesError,
     setNetworkSafetyForm,
     setProviderForms,
     setProviderOAuthDialogError,
@@ -475,25 +473,7 @@ export function SettingsPage({
           </div>
         );
       case "channels":
-        return (
-          <ChannelsSettings
-            token={token}
-            nanobotFeatures={nanobotFeatures}
-            loading={nanobotFeaturesLoading}
-            actionKey={nanobotFeatureAction}
-            chatAppsDocsUrl={settings.docs?.chat_apps_url}
-            showBrandLogos={localPrefs.brandLogos}
-            error={nanobotFeaturesError}
-            requiresRestartPending={pendingRestartSections.runtime}
-            onAction={handleNanobotFeatureAction}
-            onFeaturesUpdate={setNanobotFeatures}
-            onDismissStatus={() => {
-              setNanobotFeaturesError(null);
-            }}
-            onRestart={restartViaSettingsSurface}
-            isRestarting={restartInProgress}
-          />
-        );
+        return <TradingConnect />;
       case "apps":
         return (
           <div className="settings-stack">
