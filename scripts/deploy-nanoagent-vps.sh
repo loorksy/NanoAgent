@@ -51,7 +51,7 @@ if [[ ! -d "$INSTALL_DIR/.git" ]]; then
 else
   git_safe config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
   git_safe fetch --depth 1 origin "$BRANCH"
-  git_safe checkout -B "$BRANCH" "origin/$BRANCH"
+  git_safe checkout -B "$BRANCH" FETCH_HEAD
 fi
 
 cd "$INSTALL_DIR"
@@ -143,6 +143,16 @@ NGX
 ln -sf /etc/nginx/sites-available/nanoagent.lork.cloud /etc/nginx/sites-enabled/nanoagent.lork.cloud
 nginx -t && systemctl reload nginx
 
+if ! command -v certbot >/dev/null; then
+  apt-get update -qq
+  apt-get install -y -qq certbot python3-certbot-nginx || true
+fi
+if command -v certbot >/dev/null; then
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+    --register-unsafely-without-email --redirect --keep-until-expiring || true
+  nginx -t && systemctl reload nginx || true
+fi
+
 echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT token=$WEB_TOKEN"
 EOS
 )
@@ -153,5 +163,5 @@ OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no "root@${VPS}" \
 
 echo "$OUT"
 echo ""
-echo "WebUI: http://${DOMAIN}/"
+echo "WebUI: https://${DOMAIN}/ (or http if certbot pending)"
 echo "Bootstrap token (save this): ${WEB_TOKEN}"

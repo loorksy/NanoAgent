@@ -151,6 +151,10 @@ async def run_unified_chart_agent(
         )
     )
     gate_chain = await run_gate_chain(gates)
+    from nanobot.trading.gates.reprice_loop import apply_g7_reprice_loop
+
+    gate_chain, plan, rec = await apply_g7_reprice_loop(gate_chain, gates, plan, rec)
+    decision.recommendation = rec
     decision.gate_chain = gate_chain
     decision.confidence = max(0.05, decision.confidence + gate_chain.confidence_delta / 100)
 

@@ -43,6 +43,24 @@ class RoutedIntent:
     reason: str
 
 
+_PRESET_BY_KEYWORD: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(war room|غرفة الأخبار)", re.I), "gold_news_war_room"),
+    (re.compile(r"(debate desk|مناظرة)", re.I), "gold_debate_desk"),
+    (re.compile(r"(mtf panel|لوحة)", re.I), "gold_mtf_panel"),
+    (re.compile(r"(committee|لجنة)", re.I), "gold_analysis_committee"),
+)
+
+
+def resolve_team_preset(message: str) -> str | None:
+    text = (message or "").strip()
+    if not text:
+        return None
+    for pattern, preset in _PRESET_BY_KEYWORD:
+        if pattern.search(text):
+            return preset
+    return None
+
+
 def route_intent(message: str) -> RoutedIntent:
     text = (message or "").strip()
     if not text:
