@@ -17,6 +17,12 @@ def test_fast_path_runs_analysis_for_arabic_request() -> None:
     assert turn.intent.confidence >= 0.75
 
 
+def test_fast_path_runs_recommendation_without_gold_keyword() -> None:
+    turn = plan_turn("اعطيني توصية")
+    assert turn.mode == "full_analysis"
+    assert turn.intent.kind == "recommendation"
+
+
 def test_resolve_team_preset_war_room() -> None:
     assert resolve_team_preset("شغّل غرفة الأخبار") == "gold_news_war_room"
 
@@ -30,6 +36,17 @@ def test_fast_path_skips_low_confidence_gold_mention() -> None:
         )
     )
     assert result is None
+
+
+def test_fast_path_recommendation_does_not_skip_to_llm() -> None:
+    result = asyncio.run(
+        try_gold_fast_path(
+            "اعطيني توصية",
+            channel="telegram",
+            chat_id="1",
+        )
+    )
+    assert result is not None
 
 
 def test_fast_path_oanda_unconfigured() -> None:

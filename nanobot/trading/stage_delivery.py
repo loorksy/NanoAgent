@@ -1,4 +1,4 @@
-"""Publish trading stage events to WebUI (agent_ui) and Telegram (Arabic)."""
+"""Publish trading stages: WebUI agent_ui, Telegram in-place checklist, WhatsApp one-liner."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
 from nanobot.channels.telegram.trading_progress import (
+    TRADING_PROGRESS_META,
     TelegramStageRow,
     apply_stage_event,
     render_arabic_progress,
@@ -16,6 +17,8 @@ from nanobot.trading.stage_events import StageEvent, stage_label
 
 if TYPE_CHECKING:
     from nanobot.bus.queue import MessageBus
+
+_WHATSAPP_PROGRESS = "⏳ جاري تحليل الذهب…"
 
 
 class TradingStagePublisher:
@@ -32,6 +35,8 @@ class TradingStagePublisher:
         self._channel = channel
         self._chat_id = chat_id
         self._telegram_rows: list[TelegramStageRow] = []
+        self._pending: list[asyncio.Task[None]] = []
+        self._whatsapp_progress_sent = False
 
     def sync_emit(self, event: StageEvent) -> None:
         """Sync callback for ``run_unified_chart_agent(emit=...)``."""
@@ -40,24 +45,37 @@ class TradingStagePublisher:
         except RuntimeError:
             asyncio.run(self._publish(event))
             return
-        loop.create_task(self._publish(event))
+        self._pending.append(loop.create_task(self._publish(event)))
+
+    async def flush(self) -> None:
+        if not self._pending:
+            return
+        pending = self._pending
+        self._pending = []
+        await asyncio.gather(*pending, return_exceptions=True)
 
     async def open_chart(self, interval: str = "15m") -> None:
+        if self._channel not in ("websocket", ""):
+            return
         await self._agent_ui(
             "trading_chart_open",
             {"interval": interval, "symbol": "XAUUSD"},
             content="Opening gold chart…",
         )
 
-    async def publish_result(self, payload: dict[str, Any]) -> None:
+    async def publish_result(self, payload: dict[str, Any], *, include_card: bool = True) -> None:
+        await self.flush()
         decision = str(payload.get("decision", "wait")).upper()
         summary = str(payload.get("summary", ""))
-        await self._agent_ui(
-            "trading_result",
-            payload,
-            content=f"{decision}: {summary}" if summary else decision,
-        )
+        if self._is_web():
+            await self._agent_ui(
+                "trading_result",
+                payload,
+                content=f"{decision}: {summary}" if summary else decision,
+            )
         if self._bus is None or not self._channel or not self._chat_id:
+            return
+        if not include_card:
             return
         if self._channel == "telegram":
             from nanobot.channels.telegram.trading_cards import render_recommendation_card
@@ -68,7 +86,6 @@ class TradingStagePublisher:
                     channel=self._channel,
                     chat_id=self._chat_id,
                     content=card,
-                    event=ProgressEvent(content=card),
                     metadata={"parse_mode": "HTML"},
                 )
             )
@@ -81,9 +98,11 @@ class TradingStagePublisher:
                     channel=self._channel,
                     chat_id=self._chat_id,
                     content=card,
-                    event=ProgressEvent(content=card),
                 )
             )
+
+    def _is_web(self) -> bool:
+        return self._channel in ("websocket", "")
 
     async def _agent_ui(
         self,
@@ -112,13 +131,14 @@ class TradingStagePublisher:
     async def _publish(self, event: StageEvent) -> None:
         if self._bus is None or not self._channel or not self._chat_id:
             return
-        label = stage_label(event.stage, "en")
-        await self._agent_ui(
-            "trading_stage",
-            event.to_wire(),
-            content=label,
-        )
-        if self._channel in ("telegram", "whatsapp"):
+        if self._is_web():
+            await self._agent_ui(
+                "trading_stage",
+                event.to_wire(),
+                content=stage_label(event.stage, "en"),
+            )
+            return
+        if self._channel == "telegram":
             self._telegram_rows = apply_stage_event(self._telegram_rows, event)
             checklist = render_arabic_progress(self._telegram_rows)
             await self._bus.publish_outbound(
@@ -127,5 +147,20 @@ class TradingStagePublisher:
                     chat_id=self._chat_id,
                     content=checklist,
                     event=ProgressEvent(content=checklist),
+                    metadata={TRADING_PROGRESS_META: True},
+                )
+            )
+            return
+        if self._channel == "whatsapp":
+            if self._whatsapp_progress_sent:
+                return
+            self._whatsapp_progress_sent = True
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=self._channel,
+                    chat_id=self._chat_id,
+                    content=_WHATSAPP_PROGRESS,
+                    event=ProgressEvent(content=_WHATSAPP_PROGRESS),
+                    metadata={TRADING_PROGRESS_META: True},
                 )
             )

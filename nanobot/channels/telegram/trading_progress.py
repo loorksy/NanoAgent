@@ -6,6 +6,11 @@ from dataclasses import dataclass, field
 
 from nanobot.trading.stage_events import STAGE_LABEL_AR, StageEvent, stage_label
 
+TRADING_PROGRESS_META = "trading_progress"
+TRADING_CARD_SENT_META = "trading_card_sent"
+TELEGRAM_TRADING_PROGRESS = TRADING_PROGRESS_META
+TELEGRAM_TRADING_CARD_SENT = TRADING_CARD_SENT_META
+
 
 @dataclass
 class TelegramStageRow:

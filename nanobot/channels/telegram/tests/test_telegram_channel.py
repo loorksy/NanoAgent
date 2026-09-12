@@ -12,8 +12,9 @@ try:
 except ImportError:
     pytest.skip("Telegram dependencies not installed (python-telegram-bot)", allow_module_level=True)
 
-from nanobot.bus.events import OutboundMessage
+from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
+from nanobot.channels.telegram.trading_progress import TRADING_PROGRESS_META
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.telegram.runtime import (
     TELEGRAM_MAX_MESSAGE_LEN,
@@ -63,6 +64,7 @@ class _FakeUpdater:
 class _FakeBot:
     def __init__(self) -> None:
         self.sent_messages: list[dict] = []
+        self.edited_messages: list[dict] = []
         self.sent_media: list[dict] = []
         self.get_me_calls = 0
         self.shutdown_calls = 0
@@ -80,6 +82,10 @@ class _FakeBot:
     async def send_message(self, **kwargs):
         self.sent_messages.append(kwargs)
         return SimpleNamespace(message_id=len(self.sent_messages))
+
+    async def edit_message_text(self, **kwargs):
+        self.edited_messages.append(kwargs)
+        return SimpleNamespace(message_id=kwargs.get("message_id", 1))
 
     async def send_photo(self, **kwargs) -> None:
         self.sent_media.append({"kind": "photo", **kwargs})
@@ -3357,3 +3363,68 @@ async def test_compaction_notices_are_tracked_per_compaction_id() -> None:
         chat_id=999, message_id=101, text="Context compacted.",
     )
     assert channel._compaction_notices == {("999", "c2"): 202}
+
+
+# ---------------------------------------------------------------------------
+# Gold analysis: one checklist edited in place, no tool-hint leak
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_trading_progress_edits_one_message_in_place() -> None:
+    channel = TelegramChannel(
+        TelegramConfig(enabled=True, token="123:abc", allow_from=["*"]),
+        MessageBus(),
+    )
+    _install_ready_app(channel)
+
+    first = OutboundMessage(
+        channel="telegram",
+        chat_id="999",
+        content="⏳ جاري جلب بيانات السوق",
+        event=ProgressEvent(content="⏳ جاري جلب بيانات السوق"),
+        metadata={TRADING_PROGRESS_META: True},
+    )
+    second = OutboundMessage(
+        channel="telegram",
+        chat_id="999",
+        content="✅ جاري جلب بيانات السوق\n⏳ تحليل البنية السعرية",
+        event=ProgressEvent(content="✅ جاري جلب بيانات السوق\n⏳ تحليل البنية السعرية"),
+        metadata={TRADING_PROGRESS_META: True},
+    )
+
+    await channel.send(first)
+    await channel.send(second)
+
+    assert len(channel._app.bot.sent_messages) == 1
+    assert len(channel._app.bot.edited_messages) == 1
+    assert channel._app.bot.edited_messages[0]["text"].startswith("✅")
+
+
+@pytest.mark.asyncio
+async def test_telegram_skips_agent_ui_and_tool_hints() -> None:
+    channel = TelegramChannel(
+        TelegramConfig(enabled=True, token="123:abc", allow_from=["*"]),
+        MessageBus(),
+    )
+    _install_ready_app(channel)
+
+    await channel.send(
+        OutboundMessage(
+            channel="telegram",
+            chat_id="999",
+            content="Opening gold chart…",
+            event=ProgressEvent(content="Opening gold chart…"),
+            metadata={OUTBOUND_META_AGENT_UI: {"kind": "trading_chart_open", "data": {}}},
+        )
+    )
+    await channel.send(
+        OutboundMessage(
+            channel="telegram",
+            chat_id="999",
+            content='analyze_gold("15m")',
+            event=ProgressEvent(content='analyze_gold("15m")', tool_hint=True),
+        )
+    )
+
+    assert channel._app.bot.sent_messages == []
+    assert channel._app.bot.edited_messages == []

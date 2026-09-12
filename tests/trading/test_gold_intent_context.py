@@ -17,6 +17,18 @@ def test_gold_intent_context_for_analysis() -> None:
     assert "analyze_gold" in block.content
 
 
+def test_gold_intent_context_telegram_does_not_repeat_card() -> None:
+    request = RequestContext(
+        channel="telegram",
+        chat_id="123",
+        session_key="telegram:123",
+        original_user_text="اعطيني توصية",
+    )
+    block = asyncio.run(gold_intent_runtime_context(request))
+    assert block is not None
+    assert "Do not repeat entry" in block.content
+
+
 def test_gold_intent_context_skips_general_chat() -> None:
     request = RequestContext(
         channel="websocket",

@@ -40,6 +40,12 @@ async def gold_intent_runtime_context(
         lines.append(tool_hint)
     if turn.emit_stages:
         lines.append("Stream analysis stages to the user when running tools.")
+    if request.channel in ("telegram", "whatsapp"):
+        lines.append(
+            "The trading tool already delivers the recommendation card to the user. "
+            "Do not repeat entry, stop, or targets. Do not mention a chart panel. "
+            "A short acknowledgment is enough."
+        )
     return RuntimeContextBlock(
         source="gold_intent",
         content=wrap_runtime_context_lines(lines),

@@ -11,6 +11,12 @@ def test_route_recommendation_arabic() -> None:
     assert intent.kind == "recommendation"
 
 
+def test_route_recommendation_without_gold_keyword() -> None:
+    intent = route_intent("منيح اعطيني توصية")
+    assert intent.kind == "recommendation"
+    assert intent.confidence >= 0.85
+
+
 def test_route_general_chat() -> None:
     intent = route_intent("hello there")
     assert intent.kind == "general_chat"

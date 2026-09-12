@@ -114,7 +114,24 @@ async def _run_analysis_fast_path(
         return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
 
     wire = result_to_wire(result)
-    await publisher.publish_result(wire)
+    await publisher.publish_result(wire, include_card=False)
+    if channel == "telegram":
+        from nanobot.channels.telegram.trading_cards import render_recommendation_card
+
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=render_recommendation_card(wire),
+            metadata={"parse_mode": "HTML"},
+        )
+    if channel == "whatsapp":
+        from nanobot.channels.whatsapp.trading_cards import render_recommendation_card
+
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=render_recommendation_card(wire),
+        )
     return _outbound_from_wire(wire, channel=channel, chat_id=chat_id)
 
 
@@ -166,7 +183,8 @@ async def try_gold_fast_path(
         return OutboundMessage(channel=channel, chat_id=chat_id, content=content)
 
     if turn.mode in ("full_analysis", "team_swarm"):
-        if turn.intent.confidence < _ANALYSIS_CONFIDENCE_MIN:
+        # Gold-only product: a recommendation request always runs the pipeline.
+        if turn.intent.kind != "recommendation" and turn.intent.confidence < _ANALYSIS_CONFIDENCE_MIN:
             return None
         config = load_trading_config()
         if not config.oanda_configured:

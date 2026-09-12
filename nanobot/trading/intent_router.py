@@ -70,9 +70,9 @@ def route_intent(message: str) -> RoutedIntent:
     if any(p.search(text) for p in _TEAM_PATTERNS):
         return RoutedIntent("team_swarm", 0.9 if mentions_gold else 0.75, "team preset keywords")
     if any(p.search(text) for p in _RECOMMEND_PATTERNS):
-        return RoutedIntent("recommendation", 0.9 if mentions_gold else 0.7, "recommendation keywords")
+        return RoutedIntent("recommendation", 0.9 if mentions_gold else 0.85, "recommendation keywords")
     if any(p.search(text) for p in _ANALYSIS_PATTERNS):
-        return RoutedIntent("gold_analysis", 0.9 if mentions_gold else 0.75, "analysis keywords")
+        return RoutedIntent("gold_analysis", 0.9 if mentions_gold else 0.85, "analysis keywords")
     if any(p.search(text) for p in _PRICE_PATTERNS):
         return RoutedIntent("price_query", 0.85 if mentions_gold else 0.6, "price keywords")
     if mentions_gold:

@@ -29,8 +29,12 @@ from telegram.error import BadRequest, InvalidToken, NetworkError, RetryAfter, T
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from telegram.request import BaseRequest, HTTPXRequest
 
-from nanobot.bus.events import OutboundMessage
+from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
+from nanobot.channels.telegram.trading_progress import (
+    TRADING_CARD_SENT_META,
+    TRADING_PROGRESS_META,
+)
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.base import BaseChannel
 from nanobot.command.builtin import build_help_text
@@ -571,12 +575,17 @@ class TelegramChannel(BaseChannel):
         self._bot_username: str | None = None
         self._stream_bufs: dict[str, _StreamBuf] = {}  # chat_id -> streaming state
         self._compaction_notices: dict[tuple[str, str], int] = {}  # (chat_id, compaction_id) -> message_id
+        self._trading_progress_ids: dict[str, int] = {}  # chat_id -> message_id
         self._inbound_buffers: dict[str, list[_QueuedTelegramUpdate]] = {}
         self._inbound_workers: dict[str, asyncio.Task[None]] = {}
         self._rich_send_disabled: bool = False  # Latch off if Bot API < 10.1
         self._last_poll_ok: float = 0.0  # monotonic time of last getUpdates round trip
         self._app_ready = asyncio.Event()  # cleared while the app is being rebuilt
         self._teardown_lock = asyncio.Lock()
+
+    def progress_transport_defaults(self) -> tuple[bool, bool] | None:
+        # Keep progress so analysis can edit one checklist. Hide tool-name breadcrumbs.
+        return True, False
 
     def _require_app(self) -> TelegramApplication:
         if self._app is None:
@@ -1105,6 +1114,24 @@ class TelegramChannel(BaseChannel):
                     allow_sending_without_reply=True
                 )
 
+        meta = msg.metadata if isinstance(msg.metadata, dict) else {}
+        if meta.get(OUTBOUND_META_AGENT_UI):
+            return
+        if meta.get(TRADING_CARD_SENT_META):
+            self._trading_progress_ids.pop(msg.chat_id, None)
+            return
+        if meta.get(TRADING_PROGRESS_META):
+            if not msg.content:
+                return
+            await self._upsert_trading_progress(
+                chat_id, msg.chat_id, msg.content, reply_params, thread_kwargs,
+            )
+            return
+        if progress_event is not None and progress_event.tool_hint:
+            return
+        if progress_event is None:
+            self._trading_progress_ids.pop(msg.chat_id, None)
+
         # Compaction notices collapse into one message: the started phase sends
         # it, a terminal phase edits it in place instead of posting a new one.
         if isinstance(msg.event, ContextCompactionEvent):
@@ -1181,11 +1208,13 @@ class TelegramChannel(BaseChannel):
             if buttons and reply_markup is None:
                 text = f"{text}\n\n{self._buttons_as_text(buttons)}"
 
+            force_html = msg.metadata.get("parse_mode") == "HTML"
             # Bot API 10.1 rich fast-path: send raw markdown via sendRichMessage.
             # All non-blockquote content tries rich first; _rich_send_disabled
             # latches off permanently if the server doesn't support it.
             if (
                 not render_as_blockquote
+                and not force_html
                 and self.config.rich_messages
                 and not getattr(self, "_rich_send_disabled", False)
             ):
@@ -1194,8 +1223,6 @@ class TelegramChannel(BaseChannel):
                 )
                 if rich_ok:
                     return
-
-            force_html = msg.metadata.get("parse_mode") == "HTML"
             chunks = (
                 _split_telegram_html(text, TELEGRAM_HTML_MAX_LEN)
                 if force_html
@@ -1291,6 +1318,41 @@ class TelegramChannel(BaseChannel):
     @staticmethod
     def _is_not_modified_error(exc: Exception) -> bool:
         return isinstance(exc, BadRequest) and "message is not modified" in str(exc).lower()
+
+    async def _upsert_trading_progress(
+        self,
+        chat_id: int,
+        chat_key: str,
+        text: str,
+        reply_params: ReplyParameters | None,
+        thread_kwargs: dict[str, int],
+    ) -> None:
+        """Keep gold analysis as one Telegram message that is edited in place."""
+        app = self._require_app()
+        existing = self._trading_progress_ids.get(chat_key)
+        if existing is not None:
+            try:
+                await self._call_with_retry(
+                    app.bot.edit_message_text,
+                    chat_id=chat_id,
+                    message_id=existing,
+                    text=text,
+                )
+                return
+            except Exception as exc:
+                if self._is_not_modified_error(exc):
+                    return
+                self.logger.warning("Trading progress edit failed, sending anew: {}", exc)
+        sent = await self._call_with_retry(
+            app.bot.send_message,
+            chat_id=chat_id,
+            text=text,
+            reply_parameters=reply_params,
+            **thread_kwargs,
+        )
+        while len(self._trading_progress_ids) >= COMPACTION_NOTICES_MAX:
+            self._trading_progress_ids.pop(next(iter(self._trading_progress_ids)))
+        self._trading_progress_ids[chat_key] = sent.message_id
 
     async def _send_compaction_notice(
         self,

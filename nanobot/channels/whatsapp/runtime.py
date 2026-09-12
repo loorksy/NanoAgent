@@ -18,8 +18,13 @@ from urllib.parse import urlparse
 import httpx
 from pydantic import Field
 
-from nanobot.bus.events import OutboundMessage
+from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
+from nanobot.bus.outbound_events import ProgressEvent
 from nanobot.bus.queue import MessageBus
+from nanobot.channels.telegram.trading_progress import (
+    TRADING_CARD_SENT_META,
+    TRADING_PROGRESS_META,
+)
 from nanobot.channels.base import BaseChannel
 from nanobot.config.paths import get_media_dir, get_runtime_subdir
 from nanobot.config.schema import Base
@@ -322,6 +327,10 @@ class WhatsAppChannel(BaseChannel):
         self._lid_to_phone = self._load_lid_mappings()
         self._self_jids: set[str] = set()
         self._started_at = 0.0
+        self._trading_progress_sent: set[str] = set()
+
+    def progress_transport_defaults(self) -> tuple[bool, bool] | None:
+        return True, False
 
     def _database_path(self) -> Path:
         configured = self.config.database_path.strip()
@@ -462,6 +471,19 @@ class WhatsAppChannel(BaseChannel):
         client = self._client
         if client is None or not self._connected:
             raise RuntimeError("WhatsApp channel is not connected")
+
+        meta = msg.metadata if isinstance(msg.metadata, dict) else {}
+        if meta.get(OUTBOUND_META_AGENT_UI) or meta.get(TRADING_CARD_SENT_META):
+            return
+        progress_event = msg.event if isinstance(msg.event, ProgressEvent) else None
+        if meta.get(TRADING_PROGRESS_META):
+            if msg.chat_id in self._trading_progress_sent:
+                return
+            self._trading_progress_sent.add(msg.chat_id)
+        elif progress_event is not None:
+            return
+        else:
+            self._trading_progress_sent.discard(msg.chat_id)
 
         to = self._build_jid(msg.chat_id)
         if msg.content:
