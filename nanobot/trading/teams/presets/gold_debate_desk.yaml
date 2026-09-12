@@ -1,0 +1,39 @@
+name: gold_debate_desk
+title: Gold Debate Desk
+description: Bull and bear advocates with risk officer for XAUUSD
+
+agents:
+  - id: bull_advocate
+    role: Bull Advocate
+    system_prompt: Argue FOR the gold trade setup using structure and liquidity evidence.
+  - id: bear_advocate
+    role: Bear Advocate
+    system_prompt: Argue AGAINST the gold trade setup; cite risks and conflicts.
+  - id: risk_manager
+    role: Risk Manager
+    system_prompt: Synthesize bull and bear briefs; enforce G1-G7 gate discipline.
+
+tasks:
+  - id: task-bull
+    agent_id: bull_advocate
+    prompt_template: "Analyze {target} ({market}). Build the bull case."
+    depends_on: []
+
+  - id: task-bear
+    agent_id: bear_advocate
+    prompt_template: "Analyze {target} ({market}). Build the bear case."
+    depends_on: []
+
+  - id: task-risk
+    agent_id: risk_manager
+    prompt_template: "Synthesize debate for {target}.\n{upstream_context}"
+    depends_on: [task-bull, task-bear]
+    input_from:
+      bull_report: task-bull
+      bear_report: task-bear
+
+variables:
+  - name: target
+    required: true
+  - name: market
+    required: false

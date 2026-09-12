@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
+import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TvChart } from "@/components/trading/TvChart";
+import { Button } from "@/components/ui/button";
 import { useClient } from "@/providers/ClientProvider";
 import { fetchWithTimeout } from "@/lib/http";
 
@@ -24,11 +27,27 @@ interface QuotePayload {
   error?: string;
 }
 
+interface AnalysisResult {
+  decision: string;
+  summary: string;
+  confidence: number;
+  cards: AgentCard[];
+  recommendation?: {
+    action?: string;
+    entry?: number;
+    stopLoss?: number;
+    targets?: number[];
+  };
+  recommendationId?: string;
+}
+
 export function GoldChartPanel() {
   const { getToken } = useClient();
   const [status, setStatus] = useState<TradingStatus | null>(null);
   const [quote, setQuote] = useState<QuotePayload["quote"]>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const authHeaders = useCallback((): Record<string, string> => {
     const token = getToken();
@@ -36,29 +55,32 @@ export function GoldChartPanel() {
     return { Authorization: `Bearer ${token}` };
   }, [getToken]);
 
+  const refreshMarket = useCallback(async () => {
+    const [statusRes, quoteRes] = await Promise.all([
+      fetchWithTimeout("/api/trading/status", {
+        credentials: "same-origin",
+        headers: authHeaders(),
+      }),
+      fetchWithTimeout("/api/trading/quote?symbol=XAUUSD", {
+        credentials: "same-origin",
+        headers: authHeaders(),
+      }),
+    ]);
+    if (!statusRes.ok || !quoteRes.ok) {
+      throw new Error("Failed to load trading status");
+    }
+    const statusPayload = await statusRes.json() as TradingStatus;
+    const quotePayload = await quoteRes.json() as QuotePayload;
+    setStatus(statusPayload);
+    setQuote(quotePayload.quote ?? null);
+    setError(quotePayload.error ?? null);
+  }, [authHeaders]);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const [statusRes, quoteRes] = await Promise.all([
-          fetchWithTimeout("/api/trading/status", {
-            credentials: "same-origin",
-            headers: authHeaders(),
-          }),
-          fetchWithTimeout("/api/trading/quote?symbol=XAUUSD", {
-            credentials: "same-origin",
-            headers: authHeaders(),
-          }),
-        ]);
-        if (!statusRes.ok || !quoteRes.ok) {
-          throw new Error("Failed to load trading status");
-        }
-        const statusPayload = await statusRes.json() as TradingStatus;
-        const quotePayload = await quoteRes.json() as QuotePayload;
-        if (cancelled) return;
-        setStatus(statusPayload);
-        setQuote(quotePayload.quote ?? null);
-        setError(quotePayload.error ?? null);
+        await refreshMarket();
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
@@ -71,7 +93,29 @@ export function GoldChartPanel() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [authHeaders]);
+  }, [refreshMarket]);
+
+  const runAnalysis = async () => {
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(
+        "/api/trading/analyze?interval=15m&team_mode=core",
+        { credentials: "same-origin", headers: authHeaders() },
+        120_000,
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Analyze failed (${res.status})`);
+      }
+      const payload = await res.json() as AnalysisResult;
+      setAnalysis(payload);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const mid = quote?.mid;
 
@@ -84,12 +128,17 @@ export function GoldChartPanel() {
             XAUUSD · TradingView Advanced Charts · OANDA datafeed
           </p>
         </div>
-        <div className="rounded-lg border bg-card px-4 py-2 text-sm">
-          <div className="font-medium">
-            {mid != null ? mid.toFixed(2) : "—"}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {status?.oanda_configured ? `OANDA ${status.oanda_env}` : "OANDA not configured"}
+        <div className="flex items-center gap-2">
+          <Button onClick={() => void runAnalysis()} disabled={analyzing}>
+            {analyzing ? "Analyzing…" : "Analyze gold"}
+          </Button>
+          <div className="rounded-lg border bg-card px-4 py-2 text-sm">
+            <div className="font-medium">
+              {mid != null ? mid.toFixed(2) : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {status?.oanda_configured ? `OANDA ${status.oanda_env}` : "OANDA not configured"}
+            </div>
           </div>
         </div>
       </div>
@@ -100,8 +149,23 @@ export function GoldChartPanel() {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
-        <TvChart getAuthToken={getToken} />
+      {analysis ? (
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+          <div className="font-medium uppercase">{analysis.decision}</div>
+          <p className="text-muted-foreground">{analysis.summary}</p>
+          <p className="text-xs">Confidence: {(analysis.confidence * 100).toFixed(0)}%</p>
+        </div>
+      ) : null}
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <div className="relative min-h-[420px] overflow-hidden rounded-xl border bg-card">
+          <TvChart getAuthToken={getToken} />
+          <ChartTradeOverlay recommendation={analysis?.recommendation ?? null} />
+        </div>
+        <div className="min-h-0 overflow-auto rounded-xl border bg-card p-3">
+          <h2 className="mb-3 text-sm font-semibold">Recommendation cards</h2>
+          <AgentCards cards={analysis?.cards ?? []} />
+        </div>
       </div>
     </div>
   );

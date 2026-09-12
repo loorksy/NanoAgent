@@ -1,0 +1,47 @@
+name: gold_analysis_committee
+title: Gold Analysis Committee
+description: Parallel macro/structure/liquidity analysts then risk and lead
+
+agents:
+  - id: macro_analyst
+    role: Macro Analyst
+  - id: structure_analyst
+    role: Structure Analyst
+  - id: liquidity_analyst
+    role: Liquidity Analyst
+  - id: risk_officer
+    role: Risk Officer
+  - id: lead_analyst
+    role: Lead Analyst
+
+tasks:
+  - id: task-macro
+    agent_id: macro_analyst
+    prompt_template: "Macro scan for {target}."
+    depends_on: []
+  - id: task-structure
+    agent_id: structure_analyst
+    prompt_template: "Structure analysis for {target}."
+    depends_on: []
+  - id: task-liquidity
+    agent_id: liquidity_analyst
+    prompt_template: "Liquidity map for {target}."
+    depends_on: []
+  - id: task-risk
+    agent_id: risk_officer
+    prompt_template: "Risk review.\n{upstream_context}"
+    depends_on: [task-macro, task-structure, task-liquidity]
+    input_from:
+      macro: task-macro
+      structure: task-structure
+      liquidity: task-liquidity
+  - id: task-lead
+    agent_id: lead_analyst
+    prompt_template: "Final committee summary.\n{upstream_context}"
+    depends_on: [task-risk]
+    input_from:
+      risk: task-risk
+
+variables:
+  - name: target
+    required: true

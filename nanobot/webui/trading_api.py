@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import asdict
 from typing import Any
 
 from websockets.http11 import Request as WsRequest
 from websockets.http11 import Response
 
 from nanobot.trading.config import load_trading_config
+from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
 from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.paper import record_paper_action
+from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.runtime_state import get_runtime_store
+from nanobot.trading.teams.runtime import run_swarm
 from nanobot.webui.http_utils import http_error as _http_error
 from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
@@ -148,6 +155,76 @@ def handle_trading_runtime_update(request: WsRequest) -> Response:
     return _http_json_response({"runtime": state.to_dict()})
 
 
+def _result_to_json(result: Any) -> dict[str, Any]:
+    d = result.decision
+    payload: dict[str, Any] = {
+        "decision": d.decision,
+        "confidence": d.confidence,
+        "summary": d.summary,
+        "keyReasons": d.key_reasons,
+        "riskWarnings": d.risk_warnings,
+        "recommendationId": result.recommendation_id,
+        "cards": result.cards,
+        "stages": result.stages,
+        "teamMode": result.team_mode,
+        "drawings": [asdict(x) for x in result.drawings],
+    }
+    if d.gate_chain:
+        payload["gateChain"] = {
+            "allowed": d.gate_chain.allowed,
+            "confidenceDelta": d.gate_chain.confidence_delta,
+            "verdicts": [asdict(v) for v in d.gate_chain.verdicts],
+        }
+    if d.refusal_summary:
+        payload["refusalSummary"] = d.refusal_summary
+    rec = d.recommendation
+    payload["recommendation"] = {
+        "action": rec.action,
+        "entry": rec.entry,
+        "stopLoss": rec.stop_loss,
+        "targets": rec.targets,
+        "planType": d.plan_type,
+        "executionState": d.execution_state,
+    }
+    return payload
+
+
+def handle_trading_analyze(request: WsRequest) -> Response:
+    params = _parse_query(request.path)
+    interval = (_query_first(params, "interval") or "15m").strip()
+    team_mode = (_query_first(params, "team_mode") or "core").strip()
+    preset = _query_first(params, "preset")
+
+    try:
+        if team_mode == "debate":
+            debate = asyncio.run(run_debate_crew())
+            result = debate.final
+        elif team_mode == "swarm" and preset:
+            swarm = asyncio.run(run_swarm(preset))
+            result = swarm["final"]
+        else:
+            result = asyncio.run(run_unified_chart_agent(interval=interval, team_mode=team_mode))
+        if result is None:
+            return _http_error(500, "Analysis produced no result")
+        return _http_json_response(_result_to_json(result))
+    except Exception as exc:
+        return _http_error(500, f"Analysis failed: {exc}")
+
+
+def handle_trading_recommendations(_request: WsRequest) -> Response:
+    return _http_json_response({"recommendations": list_recommendations()})
+
+
+def handle_trading_paper(request: WsRequest) -> Response:
+    params = _parse_query(request.path)
+    rec_id = _query_first(params, "recommendation_id") or ""
+    action = _query_first(params, "action") or "approve"
+    if not rec_id:
+        return _http_error(400, "recommendation_id required")
+    entry = record_paper_action(rec_id, action)
+    return _http_json_response({"ok": True, "entry": entry})
+
+
 def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
         return handle_trading_klines(request)
@@ -157,4 +234,10 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_status(request)
     if path == "/api/trading/runtime/update":
         return handle_trading_runtime_update(request)
+    if path == "/api/trading/analyze":
+        return handle_trading_analyze(request)
+    if path == "/api/trading/recommendations":
+        return handle_trading_recommendations(request)
+    if path == "/api/trading/paper":
+        return handle_trading_paper(request)
     return None
