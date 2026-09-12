@@ -70,10 +70,10 @@ fi
 cd webui && bun install && bun run build
 cd "$INSTALL_DIR"
 
-CONFIG_DIR="/home/$SERVICE_USER/.nanobot"
+CONFIG_DIR="$INSTALL_DIR/.nanobot"
 mkdir -p "$CONFIG_DIR"
 if [[ ! -f "$CONFIG_DIR/config.json" ]]; then
-  sudo -u "$SERVICE_USER" "$INSTALL_DIR/.venv/bin/nanobot" onboard --yes 2>/dev/null || true
+  sudo -u "$SERVICE_USER" HOME="$INSTALL_DIR" "$INSTALL_DIR/.venv/bin/nanobot" onboard --yes 2>/dev/null || true
 fi
 
 python3 - "$CONFIG_DIR/config.json" "$WEB_PORT" "$HEALTH_PORT" "$WEB_TOKEN" <<'PY'
@@ -95,7 +95,7 @@ ws["tokenIssueSecret"] = token
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
-chown -R "$SERVICE_USER:$SERVICE_USER" "/home/$SERVICE_USER/.nanobot"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 
 cat > /etc/systemd/system/nanoagent-gateway.service <<UNIT
 [Unit]
@@ -108,6 +108,7 @@ Type=simple
 User=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=PATH=$INSTALL_DIR/.venv/bin:/usr/bin:/bin
+Environment=HOME=$INSTALL_DIR
 EnvironmentFile=-$INSTALL_DIR/.env
 ExecStart=$INSTALL_DIR/.venv/bin/nanobot gateway --foreground --port $HEALTH_PORT
 Restart=on-failure
