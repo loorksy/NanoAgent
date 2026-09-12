@@ -67,6 +67,7 @@ export type ProviderForm = {
   thinkingStyle: string;
   region: string;
   profile: string;
+  cliOAuthToken: string;
 };
 export type CustomProviderDraft = ProviderForm & { name: string };
 const OAUTH_PROXY_PROVIDERS = new Set(["openai_codex", "xai_grok"]);
@@ -208,6 +209,7 @@ export function providerFormFromRow(
     thinkingStyle: provider.thinking_style ?? "",
     region: provider.region ?? "",
     profile: provider.profile ?? "",
+    cliOAuthToken: "",
   };
 }
 
@@ -225,6 +227,7 @@ function emptyCustomProviderDraft(): CustomProviderDraft {
     thinkingStyle: "",
     region: "",
     profile: "",
+    cliOAuthToken: "",
   };
 }
 
@@ -671,7 +674,7 @@ export function ProvidersSettings({
   onToggleProviderKey: (provider: string) => void;
   onToggleProviderKeyEditing: (provider: string) => void;
   onChangeProviderForm: (provider: string, value: Partial<ProviderForm>) => void;
-  onSaveProvider: (provider: string) => void;
+  onSaveProvider: (provider: string, options?: { clear?: boolean }) => void;
   onCreateCustomProvider: (draft: CustomProviderDraft) => Promise<boolean>;
   onProviderOAuthLogin: (provider: string) => void;
   onProviderOAuthLogout: (provider: string) => void;
@@ -722,6 +725,8 @@ export function ProvidersSettings({
     const form = providerForms[provider.name] ?? providerFormFromRow(provider);
     const saving = providerSaving === provider.name;
     const isOauthProvider = provider.auth_type === "oauth";
+    const isCliOAuthProvider =
+      provider.name === "claude_code_cli" || provider.auth_type === "cli_oauth";
     const supportsOauthAdvancedSettings =
       isOauthProvider && OAUTH_PROXY_PROVIDERS.has(provider.name);
     const keyVisible = !!visibleProviderKeys[provider.name];
@@ -750,9 +755,16 @@ export function ProvidersSettings({
     );
     const missingOptionalCredential =
       !isOauthProvider
+      && !isCliOAuthProvider
       && !apiKeyRequired
       && !provider.configured
       && !hasOptionalProviderSetting;
+    const cliOAuthToken = form.cliOAuthToken?.trim() ?? "";
+    const cliOAuthHint = provider.cli_oauth_hint ?? settings.claude_code_oauth?.hint ?? null;
+    const cliOAuthConfigured = Boolean(
+      provider.configured || settings.claude_code_oauth?.configured,
+    );
+    const missingCliOAuthToken = isCliOAuthProvider && !cliOAuthConfigured && !cliOAuthToken;
     const supportName = provider.name === "bedrock"
       ? "bedrock"
       : provider.name === "azure_openai"
@@ -804,7 +816,118 @@ export function ProvidersSettings({
             {supportName && capabilityError ? (
               <p className="text-[12px] text-destructive">{capabilityError}</p>
             ) : null}
-            {isOauthProvider ? (
+            {isCliOAuthProvider ? (
+              <>
+                <label className="block space-y-1.5">
+                  <span className="text-[12px] font-medium text-muted-foreground">
+                    {tx("settings.providers.claudeCodeToken", "Claude Code CLI token")}
+                  </span>
+                  <p className="text-[12px] text-muted-foreground">
+                    {tx(
+                      "settings.providers.claudeCodeTokenHelp",
+                      "Paste CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. The official Claude CLI reads this environment variable on the next call. Do not run `claude login` on the server.",
+                    )}
+                  </p>
+                  <div className="relative">
+                    {editingKey ? (
+                      <>
+                        <Input
+                          type={keyVisible ? "text" : "password"}
+                          value={form.cliOAuthToken ?? ""}
+                          onChange={(event) =>
+                            onChangeProviderForm(provider.name, { cliOAuthToken: event.target.value })
+                          }
+                          placeholder={
+                            cliOAuthConfigured
+                              ? t("settings.byok.apiKeyConfiguredPlaceholder")
+                              : tx(
+                                  "settings.providers.claudeCodeTokenPlaceholder",
+                                  "Paste token from claude setup-token",
+                                )
+                          }
+                          autoCapitalize="none"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          className="h-9 rounded-full pr-11 text-[13px]"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onToggleProviderKey(provider.name)}
+                          aria-label={
+                            keyVisible
+                              ? t("settings.byok.hideApiKey")
+                              : t("settings.byok.showApiKey")
+                          }
+                          className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full text-muted-foreground settings-hover hover:text-foreground"
+                        >
+                          {keyVisible ? (
+                            <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex h-9 items-center rounded-full border border-input bg-background px-3 pr-11 text-[13px] text-muted-foreground">
+                          {cliOAuthHint
+                            ? t("settings.providers.claudeCodeTokenConfigured", {
+                                hint: cliOAuthHint,
+                                defaultValue: "Configured · last 4 {{hint}}",
+                              })
+                            : t("settings.byok.configured")}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onToggleProviderKeyEditing(provider.name)}
+                          aria-label={t("settings.actions.edit")}
+                          className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full text-muted-foreground settings-hover hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </label>
+                <div className="flex items-center justify-end gap-2">
+                  {cliOAuthConfigured ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onSaveProvider(provider.name, { clear: true })}
+                      disabled={saving}
+                      className="rounded-full"
+                    >
+                      {tx("settings.providers.claudeCodeClearToken", "Clear token")}
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => toggleProvider(provider.name)}
+                    className="rounded-full"
+                  >
+                    {t("settings.actions.cancel")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSaveProvider(provider.name)}
+                    disabled={saving || missingCliOAuthToken}
+                    className="rounded-full"
+                  >
+                    {saving
+                      ? t("settings.actions.saving")
+                      : tx("settings.providers.saveProvider", "Save provider")}
+                  </Button>
+                </div>
+              </>
+            ) : isOauthProvider ? (
               <>
                 <div className="flex flex-col gap-3 rounded-floating border border-border/45 bg-background/75 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">

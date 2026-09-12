@@ -263,6 +263,7 @@ async def _run_claude_cli(
         *command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=os.environ.copy(),
     )
     try:
         stdout_b, stderr_b = await asyncio.wait_for(process.communicate(), timeout=timeout_s)

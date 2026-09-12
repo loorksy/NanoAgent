@@ -33,6 +33,7 @@ from nanobot.providers.oauth_model_catalog import (
     invalidate_oauth_model_catalog,
 )
 from nanobot.providers.registry import PROVIDERS, create_dynamic_spec, find_by_name
+from nanobot.webui.claude_code_oauth import claude_code_oauth_configured, public_status
 from nanobot.webui.settings_contracts import (
     QueryParams,
     SettingsRequest,
@@ -70,6 +71,7 @@ class ModelSettingsOperations:
     oauth_login: SettingsOperation
     oauth_complete: SettingsOperation
     oauth_logout: SettingsOperation
+    update_claude_oauth: SettingsOperation
     apply_image_runtime_change: Callable[
         [dict[str, Any]],
         Awaitable[tuple[dict[str, Any], bool]],
@@ -378,6 +380,8 @@ def provider_configured_for_settings(
     provider_config: Any,
     oauth_status: OAuthStatusReader,
 ) -> bool:
+    if spec.name == "claude_code_cli" and claude_code_oauth_configured():
+        return True
     if spec.is_oauth:
         return bool(oauth_status(spec)["configured"])
     if provider_requires_api_base(spec):
@@ -485,6 +489,11 @@ def _provider_settings_row(
         row["oauth_login_supported"] = oauth_status["login_supported"]
     if spec.name == "openai":
         row["api_type"] = provider_config.api_type
+    if spec.name == "claude_code_cli":
+        cli_oauth = public_status()
+        row["auth_type"] = "cli_oauth"
+        row["configured"] = bool(cli_oauth["configured"] or row["configured"])
+        row["cli_oauth_hint"] = cli_oauth["hint"]
     return row
 
 
@@ -1782,6 +1791,7 @@ class ModelSettingsHandler:
                 "models-migrate": operations.migrate_models,
                 "call-order-update": operations.update_call_order,
                 "provider-create": operations.create_provider,
+                "claude-oauth-update": operations.update_claude_oauth,
             }.get(action)
             if mutation is not None:
                 payload = self.settings.mutate(mutation, request.query)

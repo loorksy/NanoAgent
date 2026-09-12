@@ -835,4 +835,79 @@ describe("Settings providers", () => {
       screen.getByRole("button", { name: "Add your own model provider" }),
     ).toBeInTheDocument();
   });
+
+  it("saves a Claude Code CLI setup-token without echoing the stored value", async () => {
+    const claudeProvider = {
+      name: "claude_code_cli",
+      label: "Claude Code CLI",
+      configured: false,
+      auth_type: "cli_oauth" as const,
+      api_key_required: false,
+      api_key_hint: null,
+      cli_oauth_hint: null,
+      api_base: null,
+      default_api_base: null,
+    };
+    const payload: SettingsPayload = {
+      ...settingsPayload(),
+      providers: [claudeProvider],
+      claude_code_oauth: {
+        configured: false,
+        hint: null,
+        env_key: "CLAUDE_CODE_OAUTH_TOKEN",
+      },
+    };
+    const saved: SettingsPayload = {
+      ...payload,
+      providers: [{
+        ...claudeProvider,
+        configured: true,
+        cli_oauth_hint: "••••AB12",
+      }],
+      claude_code_oauth: {
+        configured: true,
+        hint: "••••AB12",
+        env_key: "CLAUDE_CODE_OAUTH_TOKEN",
+      },
+    };
+    const secret = "route-setup-token-AB12";
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/settings") return jsonResponse(payload);
+      if (url === "/api/settings/cli-apps") {
+        return jsonResponse({ apps: [], installed_count: 0 });
+      }
+      if (url === "/api/settings/mcp-presets") {
+        return jsonResponse({ presets: [], installed_count: 0 });
+      }
+      return jsonResponse({});
+    }));
+    requestMutationMock.mockResolvedValueOnce(saved);
+
+    renderSettingsView({ initialSection: "models", initialSettings: payload });
+    await chooseProviderToConfigure("Claude Code CLI");
+
+    expect(screen.getByText("Claude Code CLI token")).toBeInTheDocument();
+    expect(screen.getByText(/CLAUDE_CODE_OAUTH_TOKEN/)).toBeInTheDocument();
+    expect(screen.getByText(/claude setup-token/)).toBeInTheDocument();
+    expect(screen.queryByText(secret)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Paste token from claude setup-token"), {
+      target: { value: secret },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save provider" }));
+
+    await waitFor(() => {
+      expect(requestMutationMock).toHaveBeenCalledWith(
+        "settings.claude_code_oauth.update",
+        { token: secret },
+        20_000,
+      );
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Claude Code CLI" }));
+    expect(screen.getByText(/Configured · last 4 ••••AB12/)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(secret)).not.toBeInTheDocument();
+    expect(screen.queryByText(secret)).not.toBeInTheDocument();
+  });
 });

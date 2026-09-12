@@ -620,14 +620,20 @@ export interface SettingsPayload {
   model_configuration_migratable?: boolean;
   created_model_preset?: string;
   created_provider?: string;
+  claude_code_oauth?: {
+    configured: boolean;
+    hint: string | null;
+    env_key: string;
+  };
   providers: Array<{
     name: string;
     label: string;
     is_custom?: boolean;
     configured: boolean;
-    auth_type?: "api_key" | "oauth";
+    auth_type?: "api_key" | "oauth" | "cli_oauth";
     api_key_required?: boolean;
     api_key_hint?: string | null;
+    cli_oauth_hint?: string | null;
     api_base?: string | null;
     default_api_base?: string | null;
     model_selectable?: boolean;
@@ -1234,6 +1240,11 @@ export interface ModelConfigurationUpdate {
   contextWindowTokens?: number;
   temperature?: number;
   reasoningEffort?: string | null;
+}
+
+export interface ClaudeCodeOAuthUpdate {
+  token?: string;
+  clear?: boolean;
 }
 
 export interface ProviderSettingsUpdate {

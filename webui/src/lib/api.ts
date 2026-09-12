@@ -21,6 +21,7 @@ import type {
   ProviderModelsPayload,
   ProviderOAuthCompletionResult,
   ProviderOAuthLoginResult,
+  ClaudeCodeOAuthUpdate,
   ProviderSettingsUpdate,
   RecoveryState,
   SessionDeleteResult,
@@ -961,6 +962,16 @@ export async function updateProviderSettings(
   update: ProviderSettingsUpdate,
 ): Promise<SettingsPayload> {
   return mutation<SettingsPayload>(transport, "settings.provider.update", { ...update });
+}
+
+export async function updateClaudeCodeOAuthToken(
+  transport: WebUIMutationTransport,
+  update: ClaudeCodeOAuthUpdate,
+): Promise<SettingsPayload> {
+  return mutation<SettingsPayload>(transport, "settings.claude_code_oauth.update", {
+    ...(update.clear ? { clear: true } : {}),
+    ...(update.token !== undefined ? { token: update.token } : {}),
+  });
 }
 
 export async function createProviderSettings(

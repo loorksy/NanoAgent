@@ -111,7 +111,8 @@ chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 # Interactive `claude login` cannot run as this systemd unit. Seed auth
 # before enabling that provider:
 #   - CLAUDE_CODE_OAUTH_TOKEN in $INSTALL_DIR/.env (from `claude setup-token`
-#     on a host with a browser), or
+#     on a host with a browser; also pasteable in WebUI Settings → Providers
+#     → Claude Code CLI), or
 #   - $INSTALL_DIR/.claude/.credentials.json mode 0600 owned by $SERVICE_USER
 # HOME below is $INSTALL_DIR, so ~/.claude is /opt/nanoagent/.claude — not
 # /home/nanoagent. Also install the `claude` binary on PATH (venv or /usr/bin).

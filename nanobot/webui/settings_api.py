@@ -21,6 +21,7 @@ from nanobot.webui import settings_contracts as contracts
 from nanobot.webui import settings_models as models
 from nanobot.webui import settings_runtime as runtime
 from nanobot.webui import settings_system as system
+from nanobot.webui.claude_code_oauth import apply_claude_code_oauth_token, public_status
 from nanobot.webui.settings_contracts import QueryParams, WebUISettingsError
 from nanobot.webui.workspaces import write_webui_default_access_mode
 
@@ -180,6 +181,7 @@ def settings_payload(
             version=__version__,
         ),
         "requires_restart": requires_restart,
+        "claude_code_oauth": public_status(),
     }
     return decorate_settings_payload(
         payload,
@@ -330,6 +332,21 @@ def update_provider_settings(
         requires_restart=restart_required,
         config_path=config_path,
     )
+
+
+def update_claude_code_oauth_settings(
+    query: QueryParams,
+    *,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    clear_raw = contracts.query_first(query, "clear")
+    clear = contracts.parse_bool(clear_raw, "clear") if clear_raw is not None else False
+    raw_token = contracts.query_first(query, "token") or ""
+    if clear:
+        apply_claude_code_oauth_token(None)
+    else:
+        apply_claude_code_oauth_token(raw_token)
+    return settings_payload(config_path=config_path)
 
 
 def provider_models_payload(

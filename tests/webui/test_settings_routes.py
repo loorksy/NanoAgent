@@ -407,6 +407,12 @@ async def test_oauth_completion_reads_websocket_payload(
             {"provider": "team", "api_base": "https://llm.example/v2"},
             {"provider": ["team"], "api_base": ["https://llm.example/v2"]},
         ),
+        (
+            "/api/settings/claude-code-oauth",
+            "update_claude_code_oauth_settings",
+            {"token": "setup-token"},
+            {"token": ["setup-token"]},
+        ),
     ],
 )
 @pytest.mark.asyncio

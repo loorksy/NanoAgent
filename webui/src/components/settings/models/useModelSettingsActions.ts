@@ -23,6 +23,7 @@ import {
   loginProviderOAuth,
   logoutProviderOAuth,
   migrateModelConfigurations,
+  updateClaudeCodeOAuthToken,
   updateModelCallOrder,
   updateModelConfiguration,
   updateProviderSettings,
@@ -370,14 +371,53 @@ export function useModelSettingsActions({
     }
   };
 
-  const saveProvider = async (providerName: string) => {
+  const saveProvider = async (providerName: string, options?: { clear?: boolean }) => {
     if (providerSaving) return;
     const provider = settings?.providers.find((item) => item.name === providerName);
     if (!provider) return;
     const isOauthProvider = provider.auth_type === "oauth";
+    const isCliOAuthProvider =
+      provider.name === "claude_code_cli" || provider.auth_type === "cli_oauth";
     const providerForm = providerForms[providerName] ?? providerFormFromRow(provider);
     const apiKey = providerForm.apiKey.trim();
     const apiKeyRequired = provider.api_key_required ?? true;
+    if (isCliOAuthProvider) {
+      const token = providerForm.cliOAuthToken?.trim() ?? "";
+      const alreadyConfigured = Boolean(
+        provider.configured || settings?.claude_code_oauth?.configured,
+      );
+      if (!options?.clear && !token && !alreadyConfigured) {
+        setError(t("settings.providers.claudeCodeTokenRequired", {
+          defaultValue: "Paste a non-empty Claude Code CLI token.",
+        }));
+        return;
+      }
+      if (!options?.clear && !token) {
+        setExpandedProvider(null);
+        return;
+      }
+      setProviderSaving(providerName);
+      try {
+        const payload = await updateClaudeCodeOAuthToken(
+          client,
+          options?.clear ? { clear: true } : { token },
+        );
+        applyPayload(payload);
+        setProviderForms((prev) => ({
+          ...prev,
+          [providerName]: { ...providerForm, cliOAuthToken: "" },
+        }));
+        setVisibleProviderKeys((prev) => ({ ...prev, [providerName]: false }));
+        setEditingProviderKeys((prev) => ({ ...prev, [providerName]: false }));
+        setExpandedProvider(null);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setProviderSaving(null);
+      }
+      return;
+    }
     if (!isOauthProvider && !provider.configured && apiKeyRequired && !apiKey) {
       setError(t("settings.byok.apiKeyRequired"));
       return;

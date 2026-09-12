@@ -56,6 +56,7 @@ import {
   updateModelConfiguration,
   updateMcpServerTools,
   updateNetworkSafetySettings,
+  updateClaudeCodeOAuthToken,
   updateProviderSettings,
   updateSkillEnabled,
   updateWebSearchSettings,
@@ -581,6 +582,22 @@ describe("webui API helpers", () => {
         apiKey: "sk-or-test",
         apiBase: "https://openrouter.ai/api/v1",
       },
+      20_000,
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends Claude Code CLI tokens through the settings mutation", async () => {
+    await updateClaudeCodeOAuthToken(mutationTransport, { token: "setup-token-AB12" });
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.claude_code_oauth.update",
+      { token: "setup-token-AB12" },
+      20_000,
+    );
+    await updateClaudeCodeOAuthToken(mutationTransport, { clear: true });
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.claude_code_oauth.update",
+      { clear: true },
       20_000,
     );
     expect(fetch).not.toHaveBeenCalled();

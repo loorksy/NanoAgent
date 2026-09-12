@@ -896,7 +896,13 @@
       "capabilityXSearch": "X Search",
       "capabilityXSearchHelp": "Allow supported Grok models to use xAI-hosted X Search. Search activity appears in chat.",
       "capabilityOpenAISearch": "OpenAI web search",
-      "capabilityOpenAISearchHelp": "Allow compatible Responses API models to search the web. Search activity appears in chat."
+      "capabilityOpenAISearchHelp": "Allow compatible Responses API models to search the web. Search activity appears in chat.",
+      "claudeCodeToken": "Claude Code CLI token",
+      "claudeCodeTokenHelp": "Paste CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. The official Claude CLI reads this environment variable on the next call. Do not run `claude login` on the server.",
+      "claudeCodeTokenPlaceholder": "Paste token from claude setup-token",
+      "claudeCodeTokenConfigured": "Configured · last 4 {{hint}}",
+      "claudeCodeClearToken": "Clear token",
+      "claudeCodeTokenRequired": "Paste a non-empty Claude Code CLI token."
     },
     "legal": {
       "thirdPartyBrands": "Product names, logos, and brands are property of their respective owners. Use is for identification only and does not imply endorsement."
