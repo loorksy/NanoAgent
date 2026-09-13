@@ -32,6 +32,10 @@ Stable first-party dependencies must be typed where they are stored or passed. D
 
 `typing.cast` performs no runtime validation. Every new cast must be supported by a runtime check on the same path or by an explicit invariant that is clear from construction and control flow (and documented locally when it is not obvious). If input can violate the claimed type, handle that invalid case before casting; never use `cast` only to silence BasedPyright.
 
+## Gold trading UX — Artifacts over static cards
+
+Trading recommendation output should move from fixed `derive_cards()` templates to **agent-chosen Artifacts** (images, tables, reports) selected by intent — see `docs/designs/gold-trading-roadmap.md` (Phase G). Chart-on-demand requires a dedicated tool (Phase F); capture today only runs inside the full analysis pipeline.
+
 ## Explicit over magical
 
 Configuration must be declared explicitly in `config/schema.py` Pydantic models. Error handling should raise clear exceptions rather than silently correcting bad input. Provider auto-detection exists, but every resolution path must be traceable from the factory to the concrete provider class.
