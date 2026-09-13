@@ -172,9 +172,42 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
     async def search(query: str) -> str:
         return "DXY falling, gold ETF inflows, PBOC buying"
 
+    async def fake_team_role(**kwargs: object) -> str:
+        agent_id = str(kwargs.get("agent_id", "agent"))
+        collector = kwargs.get("collector")
+        if collector is not None:
+            from nanobot.trading.teams.subagent_runner import TeamAgentEvent
+
+            collector.record(
+                TeamAgentEvent(
+                    agent_id=agent_id,
+                    role=str(kwargs.get("role", "Agent")),
+                    status="done",
+                    summary=f"summary for {agent_id}",
+                )
+            )
+        return f"summary for {agent_id}"
+
     monkeypatch.setattr(
         "nanobot.trading.teams.runtime.run_unified_chart_agent",
         fake_chart_agent,
+    )
+    monkeypatch.setattr("nanobot.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "nanobot.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: __import__(
+            "nanobot.trading.types",
+            fromlist=["AgentMarketContext", "MarketSync"],
+        ).AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=2650.0,
+            atr=5.0,
+            sync=__import__(
+                "nanobot.trading.types", fromlist=["MarketSync"]
+            ).MarketSync(ok=True),
+        ),
     )
     swarm = await run_swarm(
         "gold_analysis_committee",
@@ -193,3 +226,4 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
     assert wire["teamMode"] == "swarm:gold_analysis_committee"
     # YAML DAG still recorded; it does not replace the unified agent.
     assert swarm["task_summaries"]
+    assert swarm["final"].team_agents

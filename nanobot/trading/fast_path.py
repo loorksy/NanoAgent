@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.trading.config import load_trading_config
+from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
+from nanobot.trading.intent_router import resolve_team_preset
 from nanobot.trading.oanda import fetch_quote
 from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
@@ -81,17 +85,39 @@ async def _run_analysis_fast_path(
     channel: str,
     chat_id: str,
     bus: MessageBus | None,
+    subagent_manager: Any | None = None,
 ) -> OutboundMessage | None:
     publisher = TradingStagePublisher(bus, channel=channel, chat_id=chat_id)
     interval = "15m"
     await publisher.open_chart(interval)
 
     try:
-        result = await run_unified_chart_agent(
-            interval=interval,
-            team_mode="core",
-            emit=publisher.sync_emit,
-        )
+        if turn.mode == "team_swarm":
+            preset = resolve_team_preset(text) or "gold_analysis_committee"
+            if "debate" in preset:
+                debate = await run_debate_crew(
+                    user_message=text,
+                    emit=publisher.sync_emit,
+                    subagent_manager=subagent_manager,
+                    publisher=publisher,
+                    interval=interval,
+                )
+                result = debate.final
+            else:
+                swarm = await run_swarm(
+                    preset,
+                    subagent_manager=subagent_manager,
+                    publisher=publisher,
+                    interval=interval,
+                    emit=publisher.sync_emit,
+                )
+                result = swarm["final"]
+        else:
+            result = await run_unified_chart_agent(
+                interval=interval,
+                team_mode="core",
+                emit=publisher.sync_emit,
+            )
     except Exception as exc:
         body = f"Gold analysis failed: {exc}"
         if _wants_arabic(text):
@@ -132,6 +158,7 @@ async def try_gold_fast_path(
     channel: str,
     chat_id: str,
     bus: MessageBus | None = None,
+    subagent_manager: Any | None = None,
 ) -> OutboundMessage | None:
     """Return an immediate gold response for confident price or analysis intents."""
     text = (message or "").strip()
@@ -198,6 +225,7 @@ async def try_gold_fast_path(
             channel=channel,
             chat_id=chat_id,
             bus=bus,
+            subagent_manager=subagent_manager,
         )
 
     return None

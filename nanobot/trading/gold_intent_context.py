@@ -10,7 +10,10 @@ from nanobot.trading.turn_planner import TurnPlan, plan_turn
 _MODE_TOOL_HINTS: dict[str, str] = {
     "market_data_only": "Use get_gold_quote for the live XAUUSD price.",
     "full_analysis": "Use analyze_gold for a full recommendation with chart and stages.",
-    "team_swarm": "Use analyze_gold (team presets are not available yet).",
+    "team_swarm": (
+        "Use run_trading_team with the matching preset, or analyze_gold with "
+        "team_mode=swarm/debate."
+    ),
     "recommendation_followup": (
         "A live recommendation already exists. Do not mint a second plan. "
         "Call analyze_gold only to grade the live plan (follow-up)."

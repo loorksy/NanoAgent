@@ -34,6 +34,7 @@ import { formatQuotedUserMessage } from "@/lib/user-message-quote";
 import {
   openTradingChart,
   pushTradingStage,
+  pushTradingTeamAgent,
   setTradingResult,
 } from "@/lib/trading/session-store";
 import type { TradingResultWire, TradingStageWire } from "@/lib/trading/types";
@@ -1152,6 +1153,13 @@ export function useNanobotStream(
           if (agentUi?.kind === "trading_stage") {
             const stage = agentUi.data as TradingStageWire;
             pushTradingStage(chatId, stage);
+            return;
+          }
+          if (agentUi?.kind === "trading_team_agent") {
+            pushTradingTeamAgent(
+              chatId,
+              agentUi.data as import("@/lib/trading/types").TradingTeamAgentWire,
+            );
             return;
           }
           if (agentUi?.kind === "trading_result") {

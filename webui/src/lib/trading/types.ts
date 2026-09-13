@@ -5,6 +5,15 @@ export interface TradingStageWire {
   durationMs?: number;
 }
 
+export interface TradingTeamAgentWire {
+  agentId: string;
+  role: string;
+  status: "running" | "done" | "failed" | string;
+  summary?: string;
+  layer?: number;
+  durationMs?: number;
+}
+
 export interface TradingRecommendationWire {
   action?: string;
   entry?: number;
@@ -35,6 +44,7 @@ export interface TradingResultWire {
   cards?: Array<Record<string, unknown>>;
   stages?: TradingStageWire[];
   teamMode?: string;
+  teamAgents?: TradingTeamAgentWire[];
   macroDrivers?: TradingMacroDriverWire[];
   drawings?: Array<Record<string, unknown>>;
   interval?: string;
@@ -51,5 +61,6 @@ export interface TradingSessionState {
   chartOpen: boolean;
   interval: string;
   stages: TradingStageWire[];
+  teamAgents: TradingTeamAgentWire[];
   result: TradingResultWire | null;
 }

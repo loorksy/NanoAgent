@@ -1,9 +1,15 @@
-import type { TradingResultWire, TradingSessionState, TradingStageWire } from "@/lib/trading/types";
+import type {
+  TradingResultWire,
+  TradingSessionState,
+  TradingStageWire,
+  TradingTeamAgentWire,
+} from "@/lib/trading/types";
 
 const DEFAULT_STATE: TradingSessionState = {
   chartOpen: false,
   interval: "15m",
   stages: [],
+  teamAgents: [],
   result: null,
 };
 
@@ -33,6 +39,23 @@ export function openTradingChart(chatId: string, interval = "15m") {
     ...prev,
     chartOpen: true,
     interval,
+  });
+  notify(chatId);
+}
+
+export function pushTradingTeamAgent(chatId: string, agent: TradingTeamAgentWire) {
+  const prev = snapshot(chatId);
+  const teamAgents = [...prev.teamAgents];
+  const index = teamAgents.findIndex((row) => row.agentId === agent.agentId);
+  if (index >= 0) {
+    teamAgents[index] = agent;
+  } else {
+    teamAgents.push(agent);
+  }
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen: true,
+    teamAgents,
   });
   notify(chatId);
 }

@@ -26,7 +26,7 @@ async def test_get_gold_quote_unconfigured() -> None:
 async def test_analyze_gold_publishes_result() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    tool = AnalyzeGoldTool(bus=bus)
+    tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
     ctx = RequestContext(channel="websocket", chat_id="chat-1")
     fake_result = MagicMock()
     fake_result.decision = MagicMock(

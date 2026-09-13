@@ -54,6 +54,15 @@ class TradingStagePublisher:
         self._pending = []
         await asyncio.gather(*pending, return_exceptions=True)
 
+    async def publish_team_agent(self, payload: dict[str, Any]) -> None:
+        role = str(payload.get("role") or "Agent")
+        status = str(payload.get("status") or "running")
+        await self._agent_ui(
+            "trading_team_agent",
+            payload,
+            content=f"{role} — {status}",
+        )
+
     async def open_chart(self, interval: str = "15m") -> None:
         if self._channel not in ("websocket", ""):
             return

@@ -1,5 +1,6 @@
 import { AgentCards } from "@/components/trading/AgentCards";
 import { TradingStageChecklist } from "@/components/trading/TradingStageChecklist";
+import { TradingTeamPanel } from "@/components/trading/TradingTeamPanel";
 import { Button } from "@/components/ui/button";
 import type { TradingResultWire } from "@/lib/trading/types";
 import { useClient } from "@/providers/ClientProvider";
@@ -108,6 +109,16 @@ export function TradingRecommendationCard({
       {showStages && stages && stages.length > 0 ? (
         <div className="mb-3">
           <TradingStageChecklist stages={stages} compact />
+        </div>
+      ) : null}
+
+      {result.teamAgents && result.teamAgents.length > 0 ? (
+        <div className="mb-3">
+          <TradingTeamPanel
+            agents={result.teamAgents}
+            teamMode={result.teamMode}
+            compact
+          />
         </div>
       ) : null}
 

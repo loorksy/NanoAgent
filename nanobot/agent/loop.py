@@ -1826,6 +1826,7 @@ class AgentLoop:
             channel=ctx.msg.channel,
             chat_id=ctx.msg.chat_id,
             bus=self.bus,
+            subagent_manager=self.subagents,
         )
         if result is None:
             return False

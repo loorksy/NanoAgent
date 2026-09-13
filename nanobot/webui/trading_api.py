@@ -15,7 +15,11 @@ from nanobot.providers.factory import load_provider_snapshot
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
 from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.teams.runtime import run_swarm
+from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.result_wire import result_to_wire
@@ -192,9 +196,30 @@ def analyze_request_context() -> RequestContext:
     )
 
 
-async def _run_trading_analyze(interval: str) -> Any:
+async def _run_trading_analyze(
+    interval: str,
+    team_mode: str,
+    preset: str | None,
+) -> Any:
     """Run analyze inside a bound default-LLM context (thread-pool safe)."""
     with request_context(analyze_request_context()):
+        manager = create_trading_subagent_manager()
+        publisher = TradingStagePublisher(None, channel="webui", chat_id="trading-analyze")
+        if team_mode == "debate":
+            debate = await run_debate_crew(
+                subagent_manager=manager,
+                publisher=publisher,
+                interval=interval,
+            )
+            return debate.final
+        if team_mode == "swarm":
+            swarm = await run_swarm(
+                preset or "gold_analysis_committee",
+                subagent_manager=manager,
+                publisher=publisher,
+                interval=interval,
+            )
+            return swarm["final"]
         return await run_unified_chart_agent(interval=interval, team_mode="core")
 
 
@@ -202,14 +227,12 @@ def handle_trading_analyze(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
     team_mode = (_query_first(params, "team_mode") or "core").strip()
-    if team_mode not in {"", "core"}:
-        return _http_error(
-            400,
-            "Only team_mode=core is supported. Debate and swarm modes are not available yet.",
-        )
+    preset = _query_first(params, "preset")
+    if team_mode not in {"", "core", "debate", "swarm"}:
+        return _http_error(400, "team_mode must be core, debate, or swarm")
 
     try:
-        result = _run_async(_run_trading_analyze(interval))
+        result = _run_async(_run_trading_analyze(interval, team_mode, preset))
         if result is None:
             return _http_error(500, "Analysis produced no result")
         return _http_json_response(result_to_wire(result))

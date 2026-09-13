@@ -326,4 +326,5 @@ class AgentFinalResult:
     recommendation_id: str | None = None
     stages: list[dict[str, Any]] = field(default_factory=list)
     team_mode: str = "core"
+    team_agents: list[dict[str, Any]] = field(default_factory=list)
     macro_drivers: list[dict[str, Any]] = field(default_factory=list)
