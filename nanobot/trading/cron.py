@@ -56,7 +56,10 @@ async def run_gold_news_job() -> str | None:
 
     news = run_news_macro_agent()
     if news.news_risk in {"high", "medium"} and news.upcoming_events:
-        title = news.upcoming_events[0].get("title", "event")
+        first = news.upcoming_events[0]
+        title = getattr(first, "title", None) or (
+            first.get("title", "event") if isinstance(first, dict) else "event"
+        )
         return f"Gold news watch: {news.news_risk} — {title}"
     return None
 

@@ -1197,6 +1197,13 @@ class TelegramChannel(BaseChannel):
                     **extra,
                     **send_kwargs,
                 )
+                from nanobot.trading.chart_photo import (
+                    cleanup_chart_snapshot,
+                    is_ephemeral_chart_snapshot,
+                )
+
+                if is_ephemeral_chart_snapshot(media_path):
+                    cleanup_chart_snapshot(media_path)
             except Exception:
                 filename = media_path.rsplit("/", 1)[-1]
                 self.logger.exception("Failed to send media {}", media_path)

@@ -56,6 +56,13 @@ def write_chart_snapshot_file(frame: dict[str, Any] | None) -> str | None:
     return handle.name
 
 
+EPHEMERAL_CHART_PREFIX = "nanobot-gold-chart-"
+
+
+def is_ephemeral_chart_snapshot(path: str) -> bool:
+    return Path(path).name.startswith(EPHEMERAL_CHART_PREFIX)
+
+
 def cleanup_chart_snapshot(path: str | None) -> None:
     if not path:
         return

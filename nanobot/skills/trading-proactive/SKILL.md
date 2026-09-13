@@ -46,15 +46,15 @@ When the user asks for a **recommendation** but the market is closed (weekend, h
 
 1. Say clearly that **today is closed / there is no live tradeable session** — no fake recommendation.
 2. Offer **one concrete next step**, e.g. notify at session open + short news brief.
-3. If they accept → create a **one-time or recurring cron** (or HEARTBEAT task) with exact time and timezone; confirm in their language using their name when known.
+3. If they accept → create a **one-time or recurring cron** (or HEARTBEAT task) with exact time and timezone; confirm in the **operator's language** using their name when known.
 
-**Example (Arabic):**
+**Example tone (render in operator language, not English if they write Arabic):**
 
-> والله اليوم عطلة والسوق مسكّر، ما في توصية حيّة. تحب أرسلك إشعار أول ما يفتح السوق وموجز الأخبار؟
+> Market is closed today — no live recommendation. Want me to notify you at session open with a short news brief?
 
 If yes:
 
-> طيب يا {name}، تم — راح يصلك إشعار أول ما يفتح السوق الساعة {time} ({tz}).
+> Done, {name}. You will get a notification when the session opens at {time} ({tz}).
 
 Use `get_gold_quote` / session context to sanity-check; do not invent open hours.
 
@@ -69,15 +69,19 @@ When the operator wants *anything* monitored, reminded, or delivered later — *
 | Silent until something changes | `HEARTBEAT.md` | Remove task when done |
 | Conditional / fuzzy trigger | cron or HEARTBEAT | Describe the condition in the task message for the executing turn |
 
-**Sample intents (not limits):**
+**Sample intents (not limits — paraphrase in operator language):**
 
-- «لو صار خبر فجأة وتحس لازم أوقف التداول خبرني»
-- «ذكرني بتوصيتي إذا وصل TP1»
-- «لا تزعجني بعد العشاء إلا لو كسر 2680»
-- «كل يوم قبل لندن أرسل لي ملخص بدون توصية»
+- Sudden high-impact news → alert me to stand aside from trading
+- Remind me when my open plan hits TP1
+- Quiet after dinner unless price breaks a named level
+- Daily pre-London summary with no new recommendation
 - Anything else they imagine — map it to a task + notification gate.
 
-Always **confirm** what was scheduled, when it fires, and how to cancel (`cron action="list"` / remove job / delete HEARTBEAT line). Store durable preferences in memory when they say «من الآن» or «دائماً».
+Always **confirm** what was scheduled, when it fires, and how to cancel (`cron action="list"` / remove job / delete HEARTBEAT line). Store durable preferences in memory when they ask for ongoing behavior ("from now on", "always", etc.).
+
+## Skill language
+
+Builtin skill files are **English only** (no Arabic or other scripts in `SKILL.md`). Operator-facing chat replies still match the operator's language.
 
 ## What not to do
 

@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 from nanobot.trading.stage_delivery import TradingStagePublisher
@@ -22,3 +23,5 @@ def test_publish_result_attaches_telegram_chart_photo() -> None:
     assert outbound.media
     assert outbound.metadata.get("parse_mode") == "HTML"
     assert "توصية" in outbound.content
+    chart_path = outbound.media[0]
+    assert Path(chart_path).is_file(), "chart temp file must survive until channel delivery"

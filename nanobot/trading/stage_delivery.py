@@ -120,29 +120,22 @@ class TradingStagePublisher:
             return
         if self._channel == "telegram":
             from nanobot.channels.telegram.trading_cards import render_recommendation_card
-            from nanobot.trading.chart_photo import (
-                cleanup_chart_snapshot,
-                lead_chart_frame,
-                write_chart_snapshot_file,
-            )
+            from nanobot.trading.chart_photo import lead_chart_frame, write_chart_snapshot_file
 
             card = render_recommendation_card(payload)
             snapshots = payload.get("chartSnapshots")
             frame = lead_chart_frame(snapshots if isinstance(snapshots, list) else None)
             chart_path = write_chart_snapshot_file(frame)
             media = [chart_path] if chart_path else []
-            try:
-                await self._bus.publish_outbound(
-                    OutboundMessage(
-                        channel=self._channel,
-                        chat_id=self._chat_id,
-                        content=card,
-                        media=media,
-                        metadata={"parse_mode": "HTML"},
-                    )
+            await self._bus.publish_outbound(
+                OutboundMessage(
+                    channel=self._channel,
+                    chat_id=self._chat_id,
+                    content=card,
+                    media=media,
+                    metadata={"parse_mode": "HTML"},
                 )
-            finally:
-                cleanup_chart_snapshot(chart_path)
+            )
         elif self._channel == "whatsapp":
             from nanobot.channels.whatsapp.trading_cards import render_recommendation_card
 

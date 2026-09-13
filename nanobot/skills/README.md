@@ -7,6 +7,7 @@ This directory contains built-in skills that extend nanobot's capabilities.
 Each skill is a directory containing a `SKILL.md` file with:
 - YAML frontmatter (name, description, metadata)
 - Markdown instructions for the agent
+- **English only** in skill files (no Arabic or other non-Latin scripts in `SKILL.md` bodies, examples, or identifiers). Operator-facing replies still use the operator's language at runtime.
 
 When skills reference large local documentation or logs, prefer nanobot's built-in
 `grep` tool to narrow the search space before loading full files.

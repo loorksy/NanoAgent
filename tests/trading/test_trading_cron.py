@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+from unittest.mock import MagicMock
+
 from nanobot.cron.types import CronJob, CronPayload, CronSchedule
 from nanobot.trading.cron import (
     GOLD_FOLLOWUP_JOB_ID,
     GOLD_NEWS_JOB_ID,
     GOLD_SCAN_JOB_ID,
     register_trading_cron_jobs,
+    run_gold_news_job,
 )
+from nanobot.trading.types import EconomicEvent, NewsMacroResult
 
 
 class _FakeCron:
@@ -45,3 +50,24 @@ def test_register_trading_cron_jobs_enabled_registers_all() -> None:
     register_trading_cron_jobs(cron, enabled=True)
 
     assert set(cron.jobs) == {GOLD_SCAN_JOB_ID, GOLD_NEWS_JOB_ID, GOLD_FOLLOWUP_JOB_ID}
+
+
+def test_run_gold_news_job_reads_economic_event_title(monkeypatch) -> None:
+    news = NewsMacroResult(
+        news_risk="high",
+        bias_impact="mixed",
+        affected_currencies=["USD"],
+        upcoming_events=[
+            EconomicEvent(title="US CPI", time="2026-01-01T12:00:00Z", impact="high"),
+        ],
+        trade_allowed=False,
+        reason="high-impact calendar",
+    )
+    monkeypatch.setattr(
+        "nanobot.trading.agents.news_macro.run_news_macro_agent",
+        lambda: news,
+    )
+
+    alert = asyncio.run(run_gold_news_job())
+
+    assert alert == "Gold news watch: high — US CPI"
