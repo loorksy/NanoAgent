@@ -1186,6 +1186,29 @@ export function useNanobotStream(
             );
             return;
           }
+          if (agentUi?.kind === "trading_artifacts") {
+            const artifacts = (agentUi.data as { artifacts?: unknown[] })?.artifacts ?? [];
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `artifacts-${Date.now()}`,
+                role: "assistant",
+                content: String(
+                  (artifacts[0] as { title?: string } | undefined)?.title ?? "Chart artifact",
+                ),
+                kind: "trading",
+                trading: {
+                  decision: "wait",
+                  confidence: 0,
+                  summary: "",
+                  artifacts: artifacts as TradingResultWire["artifacts"],
+                },
+                createdAt: Date.now(),
+                ...turnFieldsFromEvent(ev, "answer"),
+              },
+            ]);
+            return;
+          }
           if (agentUi?.kind === "trading_result") {
             const result = agentUi.data as TradingResultWire;
             setTradingResult(chatId, result);

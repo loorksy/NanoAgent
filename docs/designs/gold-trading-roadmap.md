@@ -47,7 +47,7 @@ Missing for «any user idea»: standalone chart export, on-demand reports, portf
 
 ---
 
-## Phase F (planned) — Chart image on demand
+## Phase F — Chart image on demand (implemented)
 
 **Goal:** When the user asks for a chart image, the agent can answer **yes** with a real screenshot — not a workaround.
 
@@ -61,9 +61,11 @@ Missing for «any user idea»: standalone chart export, on-demand reports, portf
 
 **Success:** User message «أرسل صورة شارت الذهب 15m» → agent calls tool → user receives image in chat (and optionally Telegram).
 
+**Implemented:** `capture_gold_chart` tool, `chart_image` intent + `chart_capture` turn mode, fast-path on WebUI, `capture_service.py`, session-bound bridge (Phase H security).
+
 ---
 
-## Phase G (user decision) — Artifacts instead of static cards
+## Phase G — Artifacts instead of static cards (implemented)
 
 ### Problem
 
@@ -91,13 +93,13 @@ Trading output should behave like **Artifacts** in a capable agent (Composer / C
 | `macro_dashboard` | News/macro-heavy questions |
 | `paper_ledger_entry` | After approve/reject |
 
-### Technical direction (not implemented)
+### Implemented
 
-1. **Replace or augment `derive_cards()`** with `emit_trading_artifacts(result, user_intent, channel)` that returns a **small set** of artifacts (1–4), not always the full CARD_ORDER.
-2. **Wire format:** extend `agent_ui` / tool results with `artifacts: [{ type, mime, path | payload, title, … }]` aligned with `nanobot/utils/artifacts.py`.
-3. **WebUI:** generic `ArtifactRenderer` (image, markdown, table, json) + optional trading-specific viewers; deprecate monolithic `TradingRecommendationCard` as the only shape.
-4. **Skill + synthesizer:** document artifact selection rules; optional LLM field `artifacts_requested: [...]` in synthesizer JSON for non-default bundles.
-5. **Telegram/WhatsApp:** map artifacts to photo/document messages, not only HTML cards.
+1. **`emit_trading_artifacts()`** in `nanobot/trading/cards/artifacts.py` — 1–4 artifacts per turn by intent.
+2. **Wire:** `artifacts` on `result_to_wire` + `trading_artifacts` agent_ui kind.
+3. **WebUI:** `ArtifactRenderer.tsx` (preferred over full `AgentCards` deck when artifacts present).
+4. **`cards`** kept for backward compatibility; artifacts are primary.
+5. **Chart snapshot** artifact + Telegram photo via `capture_service` / existing card photo path.
 
 ### Principle
 

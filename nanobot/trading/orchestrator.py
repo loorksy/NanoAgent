@@ -17,7 +17,9 @@ from nanobot.trading.agents.structure import run_structure_agent
 from nanobot.trading.agents.supply_demand import run_supply_demand_agent
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.agents.visual_capture import capture_visual_evidence
+from nanobot.trading.cards.artifacts import emit_trading_artifacts
 from nanobot.trading.cards.derive import derive_cards
+from nanobot.trading.intent_router import route_intent
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.drawings.plan import build_drawing_plan
 from nanobot.trading.gates.build_gates import GateInputs, build_gates
@@ -258,5 +260,13 @@ async def run_unified_chart_agent(
         team_mode=team_mode,
         visual_snapshots=snapshots,
     )
-    result.cards = derive_cards(result, locale=locale_from_text(_operator_text()))
+    operator = _operator_text()
+    locale = locale_from_text(operator)
+    intent = route_intent(operator)
+    result.cards = derive_cards(result, locale=locale)
+    result.artifacts = emit_trading_artifacts(
+        result,
+        intent_kind=intent.kind,
+        locale=locale,
+    )
     return result

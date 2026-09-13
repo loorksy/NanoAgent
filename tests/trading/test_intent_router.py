@@ -20,3 +20,13 @@ def test_route_recommendation_without_gold_keyword() -> None:
 def test_route_general_chat() -> None:
     intent = route_intent("hello there")
     assert intent.kind == "general_chat"
+
+
+def test_route_chart_image_arabic() -> None:
+    intent = route_intent("أرسل صورة شارت الذهب")
+    assert intent.kind == "chart_image"
+
+
+def test_route_chart_image_english() -> None:
+    intent = route_intent("send me a gold chart screenshot")
+    assert intent.kind == "chart_image"

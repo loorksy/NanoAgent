@@ -8,6 +8,7 @@ from typing import Literal
 
 IntentKind = Literal[
     "price_query",
+    "chart_image",
     "gold_analysis",
     "recommendation",
     "team_swarm",
@@ -33,6 +34,10 @@ _GOLD_PATTERNS = (
 _TEAM_PATTERNS = (
     re.compile(r"\b(committee|debate desk|war room|mtf panel|swarm team)\b", re.I),
     re.compile(r"(فريق التحليل|لجنة الذهب|غرفة الأخبار|شغّل الفريق)", re.I),
+)
+_CHART_IMAGE_PATTERNS = (
+    re.compile(r"\b(chart|screenshot|screen\s*shot|snapshot|capture)\b", re.I),
+    re.compile(r"(صورة|سكرين|شارت|لقطة|سكرين\s*شوت|صوره)", re.I),
 )
 
 
@@ -67,6 +72,12 @@ def route_intent(message: str) -> RoutedIntent:
         return RoutedIntent("general_chat", 0.0, "empty")
 
     mentions_gold = any(p.search(text) for p in _GOLD_PATTERNS)
+    if any(p.search(text) for p in _CHART_IMAGE_PATTERNS):
+        return RoutedIntent(
+            "chart_image",
+            0.92 if mentions_gold else 0.8,
+            "chart image keywords",
+        )
     if any(p.search(text) for p in _TEAM_PATTERNS):
         return RoutedIntent("team_swarm", 0.9 if mentions_gold else 0.75, "team preset keywords")
     if any(p.search(text) for p in _RECOMMEND_PATTERNS):

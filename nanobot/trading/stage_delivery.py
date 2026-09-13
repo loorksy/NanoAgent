@@ -107,10 +107,23 @@ class TradingStagePublisher:
             content=str(payload.get("summary") or "Recommendation outcome updated"),
         )
 
+    async def publish_artifacts(self, artifacts: list[dict[str, Any]], *, locale: str | None = None) -> None:
+        if not artifacts:
+            return
+        loc = locale or self._locale
+        await self._agent_ui(
+            "trading_artifacts",
+            {"artifacts": artifacts, "locale": loc},
+            content=str(artifacts[0].get("title") or "Trading artifacts"),
+        )
+
     async def publish_result(self, payload: dict[str, Any], *, include_card: bool = True) -> None:
         await self.flush()
         decision = str(payload.get("decision", "wait")).upper()
         summary = str(payload.get("summary", ""))
+        artifacts = payload.get("artifacts")
+        if isinstance(artifacts, list) and artifacts:
+            await self.publish_artifacts(artifacts, locale=str(payload.get("locale") or self._locale))
         if self._is_web():
             await self._agent_ui(
                 "trading_result",

@@ -42,6 +42,7 @@ export interface TradingResultWire {
   keyReasons?: string[];
   riskWarnings?: string[];
   recommendationId?: string;
+  artifacts?: Array<Record<string, unknown>>;
   cards?: Array<Record<string, unknown>>;
   stages?: TradingStageWire[];
   teamMode?: string;

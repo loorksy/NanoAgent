@@ -33,6 +33,7 @@ interface AnalysisResult {
   decision: string;
   summary: string;
   confidence: number;
+  locale?: string;
   cards: AgentCard[];
   recommendation?: {
     action?: string;

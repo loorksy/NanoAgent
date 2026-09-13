@@ -14,6 +14,7 @@ TurnMode = Literal[
     "conversation",
     "reevaluation",
     "market_data_only",
+    "chart_capture",
     "team_swarm",
 ]
 
@@ -69,6 +70,7 @@ _ANALYSIS_KINDS: frozenset[IntentKind] = frozenset(
 NO_TOOLS = TurnTools()
 FOLLOWUP_TOOLS = TurnTools(fetch_market_data=True)
 FULL_TOOLS = TurnTools(fetch_market_data=True, capture_charts=True, run_full_pipeline=True)
+CAPTURE_TOOLS = TurnTools(capture_charts=True)
 
 
 def wants_explicit_new_analysis(message: str) -> bool:
@@ -98,6 +100,14 @@ def plan_turn(
             emit_stages=False,
             reason="specialist_intent",
             tools=TurnTools(fetch_market_data=True),
+        )
+    if intent.kind == "chart_image":
+        return TurnPlan(
+            "chart_capture",
+            intent,
+            emit_stages=False,
+            reason="chart_image_intent",
+            tools=CAPTURE_TOOLS,
         )
     if intent.kind not in _ANALYSIS_KINDS:
         specialist = intent.kind in _SPECIALIST_KINDS

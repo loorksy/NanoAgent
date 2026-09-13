@@ -1,4 +1,5 @@
 import { AgentCards } from "@/components/trading/AgentCards";
+import { ArtifactRenderer } from "@/components/trading/ArtifactRenderer";
 import { TradingStageChecklist } from "@/components/trading/TradingStageChecklist";
 import { TradingTeamPanel } from "@/components/trading/TradingTeamPanel";
 import { Button } from "@/components/ui/button";
@@ -122,7 +123,9 @@ export function TradingRecommendationCard({
         </div>
       ) : null}
 
-      {result.cards && result.cards.length > 0 ? (
+      {result.artifacts && result.artifacts.length > 0 ? (
+        <ArtifactRenderer artifacts={result.artifacts} locale={result.locale} />
+      ) : result.cards && result.cards.length > 0 ? (
         <AgentCards
           cards={result.cards as Array<{ kind: string } & Record<string, unknown>>}
           locale={result.locale}

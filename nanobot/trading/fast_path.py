@@ -180,6 +180,38 @@ async def try_gold_fast_path(
     live = latest_live_recommendation(session_key)
     turn = plan_turn(text, active_recommendation_live=bool(live))
 
+    if turn.mode == "chart_capture":
+        if turn.intent.confidence < 0.75:
+            return None
+        from nanobot.trading.capture_service import run_chart_capture
+
+        payload = await run_chart_capture(
+            bus=bus,
+            channel=channel,
+            chat_id=chat_id,
+            operator_text=text,
+        )
+        if not payload.get("ok"):
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=str(payload.get("message") or "Chart capture failed."),
+            )
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=str(payload.get("artifacts", [{}])[0].get("title") or "Chart captured."),
+            metadata={
+                OUTBOUND_META_AGENT_UI: {
+                    "kind": "trading_artifacts",
+                    "data": {
+                        "artifacts": payload.get("artifacts") or [],
+                        "locale": payload.get("locale"),
+                    },
+                }
+            },
+        )
+
     if turn.mode == "recommendation_followup":
         graded = grade_live_recommendation(live, operator_text=text)
         return OutboundMessage(channel=channel, chat_id=chat_id, content=graded.summary)

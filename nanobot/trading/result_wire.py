@@ -33,6 +33,7 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
         "riskWarnings": d.risk_warnings,
         "recommendationId": result.recommendation_id,
         "cards": result.cards,
+        "artifacts": list(result.artifacts or []),
         "stages": result.stages,
         "teamMode": result.team_mode,
         "teamAgents": list(result.team_agents or []),

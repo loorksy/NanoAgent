@@ -323,6 +323,7 @@ class AgentFinalResult:
     market: AgentMarketContext | None = None
     drawings: list[ChartDrawing] = field(default_factory=list)
     cards: list[dict[str, Any]] = field(default_factory=list)
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
     recommendation_id: str | None = None
     stages: list[dict[str, Any]] = field(default_factory=list)
     team_mode: str = "core"

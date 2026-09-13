@@ -28,6 +28,14 @@ _QUOTE_PARAMETERS = tool_parameters_schema(
     symbol=StringSchema("Trading symbol (gold only, default XAUUSD)"),
 )
 
+_CAPTURE_PARAMETERS = tool_parameters_schema(
+    interval=StringSchema(
+        "Lead candle interval (default 15m)",
+        enum=["1m", "5m", "15m", "30m", "1h", "4h", "1d"],
+    ),
+    required=[],
+)
+
 _ANALYZE_PARAMETERS = tool_parameters_schema(
     interval=StringSchema(
         "Candle interval for analysis (default 15m)",
@@ -188,3 +196,44 @@ class AnalyzeGoldTool(Tool):
         await publisher.publish_result(wire)
 
         return json.dumps(wire, indent=2)
+
+
+@tool_parameters(_CAPTURE_PARAMETERS)
+class CaptureGoldChartTool(Tool):
+    """Capture a TradingView chart screenshot for XAUUSD."""
+
+    def __init__(self, bus: MessageBus | None) -> None:
+        self._bus = bus
+
+    @classmethod
+    def create(cls, ctx: ToolContext) -> Tool:
+        return cls(bus=ctx.bus)
+
+    @property
+    def name(self) -> str:
+        return "capture_gold_chart"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Capture a live XAUUSD chart screenshot from the WebUI TradingView side panel. "
+            "Use when the operator asks for a chart image or screenshot without a full "
+            "recommendation. Requires the WebUI chart panel to be open in the same session. "
+            "Delivers the image to Telegram/WhatsApp when applicable."
+        )
+
+    async def execute(self, interval: str = "15m", **kwargs: Any) -> str:
+        from nanobot.trading.capture_service import chart_capture_tool_result, run_chart_capture
+
+        channel, chat_id = _request_route()
+        operator_text = (
+            current_request_context().original_user_text if current_request_context() else ""
+        ) or ""
+        payload = await run_chart_capture(
+            bus=self._bus,
+            channel=channel,
+            chat_id=chat_id,
+            interval=interval,
+            operator_text=operator_text,
+        )
+        return chart_capture_tool_result(payload)

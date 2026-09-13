@@ -9,6 +9,7 @@ from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
 _MODE_TOOL_HINTS: dict[str, str] = {
     "market_data_only": "Use get_gold_quote for the live XAUUSD price.",
+    "chart_capture": "Use capture_gold_chart for a chart screenshot (WebUI chart panel must be open).",
     "full_analysis": "Use analyze_gold for a full recommendation with chart and stages.",
     "team_swarm": (
         "Use run_trading_team with the matching preset, or analyze_gold with "
