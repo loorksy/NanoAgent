@@ -17,7 +17,7 @@ from nanobot.trading.agents.structure import run_structure_agent
 from nanobot.trading.agents.supply_demand import run_supply_demand_agent
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.agents.visual_capture import capture_visual_evidence
-from nanobot.trading.cards.artifacts import emit_trading_artifacts
+from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
 from nanobot.trading.intent_router import route_intent
 from nanobot.trading.locale import locale_from_text
@@ -88,14 +88,26 @@ async def run_unified_chart_agent(
                 decision=_wait_decision("No live recommendation to follow up.", "no live plan", interval)
             )
         emit_fn(emit_stage("market_data", "running"))
-        graded = grade_live_recommendation(live, operator_text=_operator_text())
+        operator = _operator_text()
+        graded = grade_live_recommendation(live, operator_text=operator)
         emit_fn(emit_stage("market_data", "done"))
-        return AgentFinalResult(
+        locale = locale_from_text(operator)
+        result = AgentFinalResult(
             decision=graded,
             stages=[emit_stage("market_data", "done").to_wire()],
             team_mode="followup",
             recommendation_id=str(live.get("id")),
         )
+        apply_result_artifacts(
+            result,
+            operator_text=operator,
+            intent_kind="recommendation_followup",
+            locale=locale,
+            followup=True,
+            plan_row=live,
+        )
+        result.cards = derive_cards(result, locale=locale)
+        return result
 
     if runtime.kill_switch:
         return AgentFinalResult(decision=_wait_decision("Trading kill switch is active.", "Kill switch", interval))
@@ -264,10 +276,10 @@ async def run_unified_chart_agent(
     locale = locale_from_text(operator)
     intent = route_intent(operator)
     result.cards = derive_cards(result, locale=locale)
-    result.artifacts = emit_trading_artifacts(
+    apply_result_artifacts(
         result,
+        operator_text=operator,
         intent_kind=intent.kind,
         locale=locale,
-        requested=result.decision.artifacts_requested or None,
     )
     return result

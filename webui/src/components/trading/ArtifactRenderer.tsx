@@ -146,6 +146,64 @@ function renderArtifactBody(
         </ul>
       );
     }
+    case "price_quote": {
+      const t = cardStrings(locale);
+      return (
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+          <div>
+            <span className="text-muted-foreground">Bid</span>
+            <div className="font-medium">{String(payload.bid ?? "—")}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Ask</span>
+            <div className="font-medium">{String(payload.ask ?? "—")}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Mid</span>
+            <div className="font-medium">{String(payload.mid ?? "—")}</div>
+          </div>
+          <div>
+            <span className="text-muted-foreground">{t.state}</span>
+            <div className="font-medium">
+              {payload.tradeable === true ? "tradeable" : "non-tradeable"}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    case "plan_status": {
+      const t = cardStrings(locale);
+      const targets = Array.isArray(payload.targets) ? payload.targets : [];
+      return (
+        <div className="space-y-2 text-xs">
+          <div className="font-semibold uppercase">
+            {String(payload.direction ?? "")} · {String(payload.status ?? "")}
+          </div>
+          {payload.livePrice != null ? (
+            <p className="text-muted-foreground">
+              Live: {String(payload.livePrice)}
+            </p>
+          ) : null}
+          <p className="text-muted-foreground">{String(payload.summary ?? "")}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div>
+              <span className="text-muted-foreground">{t.entry}</span>
+              <div className="font-medium">{String(payload.entry ?? "—")}</div>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{t.stop}</span>
+              <div className="font-medium">{String(payload.stopLoss ?? "—")}</div>
+            </div>
+            {targets.map((target, index) => (
+              <div key={`plan-tp-${index}`}>
+                <span className="text-muted-foreground">{t.target}{index + 1}</span>
+                <div className="font-medium">{String(target)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     default:
       return (
         <pre className="whitespace-pre-wrap break-words text-xs text-muted-foreground">

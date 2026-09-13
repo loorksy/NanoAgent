@@ -95,7 +95,7 @@ Trading output should behave like **Artifacts** in a capable agent (Composer / C
 
 ### Implemented
 
-1. **`emit_trading_artifacts()`** in `nanobot/trading/cards/artifacts.py` — 1–4 artifacts per turn; **LLM picks** via synthesizer `artifactsRequested`, with deterministic fallback when empty/invalid.
+1. **`emit_trading_artifacts()`** in `nanobot/trading/cards/artifacts.py` — 1–4 artifacts per turn; **LLM picks** via synthesizer `artifactsRequested`, with deterministic fallback when empty/invalid. **Operator-intent inference** for price (`price_quote`) and follow-up (`plan_status`, `level_map`, `tracked_plan`) when synthesizer is not called.
 2. **Wire:** `artifacts` on `result_to_wire` + `trading_artifacts` agent_ui kind.
 3. **WebUI:** `ArtifactRenderer.tsx` (preferred over full `AgentCards` deck when artifacts present).
 4. **`cards`** kept for backward compatibility; artifacts are primary.

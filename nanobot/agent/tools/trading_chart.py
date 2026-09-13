@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Any
 from nanobot.agent.tools.base import Tool, ToolResult, tool_parameters
 from nanobot.agent.tools.context import ToolContext, current_request_context
 from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
+from nanobot.trading.cards.artifacts import build_price_quote_artifacts
 from nanobot.trading.config import load_trading_config
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.intent_router import resolve_team_preset
@@ -64,9 +66,12 @@ def _request_route() -> tuple[str, str]:
 class GetGoldQuoteTool(Tool):
     """Fetch the live XAUUSD quote from OANDA."""
 
+    def __init__(self, bus: MessageBus | None) -> None:
+        self._bus = bus
+
     @classmethod
     def create(cls, ctx: ToolContext) -> Tool:
-        return cls()
+        return cls(bus=ctx.bus)
 
     @property
     def name(self) -> str:
@@ -95,13 +100,32 @@ class GetGoldQuoteTool(Tool):
             return ToolResult.error(f"Failed to fetch quote: {exc}")
         if quote is None:
             return ToolResult.error("No quote returned from OANDA.")
+        operator_text = (
+            current_request_context().original_user_text if current_request_context() else ""
+        ) or ""
+        locale = locale_from_text(operator_text)
+        quote_data = {
+            "symbol": quote.symbol,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "mid": quote.mid,
+            "tradeable": quote.tradeable,
+        }
+        artifacts = build_price_quote_artifacts(quote_data, locale=locale)
+        channel, chat_id = _request_route()
+        if self._bus is not None and channel and chat_id:
+            publisher = TradingStagePublisher(
+                self._bus,
+                channel=channel,
+                chat_id=chat_id,
+                locale=locale,
+            )
+            await publisher.publish_artifacts(artifacts, locale=locale)
         return json.dumps(
             {
-                "symbol": quote.symbol,
-                "bid": quote.bid,
-                "ask": quote.ask,
-                "mid": quote.mid,
-                "tradeable": quote.tradeable,
+                **quote_data,
+                "locale": locale,
+                "artifacts": artifacts,
             },
             indent=2,
         )

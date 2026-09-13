@@ -19,8 +19,13 @@ from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
+from nanobot.trading.cards.artifacts import (
+    apply_result_artifacts,
+    build_price_quote_artifacts,
+)
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.types import AgentFinalResult
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
 _ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
@@ -213,8 +218,34 @@ async def try_gold_fast_path(
         )
 
     if turn.mode == "recommendation_followup":
+        locale = locale_from_text(text)
         graded = grade_live_recommendation(live, operator_text=text)
-        return OutboundMessage(channel=channel, chat_id=chat_id, content=graded.summary)
+        result = AgentFinalResult(
+            decision=graded,
+            team_mode="followup",
+            recommendation_id=str(live.get("id") or ""),
+        )
+        apply_result_artifacts(
+            result,
+            operator_text=text,
+            intent_kind="recommendation_followup",
+            locale=locale,
+            followup=True,
+            plan_row=live,
+        )
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=graded.summary,
+            metadata={
+                OUTBOUND_META_AGENT_UI: {
+                    "kind": "trading_artifacts",
+                    "data": {"artifacts": result.artifacts, "locale": locale},
+                }
+            }
+            if result.artifacts
+            else {},
+        )
 
     if turn.mode == "market_data_only":
         if turn.intent.confidence < _PRICE_CONFIDENCE_MIN:
@@ -240,6 +271,7 @@ async def try_gold_fast_path(
             body = "No quote returned from OANDA."
             return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
 
+        locale = locale_from_text(text)
         content = _format_price_response(
             bid=quote.bid,
             ask=quote.ask,
@@ -247,7 +279,30 @@ async def try_gold_fast_path(
             tradeable=quote.tradeable,
             arabic=_wants_arabic(text),
         )
-        return OutboundMessage(channel=channel, chat_id=chat_id, content=content)
+        quote_data = {
+            "symbol": quote.symbol,
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "mid": quote.mid,
+            "tradeable": quote.tradeable,
+        }
+        artifacts = build_price_quote_artifacts(quote_data, locale=locale)
+        if bus is not None:
+            publisher = TradingStagePublisher(
+                bus, channel=channel, chat_id=chat_id, locale=locale,
+            )
+            await publisher.publish_artifacts(artifacts, locale=locale)
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=content,
+            metadata={
+                OUTBOUND_META_AGENT_UI: {
+                    "kind": "trading_artifacts",
+                    "data": {"artifacts": artifacts, "locale": locale},
+                }
+            },
+        )
 
     if turn.mode in ("full_analysis", "team_swarm"):
         # Gold-only product: a recommendation request always runs the pipeline.

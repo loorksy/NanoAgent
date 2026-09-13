@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from nanobot.trading.cards.format import format_price, translate_reason
 from nanobot.trading.intent_router import IntentKind
 from nanobot.trading.locale import normalize_locale
+from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.types import AgentFinalResult
+
+_LEVEL_KEYWORDS = re.compile(
+    r"\b(entry|stop|target|tp|sl|levels?)\b|(دخل|ستوب|وقف|هدف|أهداف|مستويات)",
+    re.I,
+)
+_STATUS_KEYWORDS = re.compile(
+    r"\b(status|still|active|alive|outcome)\b|(حالة|ما زال|ساري|نشط|وين وصل)",
+    re.I,
+)
+_GATE_KEYWORDS = re.compile(
+    r"\b(gate|block|veto|blocked)\b|(بواب|حظر|رفض|محجوب)",
+    re.I,
+)
+_ANALYSIS_INTENTS = frozenset({"gold_analysis", "recommendation", "team_swarm", "recommendation_followup"})
 
 _MAX_ARTIFACTS = 4
 
@@ -22,6 +38,8 @@ ARTIFACT_TYPES = frozenset(
         "visual_review",
         "team_briefing",
         "tracked_plan",
+        "price_quote",
+        "plan_status",
     }
 )
 
@@ -36,6 +54,8 @@ _TITLES = {
         "visual_review": "المراجعة البصرية",
         "team_briefing": "ملخص الفريق",
         "tracked_plan": "الخطة المتتبعة",
+        "price_quote": "سعر الذهب",
+        "plan_status": "حالة الخطة",
     },
     "en": {
         "decision": "Decision",
@@ -47,8 +67,41 @@ _TITLES = {
         "visual_review": "Visual review",
         "team_briefing": "Team briefing",
         "tracked_plan": "Tracked plan",
+        "price_quote": "Gold quote",
+        "plan_status": "Plan status",
     },
 }
+
+
+def infer_operator_artifacts(
+    operator_text: str,
+    intent_kind: IntentKind | str,
+    *,
+    followup: bool = False,
+    has_live_plan: bool = False,
+) -> list[str]:
+    """Infer artifact picks for non-synthesizer paths (price, follow-up, specialist)."""
+    text = operator_text or ""
+
+    if intent_kind == "price_query":
+        return ["price_quote"]
+
+    if intent_kind == "chart_image":
+        return ["chart_snapshot"]
+
+    if followup or intent_kind == "recommendation_followup" or (
+        has_live_plan and intent_kind in ("gold_analysis", "recommendation")
+    ):
+        if _LEVEL_KEYWORDS.search(text):
+            return ["level_map", "plan_status"]
+        if _STATUS_KEYWORDS.search(text):
+            return ["plan_status", "tracked_plan"]
+        return ["plan_status", "level_map"]
+
+    if _GATE_KEYWORDS.search(text):
+        return ["gate_report", "decision"]
+
+    return []
 
 
 def parse_artifacts_requested(raw: Any) -> list[str]:
@@ -68,11 +121,43 @@ def _title(kind: str, locale: str) -> str:
     return _TITLES[loc].get(kind, kind)
 
 
+def build_price_quote_artifact(
+    quote: dict[str, Any],
+    *,
+    locale: str = "en",
+) -> dict[str, Any]:
+    """Standalone price artifact for get_gold_quote / fast-path price responses."""
+    loc = normalize_locale(locale)
+    return {
+        "type": "price_quote",
+        "title": _title("price_quote", loc),
+        "payload": {
+            "symbol": str(quote.get("symbol") or "XAUUSD"),
+            "bid": quote.get("bid"),
+            "ask": quote.get("ask"),
+            "mid": quote.get("mid"),
+            "tradeable": bool(quote.get("tradeable")),
+        },
+    }
+
+
+def build_price_quote_artifacts(
+    quote: dict[str, Any],
+    *,
+    locale: str = "en",
+) -> list[dict[str, Any]]:
+    return [build_price_quote_artifact(quote, locale=locale)]
+
+
 def _build_artifact_pool(
     result: AgentFinalResult,
     *,
     intent_kind: IntentKind | str = "gold_analysis",
     locale: str = "en",
+    quote_data: dict[str, Any] | None = None,
+    plan_row: dict[str, Any] | None = None,
+    plan_status: str | None = None,
+    live_price: float | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Build every artifact that is available for this turn (may be empty)."""
     loc = normalize_locale(locale)
@@ -80,6 +165,26 @@ def _build_artifact_pool(
     rec = d.recommendation
     pool: dict[str, dict[str, Any]] = {}
     snapshots = list(result.visual_snapshots or [])
+
+    if quote_data:
+        pool["price_quote"] = build_price_quote_artifact(quote_data, locale=loc)
+
+    if plan_row and intent_kind in _ANALYSIS_INTENTS:
+        graded = plan_status or grade_outcome_status(plan_row, live_price=live_price)
+        pool["plan_status"] = {
+            "type": "plan_status",
+            "title": _title("plan_status", loc),
+            "payload": {
+                "id": str(plan_row.get("id") or result.recommendation_id or ""),
+                "direction": str(plan_row.get("direction") or rec.action or "wait"),
+                "status": graded,
+                "livePrice": live_price,
+                "entry": plan_row.get("entry"),
+                "stopLoss": plan_row.get("stop_loss"),
+                "targets": list(plan_row.get("targets") or []),
+                "summary": d.summary,
+            },
+        }
 
     if snapshots:
         frame = snapshots[0] if snapshots else None
@@ -115,7 +220,7 @@ def _build_artifact_pool(
         and rec.entry
         and rec.stop_loss
         and rec.targets
-        and intent_kind in ("gold_analysis", "recommendation", "team_swarm")
+        and intent_kind in _ANALYSIS_INTENTS
     ):
         pool["level_map"] = {
             "type": "level_map",
@@ -221,7 +326,7 @@ def _build_artifact_pool(
                 "payload": {"reasons": reasons},
             }
 
-    if result.recommendation_id and intent_kind == "gold_analysis":
+    if result.recommendation_id and intent_kind in ("gold_analysis", "recommendation_followup"):
         pool["tracked_plan"] = {
             "type": "tracked_plan",
             "title": _title("tracked_plan", loc),
@@ -279,13 +384,23 @@ def _resolve_selection(
     if intent_kind == "chart_image" and "chart_snapshot" in pool:
         return ["chart_snapshot"]
 
+    if intent_kind == "price_query" and "price_quote" in pool:
+        return ["price_quote"]
+
     normalized = parse_artifacts_requested(requested or [])
     if normalized:
         selection = [kind for kind in normalized if kind in pool]
         if decision in ("buy", "sell") and "decision" in pool and "decision" not in selection:
             selection.insert(0, "decision")
+        if intent_kind == "recommendation_followup" and not selection:
+            selection = [k for k in ("plan_status", "level_map", "tracked_plan") if k in pool]
         if selection:
             return selection[:_MAX_ARTIFACTS]
+
+    if intent_kind == "recommendation_followup":
+        followup_default = [k for k in ("plan_status", "level_map", "tracked_plan") if k in pool]
+        if followup_default:
+            return followup_default[:_MAX_ARTIFACTS]
 
     return _default_artifact_order(pool, intent_kind=intent_kind)
 
@@ -297,9 +412,21 @@ def emit_trading_artifacts(
     locale: str = "en",
     chart_only: bool = False,
     requested: list[str] | None = None,
+    quote_data: dict[str, Any] | None = None,
+    plan_row: dict[str, Any] | None = None,
+    plan_status: str | None = None,
+    live_price: float | None = None,
 ) -> list[dict[str, Any]]:
     """Pick a small artifact set for this turn (LLM-requested when available)."""
-    pool = _build_artifact_pool(result, intent_kind=intent_kind, locale=locale)
+    pool = _build_artifact_pool(
+        result,
+        intent_kind=intent_kind,
+        locale=locale,
+        quote_data=quote_data,
+        plan_row=plan_row,
+        plan_status=plan_status,
+        live_price=live_price,
+    )
 
     if chart_only:
         if "chart_snapshot" in pool:
@@ -313,3 +440,36 @@ def emit_trading_artifacts(
         decision=str(result.decision.decision),
     )
     return [pool[kind] for kind in selection if kind in pool]
+
+
+def apply_result_artifacts(
+    result: AgentFinalResult,
+    *,
+    operator_text: str,
+    intent_kind: IntentKind | str,
+    locale: str,
+    followup: bool = False,
+    quote_data: dict[str, Any] | None = None,
+    plan_row: dict[str, Any] | None = None,
+    plan_status: str | None = None,
+    live_price: float | None = None,
+) -> None:
+    """Attach artifacts using synthesizer picks or operator-intent inference."""
+    requested = list(result.decision.artifacts_requested or [])
+    if not requested:
+        requested = infer_operator_artifacts(
+            operator_text,
+            intent_kind,
+            followup=followup,
+            has_live_plan=bool(result.recommendation_id or plan_row),
+        )
+    result.artifacts = emit_trading_artifacts(
+        result,
+        intent_kind=intent_kind,
+        locale=locale,
+        requested=requested or None,
+        quote_data=quote_data,
+        plan_row=plan_row,
+        plan_status=plan_status,
+        live_price=live_price,
+    )

@@ -1,6 +1,9 @@
 from nanobot.trading.agents.apply_model_decision import apply_model_decision
 from nanobot.trading.cards.artifacts import (
+    apply_result_artifacts,
+    build_price_quote_artifacts,
     emit_trading_artifacts,
+    infer_operator_artifacts,
     parse_artifacts_requested,
 )
 from nanobot.trading.types import (
@@ -98,6 +101,49 @@ def test_chart_image_intent_forces_snapshot() -> None:
     )
     assert len(arts) == 1
     assert arts[0]["type"] == "chart_snapshot"
+
+
+def test_infer_price_query_artifacts() -> None:
+    assert infer_operator_artifacts("gold price", "price_query") == ["price_quote"]
+
+
+def test_infer_followup_status_artifacts() -> None:
+    picks = infer_operator_artifacts("ما حالة الخطة؟", "gold_analysis", followup=True)
+    assert picks == ["plan_status", "tracked_plan"]
+
+
+def test_build_price_quote_artifact() -> None:
+    arts = build_price_quote_artifacts(
+        {"symbol": "XAUUSD", "bid": 1.0, "ask": 2.0, "mid": 1.5, "tradeable": True},
+        locale="en",
+    )
+    assert len(arts) == 1
+    assert arts[0]["type"] == "price_quote"
+    assert arts[0]["payload"]["mid"] == 1.5
+
+
+def test_apply_result_artifacts_followup() -> None:
+    result = _result()
+    result.recommendation_id = "rec-1"
+    plan_row = {
+        "id": "rec-1",
+        "direction": "sell",
+        "entry": 2650.0,
+        "stop_loss": 2660.0,
+        "targets": [2640.0],
+        "status": "waiting",
+    }
+    apply_result_artifacts(
+        result,
+        operator_text="what is the plan status?",
+        intent_kind="recommendation_followup",
+        locale="en",
+        followup=True,
+        plan_row=plan_row,
+    )
+    kinds = {art["type"] for art in result.artifacts}
+    assert "plan_status" in kinds
+    assert "tracked_plan" in kinds
 
 
 def test_apply_model_decision_parses_artifacts_requested() -> None:
