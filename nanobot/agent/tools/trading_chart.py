@@ -132,8 +132,18 @@ class AnalyzeGoldTool(Tool):
         preset: str | None = None,
         **kwargs: Any,
     ) -> str:
+        from nanobot.trading.locale import locale_from_text
+
         channel, chat_id = _request_route()
-        publisher = TradingStagePublisher(self._bus, channel=channel, chat_id=chat_id)
+        operator_text = (
+            current_request_context().original_user_text if current_request_context() else ""
+        ) or ""
+        publisher = TradingStagePublisher(
+            self._bus,
+            channel=channel,
+            chat_id=chat_id,
+            locale=locale_from_text(operator_text),
+        )
         await publisher.open_chart(interval)
         visual_capture = resolve_visual_capture(publisher)
 

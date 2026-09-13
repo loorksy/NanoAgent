@@ -123,7 +123,10 @@ export function TradingRecommendationCard({
       ) : null}
 
       {result.cards && result.cards.length > 0 ? (
-        <AgentCards cards={result.cards as Array<{ kind: string } & Record<string, unknown>>} />
+        <AgentCards
+          cards={result.cards as Array<{ kind: string } & Record<string, unknown>>}
+          locale={result.locale}
+        />
       ) : null}
     </div>
   );

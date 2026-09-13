@@ -19,15 +19,19 @@ class TelegramStageRow:
     notes: list[str] = field(default_factory=list)
 
 
-def render_arabic_stage_line(stage: str, status: str) -> str:
+def render_stage_line(stage: str, status: str, *, locale: str = "en") -> str:
     mark = "✅" if status == "done" else "❌" if status == "failed" else "⏳"
-    label = stage_label(stage, "ar")
+    label = stage_label(stage, locale)
     return f"{mark} {label}"
 
 
-def render_arabic_progress(rows: list[TelegramStageRow]) -> str:
-    lines = [render_arabic_stage_line(row.stage, row.status) for row in rows]
+def render_stage_progress(rows: list[TelegramStageRow], *, locale: str = "en") -> str:
+    lines = [render_stage_line(row.stage, row.status, locale=locale) for row in rows]
     return "\n".join(lines)
+
+
+def render_arabic_progress(rows: list[TelegramStageRow]) -> str:
+    return render_stage_progress(rows, locale="ar")
 
 
 def apply_stage_event(rows: list[TelegramStageRow], event: StageEvent) -> list[TelegramStageRow]:

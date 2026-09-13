@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from nanobot.trading.locale import normalize_locale
 from nanobot.trading.types import AgentFinalResult
 
 CARD_ORDER = [
@@ -21,7 +22,8 @@ CARD_ORDER = [
 ]
 
 
-def derive_cards(result: AgentFinalResult) -> list[dict[str, Any]]:
+def derive_cards(result: AgentFinalResult, *, locale: str = "en") -> list[dict[str, Any]]:
+    loc = normalize_locale(locale)
     cards: list[dict[str, Any]] = []
     d = result.decision
     rec = d.recommendation
@@ -53,11 +55,16 @@ def derive_cards(result: AgentFinalResult) -> list[dict[str, Any]]:
                 "executionState": d.execution_state or "valid_now",
             }
         )
+        invalidation = (
+            f"يبطل إذا وصل السعر إلى {rec.stop_loss}"
+            if loc == "ar"
+            else f"Invalidated if price reaches {rec.stop_loss}"
+        )
         cards.append(
             {
                 "kind": "invalidation",
                 "stopLoss": rec.stop_loss,
-                "summary": f"Invalidated if price reaches {rec.stop_loss}",
+                "summary": invalidation,
             }
         )
 

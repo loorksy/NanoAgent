@@ -9,7 +9,7 @@ from nanobot.trading.stage_delivery import TradingStagePublisher
 def test_publish_result_attaches_telegram_chart_photo() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123")
+    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123", locale="ar")
     image = base64.b64encode(b"jpegbytes").decode("ascii")
     payload = {
         "decision": "buy",

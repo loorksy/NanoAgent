@@ -47,10 +47,16 @@ def test_format_price_rounds_ugly_floats() -> None:
     assert format_price(4358.8748214285715) == "$4,358.87"
 
 
-def test_translate_structure_reasons() -> None:
-    assert translate_reason("Structure trend: down") == "📉 الاتجاه: هابط"
-    assert translate_reason("MTF bias: bearish") == "📊 التحيز: هبوطي"
-    assert "كسر هيكل" in translate_reason("Setup: structure_break R:R 2.67")
+def test_translate_structure_reasons_arabic() -> None:
+    assert translate_reason("Structure trend: down", locale="ar") == "📉 الاتجاه: هابط"
+    assert translate_reason("MTF bias: bearish", locale="ar") == "📊 التحيز: هبوطي"
+    assert "كسر هيكل" in translate_reason("Setup: structure_break R:R 2.67", locale="ar")
+
+
+def test_translate_structure_reasons_english() -> None:
+    assert "Trend: down" in translate_reason("Structure trend: down", locale="en")
+    assert "Bias: bearish" in translate_reason("MTF bias: bearish", locale="en")
+    assert "structure break" in translate_reason("Setup: structure_break R:R 2.67", locale="en")
 
 
 def test_compute_rr_from_levels() -> None:
@@ -60,7 +66,7 @@ def test_compute_rr_from_levels() -> None:
 
 
 def test_telegram_card_is_arabic_and_rounded() -> None:
-    card = render_telegram_card(_payload())
+    card = render_telegram_card(_payload(), locale="ar")
     assert "توصية" in card
     assert "بيع" in card
     assert "$4,349.42" in card
@@ -74,8 +80,16 @@ def test_telegram_card_is_arabic_and_rounded() -> None:
     assert "تخطى — كاش/غير ذي صلة" in card
 
 
+def test_telegram_card_is_english() -> None:
+    card = render_telegram_card(_payload(), locale="en")
+    assert "Recommendation" in card
+    assert "SELL" in card
+    assert "Entry" in card
+    assert "Macro drivers" in card
+
+
 def test_whatsapp_card_is_arabic() -> None:
-    card = render_whatsapp_card(_payload())
+    card = render_whatsapp_card(_payload(), locale="ar")
     assert "*توصية:" in card
     assert "بيع" in card
     assert "$4,349.42" in card

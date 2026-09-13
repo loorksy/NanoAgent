@@ -21,7 +21,7 @@ from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.trading.paper import record_paper_action
-from nanobot.trading.chart_capture import submit_chart_capture
+from nanobot.trading.chart_capture import ChartCaptureError, submit_chart_capture, validate_chart_frames
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
@@ -364,8 +364,19 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
         return _http_error(400, "frames required")
     if not isinstance(frames, list):
         return _http_error(400, "frames must be a list")
-    if not submit_chart_capture(capture_id, {"frames": frames}):
-        return _http_error(404, "No pending chart capture for that id")
+    session_key = ""
+    if isinstance(payload, dict):
+        session_key = str(payload.get("sessionKey") or payload.get("session_key") or "")
+    try:
+        validate_chart_frames(frames)
+    except ChartCaptureError as exc:
+        return _http_error(400, str(exc))
+    if not submit_chart_capture(
+        capture_id,
+        {"frames": frames},
+        session_key=session_key or None,
+    ):
+        return _http_error(404, "No pending chart capture for that id or session mismatch")
     return _http_json_response({"ok": True})
 
 

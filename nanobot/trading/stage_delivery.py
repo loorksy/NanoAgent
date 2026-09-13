@@ -11,8 +11,9 @@ from nanobot.channels.telegram.trading_progress import (
     TRADING_PROGRESS_META,
     TelegramStageRow,
     apply_stage_event,
-    render_arabic_progress,
+    render_stage_progress,
 )
+from nanobot.trading.locale import normalize_locale
 from nanobot.trading.stage_events import StageEvent, stage_label
 
 if TYPE_CHECKING:
@@ -27,10 +28,12 @@ class TradingStagePublisher:
         *,
         channel: str,
         chat_id: str,
+        locale: str = "en",
     ) -> None:
         self._bus = bus
         self._channel = channel
         self._chat_id = chat_id
+        self._locale = normalize_locale(locale)
         self._telegram_rows: list[TelegramStageRow] = []
         self._whatsapp_rows: list[TelegramStageRow] = []
         self._pending: list[asyncio.Task[None]] = []
@@ -84,7 +87,7 @@ class TradingStagePublisher:
             return
         from nanobot.trading.chart_capture import get_chart_capture_bridge
 
-        get_chart_capture_bridge().begin(capture_id)
+        get_chart_capture_bridge().begin(capture_id, session_key=session_key)
         await self._agent_ui(
             "trading_chart_capture",
             {
@@ -122,7 +125,7 @@ class TradingStagePublisher:
             from nanobot.channels.telegram.trading_cards import render_recommendation_card
             from nanobot.trading.chart_photo import lead_chart_frame, write_chart_snapshot_file
 
-            card = render_recommendation_card(payload)
+            card = render_recommendation_card({**payload, "locale": self._locale})
             snapshots = payload.get("chartSnapshots")
             frame = lead_chart_frame(snapshots if isinstance(snapshots, list) else None)
             chart_path = write_chart_snapshot_file(frame)
@@ -139,7 +142,7 @@ class TradingStagePublisher:
         elif self._channel == "whatsapp":
             from nanobot.channels.whatsapp.trading_cards import render_recommendation_card
 
-            card = render_recommendation_card(payload)
+            card = render_recommendation_card({**payload, "locale": self._locale})
             await self._bus.publish_outbound(
                 OutboundMessage(
                     channel=self._channel,
@@ -187,7 +190,7 @@ class TradingStagePublisher:
             return
         if self._channel == "telegram":
             self._telegram_rows = apply_stage_event(self._telegram_rows, event)
-            checklist = render_arabic_progress(self._telegram_rows)
+            checklist = render_stage_progress(self._telegram_rows, locale=self._locale)
             await self._bus.publish_outbound(
                 OutboundMessage(
                     channel=self._channel,
@@ -200,7 +203,7 @@ class TradingStagePublisher:
             return
         if self._channel == "whatsapp":
             self._whatsapp_rows = apply_stage_event(self._whatsapp_rows, event)
-            checklist = render_arabic_progress(self._whatsapp_rows)
+            checklist = render_stage_progress(self._whatsapp_rows, locale=self._locale)
             await self._bus.publish_outbound(
                 OutboundMessage(
                     channel=self._channel,

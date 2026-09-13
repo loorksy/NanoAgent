@@ -38,6 +38,7 @@ export interface TradingResultWire {
   decision: string;
   confidence: number;
   summary: string;
+  locale?: string;
   keyReasons?: string[];
   riskWarnings?: string[];
   recommendationId?: string;

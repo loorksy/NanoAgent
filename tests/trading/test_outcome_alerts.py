@@ -74,10 +74,29 @@ def test_format_outcome_alert_arabic_html():
         "tp1",
         live_price=2661.0,
         html_mode=True,
+        locale="ar",
     )
     assert "تحديث توصية الذهب" in text
     assert "هدف 1 تحقق" in text
     assert "$2,661.00" in text
+
+
+def test_format_outcome_alert_english_html():
+    text = format_outcome_alert(
+        {
+            "direction": "buy",
+            "entry": 2650.0,
+            "stop_loss": 2640.0,
+            "targets": [2660.0],
+            "summary": "Pullback entry",
+        },
+        "tp1",
+        live_price=2661.0,
+        html_mode=True,
+        locale="en",
+    )
+    assert "Gold recommendation update" in text
+    assert "TP1 hit" in text
 
 
 def test_refresh_recommendation_outcomes_records_transition(monkeypatch):

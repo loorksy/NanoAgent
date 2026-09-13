@@ -183,7 +183,7 @@ export function GoldChartPanel() {
         </div>
         <div className="min-h-0 overflow-auto rounded-xl border bg-card p-3">
           <h2 className="mb-3 text-sm font-semibold">Recommendation cards</h2>
-          <AgentCards cards={analysis?.cards ?? []} />
+          <AgentCards cards={analysis?.cards ?? []} locale={analysis?.locale} />
         </div>
       </div>
     </div>

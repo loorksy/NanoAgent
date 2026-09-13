@@ -68,9 +68,16 @@ class RunTradingTeamTool(Tool):
         if ctx is None:
             return ToolResult.error("run_trading_team requires an active chat session")
 
+        from nanobot.trading.locale import locale_from_text
+
         channel = ctx.channel or ""
         chat_id = ctx.chat_id or ""
-        publisher = TradingStagePublisher(self._bus, channel=channel, chat_id=chat_id)
+        publisher = TradingStagePublisher(
+            self._bus,
+            channel=channel,
+            chat_id=chat_id,
+            locale=locale_from_text(ctx.original_user_text or ""),
+        )
         await publisher.open_chart(interval)
 
         preset_name = preset or resolve_team_preset(ctx.original_user_text or "") or "gold_analysis_committee"

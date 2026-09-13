@@ -19,6 +19,7 @@ from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
@@ -88,7 +89,10 @@ async def _run_analysis_fast_path(
     bus: MessageBus | None,
     subagent_manager: Any | None = None,
 ) -> OutboundMessage | None:
-    publisher = TradingStagePublisher(bus, channel=channel, chat_id=chat_id)
+    locale = locale_from_text(text)
+    publisher = TradingStagePublisher(
+        bus, channel=channel, chat_id=chat_id, locale=locale,
+    )
     interval = "15m"
     await publisher.open_chart(interval)
     visual_capture = resolve_visual_capture(publisher)
@@ -136,6 +140,7 @@ async def _run_analysis_fast_path(
         return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
 
     wire = result_to_wire(result)
+    wire["locale"] = locale
     await publisher.publish_result(wire, include_card=False)
     if channel == "telegram":
         from nanobot.channels.telegram.trading_cards import render_recommendation_card
@@ -143,7 +148,7 @@ async def _run_analysis_fast_path(
         return OutboundMessage(
             channel=channel,
             chat_id=chat_id,
-            content=render_recommendation_card(wire),
+            content=render_recommendation_card(wire, locale=locale),
             metadata={"parse_mode": "HTML"},
         )
     if channel == "whatsapp":
@@ -152,7 +157,7 @@ async def _run_analysis_fast_path(
         return OutboundMessage(
             channel=channel,
             chat_id=chat_id,
-            content=render_recommendation_card(wire),
+            content=render_recommendation_card(wire, locale=locale),
         )
     return _outbound_from_wire(wire, channel=channel, chat_id=chat_id)
 

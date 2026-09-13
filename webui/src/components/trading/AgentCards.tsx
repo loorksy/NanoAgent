@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cardKindTitle, cardStrings } from "@/lib/trading/cardLocale";
 
 export interface AgentCard {
   kind: string;
@@ -7,21 +8,24 @@ export interface AgentCard {
 
 interface AgentCardsProps {
   cards: AgentCard[];
+  locale?: string | null;
 }
 
-function gateStatusLabel(status: string): string {
-  if (status === "pass") return "Pass";
-  if (status === "veto") return "Veto";
-  return "Unavailable";
+function gateStatusLabel(status: string, locale?: string | null): string {
+  const t = cardStrings(locale);
+  if (status === "pass") return t.pass;
+  if (status === "veto") return t.veto;
+  return t.unavailable;
 }
 
-function GateChecklistCard({ card }: { card: AgentCard }) {
+function GateChecklistCard({ card, locale }: { card: AgentCard; locale?: string | null }) {
+  const t = cardStrings(locale);
   const verdicts = Array.isArray(card.verdicts) ? card.verdicts : [];
   const allowed = card.allowed === true;
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        {allowed ? "All required gates passed." : "Recommendation blocked by gates."}
+        {allowed ? t.gatesPass : t.gatesBlock}
       </p>
       <ul className="space-y-1 text-xs">
         {verdicts.map((row) => {
@@ -35,7 +39,7 @@ function GateChecklistCard({ card }: { card: AgentCard }) {
             <li key={id} className="flex flex-wrap items-baseline gap-x-2">
               <span className="font-medium">{id}</span>
               <span className="text-muted-foreground">{name}</span>
-              <span>{gateStatusLabel(status)}</span>
+              <span>{gateStatusLabel(status, locale)}</span>
               {reason ? <span className="text-muted-foreground">— {reason}</span> : null}
             </li>
           );
@@ -45,21 +49,22 @@ function GateChecklistCard({ card }: { card: AgentCard }) {
   );
 }
 
-function PlanLevelsCard({ card }: { card: AgentCard }) {
+function PlanLevelsCard({ card, locale }: { card: AgentCard; locale?: string | null }) {
+  const t = cardStrings(locale);
   const targets = Array.isArray(card.targets) ? card.targets : [];
   return (
     <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
       <div>
-        <span className="text-muted-foreground">Entry</span>
+        <span className="text-muted-foreground">{t.entry}</span>
         <div className="font-medium">{String(card.entry ?? "—")}</div>
       </div>
       <div>
-        <span className="text-muted-foreground">Stop</span>
+        <span className="text-muted-foreground">{t.stop}</span>
         <div className="font-medium">{String(card.stopLoss ?? "—")}</div>
       </div>
       {targets.map((target, index) => (
         <div key={`tp-${index}`}>
-          <span className="text-muted-foreground">TP{index + 1}</span>
+          <span className="text-muted-foreground">{t.target}{index + 1}</span>
           <div className="font-medium">{String(target)}</div>
         </div>
       ))}
@@ -67,7 +72,8 @@ function PlanLevelsCard({ card }: { card: AgentCard }) {
   );
 }
 
-function MacroDriversCard({ card }: { card: AgentCard }) {
+function MacroDriversCard({ card, locale }: { card: AgentCard; locale?: string | null }) {
+  const t = cardStrings(locale);
   const drivers = Array.isArray(card.drivers) ? card.drivers : [];
   return (
     <ul className="space-y-1 text-xs">
@@ -78,7 +84,7 @@ function MacroDriversCard({ card }: { card: AgentCard }) {
         if (item.ran === false) {
           return (
             <li key={`${name}-${index}`} className="text-muted-foreground">
-              <span className="font-medium">{name}</span> — skipped
+              <span className="font-medium">{name}</span> — {t.skipped}
             </li>
           );
         }
@@ -97,7 +103,8 @@ function MacroDriversCard({ card }: { card: AgentCard }) {
   );
 }
 
-function renderCardBody(card: AgentCard): ReactNode {
+function renderCardBody(card: AgentCard, locale?: string | null): ReactNode {
+  const t = cardStrings(locale);
   switch (card.kind) {
     case "decision":
       return (
@@ -106,35 +113,35 @@ function renderCardBody(card: AgentCard): ReactNode {
           <p className="text-sm text-muted-foreground">{String(card.summary ?? "")}</p>
           {card.confidence != null ? (
             <p className="text-xs text-muted-foreground">
-              Confidence {Math.round(Number(card.confidence) * 100)}%
+              {t.confidence} {Math.round(Number(card.confidence) * 100)}%
             </p>
           ) : null}
         </div>
       );
     case "plan_levels":
-      return <PlanLevelsCard card={card} />;
+      return <PlanLevelsCard card={card} locale={locale} />;
     case "activation":
       return (
         <p className="text-xs text-muted-foreground">
-          Plan: {String(card.planType ?? "immediate")} · State:{" "}
+          {t.plan}: {String(card.planType ?? "immediate")} · {t.state}:{" "}
           {String(card.executionState ?? "valid_now")}
         </p>
       );
     case "invalidation":
       return <p className="text-xs">{String(card.summary ?? "")}</p>;
     case "gate_checklist":
-      return <GateChecklistCard card={card} />;
+      return <GateChecklistCard card={card} locale={locale} />;
     case "visual_review":
       return (
         <div className="space-y-1 text-xs">
           <p>
-            Visual state: <span className="font-medium">{String(card.state ?? "not_checked")}</span>
+            {t.visualState}: <span className="font-medium">{String(card.state ?? "not_checked")}</span>
           </p>
           {card.notes ? <p className="text-muted-foreground">{String(card.notes)}</p> : null}
         </div>
       );
     case "macro_drivers":
-      return <MacroDriversCard card={card} />;
+      return <MacroDriversCard card={card} locale={locale} />;
     case "key_reasons": {
       const reasons = Array.isArray(card.reasons) ? card.reasons : [];
       return (
@@ -158,8 +165,9 @@ function renderCardBody(card: AgentCard): ReactNode {
     case "tracked_recommendation":
       return (
         <p className="text-xs text-muted-foreground">
-          Tracking {String(card.direction ?? "").toUpperCase()} on {String(card.symbol ?? "XAUUSD")}{" "}
-          ({String(card.interval ?? "")}) — {String(card.status ?? "")}
+          {t.tracking} {String(card.direction ?? "").toUpperCase()} {t.on}{" "}
+          {String(card.symbol ?? "XAUUSD")} ({String(card.interval ?? "")}) —{" "}
+          {String(card.status ?? "")}
         </p>
       );
     default:
@@ -171,11 +179,10 @@ function renderCardBody(card: AgentCard): ReactNode {
   }
 }
 
-export function AgentCards({ cards }: AgentCardsProps) {
+export function AgentCards({ cards, locale }: AgentCardsProps) {
+  const t = cardStrings(locale);
   if (!cards.length) {
-    return (
-      <p className="text-sm text-muted-foreground">No recommendation cards yet.</p>
-    );
+    return <p className="text-sm text-muted-foreground">{t.noCards}</p>;
   }
 
   return (
@@ -185,10 +192,10 @@ export function AgentCards({ cards }: AgentCardsProps) {
           key={`${card.kind}-${index}`}
           className="rounded-lg border bg-card p-4 text-sm shadow-sm"
         >
-          <header className="mb-2 font-medium capitalize">
-            {card.kind.replace(/_/g, " ")}
+          <header className="mb-2 font-medium">
+            {cardKindTitle(card.kind, locale)}
           </header>
-          {renderCardBody(card)}
+          {renderCardBody(card, locale)}
         </article>
       ))}
     </div>

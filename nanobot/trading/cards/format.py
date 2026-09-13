@@ -1,4 +1,4 @@
-"""Arabic-first gold recommendation card formatting for Telegram and WhatsApp."""
+"""Gold recommendation card formatting for Telegram and WhatsApp."""
 
 from __future__ import annotations
 
@@ -6,51 +6,134 @@ import html
 import re
 from typing import Any
 
+from nanobot.trading.locale import resolve_locale
+
 _RR_RE = re.compile(r"R\s*:\s*R\s*([0-9]+(?:\.[0-9]+)?)", re.I)
-_TREND_AR = {
-    "up": "صاعد",
-    "down": "هابط",
-    "bullish": "صاعد",
-    "bearish": "هابط",
-    "neutral": "محايد",
-    "sideways": "عرضي",
-    "range": "عرضي",
+_TREND = {
+    "ar": {
+        "up": "صاعد",
+        "down": "هابط",
+        "bullish": "صاعد",
+        "bearish": "هابط",
+        "neutral": "محايد",
+        "sideways": "عرضي",
+        "range": "عرضي",
+    },
+    "en": {
+        "up": "up",
+        "down": "down",
+        "bullish": "bullish",
+        "bearish": "bearish",
+        "neutral": "neutral",
+        "sideways": "sideways",
+        "range": "range",
+    },
 }
-_BIAS_AR = {
-    "up": "صعودي",
-    "down": "هبوطي",
-    "bullish": "صعودي",
-    "bearish": "هبوطي",
-    "neutral": "محايد",
-    "sideways": "عرضي",
-    "range": "عرضي",
+_BIAS = {
+    "ar": {
+        "up": "صعودي",
+        "down": "هبوطي",
+        "bullish": "صعودي",
+        "bearish": "هبوطي",
+        "neutral": "محايد",
+        "sideways": "عرضي",
+        "range": "عرضي",
+    },
+    "en": {
+        "up": "up",
+        "down": "down",
+        "bullish": "bullish",
+        "bearish": "bearish",
+        "neutral": "neutral",
+        "sideways": "sideways",
+        "range": "range",
+    },
 }
-_SETUP_AR = {
-    "structure_break": "كسر هيكل",
-    "structure": "هيكل",
-    "breakout": "اختراق",
-    "supply": "منطقة عرض",
-    "demand": "منطقة طلب",
-    "liquidity_sweep": "كنس سيولة",
+_SETUP = {
+    "ar": {
+        "structure_break": "كسر هيكل",
+        "structure": "هيكل",
+        "breakout": "اختراق",
+        "supply": "منطقة عرض",
+        "demand": "منطقة طلب",
+        "liquidity_sweep": "كنس سيولة",
+    },
+    "en": {
+        "structure_break": "structure break",
+        "structure": "structure",
+        "breakout": "breakout",
+        "supply": "supply zone",
+        "demand": "demand zone",
+        "liquidity_sweep": "liquidity sweep",
+    },
 }
 _DECISION = {
     "buy": ("🟢", "شراء", "BUY"),
     "sell": ("🔴", "بيع", "SELL"),
     "wait": ("⚪", "انتظار", "WAIT"),
 }
-_DRIVER_AR = {
-    "geopolitical_safehaven": "ملاذ جيوسياسي",
-    "dxy": "الدولار",
-    "us_macro_data": "بيانات أمريكية",
-    "us_real_yields_fomc": "العوائد / الفيدرالي",
-    "fund_flows_positioning": "تدفقات الصناديق",
-    "central_bank_demand": "طلب البنوك المركزية",
-    "seasonal_physical_demand": "الطلب الموسمي",
+_DRIVER = {
+    "ar": {
+        "geopolitical_safehaven": "ملاذ جيوسياسي",
+        "dxy": "الدولار",
+        "us_macro_data": "بيانات أمريكية",
+        "us_real_yields_fomc": "العوائد / الفيدرالي",
+        "fund_flows_positioning": "تدفقات الصناديق",
+        "central_bank_demand": "طلب البنوك المركزية",
+        "seasonal_physical_demand": "الطلب الموسمي",
+    },
+    "en": {
+        "geopolitical_safehaven": "Geopolitical safe haven",
+        "dxy": "US dollar (DXY)",
+        "us_macro_data": "US macro data",
+        "us_real_yields_fomc": "Real yields / FOMC",
+        "fund_flows_positioning": "Fund flows",
+        "central_bank_demand": "Central bank demand",
+        "seasonal_physical_demand": "Seasonal physical demand",
+    },
+}
+_LABELS = {
+    "ar": {
+        "recommendation": "توصية",
+        "confidence": "الثقة",
+        "entry": "الدخول",
+        "stop": "وقف الخسارة",
+        "target": "الهدف",
+        "reasons": "الأسباب",
+        "macro": "محركات الاقتصاد الكلي",
+        "gates_pass": "جميع البوابات (G1-G7) ناجحة",
+        "gates_block": "التوصية محجوبة من بوابات المخاطر",
+        "disclaimer": "توصيات فقط — بدون تنفيذ.",
+        "trend": "الاتجاه",
+        "bias": "التحيز",
+        "signal": "إشارة",
+        "skipped": "تخطى — كاش/غير ذي صلة",
+    },
+    "en": {
+        "recommendation": "Recommendation",
+        "confidence": "Confidence",
+        "entry": "Entry",
+        "stop": "Stop loss",
+        "target": "Target",
+        "reasons": "Reasons",
+        "macro": "Macro drivers",
+        "gates_pass": "All gates (G1-G7) passed",
+        "gates_block": "Recommendation blocked by risk gates",
+        "disclaimer": "Recommendations only — no execution.",
+        "trend": "Trend",
+        "bias": "Bias",
+        "signal": "Signal",
+        "skipped": "skipped — cache/irrelevant",
+    },
 }
 
 
 def format_price(value: Any) -> str:
     return f"${float(value):,.2f}"
+
+
+def _labels(locale: str) -> dict[str, str]:
+    return _LABELS["ar" if locale == "ar" else "en"]
 
 
 def _decision_parts(payload: dict[str, Any]) -> tuple[str, str, str]:
@@ -92,31 +175,36 @@ def compute_rr(payload: dict[str, Any]) -> float | None:
     return None
 
 
-def translate_reason(reason: str) -> str:
+def translate_reason(reason: str, *, locale: str = "en") -> str:
+    loc = "ar" if locale == "ar" else "en"
     text = (reason or "").strip()
+    labels = _labels(loc)
+    trend_map = _TREND[loc]
+    bias_map = _BIAS[loc]
+    setup_map = _SETUP[loc]
     match = re.match(r"Structure trend:\s*(\w+)", text, re.I)
     if match:
         key = match.group(1).lower()
-        return f"📉 الاتجاه: {_TREND_AR.get(key, match.group(1))}"
+        return f"📉 {labels['trend']}: {trend_map.get(key, match.group(1))}"
     match = re.match(r"MTF bias:\s*(\w+)", text, re.I)
     if match:
         key = match.group(1).lower()
-        return f"📊 التحيز: {_BIAS_AR.get(key, match.group(1))}"
+        return f"📊 {labels['bias']}: {bias_map.get(key, match.group(1))}"
     match = re.match(r"Setup:\s*(\S+)", text, re.I)
     if match:
         setup = match.group(1)
-        label = _SETUP_AR.get(setup.lower(), setup.replace("_", " "))
-        return f"🔻 إشارة: {label}"
+        label = setup_map.get(setup.lower(), setup.replace("_", " "))
+        return f"🔻 {labels['signal']}: {label}"
     return text
 
 
-def _reasons(payload: dict[str, Any]) -> list[str]:
+def _reasons(payload: dict[str, Any], locale: str) -> list[str]:
     raw = payload.get("keyReasons") or payload.get("key_reasons") or []
     if not isinstance(raw, list):
         return []
     reasons: list[str] = []
     for item in raw[:5]:
-        text = translate_reason(str(item))
+        text = translate_reason(str(item), locale=locale)
         if text:
             reasons.append(text)
     return reasons
@@ -129,16 +217,25 @@ def _macro_driver_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in raw if isinstance(item, dict)]
 
 
-def format_macro_driver_line(item: dict[str, Any], *, html_escape: bool = False) -> str:
-    name = _DRIVER_AR.get(str(item.get("driver") or item.get("name") or ""), "") or str(
+def format_macro_driver_line(
+    item: dict[str, Any],
+    *,
+    locale: str = "en",
+    html_escape: bool = False,
+) -> str:
+    loc = "ar" if locale == "ar" else "en"
+    labels = _labels(loc)
+    driver_map = _DRIVER[loc]
+    bias_map = _BIAS[loc]
+    name = driver_map.get(str(item.get("driver") or item.get("name") or ""), "") or str(
         item.get("driver") or item.get("name") or "driver"
     )
     ran = item.get("ran")
     if ran is False:
-        line = f"{name}: تخطى — كاش/غير ذي صلة"
+        line = f"{name}: {labels['skipped']}"
     else:
         bias_key = str(item.get("bias") or "neutral").lower()
-        bias = _BIAS_AR.get(bias_key, bias_key)
+        bias = bias_map.get(bias_key, bias_key)
         strength = item.get("strength")
         try:
             strength_txt = str(int(strength))
@@ -151,12 +248,16 @@ def format_macro_driver_line(item: dict[str, Any], *, html_escape: bool = False)
     return html.escape(line) if html_escape else line
 
 
-def _macro_section_lines(payload: dict[str, Any], *, html_escape: bool) -> list[str]:
+def _macro_section_lines(payload: dict[str, Any], *, locale: str, html_escape: bool) -> list[str]:
     rows = _macro_driver_rows(payload)
     if not rows:
         return []
-    lines = ["", "🌐 محركات الاقتصاد الكلي:"]
-    lines.extend(f"• {format_macro_driver_line(item, html_escape=html_escape)}" for item in rows[:7])
+    labels = _labels(locale)
+    lines = ["", f"🌐 {labels['macro']}:"]
+    lines.extend(
+        f"• {format_macro_driver_line(item, locale=locale, html_escape=html_escape)}"
+        for item in rows[:7]
+    )
     return lines
 
 
@@ -170,12 +271,21 @@ def _gates_passed(payload: dict[str, Any]) -> bool | None:
     return bool(allowed)
 
 
-def render_telegram_card(payload: dict[str, Any]) -> str:
-    emoji, label_ar, label_en = _decision_parts(payload)
-    lines = [f"{emoji} <b>توصية: {html.escape(label_ar)} ({html.escape(label_en)})</b>"]
+def _card_locale(payload: dict[str, Any], locale: str | None) -> str:
+    return resolve_locale(payload, locale=locale)
+
+
+def render_telegram_card(payload: dict[str, Any], *, locale: str | None = None) -> str:
+    loc = _card_locale(payload, locale)
+    labels = _labels(loc)
+    emoji, label_local, label_en = _decision_parts(payload)
+    title = label_local if loc == "ar" else label_en
+    lines = [
+        f"{emoji} <b>{html.escape(labels['recommendation'])}: {html.escape(title)} ({html.escape(label_en)})</b>"
+    ]
     pct = _confidence_pct(payload)
     if pct is not None:
-        lines.append(f"الثقة: {pct}%")
+        lines.append(f"{labels['confidence']}: {pct}%")
     rec = _recommendation(payload)
     entry = rec.get("entry")
     stop = rec.get("stopLoss") or rec.get("stop_loss")
@@ -183,35 +293,40 @@ def render_telegram_card(payload: dict[str, Any]) -> str:
     if entry is not None or stop is not None or targets:
         lines.append("")
         if entry is not None:
-            lines.append(f"🎯 الدخول: <code>{format_price(entry)}</code>")
+            lines.append(f"🎯 {labels['entry']}: <code>{format_price(entry)}</code>")
         if stop is not None:
-            lines.append(f"🛑 وقف الخسارة: <code>{format_price(stop)}</code>")
+            lines.append(f"🛑 {labels['stop']}: <code>{format_price(stop)}</code>")
         for index, target in enumerate(targets[:2], start=1):
-            lines.append(f"✅ الهدف {index}: <code>{format_price(target)}</code>")
+            lines.append(
+                f"✅ {labels['target']} {index}: <code>{format_price(target)}</code>"
+            )
     rr = compute_rr(payload)
     if rr is not None:
         lines.append(f"\nR:R = {rr:.2f}")
-    reasons = _reasons(payload)
+    reasons = _reasons(payload, loc)
     if reasons:
         lines.append("")
-        lines.append("📋 الأسباب:")
+        lines.append(f"📋 {labels['reasons']}:")
         lines.extend(f"• {html.escape(reason)}" for reason in reasons)
-    lines.extend(_macro_section_lines(payload, html_escape=True))
+    lines.extend(_macro_section_lines(payload, locale=loc, html_escape=True))
     gates = _gates_passed(payload)
     if gates is True:
-        lines.append("\n✅ جميع البوابات (G1-G7) ناجحة")
+        lines.append(f"\n✅ {labels['gates_pass']}")
     elif gates is False:
-        lines.append("\n❌ التوصية محجوبة من بوابات المخاطر")
-    lines.append("\n<i>توصيات فقط — بدون تنفيذ.</i>")
+        lines.append(f"\n❌ {labels['gates_block']}")
+    lines.append(f"\n<i>{html.escape(labels['disclaimer'])}</i>")
     return "\n".join(lines)
 
 
-def render_whatsapp_card(payload: dict[str, Any]) -> str:
-    emoji, label_ar, label_en = _decision_parts(payload)
-    lines = [f"{emoji} *توصية: {label_ar} ({label_en})*"]
+def render_whatsapp_card(payload: dict[str, Any], *, locale: str | None = None) -> str:
+    loc = _card_locale(payload, locale)
+    labels = _labels(loc)
+    emoji, label_local, label_en = _decision_parts(payload)
+    title = label_local if loc == "ar" else label_en
+    lines = [f"{emoji} *{labels['recommendation']}: {title} ({label_en})*"]
     pct = _confidence_pct(payload)
     if pct is not None:
-        lines.append(f"الثقة: {pct}%")
+        lines.append(f"{labels['confidence']}: {pct}%")
     rec = _recommendation(payload)
     entry = rec.get("entry")
     stop = rec.get("stopLoss") or rec.get("stop_loss")
@@ -219,24 +334,25 @@ def render_whatsapp_card(payload: dict[str, Any]) -> str:
     if entry is not None or stop is not None or targets:
         lines.append("")
         if entry is not None:
-            lines.append(f"🎯 الدخول: {format_price(entry)}")
+            lines.append(f"🎯 {labels['entry']}: {format_price(entry)}")
         if stop is not None:
-            lines.append(f"🛑 وقف الخسارة: {format_price(stop)}")
+            lines.append(f"🛑 {labels['stop']}: {format_price(stop)}")
         for index, target in enumerate(targets[:2], start=1):
-            lines.append(f"✅ الهدف {index}: {format_price(target)}")
+            lines.append(f"✅ {labels['target']} {index}: {format_price(target)}")
     rr = compute_rr(payload)
     if rr is not None:
         lines.append(f"\nR:R = {rr:.2f}")
-    reasons = _reasons(payload)
+    reasons = _reasons(payload, loc)
     if reasons:
         lines.append("")
-        lines.append("📋 الأسباب:")
+        lines.append(f"📋 {labels['reasons']}:")
         lines.extend(f"• {reason}" for reason in reasons)
-    lines.extend(_macro_section_lines(payload, html_escape=False))
+    lines.extend(_macro_section_lines(payload, locale=loc, html_escape=False))
     gates = _gates_passed(payload)
     if gates is True:
-        lines.append("\n✅ جميع البوابات (G1-G7) ناجحة")
+        lines.append(f"\n✅ {labels['gates_pass']}")
     elif gates is False:
-        lines.append("\n❌ التوصية محجوبة من بوابات المخاطر")
-    lines.append("\n_توصيات فقط — بدون تنفيذ._")
+        lines.append(f"\n❌ {labels['gates_block']}")
+    emphasis = "_" if loc == "ar" else "_"
+    lines.append(f"\n{emphasis}{labels['disclaimer']}{emphasis}")
     return "\n".join(lines)

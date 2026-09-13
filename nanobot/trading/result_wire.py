@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from nanobot.agent.tools.context import current_request_context
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.types import AgentFinalResult
 
 
@@ -19,8 +21,11 @@ def _jsonable(value: Any) -> Any:
 
 
 def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
+    ctx = current_request_context()
+    operator_text = (ctx.original_user_text if ctx else "") or ""
     d = result.decision
     payload: dict[str, Any] = {
+        "locale": locale_from_text(operator_text),
         "decision": d.decision,
         "confidence": d.confidence,
         "summary": d.summary,

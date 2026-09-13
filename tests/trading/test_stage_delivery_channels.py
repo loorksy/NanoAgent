@@ -10,7 +10,7 @@ from nanobot.trading.stage_events import emit_stage
 def test_publish_result_sends_telegram_html_card() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123")
+    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123", locale="ar")
     payload = {
         "decision": "buy",
         "summary": "Gold breakout",
@@ -34,7 +34,7 @@ def test_publish_result_sends_telegram_html_card() -> None:
 def test_publish_result_sends_whatsapp_plain_card() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    publisher = TradingStagePublisher(bus, channel="whatsapp", chat_id="123@s.whatsapp.net")
+    publisher = TradingStagePublisher(bus, channel="whatsapp", chat_id="123@s.whatsapp.net", locale="ar")
     payload = {
         "decision": "sell",
         "summary": "Rejection at supply",
@@ -55,7 +55,7 @@ def test_publish_result_sends_whatsapp_plain_card() -> None:
 def test_telegram_stages_publish_one_checklist_not_agent_ui() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123")
+    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123", locale="ar")
 
     async def _run() -> None:
         await publisher.open_chart("15m")
@@ -76,7 +76,7 @@ def test_telegram_stages_publish_one_checklist_not_agent_ui() -> None:
 def test_whatsapp_stages_publish_arabic_checklist() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
-    publisher = TradingStagePublisher(bus, channel="whatsapp", chat_id="123@s.whatsapp.net")
+    publisher = TradingStagePublisher(bus, channel="whatsapp", chat_id="123@s.whatsapp.net", locale="ar")
 
     async def _run() -> None:
         await publisher.open_chart("15m")
@@ -99,7 +99,7 @@ def test_publish_result_flushes_pending_stage_tasks() -> None:
         published.append(msg.content)
 
     bus.publish_outbound = AsyncMock(side_effect=_capture)
-    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123")
+    publisher = TradingStagePublisher(bus, channel="telegram", chat_id="123", locale="ar")
 
     async def _run() -> None:
         publisher.sync_emit(emit_stage("drawing", "done"))
