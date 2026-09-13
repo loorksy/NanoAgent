@@ -50,7 +50,9 @@ def test_format_price_rounds_ugly_floats() -> None:
 def test_translate_structure_reasons_arabic() -> None:
     assert translate_reason("Structure trend: down", locale="ar") == "📉 الاتجاه: هابط"
     assert translate_reason("MTF bias: bearish", locale="ar") == "📊 التحيز: هبوطي"
-    assert "كسر هيكل" in translate_reason("Setup: structure_break R:R 2.67", locale="ar")
+    assert "كسر الهيكل السعاري" in translate_reason(
+        "Setup: structure_break R:R 2.67", locale="ar"
+    )
 
 
 def test_translate_structure_reasons_english() -> None:
@@ -74,10 +76,10 @@ def test_telegram_card_is_arabic_and_rounded() -> None:
     assert "4358.8748214285715" not in card
     assert "Opening" not in card
     assert "الشارت" not in card
-    assert "G1-G7" in card
+    assert "G1" in card and "G7" in card
     assert "محركات الاقتصاد الكلي" in card
     assert "الدولار" in card
-    assert "تخطى — كاش/غير ذي صلة" in card
+    assert "تم التخطي — مخزن مؤقت أو غير منطبق" in card
 
 
 def test_telegram_card_is_english() -> None:
@@ -90,8 +92,8 @@ def test_telegram_card_is_english() -> None:
 
 def test_whatsapp_card_is_arabic() -> None:
     card = render_whatsapp_card(_payload(), locale="ar")
-    assert "*توصية:" in card
+    assert "*التوصية:" in card
     assert "بيع" in card
     assert "$4,349.42" in card
     assert "محركات الاقتصاد الكلي" in card
-    assert "تخطى — كاش/غير ذي صلة" in card
+    assert "تم التخطي — مخزن مؤقت أو غير منطبق" in card

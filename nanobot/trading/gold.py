@@ -5,7 +5,12 @@ from __future__ import annotations
 DATA_SYMBOL = "XAUUSD"
 OANDA_INSTRUMENT = "XAU_USD"
 DISPLAY_NAME_EN = "Gold"
-DISPLAY_NAME_AR = "الذهب"
+
+
+def display_name(locale: str | None = None) -> str:
+    from nanobot.trading.i18n import tr
+
+    return tr("display.gold", locale)
 
 
 class GoldOnlyError(ValueError):

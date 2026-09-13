@@ -2,27 +2,20 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from nanobot.trading.cards.format import format_price, translate_reason
+from nanobot.trading.i18n import artifact_title
 from nanobot.trading.intent_router import IntentKind
 from nanobot.trading.locale import normalize_locale
+from nanobot.trading.operator_keywords import (
+    _GATE_KEYWORDS,
+    _LEVEL_KEYWORDS,
+    _STATUS_KEYWORDS,
+)
 from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.types import AgentFinalResult
 
-_LEVEL_KEYWORDS = re.compile(
-    r"\b(entry|stop|target|tp|sl|levels?)\b|(دخل|ستوب|وقف|هدف|أهداف|مستويات)",
-    re.I,
-)
-_STATUS_KEYWORDS = re.compile(
-    r"\b(status|still|active|alive|outcome)\b|(حالة|ما زال|ساري|نشط|وين وصل)",
-    re.I,
-)
-_GATE_KEYWORDS = re.compile(
-    r"\b(gate|block|veto|blocked)\b|(بواب|حظر|رفض|محجوب)",
-    re.I,
-)
 _ANALYSIS_INTENTS = frozenset({"gold_analysis", "recommendation", "team_swarm", "recommendation_followup"})
 
 _MAX_ARTIFACTS = 4
@@ -42,36 +35,6 @@ ARTIFACT_TYPES = frozenset(
         "plan_status",
     }
 )
-
-_TITLES = {
-    "ar": {
-        "decision": "القرار",
-        "level_map": "مستويات الخطة",
-        "gate_report": "تقرير البوابات",
-        "chart_snapshot": "لقطة الشارت",
-        "macro_dashboard": "محركات الاقتصاد الكلي",
-        "key_reasons": "أهم الأسباب",
-        "visual_review": "المراجعة البصرية",
-        "team_briefing": "ملخص الفريق",
-        "tracked_plan": "الخطة المتتبعة",
-        "price_quote": "سعر الذهب",
-        "plan_status": "حالة الخطة",
-    },
-    "en": {
-        "decision": "Decision",
-        "level_map": "Plan levels",
-        "gate_report": "Gate report",
-        "chart_snapshot": "Chart snapshot",
-        "macro_dashboard": "Macro drivers",
-        "key_reasons": "Key reasons",
-        "visual_review": "Visual review",
-        "team_briefing": "Team briefing",
-        "tracked_plan": "Tracked plan",
-        "price_quote": "Gold quote",
-        "plan_status": "Plan status",
-    },
-}
-
 
 def infer_operator_artifacts(
     operator_text: str,
@@ -116,11 +79,6 @@ def parse_artifacts_requested(raw: Any) -> list[str]:
     return out
 
 
-def _title(kind: str, locale: str) -> str:
-    loc = "ar" if normalize_locale(locale) == "ar" else "en"
-    return _TITLES[loc].get(kind, kind)
-
-
 def build_price_quote_artifact(
     quote: dict[str, Any],
     *,
@@ -130,7 +88,7 @@ def build_price_quote_artifact(
     loc = normalize_locale(locale)
     return {
         "type": "price_quote",
-        "title": _title("price_quote", loc),
+        "title": artifact_title("price_quote", loc),
         "payload": {
             "symbol": str(quote.get("symbol") or "XAUUSD"),
             "bid": quote.get("bid"),
@@ -173,7 +131,7 @@ def _build_artifact_pool(
         graded = plan_status or grade_outcome_status(plan_row, live_price=live_price)
         pool["plan_status"] = {
             "type": "plan_status",
-            "title": _title("plan_status", loc),
+            "title": artifact_title("plan_status", loc),
             "payload": {
                 "id": str(plan_row.get("id") or result.recommendation_id or ""),
                 "direction": str(plan_row.get("direction") or rec.action or "wait"),
@@ -191,7 +149,7 @@ def _build_artifact_pool(
         if isinstance(frame, dict) and (frame.get("image") or frame.get("dataUrl")):
             pool["chart_snapshot"] = {
                 "type": "chart_snapshot",
-                "title": _title("chart_snapshot", loc),
+                "title": artifact_title("chart_snapshot", loc),
                 "mime": "image/jpeg",
                 "payload": {
                     "interval": rec.interval if rec else "15m",
@@ -207,7 +165,7 @@ def _build_artifact_pool(
     if d.decision in ("buy", "sell"):
         pool["decision"] = {
             "type": "decision",
-            "title": _title("decision", loc),
+            "title": artifact_title("decision", loc),
             "payload": {
                 "decision": d.decision,
                 "summary": d.summary,
@@ -224,7 +182,7 @@ def _build_artifact_pool(
     ):
         pool["level_map"] = {
             "type": "level_map",
-            "title": _title("level_map", loc),
+            "title": artifact_title("level_map", loc),
             "payload": {
                 "direction": d.decision,
                 "entry": rec.entry,
@@ -240,7 +198,7 @@ def _build_artifact_pool(
     ):
         pool["gate_report"] = {
             "type": "gate_report",
-            "title": _title("gate_report", loc),
+            "title": artifact_title("gate_report", loc),
             "payload": {
                 "allowed": d.gate_chain.allowed,
                 "verdicts": [
@@ -265,7 +223,7 @@ def _build_artifact_pool(
         ):
             pool["chart_snapshot"] = {
                 "type": "chart_snapshot",
-                "title": _title("chart_snapshot", loc),
+                "title": artifact_title("chart_snapshot", loc),
                 "mime": "image/jpeg",
                 "payload": {
                     "state": review.state,
@@ -278,7 +236,7 @@ def _build_artifact_pool(
         elif review.state in {"checked", "partial", "missing"}:
             pool["visual_review"] = {
                 "type": "visual_review",
-                "title": _title("visual_review", loc),
+                "title": artifact_title("visual_review", loc),
                 "payload": {
                     "state": review.state,
                     "requested": list(review.requested),
@@ -291,7 +249,7 @@ def _build_artifact_pool(
     if result.macro_drivers and intent_kind in ("gold_analysis", "recommendation", "team_swarm"):
         pool["macro_dashboard"] = {
             "type": "macro_dashboard",
-            "title": _title("macro_dashboard", loc),
+            "title": artifact_title("macro_dashboard", loc),
             "payload": {
                 "drivers": [
                     {
@@ -311,7 +269,7 @@ def _build_artifact_pool(
     if result.team_agents and intent_kind == "team_swarm":
         pool["team_briefing"] = {
             "type": "team_briefing",
-            "title": _title("team_briefing", loc),
+            "title": artifact_title("team_briefing", loc),
             "payload": {"agents": list(result.team_agents), "teamMode": result.team_mode},
         }
 
@@ -322,14 +280,14 @@ def _build_artifact_pool(
         if reasons:
             pool["key_reasons"] = {
                 "type": "key_reasons",
-                "title": _title("key_reasons", loc),
+                "title": artifact_title("key_reasons", loc),
                 "payload": {"reasons": reasons},
             }
 
     if result.recommendation_id and intent_kind in ("gold_analysis", "recommendation_followup"):
         pool["tracked_plan"] = {
             "type": "tracked_plan",
-            "title": _title("tracked_plan", loc),
+            "title": artifact_title("tracked_plan", loc),
             "payload": {
                 "id": result.recommendation_id,
                 "direction": rec.action,

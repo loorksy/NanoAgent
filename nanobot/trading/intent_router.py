@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Literal
+
+from nanobot.trading.operator_keywords import (
+    _ANALYSIS_PATTERNS,
+    _CHART_IMAGE_PATTERNS,
+    _GOLD_PATTERNS,
+    _PRESET_BY_KEYWORD,
+    _PRICE_PATTERNS,
+    _RECOMMEND_PATTERNS,
+    _TEAM_PATTERNS,
+)
 
 IntentKind = Literal[
     "price_query",
@@ -15,45 +24,12 @@ IntentKind = Literal[
     "general_chat",
 ]
 
-_PRICE_PATTERNS = (
-    re.compile(r"\b(price|quote|bid|ask)\b", re.I),
-    re.compile(r"(سعر|كم السعر|كم سعر)", re.I),
-)
-_ANALYSIS_PATTERNS = (
-    re.compile(r"\b(analy[sz]e|analysis|outlook|setup)\b", re.I),
-    re.compile(r"(حلل|تحليل|شوف الذهب|تحليل الذهب)", re.I),
-)
-_RECOMMEND_PATTERNS = (
-    re.compile(r"\b(recommend|recommendation|buy|sell|trade idea)\b", re.I),
-    re.compile(r"(توصية|توصيه|شراء|بيع|صفقة)", re.I),
-)
-_GOLD_PATTERNS = (
-    re.compile(r"\b(xauusd|xau/usd|gold)\b", re.I),
-    re.compile(r"(ذهب|الذهب)", re.I),
-)
-_TEAM_PATTERNS = (
-    re.compile(r"\b(committee|debate desk|war room|mtf panel|swarm team)\b", re.I),
-    re.compile(r"(فريق التحليل|لجنة الذهب|غرفة الأخبار|شغّل الفريق)", re.I),
-)
-_CHART_IMAGE_PATTERNS = (
-    re.compile(r"\b(chart|screenshot|screen\s*shot|snapshot|capture)\b", re.I),
-    re.compile(r"(صورة|سكرين|شارت|لقطة|سكرين\s*شوت|صوره)", re.I),
-)
-
 
 @dataclass(frozen=True)
 class RoutedIntent:
     kind: IntentKind
     confidence: float
     reason: str
-
-
-_PRESET_BY_KEYWORD: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"(war room|غرفة الأخبار)", re.I), "gold_news_war_room"),
-    (re.compile(r"(debate desk|مناظرة)", re.I), "gold_debate_desk"),
-    (re.compile(r"(mtf panel|لوحة)", re.I), "gold_mtf_panel"),
-    (re.compile(r"(committee|لجنة)", re.I), "gold_analysis_committee"),
-)
 
 
 def resolve_team_preset(message: str) -> str | None:

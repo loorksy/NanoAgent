@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from nanobot.trading.gold import DATA_SYMBOL
+from nanobot.trading.i18n import tr
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
+from nanobot.trading.operator_keywords import _FOLLOWUP_NEW_REC_MARKERS
 from nanobot.trading.recommendations.outcome_alerts import OutcomeTransition
 from nanobot.trading.recommendations.store import (
     get_recommendation,
@@ -14,8 +16,6 @@ from nanobot.trading.recommendations.store import (
     update_recommendation_status,
 )
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
-
-_ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 
 LIVE_OUTCOME_STATUSES = frozenset(
     {"valid_now", "awaiting_activation", "waiting", "in_trade"}
@@ -126,13 +126,12 @@ def grade_live_recommendation(
     operator_text: str = "",
     live_price: float | None = None,
 ) -> FinalDecisionResult:
-    arabic = bool(_ARABIC_RE.search(operator_text or ""))
+    locale = locale_from_text(operator_text)
     if not row:
-        summary = "لا توجد توصية حيّة." if arabic else "No live recommendation."
         return FinalDecisionResult(
             decision="wait",
             confidence=0.0,
-            summary=summary,
+            summary=tr("followup.no_live_plan", locale),
             key_reasons=["no live plan"],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait"),
@@ -156,20 +155,14 @@ def grade_live_recommendation(
     if live is not None and entry is not None and stop is not None:
         notes.append(f"live={live:.2f} entry={entry} sl={stop}")
 
-    if arabic:
-        summary = (
-            f"التوصية الحيّة ما زالت {direction.upper()}. "
-            f"التقييم: {status}. هذه متابعة — ليست توصية جديدة."
-        )
-        if "توصية جديدة" in operator_text or "حلل" in operator_text:
-            summary += " لا يمكن إصدار توصية ثانية بينما الخطة الحالية حيّة."
-    else:
-        summary = (
-            f"Live plan remains {direction.upper()}. "
-            f"Status: {status}. This is a follow-up, not a new recommendation."
-        )
-        if "recommend" in operator_text.lower() or "analy" in operator_text.lower():
-            summary += " A second recommendation is not issued while this plan is live."
+    summary = tr(
+        "followup.summary",
+        locale,
+        direction=direction.upper(),
+        status=status,
+    )
+    if _FOLLOWUP_NEW_REC_MARKERS.search(operator_text):
+        summary += tr("followup.no_second_rec", locale)
 
     rec = AgentRecommendation(
         action=direction if direction in ("buy", "sell") else "wait",

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
@@ -23,18 +22,14 @@ from nanobot.trading.cards.artifacts import (
     apply_result_artifacts,
     build_price_quote_artifacts,
 )
+from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.types import AgentFinalResult
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
-_ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 _PRICE_CONFIDENCE_MIN = 0.70
 _ANALYSIS_CONFIDENCE_MIN = 0.75
-
-
-def _wants_arabic(text: str) -> bool:
-    return bool(_ARABIC_RE.search(text))
 
 
 def _format_price_response(
@@ -43,23 +38,17 @@ def _format_price_response(
     ask: float,
     mid: float,
     tradeable: bool,
-    arabic: bool,
+    locale: str,
 ) -> str:
-    status = "tradeable" if tradeable else "non-tradeable"
-    if arabic:
-        return (
-            f"🥇 **سعر الذهب (XAUUSD)**\n"
-            f"الشراء (Bid): `{bid:.2f}`\n"
-            f"البيع (Ask): `{ask:.2f}`\n"
-            f"الوسط (Mid): `{mid:.2f}`\n"
-            f"الحالة: {status}\n"
-            f"_بيانات حية من OANDA — للتحليل الكامل اطلب «حلل الذهب»._"
-        )
+    labels = label_map("card", locale)
+    status = labels["tradeable"] if tradeable else labels["non_tradeable"]
     return (
-        f"🥇 **XAUUSD live quote**\n"
-        f"Bid: `{bid:.2f}` · Ask: `{ask:.2f}` · Mid: `{mid:.2f}`\n"
-        f"Status: {status}\n"
-        f"_Live OANDA feed — ask me to analyze gold for a full recommendation._"
+        f"🥇 **{tr('price.header', locale)}**\n"
+        f"{labels['bid']}: `{bid:.2f}`\n"
+        f"{labels['ask']}: `{ask:.2f}`\n"
+        f"{labels['mid']}: `{mid:.2f}`\n"
+        f"{labels['state']}: {status}\n"
+        f"_{tr('price.footer', locale)}_"
     )
 
 
@@ -133,16 +122,18 @@ async def _run_analysis_fast_path(
                 visual_capture=visual_capture,
             )
     except Exception as exc:
-        body = f"Gold analysis failed: {exc}"
-        if _wants_arabic(text):
-            body = f"فشل تحليل الذهب: {exc}"
-        return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=tr("analysis.failed", locale, error=exc),
+        )
 
     if result is None:
-        body = "Analysis produced no result."
-        if _wants_arabic(text):
-            body = "لم يُنتج التحليل أي نتيجة."
-        return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=tr("analysis.no_result", locale),
+        )
 
     wire = result_to_wire(result)
     wire["locale"] = locale
@@ -252,24 +243,32 @@ async def try_gold_fast_path(
             return None
         config = load_trading_config()
         if not config.oanda_configured:
-            body = (
-                "OANDA is not configured — cannot fetch the live gold quote."
-                if not _wants_arabic(text)
-                else "OANDA غير مُعدّ — لا يمكن جلب سعر الذهب الحي."
+            locale = locale_from_text(text)
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=tr("price.oanda_unconfigured", locale),
             )
-            return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
 
         try:
             quote = fetch_quote(DATA_SYMBOL, config=config)
         except GoldOnlyError as exc:
             return OutboundMessage(channel=channel, chat_id=chat_id, content=str(exc))
         except Exception as exc:
-            body = f"Failed to fetch gold quote: {exc}"
-            return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
+            locale = locale_from_text(text)
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=tr("price.fetch_failed", locale, error=exc),
+            )
 
         if quote is None:
-            body = "No quote returned from OANDA."
-            return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
+            locale = locale_from_text(text)
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=tr("price.no_quote", locale),
+            )
 
         locale = locale_from_text(text)
         content = _format_price_response(
@@ -277,7 +276,7 @@ async def try_gold_fast_path(
             ask=quote.ask,
             mid=quote.mid,
             tradeable=quote.tradeable,
-            arabic=_wants_arabic(text),
+            locale=locale,
         )
         quote_data = {
             "symbol": quote.symbol,
@@ -310,12 +309,12 @@ async def try_gold_fast_path(
             return None
         config = load_trading_config()
         if not config.oanda_configured:
-            body = (
-                "OANDA is not configured — cannot run gold analysis."
-                if not _wants_arabic(text)
-                else "OANDA غير مُعدّ — لا يمكن تشغيل تحليل الذهب."
+            locale = locale_from_text(text)
+            return OutboundMessage(
+                channel=channel,
+                chat_id=chat_id,
+                content=tr("analysis.oanda_unconfigured", locale),
             )
-            return OutboundMessage(channel=channel, chat_id=chat_id, content=body)
         return await _run_analysis_fast_path(
             turn,
             text,

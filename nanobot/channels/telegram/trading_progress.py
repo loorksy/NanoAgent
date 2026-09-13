@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from nanobot.trading.stage_events import STAGE_LABEL_AR, StageEvent, stage_label
+from nanobot.trading.stage_events import StageEvent, stage_label
 
 TRADING_PROGRESS_META = "trading_progress"
 TRADING_CARD_SENT_META = "trading_card_sent"
@@ -49,4 +49,4 @@ def apply_stage_event(rows: list[TelegramStageRow], event: StageEvent) -> list[T
 
 
 def stage_arabic_label(stage: str) -> str:
-    return STAGE_LABEL_AR.get(stage, stage)
+    return stage_label(stage, "ar")

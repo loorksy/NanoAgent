@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from nanobot.trading.cards.artifacts import parse_artifacts_requested
+from nanobot.trading.i18n import tr
 from nanobot.trading.types import (
     AgentRecommendation,
     Decision,
@@ -322,12 +323,7 @@ def apply_model_decision(
     warnings = _clean_strings(parsed.get("riskWarnings") or parsed.get("risk_warnings"), 6)
     if levels is None:
         if source == "ungrounded":
-            warnings.insert(
-                0,
-                "الاتجاه واضح، لكن المستويات المقترحة لم تُطابق أي مستوى حقيقي في الأدلة فلم تُعتمد."
-                if locale != "en"
-                else "Direction is clear, but proposed levels were not grounded in evidence and were dropped.",
-            )
+            warnings.insert(0, tr("warning.ungrounded_levels", locale))
         # Fall back to first same-direction candidate so a successful analysis still ships a plan.
         fallback = next(
             (
@@ -369,12 +365,7 @@ def apply_model_decision(
     if plan_type == "immediate" and (mtf_conflict or len(competing) > 1):
         plan_type = "conditional"
         coerced_from_immediate = True
-        warnings.insert(
-            0,
-            "تعارض بين الفريمات أو أدلة متنافسة — أُبقيَت الخطة مشروطة بانتظار التأكيد."
-            if locale != "en"
-            else "Conflicting timeframe or competing evidence — plan kept conditional pending confirmation.",
-        )
+        warnings.insert(0, tr("warning.mtf_conflict", locale))
 
     activation_rule = parsed.get("activationRule") or parsed.get("activation_rule")
     activation_condition = parsed.get("activationCondition") or parsed.get("activation_condition")
@@ -416,12 +407,7 @@ def apply_model_decision(
                         plan_type = "immediate"
                         activation_rule = None
                         activation_condition = None
-                        warnings.insert(
-                            0,
-                            "شرط التفعيل تحقق بالفعل — الخطة فورية عند السعر الحي."
-                            if locale != "en"
-                            else "Activation already printed — plan converted to immediate follow-through.",
-                        )
+                        warnings.insert(0, tr("warning.activation_printed", locale))
 
     execution_state: ExecutionState = "valid_now" if plan_type == "immediate" else "awaiting_activation"
     roles_raw = parsed.get("timeframeRoles") or parsed.get("timeframe_roles") or {}

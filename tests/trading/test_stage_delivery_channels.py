@@ -70,7 +70,7 @@ def test_telegram_stages_publish_one_checklist_not_agent_ui() -> None:
         assert outbound.metadata.get(TRADING_PROGRESS_META) is True
         assert "Opening gold chart" not in outbound.content
         assert "Market data" not in outbound.content
-        assert "جاري جلب بيانات السوق" in outbound.content
+        assert "جلب بيانات السوق" in outbound.content
 
 
 def test_whatsapp_stages_publish_arabic_checklist() -> None:
@@ -88,7 +88,7 @@ def test_whatsapp_stages_publish_arabic_checklist() -> None:
     for call in bus.publish_outbound.await_args_list:
         outbound = call.args[0]
         assert outbound.metadata.get(TRADING_PROGRESS_META) is True
-        assert "جاري جلب بيانات السوق" in outbound.content
+        assert "جلب بيانات السوق" in outbound.content
 
 
 def test_publish_result_flushes_pending_stage_tasks() -> None:
@@ -113,7 +113,7 @@ def test_publish_result_flushes_pending_stage_tasks() -> None:
         )
 
     asyncio.run(_run())
-    assert any("رسم التحليل على الشارت" in item for item in published)
+    assert any("إعداد الرسم البياني" in item for item in published)
     assert published[-1].startswith("⚪")
 
 

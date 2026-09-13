@@ -151,21 +151,21 @@ function renderArtifactBody(
       return (
         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
           <div>
-            <span className="text-muted-foreground">Bid</span>
+            <span className="text-muted-foreground">{t.bid}</span>
             <div className="font-medium">{String(payload.bid ?? "—")}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Ask</span>
+            <span className="text-muted-foreground">{t.ask}</span>
             <div className="font-medium">{String(payload.ask ?? "—")}</div>
           </div>
           <div>
-            <span className="text-muted-foreground">Mid</span>
+            <span className="text-muted-foreground">{t.mid}</span>
             <div className="font-medium">{String(payload.mid ?? "—")}</div>
           </div>
           <div>
             <span className="text-muted-foreground">{t.state}</span>
             <div className="font-medium">
-              {payload.tradeable === true ? "tradeable" : "non-tradeable"}
+              {payload.tradeable === true ? t.tradeable : t.nonTradeable}
             </div>
           </div>
         </div>
@@ -181,7 +181,7 @@ function renderArtifactBody(
           </div>
           {payload.livePrice != null ? (
             <p className="text-muted-foreground">
-              Live: {String(payload.livePrice)}
+              {t.live}: {String(payload.livePrice)}
             </p>
           ) : null}
           <p className="text-muted-foreground">{String(payload.summary ?? "")}</p>

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from nanobot.trading.intent_router import IntentKind, RoutedIntent, route_intent
+from nanobot.trading.operator_keywords import EXPLICIT_NEW_ANALYSIS_PHRASES
 
 TurnMode = Literal[
     "full_analysis",
@@ -37,31 +38,6 @@ class TurnPlan:
     tools: TurnTools = TurnTools()
 
 
-_EXPLICIT_NEW_ANALYSIS = (
-    "حلل",
-    "حلّل",
-    "تحليل جديد",
-    "توصية جديدة",
-    "توصيه جديدة",
-    "توصية ثانية",
-    "فرصة جديدة",
-    "صفقة جديدة",
-    "أعطني توصية",
-    "اعطني توصية",
-    "اعطيني توصية",
-    "بدي توصية",
-    "أريد توصية",
-    "اريد توصية",
-    "analyze",
-    "analyse",
-    "reanalyze",
-    "re-analyze",
-    "new recommendation",
-    "another recommendation",
-    "fresh analysis",
-    "give me a recommendation",
-)
-
 _SPECIALIST_KINDS: frozenset[IntentKind] = frozenset({"price_query"})
 _ANALYSIS_KINDS: frozenset[IntentKind] = frozenset(
     {"gold_analysis", "recommendation", "team_swarm"}
@@ -75,7 +51,7 @@ CAPTURE_TOOLS = TurnTools(capture_charts=True)
 
 def wants_explicit_new_analysis(message: str) -> bool:
     text = (message or "").lower()
-    return any(phrase.lower() in text for phrase in _EXPLICIT_NEW_ANALYSIS)
+    return any(phrase.lower() in text for phrase in EXPLICIT_NEW_ANALYSIS_PHRASES)
 
 
 def plan_turn(

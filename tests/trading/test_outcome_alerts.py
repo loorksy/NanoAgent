@@ -77,7 +77,7 @@ def test_format_outcome_alert_arabic_html():
         locale="ar",
     )
     assert "تحديث توصية الذهب" in text
-    assert "هدف 1 تحقق" in text
+    assert "تحقق الهدف الأول" in text
     assert "$2,661.00" in text
 
 
@@ -96,7 +96,7 @@ def test_format_outcome_alert_english_html():
         locale="en",
     )
     assert "Gold recommendation update" in text
-    assert "TP1 hit" in text
+    assert "First target reached" in text
 
 
 def test_refresh_recommendation_outcomes_records_transition(monkeypatch):

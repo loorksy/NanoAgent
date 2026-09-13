@@ -1,10 +1,12 @@
-"""Agent stage events — English wire labels + Arabic Telegram labels."""
+"""Agent stage events — wire labels resolved via trading i18n."""
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
+
+from nanobot.trading.i18n import stage_label as i18n_stage_label
 
 StageStatus = Literal["running", "done", "failed", "resumed"]
 
@@ -23,38 +25,6 @@ KNOWN_STAGES = frozenset({
     "research",
     "macro_drivers",
 })
-
-STAGE_LABEL_EN: dict[str, str] = {
-    "market_data": "Market data",
-    "structure": "Price structure",
-    "liquidity": "Liquidity",
-    "supply_demand": "Supply & demand",
-    "multi_timeframe": "Multi-timeframe",
-    "news": "News & events",
-    "risk": "Risk filters",
-    "final_decision": "Final decision",
-    "drawing": "Chart drawing",
-    "execution_guard": "Execution guard",
-    "general": "Answer",
-    "research": "Research",
-    "macro_drivers": "Macro drivers",
-}
-
-STAGE_LABEL_AR: dict[str, str] = {
-    "market_data": "جاري جلب بيانات السوق",
-    "structure": "تحليل البنية السعرية",
-    "liquidity": "تحليل السيولة",
-    "supply_demand": "مناطق العرض والطلب",
-    "multi_timeframe": "تحليل الأطر الزمنية",
-    "news": "فحص الأخبار والأحداث",
-    "risk": "تقييم المخاطر والمرشحين",
-    "final_decision": "اتخاذ القرار النهائي",
-    "drawing": "رسم التحليل على الشارت",
-    "execution_guard": "حارس التنفيذ",
-    "general": "الإجابة",
-    "research": "البحث",
-    "macro_drivers": "محركات الاقتصاد الكلي",
-}
 
 
 @dataclass(frozen=True)
@@ -93,6 +63,4 @@ def emit_stage(
 
 
 def stage_label(stage: str, locale: str = "en") -> str:
-    if locale.startswith("ar"):
-        return STAGE_LABEL_AR.get(stage, stage)
-    return STAGE_LABEL_EN.get(stage, stage)
+    return i18n_stage_label(stage, locale)

@@ -47,7 +47,7 @@ def test_g3_vetoes_buy_inside_supply_zone() -> None:
         nearest_demand=None,
         nearest_supply=SupplyDemandZone(type="supply", low=2648.0, high=2652.0, time=1),
     )
-    status, reason = evaluate_supply_demand_alignment(plan, supply_demand)
+    status, reason = evaluate_supply_demand_alignment(plan, supply_demand, locale="ar")
     assert status == "veto"
     assert "عرض" in reason
 

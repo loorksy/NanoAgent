@@ -6,126 +6,17 @@ import html
 import re
 from typing import Any
 
+from nanobot.trading.i18n import (
+    BIAS_LABELS,
+    DECISION_LABELS,
+    DRIVER_LABELS,
+    SETUP_LABELS,
+    TREND_LABELS,
+    label_map,
+)
 from nanobot.trading.locale import resolve_locale
 
 _RR_RE = re.compile(r"R\s*:\s*R\s*([0-9]+(?:\.[0-9]+)?)", re.I)
-_TREND = {
-    "ar": {
-        "up": "صاعد",
-        "down": "هابط",
-        "bullish": "صاعد",
-        "bearish": "هابط",
-        "neutral": "محايد",
-        "sideways": "عرضي",
-        "range": "عرضي",
-    },
-    "en": {
-        "up": "up",
-        "down": "down",
-        "bullish": "bullish",
-        "bearish": "bearish",
-        "neutral": "neutral",
-        "sideways": "sideways",
-        "range": "range",
-    },
-}
-_BIAS = {
-    "ar": {
-        "up": "صعودي",
-        "down": "هبوطي",
-        "bullish": "صعودي",
-        "bearish": "هبوطي",
-        "neutral": "محايد",
-        "sideways": "عرضي",
-        "range": "عرضي",
-    },
-    "en": {
-        "up": "up",
-        "down": "down",
-        "bullish": "bullish",
-        "bearish": "bearish",
-        "neutral": "neutral",
-        "sideways": "sideways",
-        "range": "range",
-    },
-}
-_SETUP = {
-    "ar": {
-        "structure_break": "كسر هيكل",
-        "structure": "هيكل",
-        "breakout": "اختراق",
-        "supply": "منطقة عرض",
-        "demand": "منطقة طلب",
-        "liquidity_sweep": "كنس سيولة",
-    },
-    "en": {
-        "structure_break": "structure break",
-        "structure": "structure",
-        "breakout": "breakout",
-        "supply": "supply zone",
-        "demand": "demand zone",
-        "liquidity_sweep": "liquidity sweep",
-    },
-}
-_DECISION = {
-    "buy": ("🟢", "شراء", "BUY"),
-    "sell": ("🔴", "بيع", "SELL"),
-    "wait": ("⚪", "انتظار", "WAIT"),
-}
-_DRIVER = {
-    "ar": {
-        "geopolitical_safehaven": "ملاذ جيوسياسي",
-        "dxy": "الدولار",
-        "us_macro_data": "بيانات أمريكية",
-        "us_real_yields_fomc": "العوائد / الفيدرالي",
-        "fund_flows_positioning": "تدفقات الصناديق",
-        "central_bank_demand": "طلب البنوك المركزية",
-        "seasonal_physical_demand": "الطلب الموسمي",
-    },
-    "en": {
-        "geopolitical_safehaven": "Geopolitical safe haven",
-        "dxy": "US dollar (DXY)",
-        "us_macro_data": "US macro data",
-        "us_real_yields_fomc": "Real yields / FOMC",
-        "fund_flows_positioning": "Fund flows",
-        "central_bank_demand": "Central bank demand",
-        "seasonal_physical_demand": "Seasonal physical demand",
-    },
-}
-_LABELS = {
-    "ar": {
-        "recommendation": "توصية",
-        "confidence": "الثقة",
-        "entry": "الدخول",
-        "stop": "وقف الخسارة",
-        "target": "الهدف",
-        "reasons": "الأسباب",
-        "macro": "محركات الاقتصاد الكلي",
-        "gates_pass": "جميع البوابات (G1-G7) ناجحة",
-        "gates_block": "التوصية محجوبة من بوابات المخاطر",
-        "disclaimer": "توصيات فقط — بدون تنفيذ.",
-        "trend": "الاتجاه",
-        "bias": "التحيز",
-        "signal": "إشارة",
-        "skipped": "تخطى — كاش/غير ذي صلة",
-    },
-    "en": {
-        "recommendation": "Recommendation",
-        "confidence": "Confidence",
-        "entry": "Entry",
-        "stop": "Stop loss",
-        "target": "Target",
-        "reasons": "Reasons",
-        "macro": "Macro drivers",
-        "gates_pass": "All gates (G1-G7) passed",
-        "gates_block": "Recommendation blocked by risk gates",
-        "disclaimer": "Recommendations only — no execution.",
-        "trend": "Trend",
-        "bias": "Bias",
-        "signal": "Signal",
-        "skipped": "skipped — cache/irrelevant",
-    },
-}
 
 
 def format_price(value: Any) -> str:
@@ -133,12 +24,12 @@ def format_price(value: Any) -> str:
 
 
 def _labels(locale: str) -> dict[str, str]:
-    return _LABELS["ar" if locale == "ar" else "en"]
+    return label_map("card", locale)
 
 
 def _decision_parts(payload: dict[str, Any]) -> tuple[str, str, str]:
     raw = str(payload.get("decision") or "wait").strip().lower()
-    return _DECISION.get(raw, ("⚪", raw, raw.upper()))
+    return DECISION_LABELS.get(raw, ("⚪", raw, raw.upper()))
 
 
 def _confidence_pct(payload: dict[str, Any]) -> int | None:
@@ -179,9 +70,9 @@ def translate_reason(reason: str, *, locale: str = "en") -> str:
     loc = "ar" if locale == "ar" else "en"
     text = (reason or "").strip()
     labels = _labels(loc)
-    trend_map = _TREND[loc]
-    bias_map = _BIAS[loc]
-    setup_map = _SETUP[loc]
+    trend_map = TREND_LABELS[loc]
+    bias_map = BIAS_LABELS[loc]
+    setup_map = SETUP_LABELS[loc]
     match = re.match(r"Structure trend:\s*(\w+)", text, re.I)
     if match:
         key = match.group(1).lower()
@@ -225,8 +116,8 @@ def format_macro_driver_line(
 ) -> str:
     loc = "ar" if locale == "ar" else "en"
     labels = _labels(loc)
-    driver_map = _DRIVER[loc]
-    bias_map = _BIAS[loc]
+    driver_map = DRIVER_LABELS[loc]
+    bias_map = BIAS_LABELS[loc]
     name = driver_map.get(str(item.get("driver") or item.get("name") or ""), "") or str(
         item.get("driver") or item.get("name") or "driver"
     )

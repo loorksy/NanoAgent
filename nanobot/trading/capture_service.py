@@ -5,35 +5,18 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from nanobot.agent.tools.context import current_request_context, current_request_session_key
+from nanobot.agent.tools.context import current_request_session_key
 from nanobot.bus.events import OutboundMessage
 from nanobot.trading.agents.visual_capture import capture_visual_evidence, visual_timeframes
 from nanobot.trading.chart_capture import create_chart_capture_fn
 from nanobot.trading.chart_photo import lead_chart_frame, write_chart_snapshot_file
+from nanobot.trading.i18n import tr
 from nanobot.trading.locale import locale_from_text, normalize_locale
 from nanobot.trading.stage_delivery import TradingStagePublisher
 
-_CAPTURE_ERROR = {
-    "ar": {
-        "webui_required": (
-            "التقاط صورة الشارت يتطلب WebUI مع لوحة الشارت مفتوحة. "
-            "افتح المحادثة من الواجهة ثم أعد الطلب."
-        ),
-        "no_frames": "لم تُلتقط أي صورة للشارت. تأكد أن لوحة الشارت مفتوحة وحاول مرة أخرى.",
-    },
-    "en": {
-        "webui_required": (
-            "Chart capture requires the WebUI with the gold chart side panel open. "
-            "Open the chat in the web interface and try again."
-        ),
-        "no_frames": "No chart image was captured. Open the chart panel and try again.",
-    },
-}
-
 
 def _msg(key: str, locale: str) -> str:
-    loc = "ar" if normalize_locale(locale) == "ar" else "en"
-    return _CAPTURE_ERROR[loc][key]
+    return tr(f"capture.{key}", locale)
 
 
 def build_chart_snapshot_artifact(
@@ -45,14 +28,10 @@ def build_chart_snapshot_artifact(
     frame = lead_chart_frame(snapshots)
     if not frame:
         return None
-    title = (
-        f"لقطة شارت الذهب ({interval})"
-        if locale == "ar"
-        else f"Gold chart snapshot ({interval})"
-    )
+    loc = normalize_locale(locale)
     return {
         "type": "chart_snapshot",
-        "title": title,
+        "title": tr("capture.snapshot_title", loc, interval=interval),
         "mime": "image/jpeg",
         "payload": {
             "interval": interval,
