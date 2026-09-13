@@ -1,0 +1,2017 @@
+{
+  "app": {
+    "brand": "nanobot",
+    "loading": {
+      "connecting": "جارٍ الاتصال بـ nanobot…",
+      "boot": "جارٍ تحميل nanobot…"
+    },
+    "error": {
+      "title": "تعذر الوصول إلى nanobot",
+      "gatewayHint": "تأكد من تشغيل البوابة (\"nanobot \") وأن هذه الصفحة مفتوحة على نفس الجهاز."
+    },
+    "auth": {
+      "label": "Password",
+      "showPassword": "إظهار كلمة المرور",
+      "hidePassword": "إخفاء كلمة المرور",
+      "submit": "Connect",
+      "required": "ادخل رقمك السري ",
+      "invalid": "كلمة السر خاطئة حاول مرة آخرى"
+    },
+    "account": {
+      "section": "Account",
+      "logoutHint": "افصل هذا المتصفح عن البوابة.",
+      "logout": "تسجيل الخروج"
+    },
+    "system": {
+      "section": "System",
+      "restartHint": "أعد nanobot لتطبيق تغييرات وقت التشغيل.",
+      "restartAction": "Restart",
+      "restart": "إعادة تشغيل nanobot",
+      "restarting": "Restarting…",
+      "restartEngine": "اعادة تشغيل المحرك.",
+      "restartingEngine": "جارٍ إعادة تشغيل المحرك…"
+    },
+    "restart": {
+      "completed": "اكتملت إعادة التشغيل خلال {{seconds}}ثانية."
+    },
+    "documentTitle": {
+      "base": "nanobot",
+      "chat": "{{title}} · nanobot"
+    },
+    "meta": {
+      "description": "واجهة nanobot — تحدّث مع مساحة عمل nanobot."
+    },
+    "pairing": {
+      "title": "إقران حساب الدردشة الخاص بك",
+      "description": "أدخل رمز الاقتران الذي تلقيته في الدردشة.",
+      "code": "رمز الاقتران",
+      "matched": "تم تطابق {{channel}}. جارٍ الاتصال…",
+      "expiresInline": "تنتهي صلاحية الرمز {{expires}}.",
+      "queueCount": "{{count}} معلق",
+      "noMatch": "لا يوجد طلب معلق يطابق هذا الرمز."
+    }
+  },
+  "temporaryChat": {
+    "title": "الدردشة المؤقتة",
+    "retention": "لم يتم حفظها في التاريخ أو الذاكرة.",
+    "expiration": "تؤدي إعادة تحميل الاتصال أو إغلاقه أو فقدانه إلى إنهاء هذه المحادثات.",
+    "externalEffects": "لا تزال الطلبات تذهب إلى مزود النموذج الخاص بك، وقد تؤدي إجراءات الأداة إلى تغييرات.",
+    "clear": "محو الدردشة المؤقتة",
+    "sectionTitle": "الدردشات المؤقتة",
+    "closeAction": "إغلاق الدردشة المؤقتة: {{title}}"
+  },
+  "sidebar": {
+    "resize": "تغيير حجم الشريط الجانبي",
+    "navigation": "الشريط الجانبي ",
+    "collapse": "طي الشريط الجانبي",
+    "newChat": "أضف موضوع جديد",
+    "searchAria": "Search",
+    "searchPlaceholder": "Search",
+    "searchResults": "Results",
+    "noSearchResults": "لا توجد مواضيع متطابقة.",
+    "recent": "المواضيع الأخيرة",
+    "settings": "Settings",
+    "language": {
+      "label": "Language",
+      "ariaLabel": "تغيير اللغة"
+    },
+    "apps": "Apps",
+    "automations": "المهام المجدولة",
+    "skills": {
+      "title": "Skills"
+    }
+  },
+  "settings": {
+    "timezoneNoMatches": "لا توجد مناطق زمنية متطابقة.",
+    "configure": "Configure",
+    "exit": {
+      "title": "هل تريد إعادة التشغيل قبل المغادرة ؟",
+      "description": "تم حفظ تغييراتك. أعد التشغيل لتطبيقها.",
+      "later": "إعادة التشغيل لاحقا"
+    },
+    "runtimeConfig": {
+      "apiSaved": "تم الحفظ. أعد تشغيل خدمة API لتطبيق التغييرات.",
+      "fields": {
+        "agents_defaults_timezone_mode": {
+          "label": "المنطقة الزمنية للنظام",
+          "help": "قم بإيقاف التشغيل لاختيار منطقة زمنية يدويًا."
+        },
+        "agents_defaults_timezone": {
+          "label": "Timezone",
+          "help": "اختر منطقة زمنية. تعكس إزاحة التوقيت العالمي المنسق (UTC) التاريخ الحالي."
+        },
+        "agents_defaults_dream_enabled": {
+          "label": "دمج الذاكرة",
+          "help": "تنظيم المعلومات المفيدة من المحادثات تلقائيًا. يؤدي إيقاف تشغيل هذا إلى إبقاء الذكريات الحالية متاحة."
+        },
+        "gateway_heartbeat_enabled": {
+          "label": "Heartbeat",
+          "help": "تحقق بشكل دوري من HEARTBEAT.md للمهام."
+        },
+        "gateway_heartbeat_interval_s": {
+          "label": "افحص كل (ثواني)",
+          "help": "قم بجدولة نبضات القلب المدمجة عند بدء تشغيل البوابة."
+        },
+        "agents_defaults_max_tool_iterations": {
+          "label": "تكرار الأدوات لكل دورة",
+          "help": "الحد الأقصى لعدد طلقات الطرز والأدوات لكل رد."
+        },
+        "agents_defaults_max_concurrent_subagents": {
+          "label": "الوكلاء الفرعيون المتزامنون",
+          "help": "الحد الأقصى لعدد الوكلاء الفرعيين الذين يعملون في نفس الوقت."
+        },
+        "agents_defaults_max_tool_result_chars": {
+          "label": "طول نتيجة الأداة (أحرف)",
+          "help": "تم إرسال الحد الأقصى لعدد الأحرف من كل نتيجة أداة إلى النموذج."
+        },
+        "agents_defaults_provider_retry_mode": {
+          "label": "استمر في إعادة محاولة طلبات الطراز",
+          "help": "استمر في إعادة محاولة الطلبات بعد الأخطاء القابلة للاسترداد. قم بإيقاف التشغيل لاستخدام المحاولات القياسية."
+        },
+        "agents_defaults_tool_hint_max_length": {
+          "label": "طول ملخص نشاط الأداة (أحرف)",
+          "help": "الحد الأقصى لعدد الأحرف الموضحة في ملخص نشاط الأداة."
+        },
+        "tools_max_session_messages_per_minute": {
+          "label": "حد أداة رسالة الجلسة (لكل دقيقة)",
+          "help": "يمكن لأقصى عدد من أدوات الرسائل إرسالها إلى نفس الجلسة كل دقيقة."
+        },
+        "agents_defaults_unified_session": {
+          "label": "مشاركة الجلسات عبر القنوات",
+          "help": "مشاركة سجل المحادثات عبر قنوات الدردشة لمستخدم واحد."
+        },
+        "tools_exec_enable": {
+          "label": "أداة الصدفة",
+          "help": "اسمح للوكيل بتشغيل أوامر shell."
+        },
+        "tools_file_enable": {
+          "label": "أدوات الملفات",
+          "help": "السماح بأدوات قراءة وتحرير الملفات المضمنة."
+        },
+        "tools_web_enable": {
+          "label": "أدوات الويب",
+          "help": "السماح بالبحث على الويب وأدوات جلب الويب."
+        },
+        "tools_cli_apps_enable": {
+          "label": "أداة تطبيقات CLI",
+          "help": "اسمح للوكيل بإدارة وتشغيل تطبيقات CLI."
+        },
+        "tools_my_enable": {
+          "label": "الإدارة الذاتية",
+          "help": "اسمح للوكيل بفحص تكوينه."
+        },
+        "tools_my_allow_set": {
+          "label": "السماح بتغييرات التكوين",
+          "help": "اسمح لأداة الإدارة الذاتية بتحديث التكوين."
+        },
+        "tools_exec_timeout": {
+          "label": "مهلة الأمر (بالثواني)",
+          "help": "أوامر الإيقاف التي تتجاوز هذه المدة. اضبط على 0 بدون حد زمني."
+        },
+        "tools_exec_path_prepend": {
+          "label": "التحضير للمسار",
+          "help": "تمت إضافة الدلائل إلى بداية المسار. إدخالات منفصلة مع فواصل منقوطة على Windows أو فواصل على Linux و macOS."
+        },
+        "tools_exec_path_append": {
+          "label": "ألْحَقَ بِـ ; أتْبَع ; أتْبَعَ بِـ ; ألْحَق بِـ",
+          "help": "تمت إضافة الدلائل إلى نهاية المسار. إدخالات منفصلة مع فواصل منقوطة على Windows أو فواصل على Linux و macOS."
+        },
+        "tools_exec_sandbox": {
+          "label": "وضع الحماية للأوامر",
+          "help": "استخدم bwrap على Linux أو Seatbelt على macOS. لا تؤدي عمليات فحص مساحة العمل وحدها إلى عزل العمليات."
+        },
+        "tools_exec_sandbox_ro_binds": {
+          "label": "مسارات رمل للقراءة فقط",
+          "help": "مسارات إضافية مثبتة للقراءة فقط. مسار واحد لكل سطر."
+        },
+        "tools_exec_sandbox_rw_binds": {
+          "label": "مسارات رمل قابلة للكتابة",
+          "help": "مسارات إضافية مثبتة مع إمكانية الوصول إلى الكتابة. مسار واحد لكل سطر."
+        },
+        "tools_exec_allowed_env_keys": {
+          "label": "متغيرات البيئة المسموح بها",
+          "help": "متغيرات بيئة إضافية للانتقال من المضيف إلى الأوامر، إلى جانب المتغيرات المطلوبة. اسم واحد لكل سطر."
+        },
+        "tools_exec_allow_patterns": {
+          "label": "أنماط الأوامر المسموح بها",
+          "help": "تعبير نمطي واحد لكل سطر. عند التعيين، يجب أن يتطابق كل مقطع أمر تمامًا مع قاعدة السماح. تتجاوز المطابقات قواعد الرفض المضمنة والمخصصة ؛ لا تزال قيود مساحة العمل والشبكة سارية."
+        },
+        "tools_exec_deny_patterns": {
+          "label": "أنماط الأوامر المرفوضة",
+          "help": "تعبير عادي واحد لكل سطر، يتم التحقق منه جنبًا إلى جنب مع قواعد الرفض المضمنة. الأوامر التي تتطابق تمامًا تسمح للقواعد بتخطي هذه الشيكات."
+        },
+        "tools_web_proxy": {
+          "label": "وكيل ويب",
+          "help": "عنوان URL الوكيل لأدوات الويب. اتركه فارغًا لاستخدام تكوين الشبكة الافتراضي."
+        },
+        "tools_web_user_agent": {
+          "label": "وكيل المستخدم",
+          "help": "تم إرسال رأس وكيل المستخدم مع طلبات الويب. اتركه فارغًا لاستخدام الإعداد الافتراضي."
+        },
+        "tools_restrict_to_workspace": {
+          "label": "تقييد الأدوات على مساحة العمل",
+          "help": "سياسة الوصول إلى الأدوات العالمية. يتم تكوين أذونات WebUI لكل دردشة بشكل منفصل."
+        },
+        "tools_ssrf_whitelist": {
+          "label": "عناوين IP والشبكات المسموح بها",
+          "help": "السماح بالطلبات الصادرة إلى هذه العناوين المقيدة بخلاف ذلك. أدخل عنوان IP واحد أو نطاق CIDR لكل سطر."
+        },
+        "tools_webui_allow_remote_package_install": {
+          "label": "تثبيت الحزمة عن بعد",
+          "help": "السماح لمتصفحات WebUI على الأجهزة الأخرى بتثبيت الحزم والمهارات الاختيارية. لا يمكن تغيير هذا الإعداد إلا على مضيف البوابة."
+        },
+        "tools_cli_apps_install_timeout": {
+          "label": "مهلة التثبيت (بالثواني)",
+          "help": "الوقت المسموح به لتثبيت تطبيق CLI."
+        },
+        "tools_cli_apps_run_timeout": {
+          "label": "انتهاء الوقت (بالثواني)",
+          "help": "الوقت المسموح به لأمر تطبيق CLI."
+        },
+        "tools_cli_apps_catalog_ttl_seconds": {
+          "label": "مدة ذاكرة التخزين المؤقت للكتالوج (بالثواني)",
+          "help": "المدة التي يظل فيها كتالوج تطبيق CLI مخزنًا مؤقتًا."
+        },
+        "gateway_host": {
+          "label": "عنوان ربط البوابة",
+          "help": "العنوان المستخدم من قبل البوابة. تكوين مستمع WebUI بشكل منفصل تحت القنوات → WebSocket."
+        },
+        "gateway_port": {
+          "label": "البوابة:",
+          "help": "المنفذ المستخدم من قبل البوابة. تتجاوز وسيطات سطر الأوامر هذا الإعداد."
+        },
+        "gateway_restart_mode": {
+          "label": "وضع إعادة التشغيل",
+          "help": "اختر كيفية إعادة تشغيل البوابة. تلقائي يحدد طريقة لبيئتك."
+        },
+        "api_host": {
+          "label": "عنوان ربط API",
+          "help": "قم بتعيين API في النظام قبل الربط بعنوان الشبكة. أعد تشغيل API لتطبيق التغييرات."
+        },
+        "api_timeout": {
+          "label": "مهلة طلب API (بالثواني)",
+          "help": "كم من الوقت يمكن أن يستغرق كل طلب API. أعد تشغيل API لتطبيق التغييرات."
+        },
+        "tools_image_generation_save_dir": {
+          "label": "دليل الصور الذي تم إنشاؤه",
+          "help": "الدليل الفرعي nanobot. استخدم مسارًا نسبيًا ؛ لا يتم نقل الصور الموجودة."
+        }
+      },
+      "groups": {
+        "chat": {
+          "title": "أذونات دردشة WebUI",
+          "help": "الوصول إلى الخدمة المحلية والأذونات الافتراضية لدردشات WebUI."
+        },
+        "identity": {
+          "title": "Timezone",
+          "help": "اختر المنطقة الزمنية للعمل المجدول."
+        },
+        "memory": {
+          "title": "Memory",
+          "help": "تمكين أو تعطيل دمج الذاكرة التلقائي."
+        },
+        "heartbeat": {
+          "title": "جدول ضربات القلب",
+          "help": "تكوين فحص المهام الدوري المدمج."
+        },
+        "execution": {
+          "title": "حدود الوكيل",
+          "help": "اضبط تنفيذ الأداة وسلوك إعادة المحاولة."
+        },
+        "sessions": {
+          "title": "Sessions",
+          "help": "مشاركة المحادثات عبر القنوات."
+        },
+        "tools": {
+          "title": "استخدم الأدوات المُدمجة.",
+          "help": "اختر الأدوات التي يمكن للوكيل استخدامها."
+        },
+        "shell": {
+          "title": "الغلاف وصندوق الرمل",
+          "help": "مهلات الأوامر والبيئة والتركيبات وعوامل تصفية الأوامر."
+        },
+        "network": {
+          "title": "اتصالات الويب",
+          "help": "قم بتعيين رأس الوكيل ووكيل المستخدم لطلبات الويب."
+        },
+        "safety": {
+          "title": "سياسات الوصول العالمية",
+          "help": "قيود مساحة العمل والشبكات الخاصة والتثبيتات عن بُعد."
+        },
+        "cli": {
+          "title": "حدود تطبيق CLI",
+          "help": "قم بتعيين مهلة التثبيت والأوامر، ومدة التخزين المؤقت لكتالوج التطبيق."
+        },
+        "gateway": {
+          "title": "عملية بوابة ACO",
+          "help": "تكوين النشر وإعادة تشغيل العملية."
+        },
+        "api": {
+          "title": "تفاصيل خادم API",
+          "help": "عنوان ربط مخصص ومهلة الطلب."
+        },
+        "storage": {
+          "title": "مسار تخزين الصورة",
+          "help": "اختر مكان تخزين الصور التي تم إنشاؤها."
+        },
+        "maintenance": {
+          "title": "جدولة الذاكرة",
+          "help": ""
+        },
+        "web": {
+          "title": "اتصال بإنترنت",
+          "help": ""
+        },
+        "applications": {
+          "title": "[ترجمة المصطلح: command-line]",
+          "help": ""
+        }
+      },
+      "save": "حفظ التغييرات",
+      "saving": "جارٍي الحفظ…",
+      "discard": "تجاهل التغييرات",
+      "saved": "Saved.",
+      "restart": "إعادة تشغيل nanobot",
+      "restartHelp": "أعد التشغيل لتطبيق التغييرات. قد تتجاوز وسيطات سطر الأوامر ومتغيرات البيئة هذه الإعدادات.",
+      "search": "اعثر على إعداد متقدم",
+      "noResults": "لا توجد إعدادات مطابقة.",
+      "pending": "لم يتم حفظ التغييرات ",
+      "numberError": "أدخل رقمًا صالحًا ضمن النطاق المسموح به.",
+      "activeModel": "استخدام النموذج النشط",
+      "none": "None",
+      "auto": "Automatic",
+      "manual": "Manual",
+      "standard": "Standard",
+      "persistent": "Persistent",
+      "unavailable": "قم بتحديث البوابة لتحرير هذه الإعدادات.",
+      "advancedOptions": "خيارات متقدمة"
+    },
+    "backToChat": "العودة إلى الدردشة",
+    "sidebar": {
+      "title": "الإعدادات",
+      "ariaLabel": "أقسام الإعدادات"
+    },
+    "nav": {
+      "about": "About",
+      "capabilities": "Capabilities",
+      "general": "General",
+      "byok": "BYOK",
+      "overview": "نظرة عامة",
+      "appearance": "المظهر",
+      "models": "النماذج",
+      "providers": "مزودو الخدمة",
+      "image": "Image",
+      "voice": "Voice",
+      "browser": "Web",
+      "channels": "Channels",
+      "cliApps": "CLI",
+      "mcp": "MCP",
+      "runtime": "النظام",
+      "advanced": "متقدم",
+      "apps": "التطبيقات",
+      "automations": "المهام المجدولة",
+      "skills": "Skills",
+      "memory": "Memory"
+    },
+    "sections": {
+      "interface": "الواجهة",
+      "ai": "AI",
+      "system": "System",
+      "about": "حول",
+      "status": "Status",
+      "localPreferences": "التفضيلات المحلية",
+      "presets": "Presets",
+      "imageGeneration": "توليد الصورة",
+      "imageDefaults": "Defaults",
+      "webSearch": "البحث على الإنترنت",
+      "webBehavior": "السلوك",
+      "cliApps": "CLI",
+      "mcp": "MCP",
+      "regional": "Regional",
+      "webuiSafety": "أمان الويب",
+      "capabilities": "القدرات",
+      "apps": "التطبيقات",
+      "nativeHost": "مضيف أصلي",
+      "hostSafety": "سلامة التطبيق",
+      "voiceInput": "إدخال الصوت‬"
+    },
+    "models": {
+      "selectModel": "اختر الطراز",
+      "addConfiguration": "أضف تكوينًا",
+      "newConfiguration": "تكوين الطراز الجديد",
+      "newConfigurationHelp": "احفظ إعدادات المزود والطراز والتوليد كإعداد مسبق قابل لإعادة الاستخدام.",
+      "configurationName": "اسم التكوين",
+      "configurationNameHelp": "إعادة تسمية تكوين النموذج المحفوظ هذا.",
+      "configurationNamePlaceholder": "الكتابة السريعة",
+      "callOrder": "أمر استدعاء الطراز",
+      "primary": "Primary",
+      "fallbackNumber": "بديل {{number}}",
+      "addToOrder": "تمكين الإعداد المسبق",
+      "newPreset": "إعداد مسبق لنموذج جديد",
+      "newPresetHelp": "احفظ نموذجًا وإعدادات توليده لاستخدامه عبر المهام.",
+      "presets": "الإعدادات المسبقة للنموذج",
+      "editPreset": "تعديل الإعداد المسبق",
+      "presetName": "اسم مُحدد مُسبقًا",
+      "presetNameHelp": "تستخدم في الواجهة و /أوامر النموذج. يجب أن تكون الأسماء فريدة.",
+      "presetNameDuplicate": "يوجد بالفعل إعداد مسبق بهذا الاسم.",
+      "presetNamePlaceholder": "على سبيل المثال، الكتابة السريعة",
+      "advancedOptions": "خيارات متقدمة",
+      "advancedSummary": "السياق {{context}} · الحد الأقصى {{max}} من الرموز",
+      "maxTokens": "الحد الأقصى لرموز الإخراج",
+      "temperature": "Temperature",
+      "reasoningEffort": "جهد التفكير المنطقي",
+      "convertTitle": "تحويل إعداد النموذج الحالي",
+      "convertHelp": "حول النماذج الأساسية والنماذج الاحتياطية الحالية إلى إعدادات مسبقة حتى يمكن إدارة ترتيبها هنا.",
+      "converting": "Converting…",
+      "convertAction": "تحويل إلى إعدادات مسبقة",
+      "dragToReorder": "اسحب لإعادة ترتيب",
+      "moveUp": "تحريك لأعلى",
+      "moveDown": "تحرك للأسفل",
+      "removeFromOrder": "تعطيل الإعداد المسبق",
+      "inCallOrder": "طلب تحت الطلب",
+      "disabled": "Disabled",
+      "noPresets": "لا توجد إعدادات مسبقة للطراز حتى الآن",
+      "noPresetsHelp": "أنشئ إعدادًا مسبقًا، ثم أضفه إلى أمر الشراء.",
+      "removeBeforeDelete": "اختر إعدادًا مسبقًا أساسيًا آخر قبل حذف هذا الإعداد.",
+      "providerSetupRequired": "إعداد مقدم الخدمة مطلوب",
+      "configureProviderBeforeSaving": "قم بتكوين هذا المزود قبل حفظ الإعداد المسبق.",
+      "deletePresetTitle": "هل تريد حذف الإعداد المسبق للنموذج ؟",
+      "deletePresetHelp": "احذف \\\"{{ name }}\\\" وأزله من القائمة الاحتياطية. سيتم الاحتفاظ ببيانات اعتماد مقدم الخدمة.",
+      "searchModels": "البحث عن أو كتابة معرف الطراز",
+      "useCustomModel": "Use",
+      "loadingModels": "جارٍ تحميل النماذج…",
+      "searchCatalog": "ابحث في كتالوج نموذج مزود الخدمة هذا.",
+      "modelsAvailable": "available",
+      "noModelResults": "لا توجد نماذج مطابقة.",
+      "loadFailed": "قائمة الطرازات غير متاحة.",
+      "unsupportedModelList": "اكتب معرّف الطراز يدويًا.",
+      "providerNotConfigured": "قم بتكوين هذا المزود قبل تحميل الطرز.",
+      "autoProviderCustomOnly": "أدخل معرّف الطراز يدويًا عند استخدام التحديد التلقائي لموفر الخدمة.",
+      "availableCount": "الطرز المتاحة: {{count}}"
+    },
+    "rows": {
+      "theme": "السمة",
+      "language": "اللغة",
+      "provider": "Provider",
+      "model": "Model",
+      "restart": "إعادة تشغيل nanobot",
+      "configPath": "ملف الضبط",
+      "activePreset": "الإعداد المسبق النشط",
+      "gateway": "Gateway",
+      "restartState": "إعادة تشغيل الحالة",
+      "pendingChanges": "تغييرات معلقة",
+      "currentModel": "التهيئة الحالية",
+      "selectedPreset": "الإعداد المسبق المحدد",
+      "presetModel": "الطراز المحدد مسبقًا",
+      "activityMode": "الأنشطة والتفاصيل",
+      "fileEditDisplay": "عرض تحرير الملف",
+      "codeWrap": "تغليف التعليمات البرمجية",
+      "brandLogos": "شعارات العلامات التجارية",
+      "browserNotifications": "إشعارات المهام",
+      "maxResults": "أقصى & عدد للنتائج:",
+      "timeout": "Timeout",
+      "jinaReader": "قارئ جينا",
+      "imageGeneration": "توليد الصورة",
+      "imageProvider": "موفر الصورة",
+      "imageProviderStatus": "حالة مقدم الخدمة",
+      "imageProviderBase": "عنوان URL لمزود الخدمة",
+      "imageModel": "نموذج الصورة",
+      "defaultAspectRatio": "نسبة الطول و العرض الافتراضية للفيديو",
+      "defaultImageSize": "الحجم الافتراضي",
+      "maxImagesPerTurn": "الحد الأقصى للصور لكل طلب",
+      "imageSaveDir": "دليل الحفظ التلقائي",
+      "timezone": "Timezone",
+      "workspacePath": "مساحة العمل الافتراضية للموارد البشرية",
+      "localServiceAccess": "الخدمات المحلية",
+      "webuiDefaultAccess": "الوصول الافتراضي",
+      "cliAppsCatalog": "Catalog",
+      "cliAppsFilter": "Filter",
+      "engine": "Engine",
+      "logs": "Logs",
+      "diagnostics": "Diagnostics",
+      "contextWindow": "نافذة السياق",
+      "transcription": "Transcription",
+      "transcriptionProvider": "Provider",
+      "transcriptionProviderStatus": "حالة مقدم الخدمة",
+      "transcriptionModel": "Model",
+      "transcriptionLanguage": "Language",
+      "voiceLimits": "Limits"
+    },
+    "help": {
+      "theme": "التبديل بين المظهر الفاتح والظلام.",
+      "language": "اختر اللغة التي يستخدمها WebUI.",
+      "provider": "حدد المزود الذي يجب أن يخدم طلبات الطراز الجديد.",
+      "model": "اختر النموذج المستخدم من قبل هذا الإعداد المسبق.",
+      "configPath": "ملف تكوين البوابة قيد الاستخدام حاليًا.",
+      "currentModel": "تستخدم للردود الجديدة.",
+      "selectedModelProvider": "تم التعيين حسب الطراز المحدد.",
+      "selectedModelValue": "تم التعيين حسب الطراز المحدد.",
+      "selectedPreset": "تعديل الإعدادات المسبقة المسماة في النماذج.",
+      "presetModel": "اختر إعدادًا مسبقًا في النماذج لتعديل طرازها ومزودها.",
+      "activityMode": "اختر مقدار التفاصيل التي تريد إظهارها حول نشاط ممثل خدمة العملاء.",
+      "fileEditDisplay": "اختر ما إذا كانت تعديلات الملفات تعرض عدد أسطر أو فرقًا موسعًا.",
+      "codeWrap": "احتفظ بخطوط التعليمات البرمجية الطويلة مقروءة على الشاشات الأصغر.",
+      "brandLogos": "عرض مزود الطرف الثالث CLI في الإعدادات.",
+      "browserNotifications": "الإشعار فقط عندما تكون هذه الصفحة في الخلفية. إيقاف التشغيل افتراضيًا.",
+      "maxResults": "الحد الأقصى لعدد النتائج التي يتم إرجاعها بواسطة كل بحث على الويب.",
+      "timeout": "كم من الوقت يجب الانتظار حتى ينتهي طلب البحث.",
+      "jinaReader": "استخدم Jina Reader لقراءة صفحات الويب عندما تكون متاحة.",
+      "imageGeneration": "إنشاء الصور في الدردشة بعد إعداد موفر الصور.",
+      "imageProvider": "اختر المزود المستخدم لإنشاء الصور.",
+      "imageProviderStatus": "يعيد توليد الصور استخدام بيانات اعتماد موفر الخدمة من موفري الخدمة.",
+      "imageModel": "اختر نموذجًا مدعومًا من قبل موفر الصورة المحدد.",
+      "defaultAspectRatio": "تستخدم عندما لا يحدد الطلب نسبة العرض إلى الارتفاع.",
+      "defaultImageSize": "حجم الصورة المطلوب. ينطبق فقط على مقدمي الخدمات الذين يدعمون هذا الخيار.",
+      "maxImagesPerTurn": "الحد الأقصى لعدد الصور التي تم إنشاؤها في طلب واحد.",
+      "timezone": "تستخدم للمهام المجدولة والردود التي تشير إلى التواريخ والأوقات.",
+      "cliAppsCatalog": "تثبيت أدوات سطر الأوامر لاستخدام nanobot. لا يؤدي هذا إلى تثبيت أو تغيير تطبيقات سطح المكتب المقابلة.",
+      "cliAppsFilter": "ابحث حسب التطبيق أو الفئة أو الإمكانية.",
+      "localServiceAccess": "السماح لأوامر shell ذات الوصول الكامل بالوصول إلى خدمات المضيف المحلي.",
+      "webuiDefaultAccess": "تستخدمه دردشات الويب دون إذن خاص بالمشروع.",
+      "securityManagedControls": "تحظر طلبات الويب عناوين خدمة البيانات الوصفية المحلية والخاصة ما لم يُسمح بذلك صراحةً. يتم تكوين أمان القناة بشكل منفصل.",
+      "logs": "افتح مجلد سجل المحرك الأصلي.",
+      "diagnostics": "تصدير تقرير تشخيصي للمساعدة في استكشاف المشكلات وإصلاحها.",
+      "localServiceAccessNative": "السماح لأوامر shell ذات الوصول الكامل بالوصول إلى الخدمات على هذا الـ Mac.",
+      "webuiDefaultAccessNative": "تستخدمه الدردشات الأصلية دون إذن خاص بالمشروع.",
+      "contextWindow": "اختر ميزانية السياق الافتراضية لتكوين النموذج هذا.",
+      "transcription": "قم بتدوين إدخال الميكروفون قبل إرساله. تستخدم الرسائل الصوتية لقناة الدردشة نفس الإعدادات.",
+      "transcriptionProvider": "يستخدم بيانات اعتماد موفر المطابقة من موفري الرعاية.",
+      "transcriptionProviderStatus": "تبقى مفاتيح API تحت مقدمي الخدمات، وليس في إعدادات النسخ.",
+      "transcriptionModel": "احتفظ بالطراز الافتراضي ما لم يطلب مقدم الخدمة معرف طراز محدد.",
+      "transcriptionLanguage": "رمز اللغة الاختياري، مثل en للغة الإنجليزية، أو zh للصينية، أو ja لليابانية، أو ko للكورية."
+    },
+    "timezone": {
+      "select": "تحديد المنطقة الزمنية",
+      "search": "البحث بالمنطقة الزمنية",
+      "empty": "لا توجد مناطق زمنية متطابقة."
+    },
+    "cliApps": {
+      "allCategories": "ﺟﻤﻴﻊ اﻷﺻﻨﺎف",
+      "availableCount": "{{count}} تطبيقات",
+      "installedCount": "تم تثبيت {{count}} واجهة سطر الأوامر",
+      "summary": "{{installed}} من {{total}} واجهة سطر الأوامر المثبتة",
+      "filterAll": "All",
+      "filterInstalled": "CLIs المثبتة",
+      "filterNotInstalled": "ليس مثبت",
+      "searchPlaceholder": "البحث في واجهة سطر الأوامر",
+      "loading": "جارٍ تحميل تطبيقات CLI…",
+      "empty": "لا توجد تطبيقات CLI تطابق هذا الفلتر.",
+      "statusInstalled": "التطبيق جاهز",
+      "statusMissing": "Missing",
+      "statusAvailable": "Available",
+      "statusUnsupported": "Unsupported",
+      "statusNotInstalled": "التطبيق غير مثبت",
+      "requires": "Requires",
+      "test": "اختبار التطبيق",
+      "update": "‫تحديث التطبيق‬",
+      "uninstall": "إلغاء تثبيت التطبيق",
+      "install": "تثبيت التطبيق",
+      "readyTitle": "@{{ name}} جاهز",
+      "readyStatus": "Ready",
+      "readyTry": "جرب @{{ name}}",
+      "readyCopied": "Copied",
+      "readyPrompt": "اطلب من nanobot استخدام @{{ name}} لهذه المهمة.",
+      "openChat": "محادثة مفتوحة",
+      "unsupported": "Unsupported",
+      "unavailable": "Unavailable",
+      "noDescription": "لايوجد وصف متوفر.",
+      "availableCount_one": "تطبيق {{count}}",
+      "availableCount_other": "{{count}} تطبيقات",
+      "installedCount_one": "تم تثبيت {{count}} CLI",
+      "installedCount_other": "تم تثبيت {{count}} واجهة سطر الأوامر"
+    },
+    "about": {
+      "documentation": "Documentation",
+      "sourceCode": "شيفرة مصدرية",
+      "reportIssue": "الإبلاغ عن مشكلة",
+      "version": "Version",
+      "checking": "Checking…",
+      "checkForUpdates": "التحقق من وجود تحديثات",
+      "upToDate": "كنت حتى الآن",
+      "updateAvailable": "تحديث متاح مقابل{{version}}"
+    },
+    "mcp": {
+      "allCategories": "ﺟﻤﻴﻊ اﻷﺻﻨﺎف",
+      "summary": "تم تمكين {{installed}} من {{total}} الإعدادات المسبقة",
+      "filterAll": "All",
+      "filterInstalled": "Enabled",
+      "filterNotInstalled": "غير مفعل",
+      "searchPlaceholder": "البحث في الإعدادات المسبقة لـ MCP",
+      "moreOptions": "إضافة MCP",
+      "moreOptionsSubtitle": "قم بتوصيل خادم MCP مخصص أو استيراد تكوين موجود.",
+      "customTitle": "مخصص MCP",
+      "customSubtitle": "أضف أي خادم stdio أو HTTP أو MCP.",
+      "customAction": "Custom",
+      "importAction": "Import",
+      "serverName": "اسم الخادم",
+      "serverUrl": "URL",
+      "transport": "Transport",
+      "authentication": "Authentication",
+      "authNone": "None",
+      "authHeaders": "Headers",
+      "command": "Command",
+      "args": "الحجج (JSON)",
+      "headers": "ترويسات (JSON)",
+      "oauthAfterSave": "احفظ الخادم، ثم حدد اتصال لتسجيل الدخول.",
+      "headersHelp": "إضافة رؤوس الطلبات المستخدمة من قبل هذا الخادم.",
+      "env": "متغيرات البيئة (JSON)",
+      "timeout": "انتهاء الوقت (بالثواني)",
+      "advancedOptions": "خيارات متقدمة",
+      "hideAdvanced": "إخفاء الخيارات المتقدمة",
+      "saveCustom": "احفظ MCP",
+      "configImport": "استيراد mcp.json",
+      "importConfig": "Import",
+      "restartRequired": "أعد nanobot لتوصيل أدوات MCP المحدثة.",
+      "toolsFound": "{{count}} من الأدوات",
+      "loading": "جارٍ تحميل الإعدادات المسبقة لـ MCP…",
+      "empty": "لا توجد إعدادات مسبقة لـ MCP تتطابق مع هذا المرشح.",
+      "openDocs": "مستندات مفتوحة",
+      "test": "Test",
+      "remove": "Remove",
+      "enable": "Enable",
+      "enabled": "Enabled",
+      "setup": "Connect",
+      "configure": "Connect",
+      "reconnect": "Reconnect",
+      "connectTitle": "اتصل بـ {{name}}",
+      "reconnectTitle": "إعادة الاتصال {{name}}",
+      "actionsTitle": "إجراءات لأجل {{name}}",
+      "connectHint": "أضِف المفتاح من إعدادات حسابك.",
+      "saveAndEnable": "الحفظ والتمكين",
+      "updateSetup": "إعداد تحديث السعر",
+      "configured": "Configured",
+      "keepExisting": "اتركه فارغًا للاحتفاظ بالقيمة الحالية",
+      "statusConfigured": "Configured",
+      "statusMissingCredentials": "يحتاج إلى مفتاح",
+      "connectingAccount": "جارٍ توصيل {{name}}",
+      "connectingLabel": "جارٍ الاتصال…",
+      "continueSignIn": "تابع إلى تسجيل الدخول",
+      "preparingSignIn": "جارٍ إعداد تسجيل دخول آمن…",
+      "openSignInToContinue": "افتح صفحة تسجيل الدخول للمتابعة.",
+      "finishSignInInBrowser": "أكمل تسجيل الدخول في نافذة المتصفح.",
+      "manualCallbackRequired": "أكمل تسجيل الدخول، ثم الصق عنوان URL لرد الاتصال في nanobot.",
+      "manualCallbackHelp": "بعد الموافقة على الوصول، لن يتم تحميل صفحة المضيف المحلي. انسخ عنوان URL الكامل من شريط العناوين والصقه هنا.",
+      "finishingConnection": "جارٍ إكمال الاتصال…",
+      "activatingTools": "جارٍ تفعيل الأدوات…",
+      "connected": "متصل",
+      "connectionFailed": "فشل الاتصال.",
+      "connectionCancelled": "تم إلغاء الاتصال.",
+      "reloadFailed": "تم تسجيل الدخول، لكن nanobot لم يتمكن من توصيل الأدوات. حاول إعادة تشغيل nanobot.",
+      "oauthFailed": "غير قادر على الاتصال. حاول تسجيل الدخول مرة أخرى.",
+      "statusMissingDependency": "يحتاج إلى تبعية",
+      "statusComingSoon": "سيأتي قريباً",
+      "comingSoon": "سيأتي قريباً",
+      "statusNotInstalled": "غير مفعل",
+      "manage": "Manage",
+      "manageTitle": "إدارة {{name}}",
+      "fixConnection": "إصلاح الاتصال",
+      "overviewTab": "Overview",
+      "connectionTab": "Connection",
+      "manageTabs": "أقسام إدارة MCP",
+      "about": "About",
+      "statusLabel": "Status",
+      "transportLabel": "Transport",
+      "endpointLabel": "Endpoint",
+      "toolPreview": "Tools",
+      "noToolsAvailable": "لا توجد أدوات متاحة",
+      "searchTools": "أدوات البحث",
+      "searchToolsPlaceholder": "أدوات البحث",
+      "selectedCount": "تم تمكين {{count}}",
+      "noMatchingTools": "لا توجد أدوات تطابق هذا البحث.",
+      "applyChanges": "حفظ التغييرات",
+      "connectionDetails": "تفاصيل الاتصال الخاصة بك",
+      "credentials": "Credentials",
+      "none": "None",
+      "dangerZone": "إلغاء الصداقة",
+      "toolScope": "Tools",
+      "allTools": "تفعيل الكل",
+      "noTools": "تعطيل كل الإشعارات",
+      "reloadTools": "إعادة تحميل الأدوات",
+      "presetDescriptions": {
+        "browserbase": "أتمتة المتصفحات السحابية باستخدام Browserbase.",
+        "playwright": "فحص المتصفحات المحلية وأتمتتها باستخدام Playwright.",
+        "context7": "جلب مستندات المكتبة الحالية وأمثلة التعليمات البرمجية.",
+        "firecrawl": "كشط محتوى الويب والزحف إليه والبحث فيه واستخراجه.",
+        "parallel-search": "ابحث في الويب واقرأ الصفحات ذات الصلة.",
+        "exa": "ابحث في الويب واستخرج محتوى الصفحة النظيف.",
+        "microsoft-learn": "ابحث عن وثائق Microsoft Learn واقرأها.",
+        "aws-docs": "البحث في وثائق AWS وإرشادات الخدمة.",
+        "brave-search": "ابحث في الويب والأخبار والصور ومقاطع الفيديو والنتائج المحلية باستخدام Brave Search.",
+        "postman": "فحص وإدارة واجهات برمجة تطبيقات ساعي البريد والمجموعات ومساحات العمل.",
+        "figma": "اقرأ سياق تصميم Figma من خلال وضع التطوير المحلي MCP.",
+        "xmind": "إنشاء خرائط ذهنية سحابية لـ Xmind وقراءتها وتحريرها.",
+        "notion": "قراءة وتحديث مساحة عمل Notion الخاصة بك.",
+        "linear": "البحث عن المشكلات الخطية والمشاريع والتعليقات وإدارتها.",
+        "github": "إدارة مستودعات GitHub والمشكلات وطلبات السحب.",
+        "supabase": "فحص وإدارة مشاريع Supabase."
+      },
+      "toolsFound_one": "{{count}} أداة",
+      "toolsFound_other": "{{count}} من الأدوات"
+    },
+    "values": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "notAvailable": "غير متوفر",
+      "enabled": "مفعّل",
+      "disabled": "معطّل",
+      "restartPending": "إعادة التشغيل معلقة",
+      "ready": "Ready",
+      "privateEngine": "محرك خاص",
+      "unixSocket": "Unix Socket",
+      "defaultWorkspace": "مساحة العمل الافتراضية للموارد البشرية",
+      "auto": "Auto",
+      "default": "Default",
+      "expanded": "موسّع",
+      "summary": "Summary",
+      "diff": "Diff",
+      "collapsedDiff": "فرق مطوي",
+      "on": "On",
+      "off": "Off",
+      "defaultPermission": "إذن الربط الافتراضي",
+      "fullAccess": "وصول كامل",
+      "configured": "مكوّن",
+      "notConfigured": "غير مهيأ",
+      "pending": "Pending",
+      "restartingEngine": "Restarting",
+      "checking": "Checking",
+      "running": "Running",
+      "needsSetup": "يحتاج إلى إعداد"
+    },
+    "status": {
+      "loading": "جارٍ تحميل الإعدادات …",
+      "loadError": "تعذر تحميل الإعدادات",
+      "unsaved": "لم يتم حفظ التغييرات ",
+      "upToDate": "حتى الآن.",
+      "savedRestart": "تم الحفظ. أعد nanobot للتقديم.",
+      "restartAfterSaving": "احفظ التغييرات، ثم أعد تشغيل nanobot لتطبيقها.",
+      "savedRestartApply": "تم الحفظ. أعد التشغيل لتطبيق التغييرات.",
+      "imageProviderRestart": "تم حفظ إعدادات الصورة. أعد التشغيل لتطبيق التغييرات.",
+      "hostRestartAfterSaving": "احفظ التغييرات nanobot تشغيل محركه.",
+      "hostRestartPending": "تم حفظ الإعدادات. في انتظار إعادة تشغيل المحرك.",
+      "hostApiUnavailable": "تتوفر هذه الإجراءات فقط في تطبيق سطح المكتب.",
+      "logsOpened": "فتح مجلد السجلات.",
+      "logsOpenFailed": "تعذر فتح مجلد السجلات.",
+      "diagnosticsExported": "تم تصدير التشخيصات إلى {{path}}.",
+      "diagnosticsExportFailed": "تعذر تصدير التشخيصات."
+    },
+    "actions": {
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…",
+      "saveOrder": "حفظ الطلب",
+      "savePreset": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "cancel": "Cancel",
+      "dismiss": "Dismiss",
+      "open": "Open",
+      "export": "Export",
+      "opening": "Opening…",
+      "exporting": "Exporting…"
+    },
+    "byok": {
+      "description": "أضف بيانات اعتماد مزود الخدمة الخاص بك لاستخدامها في الإعدادات المسبقة للنموذج.",
+      "configured": "Configured",
+      "notConfigured": "غير مهيأ",
+      "configuredSection": "Configured",
+      "notConfiguredSection": "غير مهيأ",
+      "showMore": "عرض {{count}} المزيد",
+      "showLess": "عرض أقل",
+      "apiKey": "API",
+      "apiBase": "عنوان URL الأساسي لـ API",
+      "apiKeyPlaceholder": "أدخل API",
+      "apiKeyConfiguredPlaceholder": "اتركه فارغًا للاحتفاظ بالمفتاح الحالي",
+      "configuredKeyHint": "المفتاح الذي تم تكوينه",
+      "apiBasePlaceholder": "استخدام المزود الافتراضي",
+      "apiKeyRequired": "API مطلوب لتكوين هذا المزود.",
+      "showApiKey": "عرض API",
+      "hideApiKey": "إخفاء API",
+      "noConfiguredProviders": "لا يوجد موفرو خدمة تم تكوينهم",
+      "configureFirst": "قم بإعداد موفر رعاية في موفري الرعاية أولاً.",
+      "openByok": "تكوين مقدمي الخدمات",
+      "tabs": {
+        "ariaLabel": "نوع الاعتماد:",
+        "llm": "LLM",
+        "webSearch": "البحث على الإنترنت"
+      },
+      "webSearch": {
+        "provider": "مقدم خدمة بحث",
+        "providerHelp": "اختر الخدمة المستخدمة في عمليات البحث على الويب.",
+        "selectProvider": "تحديد مزود",
+        "credentials": "Credentials",
+        "noCredentialRequired": "لا يوجد مفتاح مطلوب",
+        "noCredentialHelp": "يعمل DuckDuckGo بدون مفتاح API محفوظ.",
+        "apiKeyHelp": "يتم إخفاء المفتاح بعد الحفظ.",
+        "baseUrl": "الرابط الأساس (URL)",
+        "baseUrlHelp": "يحتاج SearXNG إلى عنوان URL الخاص بالمثيل الخاص بك.",
+        "baseUrlPlaceholder": "https://search.example.com",
+        "apiKeyRequired": "API مطلوب لمزود البحث هذا.",
+        "baseUrlRequired": "عنوان URL الأساسي مطلوب لـ SearXNG.",
+        "missingCredential": "أضف بيانات الاعتماد المطلوبة قبل الحفظ.",
+        "saveHint": "تنطبق التغييرات على طلبات البحث الجديدة على الويب."
+      }
+    },
+    "overview": {
+      "model": "النموذج الحالي",
+      "providers": "Providers",
+      "configuredCount": "تم تكوين {{count}}",
+      "totalProviders": "{{count}} متاح",
+      "webSearch": "البحث على الإنترنت",
+      "imageGeneration": "توليد الصورة",
+      "voiceInput": "إدخال الصوت‬",
+      "workspace": "Workspace"
+    },
+    "usage": {
+      "title": "استخدام الرمز المميز",
+      "shortTitle": "استخدام الرمز المميز",
+      "last30Days": "آخر 30 يومًا",
+      "viewDetails": "عرض التفاصيل",
+      "previousPage": "الصفحة السابقة",
+      "nextPage": "الصفحة التالية",
+      "dailyAverage": "المتوسط اليومي",
+      "inputTokens": "رموز الإدخال",
+      "cacheHitRate": "معدل ذاكرة التخزين المؤقت عالية",
+      "requestTrend": "طلب إعلانات يومية",
+      "cacheRateHelp": "يستثني معدل إصابة ذاكرة التخزين المؤقت الإدخال ذي حالة ذاكرة التخزين المؤقت غير المعروفة.",
+      "dailyTrend": "الاستخدام اليومي للرمز المميز",
+      "bySource": "الاستخدام حسب المصدر",
+      "byModel": "الاستخدام حسب الطراز",
+      "modelTrend": "استخدام النموذج بمرور الوقت",
+      "modelsUnavailable": "لا يوجد تفصيل للطراز متاح.",
+      "otherModels": "أخرى / غير منسوبة",
+      "unclassified": "Unclassified",
+      "unavailable": "بيانات الاستخدام غير متوفرة.",
+      "noActivity": "لا يوجد استخدام للرمز المميز في آخر 30 يومًا.",
+      "cachedInput": "الإدخال المخزن مؤقتًا",
+      "cacheMiss": "نقص في ذاكرة التخزين المؤقت",
+      "cacheUnknown": "حالة ذاكرة التخزين المؤقت غير معروفة",
+      "outputTokens": "Output",
+      "otherTokens": "عملات رمزية أخرى",
+      "subtitle": "أبلغ مقدم الخدمة عن الاستخدام على مدار الاثني عشر شهرًا الماضية.",
+      "empty": "سيظهر نشاط الرمز المميز بعد ردود النموذج الجديد.",
+      "totalTokens": "إجمالي العملات الرمزية",
+      "peakTokens": "رموز PEAK",
+      "thirtyDayTokens": "رموز لمدة 30 يومًا",
+      "currentStreak": "السلسلة الحالية: NAME OF TRANSLATORS",
+      "longestStreak": "أطول سلسلة فوز:",
+      "daysValue": "{{count}}d",
+      "last30": "30 يوم",
+      "activeDays": "\"أيام العمل\"",
+      "requests": "Requests",
+      "estimated": "estimated",
+      "includesEstimates": "يتضمن التقديرات",
+      "cellTitle": "{{date}}: {{tokens}} رموز، {{requests}} طلبات",
+      "sources": {
+        "user": "Chat",
+        "api": "API",
+        "cron": "Automations",
+        "dream": "Memory",
+        "system": "المكالمات المساعدة"
+      },
+      "systemHelp": "تشمل المكالمات الإضافية إنشاء عنوان الدردشة والمهام الداخلية الأخرى والمكالمات بدون مصدر مسجل."
+    },
+    "providers": {
+      "title": "مقدمو الخدمات النموذجيون",
+      "searchPlaceholder": "البحث عن موفري الرعاية",
+      "noMatches": "لا يوجد موفرو خدمة يطابقون هذا البحث.",
+      "addOwnProvider": "إضافة مزود النموذج الخاص بك",
+      "customProvider": "تخصيص المورد",
+      "customProviderName": "أسم مزود الخدمة ",
+      "customProviderNamePlaceholder": "موفر النموذج الخاص بي",
+      "saveProvider": "احفظ المزود",
+      "advancedOptions": "خيارات متقدمة",
+      "saveAdvancedBeforeSignIn": "احفظ التغييرات المتقدمة قبل تسجيل الدخول.",
+      "apiType": "API",
+      "proxy": "إستعمل الوكيل HTTP",
+      "thinkingStyle": "تنسيق معلمة الاستدلال",
+      "region": "Region",
+      "profile": "ملف تعريف AWS",
+      "extraHeaders": "مقدمات",
+      "extraBody": "معلمات الهيكل الإضافية",
+      "extraQuery": "معلمات الاستعلام الإضافية",
+      "capabilityFastMode": "الوضع السريع",
+      "capabilityFastModeHelp": "استخدم فئة خدمة OpenAI ذات الأولوية للاستجابات الأسرع. هذا يستهلك الأرصدة بشكل أسرع.",
+      "capabilityDeepSeekSearch": "بحث الويب DeepSeek",
+      "capabilityDeepSeekSearchHelp": "دع DeepSeek V4 Flash يبحث في الويب من خلال إجاباته API. يظهر نشاط البحث في الدردشة.",
+      "capabilityXSearch": "البحث عن X",
+      "capabilityXSearchHelp": "السماح لنماذج Grok المدعومة باستخدام X Search المستضافة بواسطة xAI. يظهر نشاط البحث في الدردشة.",
+      "capabilityOpenAISearch": "البحث على الويب OpenAI",
+      "capabilityOpenAISearchHelp": "السماح لنماذج API للاستجابات المتوافقة بالبحث في الويب. يظهر نشاط البحث في الدردشة.",
+      "claudeCodeToken": "رمز Claude Code CLI",
+      "claudeCodeConnect": "ربط / اتصال",
+      "claudeCodeConnectTitle": "حساب Claude",
+      "claudeCodeConnectHelp": "افتح Claude في هذا المتصفح لربط اشتراكك. يخزّن NanoAgent CLAUDE_CODE_OAUTH_TOKEN بنفس طريقة لصق setup-token.",
+      "claudeCodeConnectDialogHelp": "أكمل تسجيل الدخول في صفحة Claude. ستظهر لك رمز (غالباً code#state). الصقه هنا — Anthropic لا يعيد التوجيه إلى هذا الموقع.",
+      "claudeCodeAuthCode": "رمز التفويض من Claude",
+      "claudeCodeTokenPasteAlt": "أو الصق التوكن",
+      "claudeCodeTokenHelp": "أو الصق CLAUDE_CODE_OAUTH_TOKEN من `claude setup-token` إن كان لديك واحد. يقرأ Claude CLI الرسمي هذا المتغير في الاستدعاء التالي.",
+      "claudeCodeTokenPlaceholder": "أو الصق التوكن",
+      "claudeCodeTokenConfigured": "متصل · آخر 4 أرقام {{hint}}",
+      "claudeCodeClearToken": "Disconnect",
+      "claudeCodeTokenRequired": "الصق رمز Claude Code CLI غير فارغ."
+    },
+    "legal": {
+      "thirdPartyBrands": "أسماء المنتجات والشعارات والعلامات التجارية هي ملك لأصحابها. الاستخدام لتحديد الهوية فقط ولا يعني المصادقة."
+    },
+    "image": {
+      "selectProvider": "تحديد مزود",
+      "selectAspect": "تحديد الجانب",
+      "selectSize": "حجم الاختيار",
+      "selectModel": "اختر طراز الصورة",
+      "searchOrTypeModel": "البحث عن أو كتابة معرف الطراز",
+      "typeModelId": "اكتب معرّف الطراز الذي يدعمه هذا المزود.",
+      "configureProvider": "تكوين الموفر",
+      "missingCredential": "قم بتكوين هذا المزود قبل تمكين إنشاء الصور."
+    },
+    "capabilities": {
+      "providerSupport": "تبعيات مقدم الخدمة",
+      "providerInstallOnSave": "سيتم تثبيت الحزم المطلوبة تلقائيًا عند حفظ هذا المزود.",
+      "searchSupport": "البحث عن التبعيات",
+      "searchInstallOnSave": "سيتم تثبيت حزم Olostep المطلوبة تلقائيًا عند الحفظ.",
+      "installing": "جارٍ تثبيت الحزم المطلوبة…"
+    },
+    "api": {
+      "title": "API",
+      "openaiCompatible": "OpenAI API",
+      "description": "قم بتوصيل SDKs والعوامل الأخرى بـ nanobot من خلال API المتوافق مع OpenAI.",
+      "start": "بدء تشغيل API",
+      "starting": "Starting…",
+      "stop": "Stop",
+      "stopping": "Stopping…",
+      "access": "Access",
+      "thisDevice": "هذا الجهاز",
+      "localNetwork": "الشبكة المحلية",
+      "localHelp": "يمكن لهذا الجهاز فقط الاتصال.",
+      "networkHelp": "يمكن للأجهزة الأخرى الاتصال ؛ مطلوب مفتاح API.",
+      "port": "Port",
+      "portHelp": "يستخدم API هذا المنفذ المحلي.",
+      "apiKey": "API",
+      "apiKeyHelp": "يرسل العملاء هذا كرمز لحامله.",
+      "apiKeyRequired": "مطلوب قبل API لشبكتك.",
+      "apiKeyPlaceholder": "أدخل API",
+      "autoInstall": "سيتم تثبيت حزم خادم API المطلوبة تلقائيًا عند بدء تشغيلها."
+    },
+    "observability": {
+      "title": "Observability",
+      "configured": "تتوفر بيانات اعتماد التتبع لـ nanobot.",
+      "environment": "قم بتعيين LANGFUSE_SECRET_KEY و LANGFUSE_PUBLIC_KEY، ثم أعد تشغيل nanobot.",
+      "enable": "تمكين دعم التتبع"
+    },
+    "apps": {
+      "description": "أضف الأدوات إلى nanobot، ثم اذكرها مع @ في الدردشة.",
+      "cliLabel": "App",
+      "mcpLabel": "MCP",
+      "channelLabel": "Channel",
+      "featureLabel": "Feature",
+      "filterAll": "Ready",
+      "filterPlugins": "Plugins",
+      "filterCli": "Apps",
+      "filterMcp": "MCP",
+      "enabledSummary": "{{count}} جاهز",
+      "caption": "{{cli}} تطبيقات · {{mcp}} أدوات MCP",
+      "searchPlaceholder": "أدوات البحث",
+      "featured": "Tools",
+      "mcpTools": "MCP",
+      "loading": "جارٍ تحميل التطبيقات…",
+      "empty": "لا توجد أدوات تطابق بحثك.",
+      "emptyApps": "لا توجد تطبيقات متوفرة",
+      "emptyIntegrations": "لا توجد أدوات متاحة",
+      "emptyReady": "لا توجد أدوات جاهزة حتى الآن.",
+      "clearSearch": "مسح البحث",
+      "browseApps": "استعراض التطبيقات",
+      "browseIntegrations": "تصفح MCP",
+      "emptyIntegrationsHint": "أضف خادم MCP مخصص أدناه.",
+      "restartRequired": "أعد nanobot لتطبيق التطبيقات المحدثة MCP."
+    },
+    "channels": {
+      "description": "قم بتوصيل تطبيقات الدردشة والبريد الإلكتروني وواجهة مستخدم الويب بـ nanobot.",
+      "caption": "{{enabled}} تشغيل · {{total}} قنوات",
+      "searchPlaceholder": "بحث عن قنوات",
+      "backToChannels": "جميع القنوات",
+      "catalog": "Channels",
+      "loading": "جار تحميل القنوات …",
+      "empty": "لا توجد قنوات مطابقة لهذا الفلتر.",
+      "restartRequired": "أعد nanobot لتطبيق دعم القناة المحدث.",
+      "requires": "يتطلب: {{requirements}}",
+      "setUp": "الإعداد",
+      "setupGuide": "نعنع",
+      "configKeys": "مفاتيح التكوين",
+      "enable": "تمكين قناة",
+      "disable": "تعطيل القناة",
+      "needsConfig": "يحتاج إلى إعداد",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "advanced": "متقدم",
+      "checkAndEnable": "التحقق والتمكين",
+      "checkConnection": "التحقق من الاتصال",
+      "connectionChecks": "فحص الوصلات.",
+      "open": "فتح",
+      "checkedAndEnabled": "تم التحقق والتمكين.",
+      "checking": "Checking…",
+      "help": "Help",
+      "checkOnly": "فحص",
+      "commandCopied": "تم نسخ الأمر.",
+      "commandCopyFailed": "تعذر نسخ الأمر.",
+      "configuredInstances": "تم تكوين {{count}} حالة",
+      "connectPreview": "قم بتشغيل الأمر أدناه في الوحدة الطرفية للاتصال.",
+      "copyCommand": "أمر النسخ",
+      "filterAll": "الكل",
+      "filterOff": "لا يعمل",
+      "filterOn": "يعمل",
+      "helperCopied": "تم نسخ {{name}}.",
+      "helperCopyFailed": "تعذر نسخ {{name}}.",
+      "hideSecret": "إخفاء السر",
+      "instanceConfigured": "مكوّن",
+      "instanceNeedsSetup": "يحتاج إلى إعداد",
+      "runtimeFailed": "Failed",
+      "runtimeStarting": "Starting",
+      "runtimeStopped": "لا يعمل",
+      "managedByWebui": "يديرها WebUI",
+      "optional": "اختياري",
+      "providerPreset": "المزود",
+      "requiredSetup": "الإعداد المطلوب",
+      "savedSecret": "محفوظ",
+      "savedSecretPlaceholder": "سر محفوظ",
+      "savedSettings": "تم حفظ الإعدادات.",
+      "saveSettings": "حفظ الإعدادات",
+      "selectChannel": "عرض {{name}} إعدادات",
+      "showSecret": "عرض السر",
+      "toggleChannel": "قناة {{name}}",
+      "toggleInstance": "مثيل {{name}}",
+      "validationFailed": "تحقق من الإعداد المطلوب قبل التمكين.",
+      "completeSetupToEnable": "أكمل الإعداد المطلوب أدناه، ثم يمكن لـ nanobot تمكين هذه القناة.",
+      "chooseCredentialMethod": "اختر طريقة اعتماد واحدة",
+      "or": "or",
+      "fieldRequired": "مطلوب لإكمال الإعداد.",
+      "secretWillBeRemoved": "سيتم حذفها",
+      "keepSavedSecret": "الاحتفاظ ببيانات الاعتماد المحفوظة",
+      "removeSavedSecret": "إزالة بيانات الاعتماد المحفوظة",
+      "sections": {
+        "account": "Account",
+        "credentials": "Credentials",
+        "connection": "Connection",
+        "access": "Access",
+        "behavior": "Behavior",
+        "security": "Security"
+      },
+      "validation": {
+        "connected": "متصل",
+        "configured": "التحقق",
+        "needs_setup": "يحتاج إلى إعداد",
+        "invalid": "فشل الاتصال",
+        "unsupported": "الإعداد اليدوي"
+      },
+      "configuredInstances_one": "تم تكوين {{count}} مثيل",
+      "configuredInstances_other": "تم تكوين {{count}} حالة",
+      "validationMessages": {
+        "connected": "تم التحقق من الاتصال.",
+        "unverified": "لم يتم التحقق من الاتصال.",
+        "missing": "يرجى إكمال جميع الحقول المطلوبة.",
+        "invalid": "فشل التحقق من الاتصال.",
+        "unsupported": "اختبار الاتصال غير مدعوم لهذه القناة حتى الآن.",
+        "present": "مليئة",
+        "required": "Required",
+        "manual": "اختبار الاتصال غير مدعوم لهذه القناة حتى الآن."
+      },
+      "search": "بحث عن قنوات",
+      "filterEnabled": "Enabled",
+      "noResults": "لا توجد قنوات مطابقة",
+      "install": "Install",
+      "installChannel": "تثبيت {{name}}",
+      "noInstallNeeded": "لا حاجة للتثبيت",
+      "installNeeded": "يتطلب تبعيات"
+    },
+    "nanobotFeatures": {
+      "enabled": "Enabled",
+      "enable": "Enable",
+      "disable": "تعطيل",
+      "ready": "جاهز",
+      "missingDependency": "الدعم مفقود",
+      "installSupport": "دعم MP3 مفقود",
+      "installConfirmTitle": "هل تريد تثبيت الدعم لـ {{name }}؟",
+      "installConfirmDescription": "nanobot ما يحتاجه {{name}}، ثم يشغله. هل تريد المتابعة ؟",
+      "installOnlyConfirmDescription": "nanobot بتثبيت ما يحتاجه {{name}}. يمكنك توصيله بعد التثبيت.",
+      "installConfirmAction": "تثبيت وتمكين",
+      "installOnlyConfirmAction": "دعم MP3 مفقود",
+      "websocketRequired": "مطلوب لواجهة مستخدم الويب",
+      "channelDisabled": "تم تعطيل القناة",
+      "notEnabled": "غير مفعل"
+    },
+    "automations": {
+      "viewOptions": "البحث والتصفية",
+      "yourTasks": "أنظمتك التلقائية",
+      "systemTasks": "مهام النظام",
+      "instructions": "Instructions",
+      "done": "Done",
+      "moreDetails": "المزيد من التفاصيل",
+      "moreActions": "المزيد من الإجراءات",
+      "neverRun": "لم يتم تشغيله بعد",
+      "skipped": "Skipped",
+      "oneShotHint": "تمت الإزالة بعد الركض",
+      "filters": {
+        "all": "All",
+        "active": "نشط",
+        "paused": "Paused",
+        "failed": "بحاجة للاهتمام",
+        "system": "System"
+      },
+      "sort": {
+        "next": "التنفيذ التالي",
+        "last": "آخر تشغيل",
+        "updated": "Updated",
+        "name": "Name"
+      },
+      "search": "البحث عن مهمة أو رسالة أو دردشة مرتبطة أو جدول زمني",
+      "queue": "قائمة الانتظار",
+      "loading": "جارٍ تحميل الأتمتة…",
+      "noMatches": "لا توجد عمليات تلقائية تتطابق مع طريقة العرض هذه.",
+      "empty": "لا توجد عمليات تلقائية حتى الآن.",
+      "emptyHint": "nanobot في محادثة ما تريد أن يفعله في جدول زمني.",
+      "emptyAction": "فتح محادثة",
+      "clearFilters": "مسح الفلاتر",
+      "oneShot": "One-time",
+      "systemTask": "أتمتة يديرها النظام",
+      "localTrigger": "الزناد المحلي",
+      "labels": {
+        "schedule": "الجدولة",
+        "next": "Next",
+        "origin": "دردشة مرتبطة",
+        "created": "Created",
+        "updated": "Updated"
+      },
+      "runNow": "شغل الآن",
+      "pause": "Pause",
+      "resume": "Resume",
+      "edit": "Edit",
+      "delete": "Delete",
+      "protected": "Protected",
+      "editTitle": "تعديل التشغيل التلقائي",
+      "save": "Save",
+      "commandCopied": "Copied",
+      "copyCommand": "Copy",
+      "deleteTitle": "حذف التشغيل التلقائي",
+      "deleteDescription": "احذف التشغيل الآلي \\\"{{ name }}\\\". سيتم الاحتفاظ برسائل الدردشة الحالية.",
+      "cancel": "Cancel",
+      "status": {
+        "system": "System",
+        "running": "قيد التشغيل الآن",
+        "paused": "Paused",
+        "failed": "Failed",
+        "completed": "Completed",
+        "noSchedule": "غير مجدول",
+        "active": "نشط"
+      },
+      "origin": {
+        "system": "System",
+        "unknown": "لا توجد دردشة مرتبطة"
+      },
+      "channels": {
+        "api": "API",
+        "cli": "CLI"
+      },
+      "schedule": {
+        "at": "في {{time}}",
+        "every": "كل {{duration}}",
+        "cron": "كرون {{expr}}",
+        "cronWithTz": "كرون {{expr}} · {{tz}}",
+        "withTz": "{{summary}} · {{tz}}",
+        "dailyAt": "يوميًا في {{time}}",
+        "weekdaysAt": "أيام الأسبوع في {{time}}",
+        "hourlyAt": "كل ساعة في :{{minute}}",
+        "hourlyWindow": "كل ساعة {{start}}-{{end}} في :{{minute}}",
+        "local": "الزناد المحلي",
+        "custom": "جدول زمني مخصص"
+      },
+      "next": {
+        "paused": "Paused",
+        "pending": "قيد التشغيل الآن",
+        "local": "في انتظار الزناد",
+        "none": "لا توجد جولة تالية"
+      },
+      "message": {
+        "showMore": "أرسل فيما بعد",
+        "showLess": "عرض أقل"
+      },
+      "fields": {
+        "name": "Name",
+        "message": "Message",
+        "command": "Command",
+        "scheduleType": "نوع الجدول الزمني",
+        "every": "Every",
+        "unit": "Unit",
+        "cronExpression": "تعبير كرون",
+        "timezone": "Timezone",
+        "runAt": "تشغيل في"
+      },
+      "scheduleTypes": {
+        "every": "Interval",
+        "cron": "Cron",
+        "at": "Once"
+      },
+      "everyUnits": {
+        "second": "Seconds",
+        "minute": "Minutes",
+        "hour": "Hours",
+        "day": "Days"
+      },
+      "validation": {
+        "nameRequired": "أدخل اسم المهمة",
+        "messageRequired": "أدخل نص الرسالة",
+        "intervalRequired": "أدخل رقمًا صحيحًا موجبًا للفاصل الزمني.",
+        "cronRequired": "أدخل تعبير كرون.",
+        "timeRequired": "اختر وقت التشغيل.",
+        "futureRequired": "اختر تاريخًا في المستقبل."
+      }
+    },
+    "oauth": {
+      "authentication": "OAuth",
+      "signIn": "سجل الدخول",
+      "signingIn": "جارٍ تسجيل الدخول…",
+      "signInAgain": "تسجيل الدخول مرة أخرى",
+      "signOut": "تسجيل الخروج",
+      "signedInAs": "تم تسجيل الدخول باسم {{account}}",
+      "signInHelp": "تسجيل الدخول من هذا الجهاز ؛ لا يوجد مفتاح API مخزن في التكوين.",
+      "remoteSignInHelp": "حدد تسجيل الدخول لفتح xAI على جهاز الكمبيوتر الخاص بك، ثم الصق رمز التفويض الظاهر بعد تسجيل الدخول.",
+      "codexRemoteSignInHelp": "سجّل الدخول من خلال هذا المتصفح، ثم الصق عنوان URL الكامل لاستدعاء المضيف المحلي مرة أخرى في nanobot.",
+      "signInRequired": "تسجيل الدخول مطلوب",
+      "signInBeforeSaving": "قم بتسجيل الدخول قبل حفظ هذا المزود في الإعداد المسبق.",
+      "signedIn": "(توقيع)",
+      "notSignedIn": "لم يتم التوقيع",
+      "proxyLabel": "إستعمل الوكيل HTTP",
+      "proxySaveBeforeSignIn": "احفظ تغييرات الوكيل قبل تسجيل الدخول.",
+      "saveProxy": "احفظ الوكيل",
+      "localCodeHelp": "أكمل تسجيل الدخول في متصفحك. إذا nanobot تلقائيًا، فقم بلصق رمز التفويض أدناه.",
+      "remoteCodeHelp": "حدد تسجيل الدخول لفتح xAI على جهاز الكمبيوتر الخاص بك. بعد تسجيل الدخول، الصق رمز التفويض الموضح بواسطة xAI أدناه.",
+      "localCallbackHelp": "أكمل تسجيل الدخول في متصفحك. إذا nanobot تلقائيًا، فانسخ عنوان URL الكامل لاستدعاء المضيف المحلي من شريط العناوين والصقه أدناه.",
+      "remoteCallbackHelp": "افتح ChatGPT في هذا المتصفح وأكمل تسجيل الدخول. عندما تفشل صفحة المضيف المحلي في التحميل، انسخ عنوان URL الكامل من شريط العناوين والصقه أدناه.",
+      "authorizationCode": "رمز التفويض",
+      "callbackUrl": "عنوان URL لرد الاتصال",
+      "callbackUrlPlaceholder": "http :// المضيف المحلي:1455/auth/callback?code=…&state=…",
+      "openChatGPT": "افتح ChatGPT",
+      "pasteCallbackToContinue": "الصق عنوان URL لرد الاتصال للمتابعة.",
+      "waitingForCallback": "في انتظار رد اتصال المتصفح…",
+      "finishSignIn": "إنهاء تسجيل الدخول"
+    },
+    "skills": {
+      "description": "إدارة المهارات التي يمكن للوكيل استخدامها في المحادثات.",
+      "caption": "{{available}} متاح · {{total}} الإجمالي",
+      "views": "مشاهدات المهارات",
+      "installedTab": "المثبتة",
+      "discoverTab": "استكشاف",
+      "customGroup": "مخصصة",
+      "builtinGroup": "مدمجة",
+      "otherGroup": "أخرى",
+      "searchInstalled": "البحث عن المهارات المثبتة",
+      "filterAll": "الكل",
+      "filterEnabled": "مفعّلة",
+      "filterDisabled": "معطّلة",
+      "noMatching": "مهارات المطابقة",
+      "statusDisabled": "معطّل",
+      "statusEnabled": "مفعّل",
+      "statusNeedsSetup": "يحتاج إلى إعداد",
+      "showLess": "عرض أقل",
+      "showMore": "عرض المزيد",
+      "enabledControl": "استخدم هذه المهارة",
+      "enabledDescription": "اسمح للوكيل باستخدام هذه المهارة عند استيفاء متطلباتها.",
+      "enableSkill": "تمكين {{name}}",
+      "disableSkill": "تعطيل {{name}}",
+      "updateFailed": "تعذر تحديث هذه المهارة.",
+      "deleteTitle": "حذف المهارة",
+      "deleteDescription": "قم بإزالة هذه المهارة من مساحة العمل الحالية.",
+      "deleteAction": "حذف",
+      "deleteFailed": "تعذر حذف هذه المهارة.",
+      "deleteConfirmTitle": "حذف {{name}}؟",
+      "deleteConfirmDescription": "يؤدي هذا إلى إزالة ملفات المهارات من مساحة العمل الحالية. لا يمكن التراجع عن هذا الإجراء.",
+      "deleteConfirmAction": "حذف المهارة",
+      "instructionsTitle": "تعليمات المهارة",
+      "setupRequired": "لا يلزم الإعداد.",
+      "setupDescription": "قم بتركيب التبعية المفقودة على الجهاز الذي يعمل على nanobot، ثم تحقق مرة أخرى.",
+      "copySetupCommand": "نسخ أمر الإعداد",
+      "checkAgain": "التحقق مرة أخرى",
+      "marketplaceSearchFailed": "تعذر البحث في أسواق المهارات.",
+      "marketplaceInstallFailed": "تعذر تثبيت هذه المهارة.",
+      "marketplaceSearchPlaceholder": "البحث في المهارات",
+      "marketplaceSearchLabel": "البحث في المهارات",
+      "marketplaceSearching": "جارٍ البحث…",
+      "marketplaceProviderFilter": "مصدر المهارة",
+      "marketplaceProviderAll": "الكل",
+      "marketplaceTrendingTitle": "الاتجاه حسب السوق",
+      "marketplaceTrendingDescription": "يتم عرض التصنيفات وعدد التثبيتات بشكل منفصل لكل سوق.",
+      "marketplaceViewAll": "عرض الكل",
+      "marketplaceTrendingUnavailable": "المهارات الشائعة غير متاحة مؤقتًا.",
+      "marketplaceEmpty": "لم يتم العثور على مهارات لـ \"{{ query }}\".",
+      "marketplaceConfirmTitle": "تثبيت {{name }}؟",
+      "marketplaceConfirmDescription": "تأتي مهارة الطرف الثالث هذه من {{provider}} ({{source}}) وقد تتضمن تعليمات أو نصوصًا قابلة للتنفيذ.",
+      "marketplaceConfirmInstall": "تثبيت المهارة",
+      "marketplaceOpen": "افتح {{name}} على {{provider}}",
+      "marketplaceOpenProvider": "فتح {{provider}}",
+      "marketplaceInstalls24h": "{{formattedCount}} تثبيتات / 24 ساعة",
+      "marketplaceInstalls": "{{formattedCount}} تثبيتات",
+      "marketplaceNpxRequired": "Node.js مع npx مطلوب",
+      "marketplaceInstalling": "جارٍ التثبيت…",
+      "marketplaceInstalled": "مثبت",
+      "marketplaceInstall": "تثبيت",
+      "marketplaceNoTrend": "لا يوجد اتجاه حتى الآن",
+      "marketplaceTrendLabel": "اتجاه التثبيت لمدة 8 أسابيع",
+      "featured": "مهارات الوكيل",
+      "empty": "لا توجد مهارات متاحة.",
+      "sourceWorkspace": "Custom",
+      "sourceBuiltin": "Built-in",
+      "statusAvailable": "Available",
+      "statusUnavailable": "Unavailable",
+      "unavailableReason": "مفقود: {{reason}}",
+      "openDetails": "افتح التفاصيل لـ {{name}}",
+      "loadingDetail": "جارٍ تحميل تفاصيل المهارة…",
+      "loadFailed": "تعذر تحميل تفاصيل المهارة.",
+      "descriptionTitle": "Description",
+      "source": "Source",
+      "status": "Status",
+      "requirements": "Requirements",
+      "noRequirements": "لم يتم الإعلان عن أي متطلبات إضافية.",
+      "commands": "Commands",
+      "environment": "المتغيرات",
+      "missingCommands": "أدوات سطر الأوامر مفقودة",
+      "missingEnvironment": "متغيرات البيئة المفقودة",
+      "unavailableReasonLabel": "سبب عدم توفره",
+      "rawInstructions": "مهارة أولية .md",
+      "rawInstructionsEmpty": "لا يوجد محتوى ملف مهارة متاح.",
+      "detailDescription": "تفاصيل عن {{name}}."
+    },
+    "voice": {
+      "selectProvider": "تحديد مزود",
+      "configureProvider": "تكوين الموفر",
+      "languageAuto": "Auto"
+    }
+  },
+  "chat": {
+    "fallbackTitle": "الموضوع {{id}}",
+    "forkTitle": "الشوكة: {{title}}",
+    "loading": "جار التحميل",
+    "noSessions": "لا توجد جلسات حتى الآن.",
+    "showMore": "عرض {{count}} المزيد",
+    "collapsed": "{{count}} موضوعات مخفية",
+    "showLess": "عرض أقل",
+    "actions": "إجراءات الموضوع لـ {{title}}",
+    "newInProject": "ابدأ موضوعًا جديدًا في {{project}}",
+    "activity": {
+      "running": "وكيل قيد التشغيل",
+      "complete": "انتهى الوكيل",
+      "updated": "نشاط جديد",
+      "recovery": "تحتاج هذه المحادثة إلى انتباهك"
+    },
+    "pin": "تثبيت",
+    "unpin": "إلغاء التثبيت",
+    "rename": "إعادة تسمية",
+    "renameTitle": "إعادة تسمية الموضوع",
+    "renameDescription": "اختر اسم شريط جانبي محلي لهذا الموضوع.",
+    "renamePlaceholder": "(اسم الموضوع)",
+    "renameProjectTitle": "إعادة تسمية المشروع",
+    "renameProjectDescription": "اختر اسم شريط جانبي محلي لهذا المشروع.",
+    "renameProjectPlaceholder": "اسم المشروع",
+    "renameSave": "حفظ",
+    "archive": "أرشفة",
+    "unarchive": "إلغاء الأرشفة",
+    "showArchived": "عرض المؤرشفة",
+    "hideArchived": "إخفاء الأرشيف",
+    "select": "Select",
+    "cancelSelection": "إلغاء التحديد",
+    "selectedCount": "تم تحديد {{count}}",
+    "deleteSelected": "Delete",
+    "delete": "Delete",
+    "newChat": "أضف موضوع جديد",
+    "groups": {
+      "pinned": "مثبتة",
+      "all": "Topics",
+      "projects": "المشاريع",
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "earlier": "سابقًا",
+      "archived": "مؤرشفة"
+    }
+  },
+  "deleteConfirm": {
+    "title": "هل تريد حذف هذا الموضوع ؟",
+    "titleMany": "هل تريد حذف {{count}} محادثات ؟",
+    "description": "لا يمكن التراجع عن هذا الإجراء. ",
+    "descriptionMany": "لا يمكن التراجع عن هذا الإجراء. ",
+    "cancel": "Cancel",
+    "confirm": "Delete",
+    "automationsDescription": "تحتوي هذه الدردشة على عمليات تلقائية مجدولة. سيؤدي حذفها أيضًا إلى حذفها.",
+    "automationsDescriptionMany": "سيتم أيضًا حذف الأتمتة المرتبطة.",
+    "moreAutomations": "{{count}} أكثر",
+    "confirmWithAutomations": "Delete",
+    "schedule": {
+      "at": "{{time}}",
+      "every": "كل {{duration}}",
+      "cron": "كرون {{expr}}",
+      "cronWithTz": "كرون {{expr}} · {{tz}}",
+      "local": "الزناد المحلي",
+      "unknown": "جدول زمني مخصص"
+    },
+    "next": {
+      "label": "التالي: {{time}}",
+      "disabled": "Paused",
+      "local": "في انتظار الزناد",
+      "none": "لا توجد جولة تالية"
+    }
+  },
+  "connection": {
+    "idle": "Idle",
+    "connecting": "جارٍ الاتصال…",
+    "open": "متصل",
+    "reconnecting": "جاري إعادة الاتصال…",
+    "closed": "Disconnected",
+    "error": "خطأ بالاتصال"
+  },
+  "thread": {
+    "compaction": {
+      "cancelled": "تم إلغاء ضغط السياق",
+      "empty": "لا شيء للضغط.",
+      "started": "ضغط السياق",
+      "failed": "فشل ضغط السياق",
+      "succeeded": "تم ضغط السياق"
+    },
+    "loadingConversation": "تحميل المحادثة",
+    "empty": {
+      "greetings": {
+        "workOn": "ما الذي يجب أن نعمل عليه ؟",
+        "start": "أين علينا أن نبدأً؟",
+        "build": "ما الذي نبنيه اليوم ؟",
+        "tackle": "ما الذي يجب أن نتعامل معه معًا ؟"
+      },
+      "quickActions": {
+        "plan": {
+          "title": "إنشاء خطة المشروع",
+          "prompt": "إنشاء خطة مشروع موجزة لما يجب أن أقوم ببنائه بعد ذلك."
+        },
+        "analyze": {
+          "title": "تحليل هذه البيانات",
+          "prompt": "ساعدني في تحليل هذه البيانات واستخلاص أهم الأنماط."
+        },
+        "brainstorm": {
+          "title": "قم بالعصف الذهني لبعض الأفكار",
+          "prompt": "قم بعصف ذهني لبعض الأفكار العملية والمفاضلات لهذه المشكلة."
+        },
+        "code": {
+          "title": "اكتب الرمز",
+          "prompt": "ساعدني في كتابة التعليمات البرمجية لهذه المهمة، بدءًا من أصغر تغيير مفيد."
+        },
+        "summarize": {
+          "title": "س: لخص هذه الوثيقة",
+          "prompt": "لخص هذا المستند وسرد النقاط الرئيسية."
+        },
+        "more": {
+          "title": "More",
+          "prompt": "أرني بعض الطرق المفيدة التي يمكنك من خلالها المساعدة في مساحة العمل هذه."
+        }
+      },
+      "imageQuickActions": {
+        "icon": {
+          "title": "أيقونة تصميم تطبيق",
+          "prompt": "قم بإنشاء رمز تطبيق نظيف 1:1 لـ nanobot: روبوت ودود، نمط متجه بسيط، لوحة زرقاء وبيضاء ناعمة، بدون نص."
+        },
+        "sticker": {
+          "title": "اصنع ملصقًا",
+          "prompt": "قم بإنشاء صورة لطيفة على شكل ملصق لمساعد روبوت صغير، وخلفية شفافة المظهر، ومعبرة ومرحة."
+        },
+        "poster": {
+          "title": "إنشاء ملصق",
+          "prompt": "قم بإنشاء مفهوم ملصق مصقول لمساعد ذكاء اصطناعي شخصي، وتكوين حديث، وتسلسل هرمي مرئي قوي، ومناسب للصفحة المقصودة."
+        },
+        "product": {
+          "title": "نموذج تجريبي للمنتج",
+          "prompt": "إنشاء صورة نموذج بالحجم الطبيعي لمنتج نظيف لتطبيق ويب محادثة للذكاء الاصطناعي، واجهة بسيطة، إضاءة ممتازة، إطار جهاز واقعي."
+        },
+        "portrait": {
+          "title": "صورة عمودية منمقة",
+          "prompt": "قم بإنشاء صورة منمقة لرفيق الذكاء الاصطناعي الودود، والإضاءة الناعمة، وأسلوب التوضيح الحديث المفصل ولكن الودي."
+        },
+        "edit": {
+          "title": "تعديل صورة",
+          "prompt": "ساعدني في تحرير صورة. اطلب مني تحميل الصورة أو الرجوع إليها أولاً، ثم إنشاء النتيجة التي تم تعديلها."
+        }
+      }
+    },
+    "header": {
+      "toggleSidebar": "تبديل الشريط الجانبي",
+      "newChat": "ابدأ موضوعًا جديدًا",
+      "toggleTheme": "تبديل السمة من الترويسة",
+      "settings": "افتح الإعدادات",
+      "sessionInfo": "تفاصيل الجلسة"
+    },
+    "sessionInfo": {
+      "title": "Session",
+      "untitled": "موضوع بدون عنوان",
+      "automations": "Automations",
+      "count": "{{count}}",
+      "loading": "جارٍ تحميل الأتمتة…",
+      "loadFailed": "تعذر تحميل الأتمتة.",
+      "empty": "لا توجد عمليات تلقائية في هذه الجلسة حتى الآن.",
+      "disabled": "Off",
+      "schedule": {
+        "at": "{{time}}",
+        "every": "كل {{duration}}",
+        "cron": "كرون {{expr}}",
+        "cronWithTz": "كرون {{expr}} · {{tz}}",
+        "local": "الزناد المحلي",
+        "unknown": "جدول زمني مخصص"
+      },
+      "next": {
+        "label": "{{time}}",
+        "pending": "سيتم تشغيله قريبًا",
+        "disabled": "Paused",
+        "local": "في انتظار الزناد",
+        "none": "لا توجد جولة تالية"
+      }
+    },
+    "composer": {
+      "placeholderThread": "اكتب رسالتك",
+      "placeholderHero": "إسأل عن أي شيء",
+      "placeholderOpening": "جارٍ فتح موضوع جديد…",
+      "placeholderStreaming": "النموذج يستجيب…",
+      "inputAria": "إدخال الرسالة",
+      "sendHint": "أدخل للإرسال · Shift+Enter للسطر الجديد",
+      "runRuntimeTitle": "الجري · {{elapsed}}",
+      "goalStateStrip": "الهدف · {{label}}",
+      "goalStateFallback": "Goal",
+      "goalStateExpandAria": "عرض الهدف الكامل",
+      "goalStateSheetTitle": "Goal",
+      "goalStateCloseAria": "هدف قريب",
+      "send": "إرسال الرسالة",
+      "stop": "إيقاف الاستجابة",
+      "quotedContext": "السياق المقتبس",
+      "removeQuotedContext": "إزالة السياق المقتبس",
+      "modelNotConfigured": "لم يتم تكوين الطراز",
+      "configureModel": "تكوين النموذج",
+      "chooseAI": "اختر",
+      "switchModel": "تبديل الطراز لهذه الدردشة",
+      "manageModels": "إدارة النماذج",
+      "context": {
+        "tooltip": "السياق {{percent }}%",
+        "detailsLabel": "استخدام السياق المفتوح",
+        "panelTitle": "استخدام السياق",
+        "contextTitle": "Context",
+        "recentRounds": "الجولات الأخيرة",
+        "inputTrend": "رموز الإدخال",
+        "input": "رموز الإدخال",
+        "cacheHitRate": "معدل الوصول إلى ذاكرة التخزين المؤقت KV",
+        "output": "رموز الإخراج",
+        "duration": "زمن الإنشاء"
+      },
+      "queued": {
+        "label": "إرشادات قائمة الانتظار",
+        "guide": "Guide",
+        "delete": "حذف التوجيه",
+        "edit": "تعديل الإرشادات",
+        "drag": "اسحب لإعادة ترتيب"
+      },
+      "attachImage": "إرفاق ملفّات",
+      "imageMode": {
+        "label": "توليد الصورة",
+        "toggle": "تبديل وضع إنشاء الصور",
+        "placeholder": "وصف صورة أو تحريرها…",
+        "aspectAria": "نسبة أبعاد الصورة",
+        "aspectLabel": "جانب الصورة",
+        "aspect": {
+          "auto": "Auto",
+          "1_1": "مربع 1:1",
+          "3_4": "Portrait 3:4",
+          "9_16": "القصة 9:16",
+          "4_3": "Landscape 4:3",
+          "16_9": "عريض 16:9"
+        }
+      },
+      "tools": {
+        "search": "Search",
+        "reason": "Reason",
+        "deepResearch": "Deep Research",
+        "voice": "إدخال الصوت‬"
+      },
+      "voice": {
+        "hint": "انقر للإملاء أو الانتظار",
+        "stop": "إيقاف التسجيل",
+        "transcribing": "Transcribing…",
+        "recordingStatus": "جارٍ التسجيل {{time}}"
+      },
+      "voiceErrors": {
+        "insecureContext": "يحظر Chrome والمتصفحات الأخرى الوصول إلى الميكروفون على صفحات HTTP البعيدة للأمان. افتح واجهة الويب هذه عبر HTTPS لاستخدام الإدخال الصوتي.",
+        "unsupported": "إدخال الصوت غير مدعوم في هذا المتصفح.",
+        "permission": "اسمح بالوصول إلى الميكروفون في شريط العناوين، ثم أعد المحاولة.",
+        "notConfigured": "تكوين موفر النسخ أولاً.",
+        "tooLong": "التسجيل طويل جدًا.",
+        "tooShort": "اضغط لفترة أطول قليلاً لتسجيل الصوت.",
+        "noInput": "لم يتم اكتشاف أي إدخال للميكروفون.",
+        "noDevice": "لم يتم العثور على ميكروفون. قم بتوصيل الميكروفون وحاول مرة أخرى.",
+        "failed": "تعذر نسخ الصوت."
+      },
+      "slash": {
+        "ariaLabel": "أوامر مائلة",
+        "label": "commands",
+        "navigateHint": "[ترجمة المصطلح: Navigate]",
+        "selectHint": "أدخِل/حدِّد علامة التبويب",
+        "closeHint": "إغلاق Esc",
+        "badges": {
+          "current": "Current",
+          "recent": "Recent"
+        },
+        "details": {
+          "goalActive": "الهدف قيد التشغيل",
+          "goalReady": "ابدأ هدفًا مستدامًا",
+          "history": "عرض الرسائل الأخيرة",
+          "stopRunning": "قيد التشغيل الآن"
+        },
+        "commands": {
+          "new": {
+            "title": "محادثة جديدة",
+            "description": "أعد تعيين هذه الدردشة وابدأ محادثة جديدة."
+          },
+          "compact": {
+            "title": "السياق المدمج",
+            "description": "قم بضغط سياق هذه الدردشة واستمر في المحادثة."
+          },
+          "stop": {
+            "title": "المهمة الحالية",
+            "description": "قم بإلغاء دور الوكيل النشط لهذه الدردشة."
+          },
+          "restart": {
+            "title": "إعادة تشغيل nanobot",
+            "description": "أعد تشغيل عملية الروبوت في مكانها."
+          },
+          "status": {
+            "title": "إظهار الحالة",
+            "description": "عرض وقت التشغيل وموفر الخدمة وحالة القناة."
+          },
+          "model": {
+            "title": "Model",
+            "description": "عرض أو تبديل الإعداد المسبق للنموذج النشط."
+          },
+          "history": {
+            "title": "إظهار سجل المحادثة",
+            "description": "اطبع آخر رسائل المحادثة المستمرة."
+          },
+          "dream": {
+            "title": "تشغيل الحلم",
+            "description": "تشغيل دمج الذاكرة يدويًا."
+          },
+          "dream_log": {
+            "title": "عرض سجل الأحلام",
+            "description": "اعرض ما تغيّر في دمج الأحلام الأخير."
+          },
+          "dream_restore": {
+            "title": "استعادة الذاكرة",
+            "description": "أعد الذاكرة إلى لقطة حلم سابقة."
+          },
+          "dream_prompt": {
+            "title": "ذاكرة الأحلام",
+            "description": "أخبر Dream عن كيفية تنظيم ذاكرة مساحة العمل هذه."
+          },
+          "goal": {
+            "title": "وكلاء العمليات المستمرة",
+            "description": "أخبر الوكيل أن يتعامل مع هذا كهدف مستدام متعدد الخطوات."
+          },
+          "trigger": {
+            "title": "إنشاء مشغل محلي",
+            "description": "إنشاء CLI مرتبط بجلسة الدردشة هذه."
+          },
+          "help": {
+            "title": "عرض التعليمات",
+            "description": "سرد أوامر الشرطة المائلة المتاحة."
+          },
+          "pairing": {
+            "title": "Pairing",
+            "description": "إدارة طلبات الاقتران."
+          }
+        }
+      },
+      "mentions": {
+        "ariaLabel": "Mentions",
+        "label": "Apps",
+        "cliGroup": "CLI",
+        "mcpGroup": "MCP",
+        "sessionGroup": "Nanobot",
+        "cliBadge": "CLI",
+        "mcpBadge": "MCP",
+        "cliDescription": "استخدم @{{ name}} كتطبيق CLI محلي",
+        "mcpDescription": "استخدم @{{ name}} MCP",
+        "cliTitle": "CLI: {{name}}",
+        "mcpTitle": "MCP: {{name}}",
+        "sessionBadge": "Nanobot",
+        "sessionDescription": "قم بالإشارة إلى @{{ name}} كمحادثة سابقة"
+      },
+      "encoding": "[ترجمة المصطلح: Encoding]",
+      "remove": "إزالة المرفق",
+      "normalizedSizeHint": "{{orig}} → {{current}} (تلقائي)",
+      "textTooLarge": "نص الرسالة كبير جدًا (بحد أقصى {{max}})",
+      "imageRejected": {
+        "unsupported_type": "نوع ملف غير مدعوم",
+        "empty_file": "لا يمكن إرفاق ملفات فارغة",
+        "too_many_attachments": "الحد الأقصى {{max}} مرفقات لكل رسالة",
+        "too_many_images": "الحد الأقصى {{max}} صورة لكل رسالة",
+        "magic_mismatch": "لا يبدو الملف كصورة حقيقية",
+        "decode_failed": "تعذر فك تشفير هذه الصورة",
+        "too_large": "الملف كبير جدًا — جرب ملفًا أصغر",
+        "total_too_large": "المرفقات كبيرة جدًا معًا — قم بإزالة بعضها أو استخدم ملفات أصغر",
+        "transport_too_large": "سيتجاوز هذا المرفق حد نقل البوابة",
+        "io": "لا يمكن قراءة الملف:"
+      },
+      "workspace": {
+        "accessAria": "وضع الوصول إلى مساحة العمل",
+        "projectAria": "اختر مشروع",
+        "projectPlaceholder": "حدد المشروع",
+        "default": "إذن الربط الافتراضي",
+        "defaultShort": "Default",
+        "full": "وصول كامل",
+        "fullShort": "Full"
+      }
+    },
+    "scrollToBottom": "التمرير إلى أسفل",
+    "loadEarlier": "تحميل الرسائل السابقة",
+    "forkedFromHistory": "شوكة من التاريخ",
+    "promptNavigator": {
+      "open": "افتح موجه التنقل",
+      "title": "Prompts",
+      "search": "مطالبات البحث",
+      "noResults": "لا توجد مطالبات مطابقة.",
+      "jumpTo": "انتقل إلى المطالبة: {{label}}",
+      "railAria": "التنقل الفوري للمستخدم"
+    }
+  },
+  "message": {
+    "streaming": "streaming",
+    "delivery": {
+      "sending": "يتم الارسال…",
+      "failed": "إرسال إلى"
+    },
+    "assistantTyping": "المساعد يكتب",
+    "toolSingle": "استخدام أداة",
+    "toolMany": "{{count}} أدوات مستخدمة",
+    "toolSummary": "{{count}} أداة",
+    "toolSummaryMany": "{{count}} من الأدوات",
+    "reasoningTools": "الاستدلال · {{count}} أدوات",
+    "reasoningToolsSingular": "الاستدلال · أداة واحدة",
+    "reasoning": "Thinking",
+    "reasoningStreaming": "التفكير",
+    "reasoningSummary": "Reasoning",
+    "agentActivitySummary": "{{reasoning}} الخطوات · {{tools}} مكالمات الأداة",
+    "agentActivityToolsOnly": "{{tools}} مكالمات الأدوات",
+    "agentActivityLiveSummary": "العمل… · {{reasoning}} الخطوات · {{tools}} مكالمات الأداة",
+    "agentActivityLiveToolsOnly": "جارٍ العمل… · {{tools}} مكالمات الأدوات",
+    "activityThinkingFor": "التفكير لمدة {{duration}}",
+    "activityThought": "Thought",
+    "activityThoughtFor": "فكرة لمدة {{duration}}",
+    "activityWorkingFor": "العمل لمدة {{duration}}",
+    "activityWorked": "Worked",
+    "activityWorkedFor": "عملت لمدة {{duration}}",
+    "retryConnection": "فشل الاتصال",
+    "retryTimeout": "انتهت مهلة الطراز",
+    "retryRateLimit": "السعر محدود",
+    "retryServer": "الطراز غير متاح",
+    "retryUnknown": "فشل طلب الطراز",
+    "retryWaiting": "{{error}} · إعادة المحاولة خلال {{seconds}}ثانية · محاولة {{attempt}}",
+    "retryExhausted": "{{error}} · دورة الإنهاء",
+    "cliActivityRunningOne": "استخدام {{name}}",
+    "cliActivityRanOne": "مستخدم {{name}}",
+    "cliActivityFailedOne": "فشل {{name}}",
+    "cliActivityRunningMany": "استخدام {{count}} CLI",
+    "cliActivityRanMany": "تطبيقات {{count}} CLI المستخدمة",
+    "cliActivityFailedMany": "{{count}} فشل تطبيقات CLI",
+    "cliRunRunning": "Using",
+    "cliRunRan": "Used",
+    "cliRunFailed": "Failed",
+    "imageAttachment": "الصورة المرفقة",
+    "videoAttachment": "مرفق فيديو",
+    "fileAttachment": "ملف مرفق",
+    "attachmentUnavailable": "المرفق غير متاح",
+    "dataTable": "جدول بيانات",
+    "fileEditPreparing": "إعداد الملف…",
+    "openLink": "افتح الرابط: {{label}}",
+    "openAttachment": "افتح {{name}}",
+    "skill": "مهارة: {{name}}",
+    "automationSourceFallback": "Automation",
+    "automationTriggered": "يتم تشغيله تلقائيًا",
+    "askAboutSelection": "سأل عن",
+    "forkFromHere": "Fork",
+    "copyReply": "Copy",
+    "copiedReply": "Copied",
+    "turnLatencyTitle": "وقت الاستجابة (من البداية إلى النهاية)",
+    "fileEditViewDiff": "عرض الاختلاف",
+    "fileEditViewLargeDiff": "عرض كبير",
+    "fileEditDiffLineCount": "{{count}} أسطر",
+    "fileEditUnchangedLinesHidden": "{{count}} سطور غير متغيرة مخفية",
+    "fileEditShowMoreLines": "عرض {{count}} سطور أخرى",
+    "fileEditShowFewerLines": "عرض عدد أقل من الأسطر",
+    "fileEditOpenFile": "باز کردن فایل",
+    "fileEditDiffTruncated": "تم اقتطاع الاختلاف. افتح الملف للتغيير الكامل.",
+    "usage": {
+      "context": "السياق الآن: {{tokens}}{{capacity}}",
+      "requests": "{{count}} يتصل بهذا المنعطف",
+      "estimated": "يتضمن الاستخدام المقدر"
+    }
+  },
+  "recovery": {
+    "actionFailed": "فشل إجراء الاسترداد. حاول مرة أخرى.",
+    "interrupted": "تمت مقاطعة المهمة",
+    "completed": "تم إكمال المهمة",
+    "failed": "فشل الاسترداد",
+    "failedHelp": "تعذر استعادة المهمة المحفوظة بأمان. راجعه قبل المتابعة.",
+    "resuming": "جارٍ استعادة المهمة التي تمت مقاطعتها…",
+    "review": "راجع المهمة قبل المتابعة. لن يتم إعادة تشغيل الأدوات تلقائيًا.",
+    "safeResume": "المتابعة من سياق المحادثة المحفوظة.",
+    "dismiss": "تجاهل",
+    "continue": "متابعة"
+  },
+  "lightbox": {
+    "title": "معاينة الصورة",
+    "open": "عرض الصورة",
+    "prev": "الصورة السابقة",
+    "next": "الصورة التالية",
+    "close": "إغلاق معاينة الصورة"
+  },
+  "filePreview": {
+    "aria": "معاينة الملف",
+    "breadcrumb": "مسار الملف",
+    "close": "إغلاق معاينة الملف",
+    "loading": "تحميل المعاينة…",
+    "failed": "تعذر معاينة هذا الملف.",
+    "routeMissing": "تحتاج معاينة الملف إلى أحدث بوابة. أعد تشغيل بوابة nanobot وحاول مرة أخرى.",
+    "resize": "تغيير حجم معاينة الملف",
+    "truncated": "تم اقتطاع المعاينة لأن هذا الملف كبير."
+  },
+  "code": {
+    "fallbackLanguage": "code",
+    "copyAria": "نسخ الرمز",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "workbench": {
+    "aria": "طاولة عمل المحادثة",
+    "panes": "Panes",
+    "tabAria": "مجموعة: {{title}}",
+    "panesInTab": "الأجزاء في {{title}}",
+    "collapseTabGroup": "طي الأجزاء في {{title}}",
+    "expandTabGroup": "توسيع الأجزاء في {{title}}",
+    "dropPane": "انقل {{pane}} إلى {{tab}}",
+    "createGroup": "إنشاء مجموعة",
+    "moveTo": "تحرك إلى",
+    "renameGroupTitle": "إعادة تسمية المجموعة",
+    "renameGroupDescription": "أعطِ هذه المجموعة اسمًا.",
+    "renameGroupPlaceholder": "اسم المحموعة",
+    "dissolveTab": "إلغاء المجموعة",
+    "layout": "تخطيط الجزء",
+    "addPane": "إضافة جزء",
+    "paneLimit": "الحد الأقصى {{count}} أجزاء",
+    "deleteConversations": "حذف جميع الدردشات",
+    "movePane": "نقل جزء {{title}}",
+    "movePaneHint": "اسحب للتحرك · تعمل مفاتيح الأسهم أيضًا",
+    "resizePaneBoundary": "تغيير حجم حد جزء {{index}}",
+    "promotePane": "اجعل {{title}} الجزء الأساسي",
+    "paneActions": "{{title}} إجراءات جزء",
+    "detachPane": "إزالة",
+    "composerAria": "رسالة {{title}}",
+    "layouts": {
+      "columns": "Columns",
+      "rows": "Rows",
+      "grid": "Grid",
+      "bsp": "BSP",
+      "main-stack": "الرئيسية والمكدسة"
+    }
+  },
+  "common": {
+    "dismiss": "Dismiss",
+    "close": "Close",
+    "current": "Current",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "messageTooBig": {
+      "title": "الرسالة كبيرة جدًا",
+      "body": "رفض الخادم رسالتك الأخيرة لأنها تجاوزت حد الحجم. قم بإزالة بعض الصور أو جرب ملفات أصغر، ثم أرسلها مرة أخرى."
+    },
+    "workspaceScopeRejected": {
+      "title": "لم يتم تغيير مساحة العمل",
+      "body": "رفضت البوابة هذا المشروع أو وضع الوصول. اختر مشروعًا موجودًا أو وضع وصول مختلفًا، ثم حاول مرة أخرى."
+    },
+    "turnRejected": {
+      "title": "لم يتم إرسال الرسالة",
+      "body": "رفضت البوابة هذه الرسالة. راجع نصه أو مرفقاته، ثم حاول مرة أخرى."
+    },
+    "modelRequestFailed": {
+      "billingTitle": "حصة موفر الطراز غير متاحة",
+      "billingBody": "أضف رصيدًا أو تحقق من الفوترة لحساب مزود الخدمة، ثم حاول مرة أخرى.",
+      "connectionTitle": "تعذر الاتصال بمزود الطراز",
+      "timeoutTitle": "انتهت مهلة طلب موفر الطراز",
+      "rateLimitTitle": "تم الوصول إلى الحد الأقصى لسعر مزود الطراز",
+      "serverTitle": "خطأ في خدمة مزود الطراز",
+      "unknownTitle": "فشل طلب موفر الطراز",
+      "bodyWithAttempt": "فشل الطلب في المحاولة {{attempts}}، لذلك توقفت المحاولات. تحقق من تكوين مزود الخدمة أو حالة الخدمة، ثم حاول مرة أخرى.",
+      "body": "تحقق من تكوين مزود الخدمة أو حالة الخدمة، ثم حاول مرة أخرى."
+    }
+  },
+  "workspace": {
+    "dialog": {
+      "defaultProject": "مساحة العمل الافتراضية للموارد البشرية",
+      "manual": "مسار اللصق",
+      "manualPlaceholder": "/Users/name/project",
+      "usePath": "استخدام المسار",
+      "absolutePathRequired": "أدخل مسار مجلد مطلق على هذا الجهاز."
+    }
+  },
+  "trading": {
+    "chart": {
+      "title": "رسم الذهب",
+      "subtitle": "XAUUSD · TradingView Advanced Charts · اطلب من الوكيل تحليل الذهب في المحادثة",
+      "analyze": "تحليل الذهب",
+      "analyzing": "جارٍ التحليل…",
+      "liveMarket": "سوق حي",
+      "marketUnavailable": "بيانات السوق غير متاحة",
+      "recommendationCards": "بطاقات التوصية",
+      "confidence": "الثقة: {{percent }}%",
+      "loadStatusFailed": "تعذر تحميل حالة التداول",
+      "analyzeFailed": "فشل التحليل ({{status}})",
+      "noChartImage": "لا توجد صورة مخطط متاحة.",
+      "chartSnapshotAlt": "لقطة من الرسم البياني"
+    },
+    "inbox": {
+      "title": "Recommendations",
+      "subtitle": "توصيات الذهب المخزنة مع حالة النتائج الحية والإجراءات الورقية",
+      "refresh": "Refresh",
+      "filterAll": "All",
+      "filterOpen": "Open",
+      "filterClosed": "Closed",
+      "loadFailed": "تعذر تحميل التوصيات",
+      "empty": "لا توجد توصيات في هذا الرأي. اطلب من الوكيل تحليل الذهب في الدردشة.",
+      "selectPrompt": "حدد توصية لمراجعة المستويات والموافقة/الرفض في الوضع الورقي.",
+      "paper": "ورقة: {{action}}"
+    },
+    "performance": {
+      "title": "Performance",
+      "subtitle": "توصيات الذهب وملخص تداول الورق",
+      "loading": "جارٍ تحميل الأداء…",
+      "loadFailed": "تعذر تحميل الأداء",
+      "totalRecommendations": "مجموع التوصيات",
+      "open": "Open",
+      "closed": "Closed",
+      "paperActions": "الإجراءات الورقية",
+      "buySignals": "إشارات الشراء",
+      "sellSignals": "إشارات البيع",
+      "wait": "Wait",
+      "outcomeTracking": "رئيس قسم متابعة المخرجات",
+      "inTrade": "في مجال التجارة",
+      "waitingEntry": "قيد الانتظار",
+      "tp1Hit": "TP1 HIT",
+      "invalidated": "Invalidated",
+      "recentRecommendations": "التوصيات الأخيرة"
+    },
+    "connect": {
+      "title": "ربط Telegram و WhatsApp",
+      "subtitle": "الصق رمز بوت Telegram من @BotFather، أو امسح رمز QR لـ WhatsApp. هذه شاشة الإعداد الوحيدة — بدون خطوات تثبيت إضافية.",
+      "telegram": "Telegram",
+      "whatsapp": "WhatsApp",
+      "telegramSteps": {
+        "openBotFather": "افتح Telegram وتحدث إلى @BotFather",
+        "createBot": "إنشاء روبوت ونسخ الرمز المميز",
+        "pasteToken": "الصقه بالأسفل واحفظه"
+      },
+      "tokenPlaceholder": "123456:ABC-DEF…",
+      "saveToken": "حفظ الرمز المميز Telegram",
+      "saving": "جارٍي الحفظ…",
+      "tokenRequired": "الصق الرمز المميز لبوت Telegram من @BotFather.",
+      "tokenSaved": "تم حفظ الرمز المميز Telegram وتم تمكين القناة.",
+      "loadingWhatsapp": "جارٍ تحميل موصل WhatsApp…",
+      "channelLoading": "جار التحميل",
+      "channelConnectedRunning": "متصل ويعمل",
+      "channelEnabledStarting": "تم التمكين — بدءًا من",
+      "channelConfiguredNotEnabled": "تم التكوين — غير ممكّن",
+      "channelNotConnected": "غير متصل",
+      "whatsappQr": {
+        "idleLabel": "عرض WhatsApp ريال قطري",
+        "qrAlt": "WhatsApp ربط رمز الاستجابة السريعة",
+        "scanTitle": "رابط WhatsApp",
+        "scanDescription": "في WhatsApp، افتح الأجهزة المرتبطة، اختر ربط جهاز، ثم امسح هذا الرمز.",
+        "waiting": "في انتظار WhatsApp…",
+        "connected": "WhatsApp متصل.",
+        "stopped": "توقفت محاولة اتصال WhatsApp. ابدأ مرة أخرى للحصول على رمز جديد.",
+        "connecting": "جارٍ الاتصال…",
+        "scanAgain": "ربط حساب آخر",
+        "connect": "رابط WhatsApp"
+      }
+    },
+    "statusBar": {
+      "openDirection": "فتح {{direction}} — {{summary}}"
+    },
+    "briefing": {
+      "loadFailed": "تعذر تحميل الإحاطة"
+    },
+    "recommendation": {
+      "approvedPaper": "معتمد (ورقي)",
+      "rejected": "Rejected",
+      "approve": "Approve",
+      "reject": "Reject",
+      "confidence": "الثقة {{percent }}%",
+      "entry": "Entry",
+      "stopLoss": "SL",
+      "target": "TP{{index}}",
+      "macroDrivers": "العوامل الدافعة الرئيسية"
+    }
+  }
+}

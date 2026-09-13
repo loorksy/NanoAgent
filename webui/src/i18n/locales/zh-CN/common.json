@@ -1915,5 +1915,103 @@
       "usePath": "使用路径",
       "absolutePathRequired": "请输入这台机器上的绝对文件夹路径。"
     }
+  },
+  "trading": {
+    "chart": {
+      "title": "Gold Chart",
+      "subtitle": "XAUUSD · TradingView Advanced Charts · ask the agent in chat to analyze gold",
+      "analyze": "Analyze gold",
+      "analyzing": "Analyzing…",
+      "liveMarket": "Live market",
+      "marketUnavailable": "Market data unavailable",
+      "recommendationCards": "Recommendation cards",
+      "confidence": "Confidence: {{percent}}%",
+      "loadStatusFailed": "Failed to load trading status",
+      "analyzeFailed": "Analyze failed ({{status}})",
+      "noChartImage": "No chart image available.",
+      "chartSnapshotAlt": "Chart snapshot"
+    },
+    "inbox": {
+      "title": "Recommendations",
+      "subtitle": "Stored gold recommendations with live outcome status and paper actions",
+      "refresh": "Refresh",
+      "filterAll": "All",
+      "filterOpen": "Open",
+      "filterClosed": "Closed",
+      "loadFailed": "Failed to load recommendations",
+      "empty": "No recommendations in this view. Ask the agent to analyze gold in chat.",
+      "selectPrompt": "Select a recommendation to review levels and approve/reject in paper mode.",
+      "paper": "Paper: {{action}}"
+    },
+    "performance": {
+      "title": "Performance",
+      "subtitle": "Gold recommendations and paper trading summary",
+      "loading": "Loading performance…",
+      "loadFailed": "Failed to load performance",
+      "totalRecommendations": "Total recommendations",
+      "open": "Open",
+      "closed": "Closed",
+      "paperActions": "Paper actions",
+      "buySignals": "Buy signals",
+      "sellSignals": "Sell signals",
+      "wait": "Wait",
+      "outcomeTracking": "Outcome tracking",
+      "inTrade": "In trade",
+      "waitingEntry": "Waiting entry",
+      "tp1Hit": "TP1 hit",
+      "invalidated": "Invalidated",
+      "recentRecommendations": "Recent recommendations"
+    },
+    "connect": {
+      "title": "Connect Telegram & WhatsApp",
+      "subtitle": "Paste the Telegram bot token from @BotFather, or scan the WhatsApp QR. This is the only setup screen you need — no extra install step.",
+      "telegram": "Telegram",
+      "whatsapp": "WhatsApp",
+      "telegramSteps": {
+        "openBotFather": "Open Telegram and talk to @BotFather",
+        "createBot": "Create a bot and copy the token",
+        "pasteToken": "Paste it below and save"
+      },
+      "tokenPlaceholder": "123456:ABC-DEF...",
+      "saveToken": "Save Telegram token",
+      "saving": "Saving…",
+      "tokenRequired": "Paste the Telegram bot token from @BotFather.",
+      "tokenSaved": "Telegram token saved and the channel is enabled.",
+      "loadingWhatsapp": "Loading WhatsApp connector…",
+      "channelLoading": "Loading…",
+      "channelConnectedRunning": "Connected and running",
+      "channelEnabledStarting": "Enabled — starting",
+      "channelConfiguredNotEnabled": "Configured — not enabled",
+      "channelNotConnected": "Not connected",
+      "whatsappQr": {
+        "idleLabel": "Show WhatsApp QR",
+        "qrAlt": "WhatsApp linking QR code",
+        "scanTitle": "Link WhatsApp",
+        "scanDescription": "In WhatsApp, open Linked devices, choose Link a device, then scan this code.",
+        "waiting": "Waiting for WhatsApp…",
+        "connected": "WhatsApp is connected.",
+        "stopped": "The WhatsApp connection attempt stopped. Start again to get a new code.",
+        "connecting": "Connecting…",
+        "scanAgain": "Link another account",
+        "connect": "Link WhatsApp"
+      }
+    },
+    "statusBar": {
+      "openDirection": "Open {{direction}} — {{summary}}"
+    },
+    "briefing": {
+      "loadFailed": "Failed to load briefing"
+    },
+    "recommendation": {
+      "approvedPaper": "Approved (paper)",
+      "rejected": "Rejected",
+      "approve": "Approve",
+      "reject": "Reject",
+      "confidence": "Confidence {{percent}}%",
+      "entry": "Entry",
+      "stopLoss": "SL",
+      "target": "TP{{index}}",
+      "macroDrivers": "Macro drivers"
+    }
   }
 }

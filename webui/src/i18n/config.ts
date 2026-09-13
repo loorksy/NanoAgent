@@ -2,6 +2,7 @@ export const LOCALE_STORAGE_KEY = "nanobot.locale";
 
 export const supportedLocales = [
   { code: "en", nativeLabel: "English" },
+  { code: "ar", nativeLabel: "العربية" },
   { code: "zh-CN", nativeLabel: "简体中文" },
   { code: "zh-TW", nativeLabel: "繁體中文" },
   { code: "fr", nativeLabel: "Français" },
@@ -43,6 +44,9 @@ export function normalizeLocale(
   if (lower === "pt" || lower.startsWith("pt-")) {
     return "pt-BR";
   }
+  if (lower === "ar" || lower.startsWith("ar-")) {
+    return "ar";
+  }
 
   const base = lower.split("-")[0];
   const baseMatch = supportedLocales.find(
@@ -77,6 +81,7 @@ export function persistLocale(locale: SupportedLocale): void {
 export function applyDocumentLocale(locale: SupportedLocale): void {
   if (typeof document === "undefined") return;
   document.documentElement.lang = locale;
+  document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
 }
 
 export function localeOption(locale: SupportedLocale) {
