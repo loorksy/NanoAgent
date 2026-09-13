@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
 
 from nanobot.agent.tools.context import current_request_context
-from nanobot.trading.agents.liquidity import run_liquidity_agent
-from nanobot.trading.agents.market_data import run_market_data_agent
-from nanobot.trading.agents.multi_timeframe import run_multi_timeframe_agent
-from nanobot.trading.agents.news_macro import run_news_macro_agent
-from nanobot.trading.agents.risk import run_risk_agent
-from nanobot.trading.agents.structure import run_structure_agent
-from nanobot.trading.agents.supply_demand import run_supply_demand_agent
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
-from nanobot.trading.agents.visual_capture import capture_visual_evidence
+from nanobot.trading.evidence import PipelineContext, run_evidence_graph
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
 from nanobot.trading.intent_router import route_intent
@@ -24,7 +16,6 @@ from nanobot.trading.locale import locale_from_text
 from nanobot.trading.drawings.plan import build_drawing_plan
 from nanobot.trading.gates.build_gates import GateInputs, build_gates
 from nanobot.trading.gates.chain import run_gate_chain
-from nanobot.trading.geometry.snapshot import build_geometry_snapshot
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.recommendations.followup import grade_live_recommendation
@@ -118,42 +109,31 @@ async def run_unified_chart_agent(
         stages.append(event.to_wire())
         emit_fn(event)
 
-    track(emit_stage("market_data", "running"))
-    market = await asyncio.to_thread(run_market_data_agent, symbol, interval)
-    if not market.sync.ok:
-        track(emit_stage("market_data", "failed"))
+    pipeline = PipelineContext(
+        symbol=symbol,
+        interval=interval,
+        visual_capture=visual_capture,
+    )
+    pipeline = await run_evidence_graph(pipeline, track=track)
+    if pipeline.aborted or pipeline.market is None:
+        market = pipeline.market
+        reason = pipeline.abort_reason or "Market data sync failed"
         return AgentFinalResult(
-            decision=_wait_decision(market.sync.reason or "Market data sync failed", market.sync.reason, interval),
+            decision=_wait_decision(reason, reason, interval),
             market=market,
             stages=stages,
         )
-    track(emit_stage("market_data", "done"))
 
-    fleet_stages = ("structure", "liquidity", "supply_demand", "multi_timeframe")
-    for name in fleet_stages:
-        track(emit_stage(name, "running"))
-    structure, liquidity, supply_demand, mtf = await asyncio.gather(
-        asyncio.to_thread(run_structure_agent, market),
-        asyncio.to_thread(run_liquidity_agent, market),
-        asyncio.to_thread(run_supply_demand_agent, market),
-        asyncio.to_thread(run_multi_timeframe_agent, market),
-    )
-    for name in fleet_stages:
-        track(emit_stage(name, "done"))
-
-    track(emit_stage("news", "running"))
-    news = await asyncio.to_thread(run_news_macro_agent)
-    track(emit_stage("news", "done"))
-
-    geometry = build_geometry_snapshot(structure)
-
-    track(emit_stage("risk", "running"))
-    risk = await asyncio.to_thread(run_risk_agent, market, structure, supply_demand)
-    track(emit_stage("risk", "done"))
-
-    track(emit_stage("research", "running"))
-    visual, snapshots = await capture_visual_evidence(interval, capture=visual_capture)
-    track(emit_stage("research", "done"))
+    market = pipeline.market
+    structure = pipeline.structure
+    liquidity = pipeline.liquidity
+    supply_demand = pipeline.supply_demand
+    mtf = pipeline.mtf
+    news = pipeline.news
+    geometry = pipeline.geometry
+    risk = pipeline.risk
+    visual = pipeline.visual
+    snapshots = pipeline.snapshots
 
     track(emit_stage("final_decision", "running"))
     decision = await run_final_decision_synthesizer(
