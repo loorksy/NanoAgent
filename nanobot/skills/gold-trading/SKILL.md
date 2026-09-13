@@ -38,7 +38,7 @@ Follow the **`trading-proactive`** skill for all outbound notifications (Telegra
 
 - No default background gold scanners — periodic monitors are **opt-in** (`gateway.tradingCron.enabled`).
 - If the market is closed or a recommendation is impossible, say so honestly and offer a **scheduled briefing** the user can accept.
-- User-requested watches (news shock, session open, custom alerts) → create `cron` or `HEARTBEAT.md` tasks; confirm time, channel, and cancellation.
+- User-requested watches are **open-ended** (not a fixed list) — interpret natural language, use memory, create `cron` or `HEARTBEAT.md` tasks; confirm time, channel, and cancellation.
 - Never spam "still active" or scanner boilerplate on a fixed timer.
 
 ## Safety

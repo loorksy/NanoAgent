@@ -1,6 +1,6 @@
 ---
 name: trading-proactive
-description: Intelligent proactive gold-trading communication — when to speak, when to stay silent, market-hours honesty, and user-requested watches via cron or HEARTBEAT. Use for Telegram/WhatsApp notifications, scheduled briefings, holiday/closed-market replies, outcome alerts, or when the user asks to be notified about news, open trades, or unusual conditions.
+description: Intelligent proactive gold-trading communication — when to speak, when to stay silent, market-hours honesty, and bespoke user-requested watches via cron or HEARTBEAT. Use for Telegram/WhatsApp notifications, scheduled briefings, holiday/closed-market replies, outcome alerts, or any operator request (including unusual or unforeseen ones) about when and how to be notified.
 ---
 
 # Trading Proactive Communication
@@ -12,6 +12,22 @@ description: Intelligent proactive gold-trading communication — when to speak,
 Do not spam the operator with repetitive scanner notes, "still active" reminders, or compressed-range boilerplate. Proactive messages must pass a **notification gate** (below). Silence is correct when there is nothing new, actionable, or explicitly requested.
 
 Background gold cron jobs (`gold_scan`, `gold_news`, `gold_rec_followup`) are **off by default**. Only enable them when the operator explicitly asks for automatic periodic monitoring and accepts the schedule.
+
+## Not a fixed playbook — the operator is unpredictable
+
+This skill defines **principles and gates**, not a closed list of allowed requests.
+
+The operator's mind holds preferences, habits, and asks you cannot enumerate in advance. They may request things that never appeared in docs or examples — composite conditions, personal rituals, family-time quiet hours, one-off geopolitical fears, custom level watches, or hybrid alerts that mix news + price + open-plan state.
+
+**Your job:**
+
+1. **Listen for intent** in natural language (Arabic or English), including implied needs.
+2. **Use memory** — `USER.md`, `memory/MEMORY.md`, session history, past cron jobs, and prior confirmations — to personalize timing, tone, and channel.
+3. **Design a bespoke watch** — translate the ask into `cron`, `HEARTBEAT.md`, or a one-shot reply; write the task message so *future you* knows exactly what to evaluate and when to break silence.
+4. **Ask only when blocking** — one short clarifying question if time, timezone, or trigger is ambiguous; otherwise propose a sensible default and let them correct you.
+5. **Learn** — when they accept, reject, or edit your proposal, remember the preference for next time.
+
+Examples in this file are **illustrations only**. If the operator's request does not match any row in a table, still fulfill it when it is clear and honest.
 
 ## Notification gate
 
@@ -42,23 +58,26 @@ If yes:
 
 Use `get_gold_quote` / session context to sanity-check; do not invent open hours.
 
-## User-requested watches (normal + unusual)
+## User-requested watches (open-ended)
 
-When the operator asks for monitoring — including unusual requests — **you** create the task:
+When the operator wants *anything* monitored, reminded, or delivered later — **you** invent the implementation:
 
-| User intent | Tool | Notes |
-|-------------|------|-------|
-| Remind at a specific time | `cron` `at=` | One-shot market open briefing |
-| Repeat check (news, levels, open trade) | `cron` `every_seconds` / `cron_expr` | Message should describe *what to evaluate*, not a canned spam string |
-| Background check, notify only on change | `HEARTBEAT.md` | Edit Active Tasks; remove when done |
-| Sudden news → pause trading alert | `cron` or HEARTBEAT | Task: run news macro; alert only if high-impact + tradability blocked |
+| Pattern (not exhaustive) | Typical tool | Notes |
+|--------------------------|--------------|-------|
+| One-shot at a time | `cron` `at=` | Market open, meeting before NY, pre-FOMC |
+| Recurring evaluation | `cron` `every_seconds` / `cron_expr` | Task body = what to check + when to notify |
+| Silent until something changes | `HEARTBEAT.md` | Remove task when done |
+| Conditional / fuzzy trigger | cron or HEARTBEAT | Describe the condition in the task message for the executing turn |
 
-**Examples:**
+**Sample intents (not limits):**
 
-- «لو صار خبر فجأة وتحس لازم أوقف التداول خبرني» → add cron/heartbeat: check news risk; notify only on escalation to high + actionable headline; include suggested stand-aside line.
-- «ذكرني بتوصيتي إذا وصل TP1» → prefer outcome pipeline on transition; do **not** poll "still active" every 15 minutes.
+- «لو صار خبر فجأة وتحس لازم أوقف التداول خبرني»
+- «ذكرني بتوصيتي إذا وصل TP1»
+- «لا تزعجني بعد العشاء إلا لو كسر 2680»
+- «كل يوم قبل لندن أرسل لي ملخص بدون توصية»
+- Anything else they imagine — map it to a task + notification gate.
 
-Always **confirm** what was scheduled, when it fires, and how to cancel (`cron action="list"` / remove job / delete HEARTBEAT line).
+Always **confirm** what was scheduled, when it fires, and how to cancel (`cron action="list"` / remove job / delete HEARTBEAT line). Store durable preferences in memory when they say «من الآن» or «دائماً».
 
 ## What not to do
 

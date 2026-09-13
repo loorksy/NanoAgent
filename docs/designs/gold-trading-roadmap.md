@@ -115,6 +115,7 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 
 - **No default spam bots** — background gold crons are **opt-in** (`gateway.tradingCron.enabled`, default `false`).
 - The **agent** decides when to speak using the `trading-proactive` skill: notification gate, market-closed honesty, user-requested watches via `cron` / `HEARTBEAT.md`.
+- Operator requests are **open-ended** — not a fixed menu. The agent uses memory (`USER.md`, `MEMORY.md`, session history) to fulfill bespoke watches the docs never listed; examples in the skill are illustrations only.
 - Unusual operator requests (e.g. «خبرني لو صار خبر فجأة وأوقف التداول») → agent creates a timed or recurring task, confirms schedule, and alerts only on material change.
 
 ### Implemented (docs + config)
