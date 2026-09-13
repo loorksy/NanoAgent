@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from nanobot.trading.cards.artifacts import parse_artifacts_requested
 from nanobot.trading.types import (
     AgentRecommendation,
     Decision,
@@ -518,6 +519,10 @@ def apply_model_decision(
             )
             reasons = [*reasons[:5], note]
 
+    artifacts_requested = parse_artifacts_requested(
+        parsed.get("artifactsRequested") or parsed.get("artifacts_requested")
+    )
+
     return FinalDecisionResult(
         decision=direction,
         confidence=conf,
@@ -532,4 +537,5 @@ def apply_model_decision(
         ),
         visual_review=visual,
         evidence_snapshot=snapshot,
+        artifacts_requested=artifacts_requested,
     )

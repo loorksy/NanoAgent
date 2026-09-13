@@ -296,6 +296,7 @@ class FinalDecisionResult:
     visual_review: VisualReview | None = None
     evidence_snapshot: EvidenceSnapshot | None = None
     team_briefing: str | None = None
+    artifacts_requested: list[str] = field(default_factory=list)
 
 
 @dataclass

@@ -268,5 +268,6 @@ async def run_unified_chart_agent(
         result,
         intent_kind=intent.kind,
         locale=locale,
+        requested=result.decision.artifacts_requested or None,
     )
     return result
