@@ -36,6 +36,10 @@ Stable first-party dependencies must be typed where they are stored or passed. D
 
 Trading recommendation output should move from fixed `derive_cards()` templates to **agent-chosen Artifacts** (images, tables, reports) selected by intent — see `docs/designs/gold-trading-roadmap.md` (Phase G). Chart-on-demand requires a dedicated tool (Phase F); capture today only runs inside the full analysis pipeline.
 
+## Gold trading — proactive communication
+
+No default background gold cron spam (`gateway.tradingCron.enabled` defaults to `false`). The agent uses `nanobot/skills/trading-proactive/SKILL.md` to decide when to notify, schedule user-requested watches, and stay silent when the market is closed or nothing material changed.
+
 ## Explicit over magical
 
 Configuration must be declared explicitly in `config/schema.py` Pydantic models. Error handling should raise clear exceptions rather than silently correcting bad input. Provider auto-detection exists, but every resolution path must be traceable from the factory to the concrete provider class.

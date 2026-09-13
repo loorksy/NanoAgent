@@ -105,6 +105,31 @@ Trading output should behave like **Artifacts** in a capable agent (Composer / C
 
 ---
 
+## Phase H (user decision) — Intelligent proactive communication
+
+### Problem
+
+Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_rec_followup` every 15m) pushed repetitive Telegram messages (`Gold scanner: Bot note…`, duplicate live-plan reminders) without user consent.
+
+### Vision
+
+- **No default spam bots** — background gold crons are **opt-in** (`gateway.tradingCron.enabled`, default `false`).
+- The **agent** decides when to speak using the `trading-proactive` skill: notification gate, market-closed honesty, user-requested watches via `cron` / `HEARTBEAT.md`.
+- Unusual operator requests (e.g. «خبرني لو صار خبر فجأة وأوقف التداول») → agent creates a timed or recurring task, confirms schedule, and alerts only on material change.
+
+### Implemented (docs + config)
+
+- Skill: `nanobot/skills/trading-proactive/SKILL.md`
+- Config: `GatewayConfig.trading_cron.enabled` (default `false`)
+- `register_trading_cron_jobs(..., enabled=...)` removes jobs when disabled
+
+### Still planned
+
+- Outcome-alert dedup across price oscillation (waiting ↔ in_trade)
+- Agent-initiated artifact bundles instead of plain text spam (ties to Phase G)
+
+---
+
 ## Open questions
 
 1. Should **every** `analyze_gold` still emit a minimal `decision` artifact, or can the agent return *only* a chart image if that was the ask?

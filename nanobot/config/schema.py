@@ -339,6 +339,16 @@ class HeartbeatConfig(Base):
     interval_s: int = 30 * 60  # 30 minutes
 
 
+class TradingCronConfig(Base):
+    """Background gold trading cron jobs (scanner, news, outcome follow-up).
+
+    Disabled by default — proactive messaging must be agent-initiated or
+    explicitly enabled by the operator (see trading-proactive skill).
+    """
+
+    enabled: bool = False
+
+
 class ApiConfig(Base):
     """OpenAI-compatible API server configuration."""
 
@@ -366,6 +376,7 @@ class GatewayConfig(Base):
     port: int = 18790
     restart_mode: Literal["auto", "exec", "spawn", "exit"] = "auto"
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
+    trading_cron: TradingCronConfig = Field(default_factory=TradingCronConfig)
 
 
 class MCPServerConfig(Base):

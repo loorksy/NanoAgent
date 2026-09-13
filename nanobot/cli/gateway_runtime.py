@@ -897,7 +897,11 @@ def _run_gateway(
 
     from nanobot.trading.cron import register_trading_cron_jobs
 
-    register_trading_cron_jobs(cron, config.agents.defaults.timezone)
+    register_trading_cron_jobs(
+        cron,
+        config.agents.defaults.timezone,
+        enabled=config.gateway.trading_cron.enabled,
+    )
 
     cron_status = cron.status()
     cron_job_count = cast(int, cron_status["jobs"])

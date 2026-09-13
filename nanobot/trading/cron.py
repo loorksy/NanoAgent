@@ -14,10 +14,26 @@ GOLD_NEWS_JOB_ID = "gold_news"
 GOLD_FOLLOWUP_JOB_ID = "gold_rec_followup"
 
 
-def register_trading_cron_jobs(cron_service: object, timezone: str = "UTC") -> None:
-    """Register background gold scanner (every 30 minutes)."""
+def register_trading_cron_jobs(
+    cron_service: object,
+    timezone: str = "UTC",
+    *,
+    enabled: bool = False,
+) -> None:
+    """Register or remove background gold monitor jobs.
+
+    When disabled (default), removes gold_scan / gold_news / gold_rec_followup so
+    Telegram/WhatsApp are not spammed by fixed-interval bot scanners.
+    """
     register = getattr(cron_service, "register_system_job", None)
-    if register is None:
+    remove = getattr(cron_service, "remove_system_job", None)
+    job_ids = (GOLD_SCAN_JOB_ID, GOLD_NEWS_JOB_ID, GOLD_FOLLOWUP_JOB_ID)
+    if remove is not None:
+        for job_id in job_ids:
+            remove(job_id)
+    if not enabled or register is None:
+        if not enabled:
+            logger.info("Cron: gold trading monitor jobs disabled (opt-in via gateway.tradingCron.enabled)")
         return
     for job_id, every_ms in (
         (GOLD_SCAN_JOB_ID, 30 * 60 * 1000),
