@@ -12,6 +12,24 @@ from nanobot.config.paths import get_data_dir
 _LEDGER = get_data_dir() / "trading" / "paper_ledger.jsonl"
 
 
+def paper_actions_index() -> dict[str, str]:
+    if not _LEDGER.exists():
+        return {}
+    index: dict[str, str] = {}
+    for line in _LEDGER.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        rec_id = str(row.get("recommendation_id") or "")
+        action = str(row.get("action") or "")
+        if rec_id and action:
+            index[rec_id] = action
+    return index
+
+
 def record_paper_action(
     recommendation_id: str,
     action: str,

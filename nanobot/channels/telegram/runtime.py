@@ -1141,6 +1141,7 @@ class TelegramChannel(BaseChannel):
             return
 
         # Send media files
+        caption_used = False
         for media_path in (msg.media or []):
             try:
                 media_type = self._get_media_type(media_path)
@@ -1159,6 +1160,16 @@ class TelegramChannel(BaseChannel):
                 extra: dict[str, Any] = {}
                 if media_type == "video":
                     extra["supports_streaming"] = True
+                if (
+                    media_type == "photo"
+                    and msg.content
+                    and msg.content != "[empty message]"
+                    and not caption_used
+                ):
+                    extra["caption"] = msg.content
+                    if msg.metadata.get("parse_mode") == "HTML":
+                        extra["parse_mode"] = "HTML"
+                    caption_used = True
 
                 # Telegram Bot API accepts HTTP(S) URLs directly for media params.
                 if self._is_remote_media_url(media_path):
@@ -1197,7 +1208,7 @@ class TelegramChannel(BaseChannel):
                 )
 
         # Send text content
-        if msg.content and msg.content != "[empty message]":
+        if msg.content and msg.content != "[empty message]" and not caption_used:
             render_as_blockquote = bool(progress_event and progress_event.tool_hint)
             buttons = cast(list[list[str]], getattr(msg, "buttons", None) or [])
             reply_markup = self._build_keyboard(buttons) if buttons else None

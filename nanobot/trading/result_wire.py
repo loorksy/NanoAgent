@@ -109,4 +109,15 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
             }
         except (TypeError, AttributeError):
             pass
+    snapshots = getattr(result, "visual_snapshots", None) or []
+    if snapshots:
+        payload["chartSnapshots"] = [
+            {
+                "timeframe": str(frame.get("timeframe") or ""),
+                "image": frame.get("image") or frame.get("dataUrl"),
+                "context": frame.get("context"),
+            }
+            for frame in snapshots
+            if isinstance(frame, dict)
+        ]
     return _jsonable(payload)

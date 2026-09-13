@@ -1,5 +1,6 @@
 import type {
   TradingChartCaptureWire,
+  TradingOutcomeWire,
   TradingResultWire,
   TradingSessionState,
   TradingStageWire,
@@ -13,6 +14,7 @@ const DEFAULT_STATE: TradingSessionState = {
   teamAgents: [],
   result: null,
   chartCapture: null,
+  outcomeAlerts: [],
 };
 
 const sessions = new Map<string, TradingSessionState>();
@@ -33,6 +35,40 @@ export function getTradingSession(chatId: string): TradingSessionState {
 export function subscribeTradingSession(listener: (chatId: string) => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+export function setTradingChartOpen(chatId: string, chartOpen: boolean) {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen,
+  });
+  notify(chatId);
+}
+
+export function pushTradingOutcome(chatId: string, alert: TradingOutcomeWire) {
+  const prev = snapshot(chatId);
+  const key = `${alert.recommendationId}-${alert.outcomeStatus}`;
+  const outcomeAlerts = prev.outcomeAlerts.filter(
+    (row) => `${row.recommendationId}-${row.outcomeStatus}` !== key,
+  );
+  outcomeAlerts.unshift(alert);
+  sessions.set(chatId, {
+    ...prev,
+    outcomeAlerts: outcomeAlerts.slice(0, 5),
+  });
+  notify(chatId);
+}
+
+export function dismissTradingOutcome(chatId: string, alertKey: string) {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    outcomeAlerts: prev.outcomeAlerts.filter(
+      (row) => `${row.recommendationId}-${row.outcomeStatus}` !== alertKey,
+    ),
+  });
+  notify(chatId);
 }
 
 export function openTradingChart(chatId: string, interval = "15m") {

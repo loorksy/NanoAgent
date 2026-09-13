@@ -1,4 +1,6 @@
+import { TradingOutcomeBanner } from "@/components/trading/TradingOutcomeBanner";
 import { TradingRecommendationCard } from "@/components/trading/TradingRecommendationCard";
+import type { TradingOutcomeWire } from "@/lib/trading/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useState } from "react";
 
@@ -10,12 +12,14 @@ interface PerformancePayload {
   outcomeBreakdown?: Record<string, number>;
   paperActions: number;
   recentRecommendations: Array<Record<string, unknown>>;
+  recentOutcomeAlerts?: TradingOutcomeWire[];
 }
 
 export function TradingPerformance() {
   const { getToken } = useClient();
   const [data, setData] = useState<PerformancePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     setError(null);
@@ -43,6 +47,9 @@ export function TradingPerformance() {
   }
 
   const outcomes = data.outcomeBreakdown ?? {};
+  const visibleAlerts = (data.recentOutcomeAlerts ?? []).filter(
+    (alert) => !dismissedAlerts.has(`${alert.recommendationId}-${alert.outcomeStatus}`),
+  );
 
   return (
     <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
@@ -50,6 +57,14 @@ export function TradingPerformance() {
         <h1 className="text-lg font-semibold">Performance</h1>
         <p className="text-sm text-muted-foreground">Gold recommendations and paper trading summary</p>
       </header>
+      {visibleAlerts.length > 0 ? (
+        <div className="mb-6">
+          <TradingOutcomeBanner
+            alerts={visibleAlerts}
+            onDismiss={(key) => setDismissedAlerts((current) => new Set(current).add(key))}
+          />
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total recommendations" value={data.totalRecommendations} />
         <StatCard label="Open" value={data.openRecommendations} />

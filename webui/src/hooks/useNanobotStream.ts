@@ -34,6 +34,7 @@ import { formatQuotedUserMessage } from "@/lib/user-message-quote";
 import {
   openTradingChart,
   requestChartCapture,
+  pushTradingOutcome,
   pushTradingStage,
   pushTradingTeamAgent,
   setTradingResult,
@@ -1175,6 +1176,13 @@ export function useNanobotStream(
             pushTradingTeamAgent(
               chatId,
               agentUi.data as import("@/lib/trading/types").TradingTeamAgentWire,
+            );
+            return;
+          }
+          if (agentUi?.kind === "trading_outcome") {
+            pushTradingOutcome(
+              chatId,
+              agentUi.data as import("@/lib/trading/types").TradingOutcomeWire,
             );
             return;
           }

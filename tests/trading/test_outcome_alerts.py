@@ -6,7 +6,6 @@ from nanobot.trading.recommendations.outcome_alerts import (
 )
 from nanobot.trading.recommendations.store import store_recommendation
 from nanobot.trading.types import (
-    AgentFinalResult,
     AgentMarketContext,
     AgentRecommendation,
     FinalDecisionResult,

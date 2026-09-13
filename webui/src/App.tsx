@@ -185,6 +185,10 @@ const TradingChartBottomSheet = lazy(async () => {
   const module = await import("@/components/trading/TradingChartBottomSheet");
   return { default: module.TradingChartBottomSheet };
 });
+const TradingOutcomeStrip = lazy(async () => {
+  const module = await import("@/components/trading/TradingOutcomeStrip");
+  return { default: module.TradingOutcomeStrip };
+});
 const TradingConnect = lazy(async () => {
   const module = await import("@/components/trading/TradingConnect");
   return { default: module.TradingConnect };
@@ -2928,6 +2932,11 @@ function Shell({
                   />
                 </Suspense>
               </ThreadVisibilityContext.Provider>
+              {activeChatId ? (
+                <Suspense fallback={null}>
+                  <TradingOutcomeStrip chatId={activeChatId} />
+                </Suspense>
+              ) : null}
               {mobileWorkbench && activeChatId ? (
                 <Suspense fallback={null}>
                   <TradingChartBottomSheet chatId={activeChatId} />

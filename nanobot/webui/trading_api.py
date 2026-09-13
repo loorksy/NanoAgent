@@ -255,15 +255,58 @@ def handle_trading_analyze(request: WsRequest) -> Response:
         return _http_error(500, f"Analysis failed: {exc}")
 
 
+def _enrich_recommendation_rows(rows: list[dict]) -> list[dict]:
+    from nanobot.trading.paper import paper_actions_index
+
+    paper = paper_actions_index()
+    enriched: list[dict] = []
+    for row in rows:
+        rec_id = str(row.get("id") or "")
+        enriched.append(
+            {
+                **row,
+                "paperAction": paper.get(rec_id),
+            }
+        )
+    return enriched
+
+
 def handle_trading_recommendations(_request: WsRequest) -> Response:
-    return _http_json_response({"recommendations": list_recommendations()})
+    from nanobot.trading.gold import DATA_SYMBOL
+    from nanobot.trading.oanda import fetch_quote
+    from nanobot.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
+
+    live_price = None
+    try:
+        quote = fetch_quote(DATA_SYMBOL)
+        live_price = quote.mid if quote else None
+    except Exception:
+        live_price = None
+    _, transitions = refresh_recommendation_outcomes(live_price=live_price)
+    rows = _enrich_recommendation_rows(list_recommendations(limit=100))
+    return _http_json_response({
+        "recommendations": rows,
+        "recentOutcomeAlerts": outcome_web_alerts_from_transitions(
+            transitions,
+            live_price=live_price,
+        ),
+    })
 
 
 def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
     from nanobot.trading.memory.decisions import list_recent_decisions
+    from nanobot.trading.gold import DATA_SYMBOL
+    from nanobot.trading.oanda import fetch_quote
+    from nanobot.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
-    refresh_recommendation_outcomes()[0]
+    live_price = None
+    try:
+        quote = fetch_quote(DATA_SYMBOL)
+        live_price = quote.mid if quote else None
+    except Exception:
+        live_price = None
+    _, transitions = refresh_recommendation_outcomes(live_price=live_price)
     recs = list_recommendations(limit=200)
     decisions = list_recent_decisions(limit=20)
     open_count = sum(1 for row in recs if row.get("status") in LIVE_OUTCOME_STATUSES)
@@ -297,8 +340,12 @@ def handle_trading_performance(_request: WsRequest) -> Response:
         "directionBreakdown": directions,
         "outcomeBreakdown": outcomes,
         "paperActions": paper_actions,
-        "recentRecommendations": recs[:10],
+        "recentRecommendations": _enrich_recommendation_rows(recs[:10]),
         "recentDecisions": decisions,
+        "recentOutcomeAlerts": outcome_web_alerts_from_transitions(
+            transitions,
+            live_price=live_price,
+        ),
     })
 
 

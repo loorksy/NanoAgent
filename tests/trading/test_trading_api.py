@@ -12,6 +12,7 @@ from nanobot.webui.trading_api import (
     handle_trading_analyze,
     handle_trading_klines,
     handle_trading_performance,
+    handle_trading_recommendations,
     handle_trading_status,
 )
 
@@ -35,6 +36,15 @@ def test_trading_performance_payload() -> None:
     assert "totalRecommendations" in body
     assert "paperActions" in body
     assert "outcomeBreakdown" in body
+    assert "recentOutcomeAlerts" in body
+
+
+def test_trading_recommendations_payload() -> None:
+    response = handle_trading_recommendations(_request("/api/trading/recommendations"))
+    assert response.status_code == 200
+    body = response.body.decode("utf-8")
+    assert "recommendations" in body
+    assert "recentOutcomeAlerts" in body
 
 
 def test_trading_klines_unconfigured() -> None:

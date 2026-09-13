@@ -57,6 +57,15 @@ export interface TradingResultWire {
   refusalSummary?: string;
 }
 
+export interface TradingOutcomeWire {
+  recommendationId: string;
+  previousStatus?: string;
+  outcomeStatus: string;
+  direction: string;
+  summary: string;
+  livePrice?: number | null;
+}
+
 export interface TradingChartCaptureWire {
   captureId: string;
   sessionKey: string;
@@ -70,4 +79,5 @@ export interface TradingSessionState {
   teamAgents: TradingTeamAgentWire[];
   result: TradingResultWire | null;
   chartCapture: TradingChartCaptureWire | null;
+  outcomeAlerts: TradingOutcomeWire[];
 }

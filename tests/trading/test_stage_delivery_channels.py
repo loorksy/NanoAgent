@@ -73,7 +73,7 @@ def test_telegram_stages_publish_one_checklist_not_agent_ui() -> None:
         assert "جاري جلب بيانات السوق" in outbound.content
 
 
-def test_whatsapp_stages_publish_single_progress_line() -> None:
+def test_whatsapp_stages_publish_arabic_checklist() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
     publisher = TradingStagePublisher(bus, channel="whatsapp", chat_id="123@s.whatsapp.net")
@@ -84,10 +84,11 @@ def test_whatsapp_stages_publish_single_progress_line() -> None:
         await publisher._publish(emit_stage("structure", "running"))
 
     asyncio.run(_run())
-    assert bus.publish_outbound.await_count == 1
-    outbound = bus.publish_outbound.await_args_list[0].args[0]
-    assert outbound.content == "⏳ جاري تحليل الذهب…"
-    assert outbound.metadata.get(TRADING_PROGRESS_META) is True
+    assert bus.publish_outbound.await_count == 2
+    for call in bus.publish_outbound.await_args_list:
+        outbound = call.args[0]
+        assert outbound.metadata.get(TRADING_PROGRESS_META) is True
+        assert "جاري جلب بيانات السوق" in outbound.content
 
 
 def test_publish_result_flushes_pending_stage_tasks() -> None:

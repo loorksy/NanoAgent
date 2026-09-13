@@ -255,6 +255,7 @@ async def run_unified_chart_agent(
         recommendation_id=rec_id,
         stages=stages,
         team_mode=team_mode,
+        visual_snapshots=snapshots,
     )
     result.cards = derive_cards(result)
     return result

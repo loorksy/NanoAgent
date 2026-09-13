@@ -1,6 +1,10 @@
 import { TradingChartSidecar } from "@/components/trading/TradingChartSidecar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { getTradingSession, subscribeTradingSession } from "@/lib/trading/session-store";
+import {
+  getTradingSession,
+  setTradingChartOpen,
+  subscribeTradingSession,
+} from "@/lib/trading/session-store";
 import { Suspense, useEffect, useState } from "react";
 
 interface TradingChartBottomSheetProps {
@@ -18,7 +22,13 @@ export function TradingChartBottomSheet({ chatId }: TradingChartBottomSheetProps
   }, [chatId]);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setTradingChartOpen(chatId, false);
+      }}
+    >
       <SheetContent
         side="bottom"
         className="h-[min(72vh,640px)] p-0 lg:hidden"

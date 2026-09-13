@@ -35,8 +35,8 @@ class TradingStagePublisher:
         self._channel = channel
         self._chat_id = chat_id
         self._telegram_rows: list[TelegramStageRow] = []
+        self._whatsapp_rows: list[TelegramStageRow] = []
         self._pending: list[asyncio.Task[None]] = []
-        self._whatsapp_progress_sent = False
 
     def sync_emit(self, event: StageEvent) -> None:
         """Sync callback for ``run_unified_chart_agent(emit=...)``."""
@@ -98,6 +98,15 @@ class TradingStagePublisher:
             content="Capturing chart evidence…",
         )
 
+    async def publish_outcome(self, payload: dict[str, Any]) -> None:
+        if not self._is_web():
+            return
+        await self._agent_ui(
+            "trading_outcome",
+            payload,
+            content=str(payload.get("summary") or "Recommendation outcome updated"),
+        )
+
     async def publish_result(self, payload: dict[str, Any], *, include_card: bool = True) -> None:
         await self.flush()
         decision = str(payload.get("decision", "wait")).upper()
@@ -114,16 +123,29 @@ class TradingStagePublisher:
             return
         if self._channel == "telegram":
             from nanobot.channels.telegram.trading_cards import render_recommendation_card
+            from nanobot.trading.chart_photo import (
+                cleanup_chart_snapshot,
+                lead_chart_frame,
+                write_chart_snapshot_file,
+            )
 
             card = render_recommendation_card(payload)
-            await self._bus.publish_outbound(
-                OutboundMessage(
-                    channel=self._channel,
-                    chat_id=self._chat_id,
-                    content=card,
-                    metadata={"parse_mode": "HTML"},
+            snapshots = payload.get("chartSnapshots")
+            frame = lead_chart_frame(snapshots if isinstance(snapshots, list) else None)
+            chart_path = write_chart_snapshot_file(frame)
+            media = [chart_path] if chart_path else []
+            try:
+                await self._bus.publish_outbound(
+                    OutboundMessage(
+                        channel=self._channel,
+                        chat_id=self._chat_id,
+                        content=card,
+                        media=media,
+                        metadata={"parse_mode": "HTML"},
+                    )
                 )
-            )
+            finally:
+                cleanup_chart_snapshot(chart_path)
         elif self._channel == "whatsapp":
             from nanobot.channels.whatsapp.trading_cards import render_recommendation_card
 
@@ -187,15 +209,14 @@ class TradingStagePublisher:
             )
             return
         if self._channel == "whatsapp":
-            if self._whatsapp_progress_sent:
-                return
-            self._whatsapp_progress_sent = True
+            self._whatsapp_rows = apply_stage_event(self._whatsapp_rows, event)
+            checklist = render_arabic_progress(self._whatsapp_rows)
             await self._bus.publish_outbound(
                 OutboundMessage(
                     channel=self._channel,
                     chat_id=self._chat_id,
-                    content=_WHATSAPP_PROGRESS,
-                    event=ProgressEvent(content=_WHATSAPP_PROGRESS),
+                    content=checklist,
+                    event=ProgressEvent(content=checklist),
                     metadata={TRADING_PROGRESS_META: True},
                 )
             )

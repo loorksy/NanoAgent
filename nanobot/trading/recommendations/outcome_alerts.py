@@ -34,6 +34,27 @@ def should_alert_transition(transition: OutcomeTransition) -> bool:
     return transition.current in ALERTABLE_OUTCOMES and transition.previous != transition.current
 
 
+def transition_to_web_payload(
+    transition: OutcomeTransition,
+    *,
+    live_price: float | None = None,
+) -> dict[str, Any]:
+    status = transition.current
+    return {
+        "recommendationId": transition.rec_id,
+        "previousStatus": transition.previous,
+        "outcomeStatus": status,
+        "direction": str(transition.row.get("direction") or "wait"),
+        "summary": format_outcome_alert(
+            transition.row,
+            status,
+            live_price=live_price,
+            html_mode=False,
+        ),
+        "livePrice": live_price,
+    }
+
+
 def format_outcome_alert(
     row: dict[str, Any],
     status: str,

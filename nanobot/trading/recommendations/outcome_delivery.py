@@ -11,6 +11,7 @@ from nanobot.trading.recommendations.followup import refresh_recommendation_outc
 from nanobot.trading.recommendations.outcome_alerts import (
     format_outcome_alert,
     should_alert_transition,
+    transition_to_web_payload,
 )
 
 
@@ -36,6 +37,32 @@ async def collect_outcome_alerts() -> list[OutboundMessage]:
             )
         )
     return messages
+
+
+def outcome_web_alerts_from_transitions(
+    transitions: list,
+    *,
+    live_price: float | None = None,
+) -> list[dict[str, Any]]:
+    alerts: list[dict[str, Any]] = []
+    for transition in transitions:
+        if not should_alert_transition(transition):
+            continue
+        alerts.append(transition_to_web_payload(transition, live_price=live_price))
+    return alerts
+
+
+def collect_outcome_web_alerts() -> list[dict[str, Any]]:
+    """Refresh recommendations and return WebUI-friendly outcome payloads."""
+    live_price: float | None = None
+    try:
+        quote = fetch_quote(DATA_SYMBOL)
+        live_price = quote.mid if quote else None
+    except Exception:
+        live_price = None
+
+    _, transitions = refresh_recommendation_outcomes(live_price=live_price)
+    return outcome_web_alerts_from_transitions(transitions, live_price=live_price)
 
 
 def _outcome_message(
