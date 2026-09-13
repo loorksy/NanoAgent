@@ -150,6 +150,7 @@ _WEBUI_MUTATION_PATHS = {
     "workspace.pick_folder": "/api/workspaces/pick-folder",
     "recovery.continue": "/api/webui/recovery/continue",
     "recovery.dismiss": "/api/webui/recovery/dismiss",
+    "trading.chart_capture": "/api/trading/chart-capture",
     "settings.agent.update": "/api/settings/update",
     "settings.model_configuration.create": "/api/settings/model-configurations/create",
     "settings.model_configuration.update": "/api/settings/model-configurations/update",
@@ -475,6 +476,7 @@ class GatewayHTTPHandler:
             "/api/webui/skills/delete",
             "/api/webui/sidebar-state/update",
             "/api/workspaces/pick-folder",
+            "/api/trading/chart-capture",
         }
 
     @staticmethod

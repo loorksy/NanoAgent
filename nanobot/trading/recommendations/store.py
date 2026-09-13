@@ -145,7 +145,8 @@ def latest_live_recommendation(session_key: str | None) -> dict | None:
         row = conn.execute(
             "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, "
             "summary, confidence, created_at, session_key "
-            "FROM recommendations WHERE session_key = ? AND status IN ('valid_now', 'awaiting_activation') "
+            "FROM recommendations WHERE session_key = ? "
+            "AND status IN ('valid_now', 'awaiting_activation', 'waiting', 'in_trade') "
             "ORDER BY created_at DESC LIMIT 1",
             (session_key,),
         ).fetchone()
@@ -165,6 +166,16 @@ def latest_live_recommendation(session_key: str | None) -> dict | None:
         "created_at": row[10],
         "session_key": row[11],
     }
+
+
+def update_recommendation_status(rec_id: str, status: str) -> bool:
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE recommendations SET status = ? WHERE id = ?",
+            (status, rec_id),
+        )
+        conn.commit()
+    return cur.rowcount > 0
 
 
 def list_recommendations(limit: int = 20) -> list[dict]:

@@ -33,6 +33,7 @@ import type { UIMessageTurnFields } from "@/lib/thread-event-projection";
 import { formatQuotedUserMessage } from "@/lib/user-message-quote";
 import {
   openTradingChart,
+  requestChartCapture,
   pushTradingStage,
   pushTradingTeamAgent,
   setTradingResult,
@@ -1148,6 +1149,21 @@ export function useNanobotStream(
           if (agentUi?.kind === "trading_chart_open") {
             const data = agentUi.data as { interval?: string } | undefined;
             openTradingChart(chatId, data?.interval ?? "15m");
+            return;
+          }
+          if (agentUi?.kind === "trading_chart_capture") {
+            const data = agentUi.data as {
+              captureId?: string;
+              sessionKey?: string;
+              timeframes?: string[];
+            } | undefined;
+            if (data?.captureId && data.sessionKey && Array.isArray(data.timeframes)) {
+              requestChartCapture(chatId, {
+                captureId: data.captureId,
+                sessionKey: data.sessionKey,
+                timeframes: data.timeframes,
+              });
+            }
             return;
           }
           if (agentUi?.kind === "trading_stage") {

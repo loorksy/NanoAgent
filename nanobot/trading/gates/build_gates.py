@@ -23,6 +23,7 @@ from nanobot.trading.types import (
     NewsMacroResult,
     StructureResult,
     SupplyDemandResult,
+    VisualReview,
 )
 
 GATE_REQUIRED = {"G1": True, "G2": False, "G3": False, "G4": True, "G6": True, "G7": True}
@@ -45,7 +46,7 @@ class GateInputs:
     mtf: MultiTimeframeResult | None
     plan: EntryPlan
     atr: float
-    visual_timeframes: list[str]
+    visual: VisualReview | None
     fetch_live_price: Callable[[], float | None]
 
 
@@ -91,7 +92,10 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         delta = 0
         if inp.mtf and inp.mtf.conflict:
             delta -= 10
-        if not inp.visual_timeframes:
+        visual = inp.visual
+        if visual is None or visual.state == "not_checked":
+            delta -= 15
+        elif visual.state == "partial":
             delta -= 10
         return {"status": "pass", "confidence_delta": delta}
 

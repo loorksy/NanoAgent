@@ -15,6 +15,7 @@ from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.intent_router import resolve_team_preset
 from nanobot.trading.oanda import fetch_quote
+from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.stage_delivery import TradingStagePublisher
@@ -134,6 +135,7 @@ class AnalyzeGoldTool(Tool):
         channel, chat_id = _request_route()
         publisher = TradingStagePublisher(self._bus, channel=channel, chat_id=chat_id)
         await publisher.open_chart(interval)
+        visual_capture = resolve_visual_capture(publisher)
 
         try:
             if team_mode == "debate":
@@ -143,6 +145,7 @@ class AnalyzeGoldTool(Tool):
                     subagent_manager=self._subagent_manager,
                     publisher=publisher,
                     interval=interval,
+                    visual_capture=visual_capture,
                 )
                 result = debate.final
             elif team_mode == "swarm":
@@ -155,6 +158,7 @@ class AnalyzeGoldTool(Tool):
                     publisher=publisher,
                     interval=interval,
                     emit=publisher.sync_emit,
+                    visual_capture=visual_capture,
                 )
                 result = swarm["final"]
             else:
@@ -162,6 +166,7 @@ class AnalyzeGoldTool(Tool):
                     interval=interval,
                     team_mode="core",
                     emit=publisher.sync_emit,
+                    visual_capture=visual_capture,
                 )
         except Exception as exc:
             return ToolResult.error(f"Gold analysis failed: {exc}")

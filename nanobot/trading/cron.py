@@ -46,13 +46,19 @@ async def run_gold_news_job() -> str | None:
 
 
 async def run_gold_followup_job() -> str | None:
-    from nanobot.trading.recommendations.followup import latest_open_recommendation
+    from nanobot.trading.recommendations.followup import (
+        grade_outcome_status,
+        latest_open_recommendation,
+        refresh_recommendation_outcomes,
+    )
 
+    refresh_recommendation_outcomes()
     open_rec = latest_open_recommendation()
     if not open_rec:
         return None
+    status = grade_outcome_status(open_rec)
     return (
-        f"Open gold {open_rec.get('direction', '').upper()} still active — "
+        f"Open gold {open_rec.get('direction', '').upper()} ({status}) — "
         f"{open_rec.get('summary', '')}"
     )
 

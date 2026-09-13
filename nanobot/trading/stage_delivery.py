@@ -63,13 +63,39 @@ class TradingStagePublisher:
             content=f"{role} — {status}",
         )
 
+    @property
+    def is_web_channel(self) -> bool:
+        return self._is_web()
+
     async def open_chart(self, interval: str = "15m") -> None:
-        if self._channel not in ("websocket", ""):
+        if not self.is_web_channel:
             return
         await self._agent_ui(
             "trading_chart_open",
             {"interval": interval, "symbol": "XAUUSD"},
             content="Opening gold chart…",
+        )
+
+    async def request_chart_capture(
+        self,
+        capture_id: str,
+        *,
+        session_key: str,
+        timeframes: list[str],
+    ) -> None:
+        if not self.is_web_channel:
+            return
+        from nanobot.trading.chart_capture import get_chart_capture_bridge
+
+        get_chart_capture_bridge().begin(capture_id)
+        await self._agent_ui(
+            "trading_chart_capture",
+            {
+                "captureId": capture_id,
+                "sessionKey": session_key,
+                "timeframes": timeframes,
+            },
+            content="Capturing chart evidence…",
         )
 
     async def publish_result(self, payload: dict[str, Any], *, include_card: bool = True) -> None:

@@ -7,6 +7,7 @@ interface PerformancePayload {
   openRecommendations: number;
   closedRecommendations: number;
   directionBreakdown: { buy: number; sell: number; wait: number };
+  outcomeBreakdown?: Record<string, number>;
   paperActions: number;
   recentRecommendations: Array<Record<string, unknown>>;
 }
@@ -41,6 +42,8 @@ export function TradingPerformance() {
     return <div className="p-6 text-sm text-muted-foreground">Loading performance…</div>;
   }
 
+  const outcomes = data.outcomeBreakdown ?? {};
+
   return (
     <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
       <header className="mb-6">
@@ -58,6 +61,15 @@ export function TradingPerformance() {
         <StatCard label="Sell signals" value={data.directionBreakdown.sell} />
         <StatCard label="Wait" value={data.directionBreakdown.wait} />
       </div>
+      <section className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold">Outcome tracking</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="In trade" value={outcomes.in_trade ?? 0} />
+          <StatCard label="Waiting entry" value={outcomes.waiting ?? 0} />
+          <StatCard label="TP1 hit" value={outcomes.tp1 ?? 0} />
+          <StatCard label="Invalidated" value={outcomes.invalidated ?? 0} />
+        </div>
+      </section>
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-semibold">Recent recommendations</h2>
         <div className="grid gap-3 lg:grid-cols-2">
@@ -73,6 +85,7 @@ export function TradingPerformance() {
                   entry: row.entry as number | undefined,
                   stopLoss: row.stop_loss as number | undefined,
                   targets: (row.targets as number[]) ?? [],
+                  executionState: typeof row.status === "string" ? row.status : undefined,
                 },
               }}
             />

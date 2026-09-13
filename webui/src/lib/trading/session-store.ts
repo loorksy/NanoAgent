@@ -1,4 +1,5 @@
 import type {
+  TradingChartCaptureWire,
   TradingResultWire,
   TradingSessionState,
   TradingStageWire,
@@ -11,6 +12,7 @@ const DEFAULT_STATE: TradingSessionState = {
   stages: [],
   teamAgents: [],
   result: null,
+  chartCapture: null,
 };
 
 const sessions = new Map<string, TradingSessionState>();
@@ -84,6 +86,26 @@ export function setTradingResult(chatId: string, result: TradingResultWire) {
     chartOpen: true,
     interval: result.interval ?? prev.interval,
     result,
+  });
+  notify(chatId);
+}
+
+export function requestChartCapture(chatId: string, capture: TradingChartCaptureWire) {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    chartOpen: true,
+    chartCapture: capture,
+  });
+  notify(chatId);
+}
+
+export function clearChartCapture(chatId: string) {
+  const prev = snapshot(chatId);
+  if (!prev.chartCapture) return;
+  sessions.set(chatId, {
+    ...prev,
+    chartCapture: null,
   });
   notify(chatId);
 }

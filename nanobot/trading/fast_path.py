@@ -13,6 +13,7 @@ from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.intent_router import resolve_team_preset
 from nanobot.trading.oanda import fetch_quote
 from nanobot.agent.tools.context import current_request_context
+from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.recommendations.followup import grade_live_recommendation
@@ -90,6 +91,7 @@ async def _run_analysis_fast_path(
     publisher = TradingStagePublisher(bus, channel=channel, chat_id=chat_id)
     interval = "15m"
     await publisher.open_chart(interval)
+    visual_capture = resolve_visual_capture(publisher)
 
     try:
         if turn.mode == "team_swarm":
@@ -101,6 +103,7 @@ async def _run_analysis_fast_path(
                     subagent_manager=subagent_manager,
                     publisher=publisher,
                     interval=interval,
+                    visual_capture=visual_capture,
                 )
                 result = debate.final
             else:
@@ -110,6 +113,7 @@ async def _run_analysis_fast_path(
                     publisher=publisher,
                     interval=interval,
                     emit=publisher.sync_emit,
+                    visual_capture=visual_capture,
                 )
                 result = swarm["final"]
         else:
@@ -117,6 +121,7 @@ async def _run_analysis_fast_path(
                 interval=interval,
                 team_mode="core",
                 emit=publisher.sync_emit,
+                visual_capture=visual_capture,
             )
     except Exception as exc:
         body = f"Gold analysis failed: {exc}"

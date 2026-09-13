@@ -57,10 +57,17 @@ export interface TradingResultWire {
   refusalSummary?: string;
 }
 
+export interface TradingChartCaptureWire {
+  captureId: string;
+  sessionKey: string;
+  timeframes: string[];
+}
+
 export interface TradingSessionState {
   chartOpen: boolean;
   interval: string;
   stages: TradingStageWire[];
   teamAgents: TradingTeamAgentWire[];
   result: TradingResultWire | null;
+  chartCapture: TradingChartCaptureWire | null;
 }

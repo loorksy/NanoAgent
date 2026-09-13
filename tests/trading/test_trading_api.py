@@ -34,6 +34,7 @@ def test_trading_performance_payload() -> None:
     body = response.body.decode("utf-8")
     assert "totalRecommendations" in body
     assert "paperActions" in body
+    assert "outcomeBreakdown" in body
 
 
 def test_trading_klines_unconfigured() -> None:
@@ -156,11 +157,12 @@ def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     )
     seen: dict[str, object] = {}
 
-    async def fake_core(*, interval: str, team_mode: str):
+    async def fake_core(*, interval: str, team_mode: str, visual_capture=None):
         ctx = current_request_context()
         seen["runtime"] = ctx.runtime if ctx else None
         seen["team_mode"] = team_mode
         seen["interval"] = interval
+        seen["visual_capture"] = visual_capture
         return _fake_final(decision="wait", confidence=0.0)
 
     monkeypatch.setattr("nanobot.webui.trading_api.run_unified_chart_agent", fake_core)

@@ -85,6 +85,7 @@ async def run_swarm(
     publisher: Any | None = None,
     interval: str = "15m",
     emit: Any | None = None,
+    visual_capture: Any = None,
 ) -> dict[str, Any]:
     preset = load_preset(preset_name)
     vars_ = {"target": "XAUUSD", "market": "forex", **(variables or {})}
@@ -139,6 +140,7 @@ async def run_swarm(
         team_mode=f"swarm:{preset_name}",
         team_briefing=team_briefing,
         emit=stage_emit,
+        visual_capture=visual_capture,
     )
     final.team_agents = list(collector.agents)
     final.macro_drivers = [item.to_wire() for item in verdicts]

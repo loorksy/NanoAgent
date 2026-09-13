@@ -21,6 +21,12 @@ from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.trading.paper import record_paper_action
+from nanobot.trading.chart_capture import submit_chart_capture
+from nanobot.trading.recommendations.followup import (
+    CLOSED_OUTCOME_STATUSES,
+    LIVE_OUTCOME_STATUSES,
+    refresh_recommendation_outcomes,
+)
 from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.runtime_state import get_runtime_store
@@ -203,13 +209,17 @@ async def _run_trading_analyze(
 ) -> Any:
     """Run analyze inside a bound default-LLM context (thread-pool safe)."""
     with request_context(analyze_request_context()):
+        from nanobot.trading.chart_capture import resolve_visual_capture
+
         manager = create_trading_subagent_manager()
         publisher = TradingStagePublisher(None, channel="webui", chat_id="trading-analyze")
+        visual_capture = resolve_visual_capture(publisher)
         if team_mode == "debate":
             debate = await run_debate_crew(
                 subagent_manager=manager,
                 publisher=publisher,
                 interval=interval,
+                visual_capture=visual_capture,
             )
             return debate.final
         if team_mode == "swarm":
@@ -218,9 +228,14 @@ async def _run_trading_analyze(
                 subagent_manager=manager,
                 publisher=publisher,
                 interval=interval,
+                visual_capture=visual_capture,
             )
             return swarm["final"]
-        return await run_unified_chart_agent(interval=interval, team_mode="core")
+        return await run_unified_chart_agent(
+            interval=interval,
+            team_mode="core",
+            visual_capture=visual_capture,
+        )
 
 
 def handle_trading_analyze(request: WsRequest) -> Response:
@@ -248,15 +263,29 @@ def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
     from nanobot.trading.memory.decisions import list_recent_decisions
 
+    refresh_recommendation_outcomes()
     recs = list_recommendations(limit=200)
     decisions = list_recent_decisions(limit=20)
-    open_count = sum(1 for row in recs if row.get("status") == "open")
-    closed_count = sum(1 for row in recs if row.get("status") != "open")
+    open_count = sum(1 for row in recs if row.get("status") in LIVE_OUTCOME_STATUSES)
+    closed_count = sum(1 for row in recs if row.get("status") in CLOSED_OUTCOME_STATUSES)
     directions = {"buy": 0, "sell": 0, "wait": 0}
+    outcomes = {
+        "valid_now": 0,
+        "awaiting_activation": 0,
+        "waiting": 0,
+        "in_trade": 0,
+        "tp1": 0,
+        "invalidated": 0,
+        "expired": 0,
+        "blocked": 0,
+    }
     for row in recs:
         direction = str(row.get("direction", "wait")).lower()
         if direction in directions:
             directions[direction] += 1
+        status = str(row.get("status") or "valid_now")
+        if status in outcomes:
+            outcomes[status] += 1
     paper_path = get_data_dir() / "trading" / "paper_ledger.jsonl"
     paper_actions = 0
     if paper_path.exists():
@@ -266,10 +295,31 @@ def handle_trading_performance(_request: WsRequest) -> Response:
         "openRecommendations": open_count,
         "closedRecommendations": closed_count,
         "directionBreakdown": directions,
+        "outcomeBreakdown": outcomes,
         "paperActions": paper_actions,
         "recentRecommendations": recs[:10],
         "recentDecisions": decisions,
     })
+
+
+def handle_trading_chart_capture(_request: WsRequest) -> Response:
+    payload = getattr(_request, "_nanobot_webui_mutation_payload", None)
+    if isinstance(payload, dict):
+        capture_id = str(payload.get("captureId") or payload.get("capture_id") or "")
+        frames = payload.get("frames")
+    else:
+        params = _parse_query(_request.path)
+        capture_id = _query_first(params, "capture_id") or ""
+        frames = None
+    if not capture_id:
+        return _http_error(400, "captureId required")
+    if frames is None:
+        return _http_error(400, "frames required")
+    if not isinstance(frames, list):
+        return _http_error(400, "frames must be a list")
+    if not submit_chart_capture(capture_id, {"frames": frames}):
+        return _http_error(404, "No pending chart capture for that id")
+    return _http_json_response({"ok": True})
 
 
 def handle_trading_briefing(_request: WsRequest) -> Response:
@@ -326,4 +376,6 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_performance(request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
+    if path == "/api/trading/chart-capture":
+        return handle_trading_chart_capture(request)
     return None

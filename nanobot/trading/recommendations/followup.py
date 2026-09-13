@@ -3,20 +3,89 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.recommendations.store import get_recommendation, list_recommendations
+from nanobot.trading.recommendations.store import (
+    get_recommendation,
+    list_recommendations,
+    update_recommendation_status,
+)
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
 
 _ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 
+LIVE_OUTCOME_STATUSES = frozenset(
+    {"valid_now", "awaiting_activation", "waiting", "in_trade"}
+)
+CLOSED_OUTCOME_STATUSES = frozenset({"tp1", "invalidated", "expired"})
+
 
 def latest_open_recommendation() -> dict | None:
-    for row in list_recommendations(limit=5):
-        if row.get("status") in {"valid_now", "awaiting_activation"}:
+    for row in list_recommendations(limit=20):
+        if row.get("status") in LIVE_OUTCOME_STATUSES:
             return row
     return None
+
+
+def grade_outcome_status(
+    row: dict[str, Any],
+    *,
+    live_price: float | None = None,
+) -> str:
+    direction = str(row.get("direction") or "wait")
+    entry = row.get("entry")
+    stop = row.get("stop_loss")
+    targets = list(row.get("targets") or [])
+    stored = str(row.get("status") or "valid_now")
+    if stored in CLOSED_OUTCOME_STATUSES:
+        return stored
+    if direction not in {"buy", "sell"} or entry is None or stop is None:
+        return stored
+
+    live = live_price
+    if live is None:
+        try:
+            quote = fetch_quote(DATA_SYMBOL)
+            live = quote.mid if quote else None
+        except Exception:
+            live = None
+    if live is None:
+        return stored
+
+    if direction == "sell":
+        if live >= float(stop):
+            return "invalidated"
+        if targets and live <= float(targets[0]):
+            return "tp1"
+        if live < float(entry):
+            return "in_trade"
+        return "waiting"
+    if live <= float(stop):
+        return "invalidated"
+    if targets and live >= float(targets[0]):
+        return "tp1"
+    if live > float(entry):
+        return "in_trade"
+    return "waiting"
+
+
+def refresh_recommendation_outcomes(*, live_price: float | None = None) -> dict[str, int]:
+    """Grade open recommendations against live price and persist outcomes."""
+    counts = {"updated": 0, "open": 0, "closed": 0}
+    for row in list_recommendations(limit=200):
+        current = str(row.get("status") or "valid_now")
+        graded = grade_outcome_status(row, live_price=live_price)
+        if graded != current:
+            update_recommendation_status(str(row["id"]), graded)
+            counts["updated"] += 1
+            current = graded
+        if current in LIVE_OUTCOME_STATUSES:
+            counts["open"] += 1
+        elif current in CLOSED_OUTCOME_STATUSES:
+            counts["closed"] += 1
+    return counts
 
 
 def explain_stored_recommendation(rec_id: str) -> str:
@@ -69,27 +138,9 @@ def grade_live_recommendation(
         except Exception:
             live = None
 
-    status = "open"
+    status = grade_outcome_status(row, live_price=live)
     notes: list[str] = []
     if live is not None and entry is not None and stop is not None:
-        if direction == "sell":
-            if live >= float(stop):
-                status = "invalidated"
-            elif targets and live <= float(targets[0]):
-                status = "tp1"
-            elif live < float(entry):
-                status = "in_trade"
-            else:
-                status = "waiting"
-        elif direction == "buy":
-            if live <= float(stop):
-                status = "invalidated"
-            elif targets and live >= float(targets[0]):
-                status = "tp1"
-            elif live > float(entry):
-                status = "in_trade"
-            else:
-                status = "waiting"
         notes.append(f"live={live:.2f} entry={entry} sl={stop}")
 
     if arabic:

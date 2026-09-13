@@ -41,6 +41,7 @@ async def run_debate_crew(
     subagent_manager: Any | None = None,
     publisher: Any | None = None,
     interval: str = "15m",
+    visual_capture: Any = None,
 ) -> DebateResult:
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
     evidence_text = format_market_evidence(market)
@@ -118,6 +119,7 @@ async def run_debate_crew(
         team_mode="debate",
         team_briefing=_debate_briefing(messages),
         emit=stage_emit,
+        visual_capture=visual_capture,
     )
     final.team_agents = list(collector.agents)
     return DebateResult(messages=messages, final=final)

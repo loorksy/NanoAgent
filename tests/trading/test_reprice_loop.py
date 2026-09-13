@@ -53,7 +53,7 @@ def _minimal_inputs(plan: EntryPlan) -> GateInputs:
         ),
         plan=plan,
         atr=5.0,
-        visual_timeframes=["15m"],
+        visual=None,
         fetch_live_price=lambda: 2405.0,
     )
 

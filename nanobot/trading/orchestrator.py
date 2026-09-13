@@ -199,7 +199,7 @@ async def run_unified_chart_agent(
             mtf=mtf,
             plan=plan,
             atr=market.atr,
-            visual_timeframes=visual.requested or [interval],
+            visual=visual,
             fetch_live_price=fetch_live,
         )
     )
