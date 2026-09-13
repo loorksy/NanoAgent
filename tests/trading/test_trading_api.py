@@ -115,35 +115,12 @@ def test_analyze_request_context_keeps_existing_runtime(monkeypatch) -> None:
     assert ctx.channel == "cli"
 
 
-def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None:
-    """GET analyze must bind the default provider inside the worker thread.
-
-    Without this, Lonora returns WAIT / confidence 0.0 — "no usable decision".
-    """
-    runtime = _fake_runtime()
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
-    monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
-        lambda _snapshot: runtime,
-    )
-    seen: dict[str, object] = {}
-
-    async def fake_swarm(preset: str):
-        ctx = current_request_context()
-        seen["preset"] = preset
-        seen["runtime"] = ctx.runtime if ctx else None
-        return {"final": _fake_final()}
-
-    monkeypatch.setattr("nanobot.webui.trading_api.run_swarm", fake_swarm)
+def test_http_analyze_rejects_swarm_mode() -> None:
     response = handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=swarm"),
     )
-    assert response.status_code == 200
-    assert seen["preset"] == "gold_analysis_committee"
-    assert seen["runtime"] is runtime
-    body = json.loads(response.body.decode("utf-8"))
-    assert body["decision"] == "sell"
-    assert body["confidence"] == 0.56
+    assert response.status_code == 400
+    assert "not available" in response.body.decode("utf-8").lower()
 
 
 def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
@@ -172,23 +149,9 @@ def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     assert seen["interval"] == "15m"
 
 
-def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
-    runtime = _fake_runtime()
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
-    monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
-        lambda _snapshot: runtime,
-    )
-    seen: dict[str, object] = {}
-
-    async def fake_debate():
-        ctx = current_request_context()
-        seen["runtime"] = ctx.runtime if ctx else None
-        return MagicMock(final=_fake_final(decision="wait", confidence=0.1))
-
-    monkeypatch.setattr("nanobot.webui.trading_api.run_debate_crew", fake_debate)
+def test_http_analyze_rejects_debate_mode() -> None:
     response = handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=debate"),
     )
-    assert response.status_code == 200
-    assert seen["runtime"] is runtime
+    assert response.status_code == 400
+    assert "not available" in response.body.decode("utf-8").lower()

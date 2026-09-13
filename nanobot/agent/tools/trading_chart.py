@@ -1,4 +1,4 @@
-"""Gold trading tools — analyze, quote, and team modes."""
+"""Gold trading tools — analyze and quote."""
 
 # pyright: reportIncompatibleMethodOverride=false
 
@@ -11,13 +11,11 @@ from nanobot.agent.tools.base import Tool, ToolResult, tool_parameters
 from nanobot.agent.tools.context import ToolContext, current_request_context
 from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
 from nanobot.trading.config import load_trading_config
-from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.teams.runtime import run_swarm
 
 if TYPE_CHECKING:
     from nanobot.bus.queue import MessageBus
@@ -30,14 +28,6 @@ _ANALYZE_PARAMETERS = tool_parameters_schema(
     interval=StringSchema(
         "Candle interval for analysis (default 15m)",
         enum=["1m", "5m", "15m", "30m", "1h", "4h", "1d"],
-    ),
-    team_mode=StringSchema(
-        "Analysis team mode (default core)",
-        enum=["core", "debate", "swarm"],
-    ),
-    preset=StringSchema(
-        "Swarm preset name when team_mode=swarm "
-        "(e.g. gold_analysis_committee, gold_debate_desk)"
     ),
     required=[],
 )
@@ -115,37 +105,25 @@ class AnalyzeGoldTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Run a full XAUUSD gold analysis through the specialist fleet and G1–G7 gates. "
-            "Opens the TradingView chart side panel in the current chat, streams analysis "
-            "stages, and returns a buy/sell/wait recommendation with entry, stop, and targets. "
-            "Use when the user asks to analyze gold, wants a trade idea, or requests a "
-            "recommendation. For price-only questions use get_gold_quote instead."
+            "Run a full XAUUSD gold analysis through the specialist fleet and G1–G4, "
+            "G6–G7 gates. Opens the TradingView chart side panel in the current chat, "
+            "streams analysis stages, and returns a buy/sell/wait recommendation with "
+            "entry, stop, and targets. Use when the user asks to analyze gold, wants a "
+            "trade idea, or requests a recommendation. For price-only questions use "
+            "get_gold_quote instead."
         )
 
-    async def execute(
-        self,
-        interval: str = "15m",
-        team_mode: str = "core",
-        preset: str | None = None,
-        **kwargs: Any,
-    ) -> str:
+    async def execute(self, interval: str = "15m", **kwargs: Any) -> str:
         channel, chat_id = _request_route()
         publisher = TradingStagePublisher(self._bus, channel=channel, chat_id=chat_id)
         await publisher.open_chart(interval)
 
         try:
-            if team_mode == "debate":
-                debate = await run_debate_crew()
-                result = debate.final
-            elif team_mode == "swarm" and preset:
-                swarm = await run_swarm(preset)
-                result = swarm["final"]
-            else:
-                result = await run_unified_chart_agent(
-                    interval=interval,
-                    team_mode=team_mode,
-                    emit=publisher.sync_emit,
-                )
+            result = await run_unified_chart_agent(
+                interval=interval,
+                team_mode="core",
+                emit=publisher.sync_emit,
+            )
         except Exception as exc:
             return ToolResult.error(f"Gold analysis failed: {exc}")
 

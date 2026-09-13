@@ -1,4 +1,4 @@
-"""Run gate chain G1→G7 with short-circuit."""
+"""Run gate chain G1→G4, G6→G7 with short-circuit."""
 
 from __future__ import annotations
 

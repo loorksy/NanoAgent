@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 TrendLabel = Literal["uptrend", "downtrend", "range", "unknown"]
 Bias = Literal["bullish", "bearish", "neutral", "unknown"]
-GateId = Literal["G1", "G2", "G3", "G4", "G5", "G6", "G7"]
+GateId = Literal["G1", "G2", "G3", "G4", "G6", "G7"]
 GateStatus = Literal["pass", "veto", "unavailable"]
 Decision = Literal["buy", "sell", "wait"]
 PlanType = Literal["immediate", "anticipatory", "conditional"]

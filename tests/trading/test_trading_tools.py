@@ -59,7 +59,7 @@ async def test_analyze_gold_publishes_result() -> None:
             new_callable=AsyncMock,
             return_value=fake_result,
         ):
-            raw = await tool.execute(interval="15m", team_mode="core")
+            raw = await tool.execute(interval="15m")
     payload = json.loads(raw)
     assert payload["decision"] == "wait"
     assert bus.publish_outbound.await_count >= 2

@@ -10,6 +10,10 @@ from typing import Any
 from nanobot.trading.agents.news_macro import news_provider_configured
 from nanobot.trading.gates.entry_semantics import validate_entry_coherence
 from nanobot.trading.gates.news_window import evaluate_news_window
+from nanobot.trading.gates.plan_alignment import (
+    evaluate_liquidity_alignment,
+    evaluate_supply_demand_alignment,
+)
 from nanobot.trading.gates.revalidation import revalidate_plan
 from nanobot.trading.types import (
     EntryPlan,
@@ -21,7 +25,7 @@ from nanobot.trading.types import (
     SupplyDemandResult,
 )
 
-GATE_REQUIRED = {"G1": True, "G2": False, "G3": False, "G4": True, "G5": False, "G6": True, "G7": True}
+GATE_REQUIRED = {"G1": True, "G2": False, "G3": False, "G4": True, "G6": True, "G7": True}
 
 
 @dataclass
@@ -68,11 +72,17 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
     async def g2() -> dict[str, Any]:
         if inp.liquidity is None:
             return {"status": "unavailable", "reason_ar": "Liquidity map missing"}
+        status, reason = evaluate_liquidity_alignment(inp.plan, inp.liquidity, inp.atr)
+        if status == "veto":
+            return {"status": "veto", "reason_ar": reason}
         return {"status": "pass"}
 
     async def g3() -> dict[str, Any]:
         if inp.supply_demand is None:
             return {"status": "unavailable", "reason_ar": "Supply/demand missing"}
+        status, reason = evaluate_supply_demand_alignment(inp.plan, inp.supply_demand)
+        if status == "veto":
+            return {"status": "veto", "reason_ar": reason}
         return {"status": "pass"}
 
     async def g4() -> dict[str, Any]:
@@ -84,9 +94,6 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         if not inp.visual_timeframes:
             delta -= 10
         return {"status": "pass", "confidence_delta": delta}
-
-    async def g5() -> dict[str, Any]:
-        return {"status": "pass"}
 
     async def g6() -> dict[str, Any]:
         ok, reasons = validate_entry_coherence(inp.plan, inp.atr)
@@ -114,7 +121,6 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         GateDefinition("G2", "Liquidity map", g2),
         GateDefinition("G3", "Supply & demand", g3),
         GateDefinition("G4", "Structure & bias", g4),
-        GateDefinition("G5", "Backtest (removed)", g5),
         GateDefinition("G6", "Risk geometry", g6),
         GateDefinition("G7", "Live revalidation", g7),
     ]
