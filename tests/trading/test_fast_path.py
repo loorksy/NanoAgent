@@ -11,6 +11,12 @@ def test_plan_turn_price_query_arabic() -> None:
     assert turn.intent.kind == "price_query"
 
 
+def test_plan_turn_chart_capture() -> None:
+    turn = plan_turn("أرسل صورة شارت الذهب")
+    assert turn.mode == "chart_capture"
+    assert turn.intent.kind == "chart_image"
+
+
 def test_fast_path_runs_analysis_for_arabic_request() -> None:
     turn = plan_turn("حلل الذهب واعطني توصية")
     assert turn.mode == "full_analysis"
