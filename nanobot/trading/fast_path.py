@@ -120,6 +120,7 @@ async def _run_analysis_fast_path(
                 team_mode="core",
                 emit=publisher.sync_emit,
                 visual_capture=visual_capture,
+                turn_plan=turn,
             )
     except Exception as exc:
         return OutboundMessage(

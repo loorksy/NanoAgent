@@ -8,7 +8,9 @@ from typing import Any
 
 from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
-from nanobot.trading.evidence import PipelineContext, run_evidence_graph
+from nanobot.trading.config import load_trading_config
+from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
+from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
 from nanobot.trading.intent_router import route_intent
@@ -22,6 +24,7 @@ from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.stage_events import StageEvent, emit_stage
+from nanobot.trading.turn_planner import TurnPlan
 from nanobot.trading.types import AgentFinalResult, AgentRecommendation, EntryPlan, FinalDecisionResult
 
 StageEmitter = Callable[[StageEvent], None]
@@ -54,6 +57,18 @@ def _operator_text() -> str:
     return (ctx.original_user_text if ctx else "") or ""
 
 
+def _resolve_evidence_graph(turn_plan: TurnPlan | None):
+    if turn_plan is None:
+        return DEFAULT_ANALYSIS_GRAPH
+    config = load_trading_config()
+    validated = validate_turn_plan(
+        turn_plan,
+        shadow_mode=config.planner_shadow_mode,
+    )
+    log_planner_shadow(validated)
+    return validated.executed_graph
+
+
 async def run_unified_chart_agent(
     *,
     symbol: str = DATA_SYMBOL,
@@ -67,6 +82,7 @@ async def run_unified_chart_agent(
     team_briefing: str | None = None,
     complete: Any = None,
     visual_capture: Any = None,
+    turn_plan: TurnPlan | None = None,
 ) -> AgentFinalResult:
     emit_fn = emit or _noop_emit
     runtime = get_runtime_store().snapshot()
@@ -114,7 +130,8 @@ async def run_unified_chart_agent(
         interval=interval,
         visual_capture=visual_capture,
     )
-    pipeline = await run_evidence_graph(pipeline, track=track)
+    evidence_graph = _resolve_evidence_graph(turn_plan)
+    pipeline = await run_evidence_graph(pipeline, evidence_graph, track=track)
     if pipeline.aborted or pipeline.market is None:
         market = pipeline.market
         reason = pipeline.abort_reason or "Market data sync failed"

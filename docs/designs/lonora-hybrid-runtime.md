@@ -150,12 +150,13 @@ Each card declares: `cost_estimate`, `required_nodes`, `max_subagents`, `output_
 
 **Success:** `pytest tests/trading/ -q` green; no user-visible behavior change.
 
-### Phase I — TurnPlan + Policy Guard
+### Phase I — TurnPlan + Policy Guard ✅ *implemented*
 
-- Extend `TurnPlan` with `nodes: tuple[str, ...]` and `budget: TurnBudget`
-- `PolicyGuard.validate(plan) -> ValidatedPlan | Refusal`
-- Shadow mode: planner logs chosen nodes; executor still runs full graph
-- Metrics: `planner_chosen_nodes` vs `executed_nodes`
+- [x] Extend `TurnPlan` with `nodes: tuple[str, ...]` and `budget: TurnBudget`
+- [x] `validate_turn_plan(plan) -> ValidatedPlan` + `PolicyViolation` on hard failures
+- [x] Shadow mode (`LONORA_PLANNER_SHADOW`, default `true`): logs planned vs executed nodes
+- [x] Orchestrator + fast_path pass `turn_plan` into evidence graph resolution
+- [ ] Metrics export (structured log only today; Phase M)
 
 ### Phase J — Dynamic Executor (light paths)
 

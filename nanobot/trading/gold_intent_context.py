@@ -45,6 +45,13 @@ async def gold_intent_runtime_context(
         f"confidence={turn.intent.confidence:.2f}).",
         f"Turn mode: {turn.mode}.",
     ]
+    if turn.nodes:
+        lines.append(f"Planned evidence nodes: {', '.join(turn.nodes)}.")
+    if turn.budget.max_subagents != 4 or turn.budget.max_spawn_depth != 1:
+        lines.append(
+            f"Planner budget: max_subagents={turn.budget.max_subagents}, "
+            f"max_spawn_depth={turn.budget.max_spawn_depth}."
+        )
     if tool_hint:
         lines.append(tool_hint)
     if turn.emit_stages:

@@ -33,3 +33,15 @@ DEFAULT_ANALYSIS_GRAPH = EvidenceGraph(
     name="full_analysis",
     layers=DEFAULT_ANALYSIS_LAYERS,
 )
+
+
+def graph_for_nodes(node_ids: frozenset[str]) -> EvidenceGraph:
+    """Build a layered subgraph containing only the requested node ids."""
+    if not node_ids:
+        return EvidenceGraph(name="empty", layers=())
+    layers: list[tuple[str, ...]] = []
+    for layer in DEFAULT_ANALYSIS_LAYERS:
+        filtered = tuple(node_id for node_id in layer if node_id in node_ids)
+        if filtered:
+            layers.append(filtered)
+    return EvidenceGraph(name="subset", layers=tuple(layers))

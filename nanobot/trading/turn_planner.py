@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from nanobot.trading.evidence.node_sets import EMPTY_NODES, FULL_ANALYSIS_NODES, MARKET_DATA_NODES
 from nanobot.trading.intent_router import IntentKind, RoutedIntent, route_intent
 from nanobot.trading.operator_keywords import EXPLICIT_NEW_ANALYSIS_PHRASES
 
@@ -28,6 +29,14 @@ class TurnTools:
 
 
 @dataclass(frozen=True)
+class TurnBudget:
+    """Hard budgets for planner delegation (Phase I+)."""
+
+    max_subagents: int = 4
+    max_spawn_depth: int = 1
+
+
+@dataclass(frozen=True)
 class TurnPlan:
     mode: TurnMode
     intent: RoutedIntent
@@ -36,6 +45,8 @@ class TurnPlan:
     redirected_from_analysis: bool = False
     requested_new_plan: bool = False
     tools: TurnTools = TurnTools()
+    nodes: tuple[str, ...] = EMPTY_NODES
+    budget: TurnBudget = TurnBudget()
 
 
 _SPECIALIST_KINDS: frozenset[IntentKind] = frozenset({"price_query"})
@@ -47,6 +58,7 @@ NO_TOOLS = TurnTools()
 FOLLOWUP_TOOLS = TurnTools(fetch_market_data=True)
 FULL_TOOLS = TurnTools(fetch_market_data=True, capture_charts=True, run_full_pipeline=True)
 CAPTURE_TOOLS = TurnTools(capture_charts=True)
+DEFAULT_BUDGET = TurnBudget()
 
 
 def wants_explicit_new_analysis(message: str) -> bool:
@@ -68,6 +80,8 @@ def plan_turn(
             emit_stages=True,
             reason="internal_reevaluation",
             tools=FULL_TOOLS,
+            nodes=FULL_ANALYSIS_NODES,
+            budget=DEFAULT_BUDGET,
         )
     if intent.kind == "price_query":
         return TurnPlan(
@@ -76,6 +90,8 @@ def plan_turn(
             emit_stages=False,
             reason="specialist_intent",
             tools=TurnTools(fetch_market_data=True),
+            nodes=MARKET_DATA_NODES,
+            budget=DEFAULT_BUDGET,
         )
     if intent.kind == "chart_image":
         return TurnPlan(
@@ -84,6 +100,8 @@ def plan_turn(
             emit_stages=False,
             reason="chart_image_intent",
             tools=CAPTURE_TOOLS,
+            nodes=EMPTY_NODES,
+            budget=DEFAULT_BUDGET,
         )
     if intent.kind not in _ANALYSIS_KINDS:
         specialist = intent.kind in _SPECIALIST_KINDS
@@ -93,6 +111,8 @@ def plan_turn(
             emit_stages=False,
             reason="specialist_intent" if specialist else "no_trade_signal",
             tools=NO_TOOLS,
+            nodes=EMPTY_NODES,
+            budget=DEFAULT_BUDGET,
         )
     if active_recommendation_live:
         requested = wants_explicit_new_analysis(message)
@@ -108,6 +128,8 @@ def plan_turn(
             redirected_from_analysis=True,
             requested_new_plan=requested,
             tools=FOLLOWUP_TOOLS,
+            nodes=EMPTY_NODES,
+            budget=DEFAULT_BUDGET,
         )
     if intent.kind == "team_swarm":
         return TurnPlan(
@@ -116,6 +138,8 @@ def plan_turn(
             emit_stages=True,
             reason="no_active_recommendation",
             tools=FULL_TOOLS,
+            nodes=FULL_ANALYSIS_NODES,
+            budget=DEFAULT_BUDGET,
         )
     return TurnPlan(
         "full_analysis",
@@ -123,4 +147,6 @@ def plan_turn(
         emit_stages=True,
         reason="no_active_recommendation",
         tools=FULL_TOOLS,
+        nodes=FULL_ANALYSIS_NODES,
+        budget=DEFAULT_BUDGET,
     )
