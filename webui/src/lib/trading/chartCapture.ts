@@ -1,4 +1,7 @@
-import type { IChartingLibraryWidget, ResolutionString } from "../../../vendor/tradingview/charting_library/charting_library";
+import type {
+  IChartingLibraryWidget,
+  ResolutionString,
+} from "../../../vendor/tradingview/charting_library/charting_library";
 
 const INTERVAL_TO_RES: Record<string, string> = {
   "1m": "1",
@@ -10,6 +13,10 @@ const INTERVAL_TO_RES: Record<string, string> = {
   "1d": "1D",
   "1w": "1W",
 };
+
+const RES_TO_INTERVAL: Record<string, string> = Object.fromEntries(
+  Object.entries(INTERVAL_TO_RES).map(([interval, resolution]) => [resolution, interval]),
+);
 
 export interface ChartCaptureFrame {
   timeframe: string;
@@ -44,28 +51,71 @@ function downscaleDataUrl(dataUrl: string, maxWidth = 960): Promise<string> {
   });
 }
 
+async function waitForChartData(
+  widget: IChartingLibraryWidget,
+  timeoutMs = 2500,
+): Promise<void> {
+  const chart = widget.activeChart();
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const timer = window.setTimeout(finish, timeoutMs);
+    try {
+      chart.dataReady(() => {
+        window.clearTimeout(timer);
+        finish();
+      });
+    } catch {
+      window.clearTimeout(timer);
+      finish();
+    }
+  });
+  await sleep(150);
+}
+
+function resolutionLabel(resolution: string): string {
+  return RES_TO_INTERVAL[resolution] ?? resolution;
+}
+
 export async function captureTradingViewFrames(
   widget: IChartingLibraryWidget,
   timeframes: string[],
 ): Promise<ChartCaptureFrame[]> {
   const chart = widget.activeChart();
+  const originalResolution = chart.resolution();
   const frames: ChartCaptureFrame[] = [];
-  for (const timeframe of timeframes) {
+  const ordered = [...timeframes].sort(
+    (left, right) => timeframes.indexOf(left) - timeframes.indexOf(right),
+  );
+
+  for (const timeframe of ordered) {
     const resolution = (INTERVAL_TO_RES[timeframe] ?? "15") as ResolutionString;
     try {
       await chart.setResolution(resolution);
-      await sleep(450);
+      await waitForChartData(widget);
       const canvas = await widget.takeClientScreenshot({ hideResolution: false });
       const raw = canvas.toDataURL("image/png");
       const image = await downscaleDataUrl(raw);
       frames.push({
         timeframe,
         image,
-        context: `TradingView snapshot at ${timeframe}`,
+        context: `TradingView snapshot at ${timeframe} (${resolutionLabel(resolution)})`,
       });
     } catch {
       // Best-effort: skip frames that fail to render.
     }
   }
+
+  try {
+    await chart.setResolution(originalResolution);
+    await waitForChartData(widget, 1200);
+  } catch {
+    // Ignore restore failures.
+  }
+
   return frames;
 }

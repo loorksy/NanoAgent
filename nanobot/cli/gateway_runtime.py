@@ -636,6 +636,31 @@ def _run_gateway(
             channel, chat_id = _pick_heartbeat_target()
             if channel == "cli":
                 return None
+            if isinstance(alert, list):
+                first_content: str | None = None
+                for payload in alert:
+                    if not isinstance(payload, dict):
+                        continue
+                    metadata = dict(payload.get("metadata") or {})
+                    content = str(payload.get("content") or "")
+                    if channel == "whatsapp":
+                        whatsapp_content = metadata.get("whatsapp_content")
+                        if isinstance(whatsapp_content, str) and whatsapp_content.strip():
+                            content = whatsapp_content
+                        metadata.pop("whatsapp_content", None)
+                        metadata.pop("parse_mode", None)
+                    await _deliver_to_channel(
+                        OutboundMessage(
+                            channel=channel,
+                            chat_id=chat_id,
+                            content=content,
+                            metadata=metadata,
+                        ),
+                        record=True,
+                    )
+                    if first_content is None:
+                        first_content = content
+                return first_content
             await _deliver_to_channel(
                 OutboundMessage(channel=channel, chat_id=chat_id, content=alert),
                 record=True,

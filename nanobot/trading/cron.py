@@ -45,22 +45,23 @@ async def run_gold_news_job() -> str | None:
     return None
 
 
-async def run_gold_followup_job() -> str | None:
-    from nanobot.trading.recommendations.followup import (
-        grade_outcome_status,
-        latest_open_recommendation,
-        refresh_recommendation_outcomes,
-    )
+async def run_gold_followup_job() -> list[dict[str, object]] | None:
+    """Return outcome transition alerts (Telegram HTML + WhatsApp plain)."""
+    from nanobot.trading.recommendations.outcome_delivery import collect_outcome_alerts
 
-    refresh_recommendation_outcomes()
-    open_rec = latest_open_recommendation()
-    if not open_rec:
+    alerts = await collect_outcome_alerts()
+    if not alerts:
         return None
-    status = grade_outcome_status(open_rec)
-    return (
-        f"Open gold {open_rec.get('direction', '').upper()} ({status}) — "
-        f"{open_rec.get('summary', '')}"
-    )
+    payloads: list[dict[str, object]] = []
+    for alert in alerts:
+        metadata = dict(alert.metadata or {})
+        payloads.append(
+            {
+                "content": alert.content,
+                "metadata": metadata,
+            }
+        )
+    return payloads
 
 
 async def run_gold_scan_job() -> str | None:

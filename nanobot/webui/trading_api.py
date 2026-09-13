@@ -263,7 +263,7 @@ def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
     from nanobot.trading.memory.decisions import list_recent_decisions
 
-    refresh_recommendation_outcomes()
+    refresh_recommendation_outcomes()[0]
     recs = list_recommendations(limit=200)
     decisions = list_recent_decisions(limit=20)
     open_count = sum(1 for row in recs if row.get("status") in LIVE_OUTCOME_STATUSES)
@@ -325,11 +325,23 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
 def handle_trading_briefing(_request: WsRequest) -> Response:
     from nanobot.trading.config import load_trading_config
     from nanobot.trading.oanda import fetch_quote
-    from nanobot.trading.recommendations.followup import latest_open_recommendation
+    from nanobot.trading.recommendations.followup import (
+        grade_outcome_status,
+        latest_open_recommendation,
+        refresh_recommendation_outcomes,
+    )
 
     config = load_trading_config()
     quote = fetch_quote("XAUUSD", config=config) if config.oanda_configured else None
+    live_price = quote.mid if quote else None
+    refresh_recommendation_outcomes(live_price=live_price)
     latest = latest_open_recommendation()
+    if latest:
+        latest = {
+            **latest,
+            "outcomeStatus": grade_outcome_status(latest, live_price=live_price),
+            "livePrice": live_price,
+        }
     recs = list_recommendations(limit=5)
     return _http_json_response({
         "symbol": "XAUUSD",

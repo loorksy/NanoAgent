@@ -57,7 +57,14 @@ export function TradingBriefingPanel() {
           </div>
           {briefing.openRecommendation ? (
             <section>
-              <h2 className="mb-2 text-sm font-semibold">Open recommendation</h2>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Open recommendation</h2>
+                {typeof briefing.openRecommendation.outcomeStatus === "string" ? (
+                  <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+                    {briefing.openRecommendation.outcomeStatus}
+                  </span>
+                ) : null}
+              </div>
               <TradingRecommendationCard
                 result={{
                   decision: String(briefing.openRecommendation.direction ?? "wait"),
@@ -70,6 +77,9 @@ export function TradingBriefingPanel() {
                     entry: briefing.openRecommendation.entry as number | undefined,
                     stopLoss: briefing.openRecommendation.stop_loss as number | undefined,
                     targets: (briefing.openRecommendation.targets as number[]) ?? [],
+                    executionState: typeof briefing.openRecommendation.outcomeStatus === "string"
+                      ? briefing.openRecommendation.outcomeStatus
+                      : undefined,
                   },
                 }}
               />

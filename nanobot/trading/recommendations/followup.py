@@ -7,6 +7,7 @@ from typing import Any
 
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
+from nanobot.trading.recommendations.outcome_alerts import OutcomeTransition
 from nanobot.trading.recommendations.store import (
     get_recommendation,
     list_recommendations,
@@ -71,21 +72,33 @@ def grade_outcome_status(
     return "waiting"
 
 
-def refresh_recommendation_outcomes(*, live_price: float | None = None) -> dict[str, int]:
+def refresh_recommendation_outcomes(
+    *,
+    live_price: float | None = None,
+) -> tuple[dict[str, int], list[OutcomeTransition]]:
     """Grade open recommendations against live price and persist outcomes."""
     counts = {"updated": 0, "open": 0, "closed": 0}
+    transitions: list[OutcomeTransition] = []
     for row in list_recommendations(limit=200):
         current = str(row.get("status") or "valid_now")
         graded = grade_outcome_status(row, live_price=live_price)
         if graded != current:
             update_recommendation_status(str(row["id"]), graded)
+            transitions.append(
+                OutcomeTransition(
+                    rec_id=str(row["id"]),
+                    previous=current,
+                    current=graded,
+                    row={**row, "status": graded},
+                )
+            )
             counts["updated"] += 1
             current = graded
         if current in LIVE_OUTCOME_STATUSES:
             counts["open"] += 1
         elif current in CLOSED_OUTCOME_STATUSES:
             counts["closed"] += 1
-    return counts
+    return counts, transitions
 
 
 def explain_stored_recommendation(rec_id: str) -> str:
