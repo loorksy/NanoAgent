@@ -18,9 +18,6 @@ from nanobot.trading.stage_events import StageEvent, stage_label
 if TYPE_CHECKING:
     from nanobot.bus.queue import MessageBus
 
-_WHATSAPP_PROGRESS = "⏳ جاري تحليل الذهب…"
-
-
 class TradingStagePublisher:
     """Emit orchestrator stages to the active chat channel."""
 
