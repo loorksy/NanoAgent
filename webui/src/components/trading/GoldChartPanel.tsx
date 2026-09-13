@@ -150,7 +150,7 @@ export function GoldChartPanel() {
               {mid != null ? mid.toFixed(2) : "—"}
             </div>
             <div className="text-xs text-muted-foreground">
-              {status?.oanda_configured ? `OANDA ${status.oanda_env}` : "OANDA not configured"}
+              {status?.oanda_configured ? "Live market" : "Market data unavailable"}
             </div>
           </div>
         </div>

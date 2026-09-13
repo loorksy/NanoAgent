@@ -27,7 +27,7 @@ describe("AgentCards", () => {
 
     expect(screen.getByText("BUY")).toBeInTheDocument();
     expect(screen.getByText("Breakout setup")).toBeInTheDocument();
-    expect(screen.getByText("G1")).toBeInTheDocument();
+    expect(screen.getByText("News & event shield")).toBeInTheDocument();
     expect(screen.getByText("Unavailable")).toBeInTheDocument();
     expect(screen.queryByText(/"kind": "decision"/)).not.toBeInTheDocument();
   });

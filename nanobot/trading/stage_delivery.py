@@ -13,6 +13,7 @@ from nanobot.channels.telegram.trading_progress import (
     apply_stage_event,
     render_stage_progress,
 )
+from nanobot.trading.i18n import tr
 from nanobot.trading.locale import normalize_locale
 from nanobot.trading.stage_events import StageEvent, stage_label
 
@@ -73,7 +74,7 @@ class TradingStagePublisher:
         await self._agent_ui(
             "trading_chart_open",
             {"interval": interval, "symbol": "XAUUSD"},
-            content="Opening gold chart…",
+            content=tr("stage.opening_chart", self._locale),
         )
 
     async def request_chart_capture(

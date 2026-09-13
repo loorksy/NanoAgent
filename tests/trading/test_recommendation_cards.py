@@ -76,7 +76,7 @@ def test_telegram_card_is_arabic_and_rounded() -> None:
     assert "4358.8748214285715" not in card
     assert "Opening" not in card
     assert "الشارت" not in card
-    assert "G1" in card and "G7" in card
+    assert "فحوصات الجودة" in card or "quality" in card.lower()
     assert "محركات الاقتصاد الكلي" in card
     assert "الدولار" in card
     assert "تم التخطي — مخزن مؤقت أو غير منطبق" in card

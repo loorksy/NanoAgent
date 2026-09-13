@@ -64,4 +64,4 @@ def test_fast_path_oanda_unconfigured() -> None:
         )
     )
     assert result is not None
-    assert "OANDA" in result.content
+    assert "Market data" in result.content or "بيانات السوق" in result.content

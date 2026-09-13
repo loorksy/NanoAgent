@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from nanobot.trading.cards.format import format_price, translate_reason
-from nanobot.trading.i18n import artifact_title
+from nanobot.trading.i18n import artifact_title, gate_label
 from nanobot.trading.intent_router import IntentKind
 from nanobot.trading.locale import normalize_locale
 from nanobot.trading.operator_keywords import (
@@ -204,7 +204,7 @@ def _build_artifact_pool(
                 "verdicts": [
                     {
                         "id": v.id,
-                        "name": v.name,
+                        "name": gate_label(v.id, loc),
                         "status": v.status,
                         "reason": v.reason_ar if loc == "ar" else v.reason_ar,
                     }

@@ -13,7 +13,7 @@ ARTIFACT_TITLES: dict[str, dict[str, str]] = {
     "en": {
         "decision": "Decision",
         "level_map": "Plan levels",
-        "gate_report": "Gate report",
+        "gate_report": "Quality checks",
         "chart_snapshot": "Chart snapshot",
         "macro_dashboard": "Macro drivers",
         "key_reasons": "Key reasons",
@@ -26,7 +26,7 @@ ARTIFACT_TITLES: dict[str, dict[str, str]] = {
     "ar": {
         "decision": "القرار",
         "level_map": "مستويات الخطة",
-        "gate_report": "تقرير البوابات",
+        "gate_report": "فحوصات الجودة",
         "chart_snapshot": "لقطة الرسم البياني",
         "macro_dashboard": "محركات الاقتصاد الكلي",
         "key_reasons": "أبرز المبررات",
@@ -43,34 +43,56 @@ ARTIFACT_TITLES: dict[str, dict[str, str]] = {
 # ---------------------------------------------------------------------------
 STAGE_LABELS: dict[str, dict[str, str]] = {
     "en": {
-        "market_data": "Market data",
-        "structure": "Price structure",
-        "liquidity": "Liquidity",
-        "supply_demand": "Supply & demand",
-        "multi_timeframe": "Multi-timeframe",
-        "news": "News & events",
-        "risk": "Risk filters",
-        "final_decision": "Final decision",
-        "drawing": "Chart drawing",
-        "execution_guard": "Execution guard",
-        "general": "Answer",
+        "market_data": "Reading live market",
+        "structure": "Mapping price structure",
+        "liquidity": "Scanning liquidity",
+        "supply_demand": "Locating key zones",
+        "multi_timeframe": "Cross-timeframe read",
+        "news": "Calendar & headline scan",
+        "risk": "Building trade scenarios",
+        "final_decision": "Forming the call",
+        "drawing": "Marking the chart",
+        "execution_guard": "Final safety check",
+        "general": "Response",
         "research": "Research",
-        "macro_drivers": "Macro drivers",
+        "macro_drivers": "Macro pulse",
     },
     "ar": {
-        "market_data": "جلب بيانات السوق",
-        "structure": "تحليل الهيكل السعاري",
-        "liquidity": "تحليل السيولة",
-        "supply_demand": "مناطق العرض والطلب",
-        "multi_timeframe": "تحليل الأطر الزمنية المتعددة",
-        "news": "مراجعة الأخبار والأحداث",
-        "risk": "تقييم المخاطر والمرشحين",
-        "final_decision": "إصدار القرار النهائي",
-        "drawing": "إعداد الرسم البياني",
-        "execution_guard": "التحقق من شروط التنفيذ",
+        "market_data": "قراءة السوق الحي",
+        "structure": "رسم الهيكل السعاري",
+        "liquidity": "مسح السيولة",
+        "supply_demand": "تحديد المناطق الحاسمة",
+        "multi_timeframe": "قراءة الأطر المتعددة",
+        "news": "مراجعة التقويم والأخبار",
+        "risk": "بناء السيناريوهات",
+        "final_decision": "صياغة القرار",
+        "drawing": "وسم الرسم البياني",
+        "execution_guard": "الفحص الأمني النهائي",
         "general": "الإجابة",
         "research": "البحث",
-        "macro_drivers": "محركات الاقتصاد الكلي",
+        "macro_drivers": "نبض الاقتصاد الكلي",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Quality-check labels (user-facing; internal ids stay G1, G2, … in wire only)
+# ---------------------------------------------------------------------------
+GATE_LABELS: dict[str, dict[str, str]] = {
+    "en": {
+        "G1": "News & event shield",
+        "G2": "Liquidity alignment",
+        "G3": "Supply & demand zones",
+        "G4": "Structure & chart confirmation",
+        "G6": "Risk geometry",
+        "G7": "Live price confirmation",
+    },
+    "ar": {
+        "G1": "درع الأخبار والأحداث",
+        "G2": "مواءمة السيولة",
+        "G3": "مناطق العرض والطلب",
+        "G4": "تأكيد الهيكل والرسم البياني",
+        "G6": "هندسة المخاطر",
+        "G7": "تأكيد السعر الحي",
     },
 }
 
@@ -86,8 +108,8 @@ CARD_LABELS: dict[str, dict[str, str]] = {
         "target": "Target",
         "reasons": "Reasons",
         "macro": "Macro drivers",
-        "gates_pass": "All gates (G1-G7) passed",
-        "gates_block": "Recommendation blocked by risk gates",
+        "gates_pass": "All quality checks passed",
+        "gates_block": "Recommendation held — a quality check did not pass",
         "disclaimer": "Recommendations only — no execution.",
         "trend": "Trend",
         "bias": "Bias",
@@ -109,8 +131,8 @@ CARD_LABELS: dict[str, dict[str, str]] = {
         "target": "الهدف",
         "reasons": "المبررات",
         "macro": "محركات الاقتصاد الكلي",
-        "gates_pass": "اجتازت جميع البوابات (G1–G7)",
-        "gates_block": "حُجبت التوصية بسبب بوابات المخاطر",
+        "gates_pass": "اجتازت جميع فحوصات الجودة",
+        "gates_block": "أُوقفت التوصية — لم يجتز أحد فحوصات الجودة",
         "disclaimer": "توصيات تحليلية فقط — دون تنفيذ.",
         "trend": "الاتجاه",
         "bias": "التحيز",
@@ -260,13 +282,14 @@ OUTCOME_FIELD_LABELS: dict[str, dict[str, str]] = {
 MESSAGES: dict[str, dict[str, str]] = {
     "en": {
         "price.header": "XAUUSD live quote",
-        "price.footer": "Live OANDA feed — ask for a full gold analysis when needed.",
-        "price.oanda_unconfigured": "OANDA is not configured — cannot fetch the live gold quote.",
-        "price.fetch_failed": "Failed to fetch gold quote: {error}",
-        "price.no_quote": "No quote returned from OANDA.",
-        "analysis.failed": "Gold analysis failed: {error}",
+        "price.footer": "Live market feed — ask for a full gold analysis when needed.",
+        "price.feed_unconfigured": "Market data is not available — cannot fetch the live gold quote.",
+        "price.fetch_failed": "Could not read the live gold price: {error}",
+        "price.no_quote": "No live quote is available right now.",
+        "analysis.failed": "Gold analysis could not be completed: {error}",
         "analysis.no_result": "Analysis produced no result.",
-        "analysis.oanda_unconfigured": "OANDA is not configured — cannot run gold analysis.",
+        "analysis.feed_unconfigured": "Market data is not available — cannot run gold analysis.",
+        "stage.opening_chart": "Opening gold chart…",
         "capture.webui_required": (
             "Chart capture requires the WebUI with the gold chart panel open. "
             "Open the chat in the web interface and try again."
@@ -301,13 +324,14 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "ar": {
         "price.header": "سعر الذهب (XAUUSD)",
-        "price.footer": "بيانات حية من OANDA — لطلب تحليل كامل، اطلب «حلّل الذهب».",
-        "price.oanda_unconfigured": "لم يُعدّ OANDA — لا يمكن جلب سعر الذهب الحي.",
-        "price.fetch_failed": "تعذّر جلب سعر الذهب: {error}",
-        "price.no_quote": "لم يُرجع OANDA أي سعر.",
-        "analysis.failed": "تعذّر تحليل الذهب: {error}",
+        "price.footer": "بيانات السوق الحية — لطلب تحليل كامل، اطلب «حلّل الذهب».",
+        "price.feed_unconfigured": "بيانات السوق غير متاحة — لا يمكن جلب سعر الذهب الحي.",
+        "price.fetch_failed": "تعذّر قراءة سعر الذهب الحي: {error}",
+        "price.no_quote": "لا يوجد سعر حي متاح حالياً.",
+        "analysis.failed": "تعذّر إكمال تحليل الذهب: {error}",
         "analysis.no_result": "لم يُنتج التحليل أي نتيجة.",
-        "analysis.oanda_unconfigured": "لم يُعدّ OANDA — لا يمكن تشغيل تحليل الذهب.",
+        "analysis.feed_unconfigured": "بيانات السوق غير متاحة — لا يمكن تشغيل تحليل الذهب.",
+        "stage.opening_chart": "فتح رسم الذهب…",
         "capture.webui_required": (
             "يتطلب التقاط الرسم البياني فتح الواجهة مع لوحة الرسم البياني. "
             "افتح المحادثة من الواجهة ثم أعد الطلب."
@@ -363,6 +387,7 @@ def label_map(name: str, locale: str | None = None) -> dict[str, str]:
         "card": CARD_LABELS,
         "artifact": ARTIFACT_TITLES,
         "stage": STAGE_LABELS,
+        "gate": GATE_LABELS,
         "trend": TREND_LABELS,
         "bias": BIAS_LABELS,
         "setup": SETUP_LABELS,
@@ -380,3 +405,8 @@ def artifact_title(kind: str, locale: str | None = None) -> str:
 
 def stage_label(stage: str, locale: str | None = None) -> str:
     return label_map("stage", locale).get(stage, stage)
+
+
+def gate_label(gate_id: str, locale: str | None = None) -> str:
+    """User-facing quality-check name (never show raw G1, G2, … to operators)."""
+    return label_map("gate", locale).get(gate_id, gate_id)

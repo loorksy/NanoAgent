@@ -15,6 +15,7 @@ from nanobot.trading.gates.plan_alignment import (
     evaluate_supply_demand_alignment,
 )
 from nanobot.trading.gates.revalidation import revalidate_plan
+from nanobot.trading.i18n import gate_label
 from nanobot.trading.types import (
     EntryPlan,
     GateStatus,
@@ -121,10 +122,10 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         return {"status": "pass"}
 
     return [
-        GateDefinition("G1", "News & events", g1),
-        GateDefinition("G2", "Liquidity map", g2),
-        GateDefinition("G3", "Supply & demand", g3),
-        GateDefinition("G4", "Structure & bias", g4),
-        GateDefinition("G6", "Risk geometry", g6),
-        GateDefinition("G7", "Live revalidation", g7),
+        GateDefinition("G1", gate_label("G1", "en"), g1),
+        GateDefinition("G2", gate_label("G2", "en"), g2),
+        GateDefinition("G3", gate_label("G3", "en"), g3),
+        GateDefinition("G4", gate_label("G4", "en"), g4),
+        GateDefinition("G6", gate_label("G6", "en"), g6),
+        GateDefinition("G7", gate_label("G7", "en"), g7),
     ]

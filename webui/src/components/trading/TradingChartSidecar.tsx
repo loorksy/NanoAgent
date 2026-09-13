@@ -74,7 +74,7 @@ export function TradingChartSidecar({ chatId }: TradingChartSidecarProps) {
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="border-b px-4 py-3">
         <h2 className="text-sm font-semibold">Gold chart</h2>
-        <p className="text-xs text-muted-foreground">XAUUSD · live OANDA · agent analysis</p>
+        <p className="text-xs text-muted-foreground">XAUUSD · live market · agent analysis</p>
       </div>
       {session.teamAgents.length > 0 ? (
         <div className="border-b p-3">

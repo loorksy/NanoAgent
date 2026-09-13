@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from nanobot.trading.i18n import tr
+from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.locale import normalize_locale
 from nanobot.trading.types import AgentFinalResult
 
@@ -71,7 +71,12 @@ def derive_cards(result: AgentFinalResult, *, locale: str = "en") -> list[dict[s
                 "kind": "gate_checklist",
                 "allowed": d.gate_chain.allowed,
                 "verdicts": [
-                    {"id": v.id, "name": v.name, "status": v.status, "reason": v.reason_ar}
+                    {
+                        "id": v.id,
+                        "name": gate_label(v.id, loc),
+                        "status": v.status,
+                        "reason": v.reason_ar,
+                    }
                     for v in d.gate_chain.verdicts
                 ],
                 "vetoedBy": d.gate_chain.vetoed_by.id if d.gate_chain.vetoed_by else None,

@@ -109,7 +109,7 @@ export function TradingRecommendationCard({
 
       {showStages && stages && stages.length > 0 ? (
         <div className="mb-3">
-          <TradingStageChecklist stages={stages} compact />
+          <TradingStageChecklist stages={stages} compact locale={result.locale} />
         </div>
       ) : null}
 

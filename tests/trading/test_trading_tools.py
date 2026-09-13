@@ -19,7 +19,7 @@ async def test_get_gold_quote_unconfigured() -> None:
     with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
         cfg.return_value = MagicMock(oanda_configured=False)
         result = await tool.execute()
-    assert "not configured" in result.lower()
+    assert "market data" in result.lower()
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,5 @@
 import { cardStrings } from "@/lib/trading/cardLocale";
+import { gateLabel } from "@/lib/trading/gate-labels";
 
 export interface TradingArtifact {
   type: string;
@@ -82,10 +83,11 @@ function GateReportArtifact({
           if (!row || typeof row !== "object") return null;
           const item = row as Record<string, unknown>;
           const id = String(item.id ?? "");
+          const label = gateLabel(id, locale) || String(item.name ?? id);
           const status = String(item.status ?? "");
           return (
             <li key={id}>
-              <span className="font-medium">{id}</span>
+              <span className="font-medium">{label}</span>
               {" — "}
               {status}
               {item.reason ? ` — ${String(item.reason)}` : null}

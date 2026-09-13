@@ -247,7 +247,7 @@ async def try_gold_fast_path(
             return OutboundMessage(
                 channel=channel,
                 chat_id=chat_id,
-                content=tr("price.oanda_unconfigured", locale),
+                content=tr("price.feed_unconfigured", locale),
             )
 
         try:
@@ -313,7 +313,7 @@ async def try_gold_fast_path(
             return OutboundMessage(
                 channel=channel,
                 chat_id=chat_id,
-                content=tr("analysis.oanda_unconfigured", locale),
+                content=tr("analysis.feed_unconfigured", locale),
             )
         return await _run_analysis_fast_path(
             turn,

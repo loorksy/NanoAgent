@@ -64,7 +64,7 @@ def _request_route() -> tuple[str, str]:
 
 @tool_parameters(_QUOTE_PARAMETERS)
 class GetGoldQuoteTool(Tool):
-    """Fetch the live XAUUSD quote from OANDA."""
+    """Fetch the live XAUUSD quote from the platform market feed."""
 
     def __init__(self, bus: MessageBus | None) -> None:
         self._bus = bus
@@ -81,7 +81,7 @@ class GetGoldQuoteTool(Tool):
     def description(self) -> str:
         return (
             "Get the current live gold (XAUUSD) bid/ask/mid price from the platform "
-            "OANDA feed. Use this for price questions before running a full analysis."
+            "market feed. Use this for price questions before running a full analysis."
         )
 
     @property
@@ -91,7 +91,7 @@ class GetGoldQuoteTool(Tool):
     async def execute(self, symbol: str = DATA_SYMBOL, **kwargs: Any) -> str:
         config = load_trading_config()
         if not config.oanda_configured:
-            return ToolResult.error("OANDA is not configured — cannot fetch gold quote.")
+            return ToolResult.error("Market data is not available — cannot fetch gold quote.")
         try:
             quote = fetch_quote(symbol, config=config)
         except GoldOnlyError as exc:
@@ -99,7 +99,7 @@ class GetGoldQuoteTool(Tool):
         except Exception as exc:
             return ToolResult.error(f"Failed to fetch quote: {exc}")
         if quote is None:
-            return ToolResult.error("No quote returned from OANDA.")
+            return ToolResult.error("No live quote is available right now.")
         operator_text = (
             current_request_context().original_user_text if current_request_context() else ""
         ) or ""
@@ -150,8 +150,8 @@ class AnalyzeGoldTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Run a full XAUUSD gold analysis through the specialist fleet and G1–G4, "
-            "G6–G7 gates. Opens the TradingView chart side panel, streams stages, and "
+            "Run a full XAUUSD gold analysis through the specialist fleet and quality "
+            "checks. Opens the TradingView chart side panel, streams stages, and "
             "returns buy/sell/wait with entry, stop, and targets. Use team_mode=debate "
             "or team_mode=swarm with preset for multi-agent teams. For price-only "
             "questions use get_gold_quote instead."
