@@ -1,5 +1,6 @@
 import { cardStrings } from "@/lib/trading/cardLocale";
 import { gateLabel } from "@/lib/trading/gate-labels";
+import { useTranslation } from "react-i18next";
 
 export interface TradingArtifact {
   type: string;
@@ -18,15 +19,16 @@ function ChartSnapshotArtifact({
 }: {
   artifact: TradingArtifact;
 }) {
+  const { t } = useTranslation();
   const payload = artifact.payload ?? {};
   const src = String(payload.image ?? "");
   if (!src) {
-    return <p className="text-xs text-muted-foreground">No chart image available.</p>;
+    return <p className="text-xs text-muted-foreground">{t("trading.chart.noChartImage")}</p>;
   }
   return (
     <img
       src={src.startsWith("data:") ? src : src}
-      alt={artifact.title ?? "Chart snapshot"}
+      alt={artifact.title ?? t("trading.chart.chartSnapshotAlt")}
       className="max-h-80 w-full rounded-md border object-contain"
     />
   );

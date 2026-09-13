@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { TradingOutcomeWire, TradingResultWire } from "@/lib/trading/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface InboxRow {
   id: string;
@@ -46,6 +47,7 @@ function statusLabel(status: string): string {
 }
 
 export function TradingInbox() {
+  const { t } = useTranslation();
   const { getToken } = useClient();
   const [rows, setRows] = useState<InboxRow[]>([]);
   const [alerts, setAlerts] = useState<TradingOutcomeWire[]>([]);
@@ -60,7 +62,7 @@ export function TradingInbox() {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
-      setError("Failed to load recommendations");
+      setError(t("trading.inbox.loadFailed"));
       return;
     }
     const payload = await res.json() as {
@@ -70,7 +72,7 @@ export function TradingInbox() {
     setRows(payload.recommendations ?? []);
     setAlerts(payload.recentOutcomeAlerts ?? []);
     setError(null);
-  }, [getToken]);
+  }, [getToken, t]);
 
   useEffect(() => {
     void refresh();
@@ -96,12 +98,12 @@ export function TradingInbox() {
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Recommendations</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("trading.inbox.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Stored gold recommendations with live outcome status and paper actions
+            {t("trading.inbox.subtitle")}
           </p>
         </div>
-        <Button variant="outline" onClick={() => void refresh()}>Refresh</Button>
+        <Button variant="outline" onClick={() => void refresh()}>{t("trading.inbox.refresh")}</Button>
       </div>
       {visibleAlerts.length > 0 ? (
         <TradingOutcomeBanner
@@ -119,7 +121,11 @@ export function TradingInbox() {
             variant={filter === value ? "default" : "outline"}
             onClick={() => setFilter(value)}
           >
-            {value === "all" ? "All" : value === "open" ? "Open" : "Closed"}
+            {value === "all"
+              ? t("trading.inbox.filterAll")
+              : value === "open"
+                ? t("trading.inbox.filterOpen")
+                : t("trading.inbox.filterClosed")}
           </Button>
         ))}
       </div>
@@ -146,7 +152,7 @@ export function TradingInbox() {
                   <span className="text-sm text-muted-foreground line-clamp-2">{row.summary}</span>
                   {row.paperAction ? (
                     <span className="text-xs text-muted-foreground">
-                      Paper: {row.paperAction}
+                      {t("trading.inbox.paper", { action: row.paperAction })}
                     </span>
                   ) : null}
                 </button>
@@ -154,7 +160,7 @@ export function TradingInbox() {
             ))}
             {filteredRows.length === 0 ? (
               <li className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No recommendations in this view. Ask the agent to analyze gold in chat.
+                {t("trading.inbox.empty")}
               </li>
             ) : null}
           </ul>
@@ -164,7 +170,7 @@ export function TradingInbox() {
             <TradingRecommendationCard result={rowToResult(selected)} showStages={false} />
           ) : (
             <div className="flex h-full items-center justify-center rounded-xl border bg-muted/20 p-8 text-sm text-muted-foreground">
-              Select a recommendation to review levels and approve/reject in paper mode.
+              {t("trading.inbox.selectPrompt")}
             </div>
           )}
         </div>

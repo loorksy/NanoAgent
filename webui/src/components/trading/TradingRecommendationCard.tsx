@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { TradingResultWire } from "@/lib/trading/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface TradingRecommendationCardProps {
   result: TradingResultWire;
@@ -18,6 +19,7 @@ export function TradingRecommendationCard({
   stages = result.stages,
   showStages = true,
 }: TradingRecommendationCardProps) {
+  const { t, i18n } = useTranslation();
   const { getToken } = useClient();
   const [paperStatus, setPaperStatus] = useState<string | null>(null);
   const rec = result.recommendation;
@@ -31,9 +33,13 @@ export function TradingRecommendationCard({
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
     );
     if (res.ok) {
-      setPaperStatus(action === "approve" ? "Approved (paper)" : "Rejected");
+      setPaperStatus(
+        action === "approve"
+          ? t("trading.recommendation.approvedPaper")
+          : t("trading.recommendation.rejected"),
+      );
     }
-  }, [getToken, result.recommendationId]);
+  }, [getToken, result.recommendationId, t]);
 
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
@@ -42,16 +48,18 @@ export function TradingRecommendationCard({
           <div className="text-lg font-semibold uppercase tracking-wide">{decision}</div>
           <p className="text-sm text-muted-foreground">{result.summary}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Confidence {(result.confidence * 100).toFixed(0)}%
+            {t("trading.recommendation.confidence", {
+              percent: (result.confidence * 100).toFixed(0),
+            })}
           </p>
         </div>
         {result.recommendationId && decision !== "WAIT" ? (
           <div className="flex gap-2">
             <Button size="sm" variant="default" onClick={() => void onPaper("approve")}>
-              Approve
+              {t("trading.recommendation.approve")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => void onPaper("reject")}>
-              Reject
+              {t("trading.recommendation.reject")}
             </Button>
           </div>
         ) : null}
@@ -59,15 +67,15 @@ export function TradingRecommendationCard({
 
       {rec?.entry != null ? (
         <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-3 text-xs sm:grid-cols-4">
-          <div><span className="text-muted-foreground">Entry</span><div className="font-medium">{rec.entry.toFixed(2)}</div></div>
+          <div><span className="text-muted-foreground">{t("trading.recommendation.entry")}</span><div className="font-medium">{rec.entry.toFixed(2)}</div></div>
           {rec.stopLoss != null ? (
-            <div><span className="text-muted-foreground">SL</span><div className="font-medium">{rec.stopLoss.toFixed(2)}</div></div>
+            <div><span className="text-muted-foreground">{t("trading.recommendation.stopLoss")}</span><div className="font-medium">{rec.stopLoss.toFixed(2)}</div></div>
           ) : null}
           {rec.targets?.[0] != null ? (
-            <div><span className="text-muted-foreground">TP1</span><div className="font-medium">{rec.targets[0].toFixed(2)}</div></div>
+            <div><span className="text-muted-foreground">{t("trading.recommendation.target", { index: 1 })}</span><div className="font-medium">{rec.targets[0].toFixed(2)}</div></div>
           ) : null}
           {rec.targets?.[1] != null ? (
-            <div><span className="text-muted-foreground">TP2</span><div className="font-medium">{rec.targets[1].toFixed(2)}</div></div>
+            <div><span className="text-muted-foreground">{t("trading.recommendation.target", { index: 2 })}</span><div className="font-medium">{rec.targets[1].toFixed(2)}</div></div>
           ) : null}
         </div>
       ) : null}
@@ -79,7 +87,7 @@ export function TradingRecommendationCard({
       {result.macroDrivers && result.macroDrivers.length > 0 ? (
         <div className="mb-3 rounded-lg border bg-muted/20 p-3">
           <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Macro drivers
+            {t("trading.recommendation.macroDrivers")}
           </div>
           <ul className="space-y-1 text-xs">
             {result.macroDrivers.map((item, index) => {
@@ -109,7 +117,11 @@ export function TradingRecommendationCard({
 
       {showStages && stages && stages.length > 0 ? (
         <div className="mb-3">
-          <TradingStageChecklist stages={stages} compact locale={result.locale} />
+          <TradingStageChecklist
+            stages={stages}
+            compact
+            locale={result.locale ?? i18n.resolvedLanguage}
+          />
         </div>
       ) : null}
 
@@ -124,11 +136,14 @@ export function TradingRecommendationCard({
       ) : null}
 
       {result.artifacts && result.artifacts.length > 0 ? (
-        <ArtifactRenderer artifacts={result.artifacts} locale={result.locale} />
+        <ArtifactRenderer
+          artifacts={result.artifacts}
+          locale={result.locale ?? i18n.resolvedLanguage}
+        />
       ) : result.cards && result.cards.length > 0 ? (
         <AgentCards
           cards={result.cards as Array<{ kind: string } & Record<string, unknown>>}
-          locale={result.locale}
+          locale={result.locale ?? i18n.resolvedLanguage}
         />
       ) : null}
     </div>

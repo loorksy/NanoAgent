@@ -10,8 +10,10 @@ import type { NanobotFeatureInfo, NanobotFeaturesPayload } from "@/lib/types";
 import { useClient } from "@/providers/ClientProvider";
 import { MessageCircle, Send } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function TradingConnect() {
+  const { t } = useTranslation();
   const { client, token } = useClient();
   const [features, setFeatures] = useState<NanobotFeaturesPayload | null>(null);
   const [telegramToken, setTelegramToken] = useState("");
@@ -36,7 +38,7 @@ export function TradingConnect() {
   const saveTelegram = useCallback(async () => {
     const value = telegramToken.trim();
     if (!value) {
-      setError("Paste the Telegram bot token from @BotFather.");
+      setError(t("trading.connect.tokenRequired"));
       return;
     }
     setBusy(true);
@@ -53,22 +55,21 @@ export function TradingConnect() {
         { enable: true },
       );
       setTelegramToken("");
-      setStatus("Telegram token saved and the channel is enabled.");
+      setStatus(t("trading.connect.tokenSaved"));
       await refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
-  }, [client, refresh, telegram, telegramToken]);
+  }, [client, refresh, telegram, telegramToken, t]);
 
   return (
     <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
       <header className="mb-6">
-        <h1 className="text-lg font-semibold">Connect Telegram & WhatsApp</h1>
+        <h1 className="text-lg font-semibold">{t("trading.connect.title")}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Paste the Telegram bot token from @BotFather, or scan the WhatsApp QR.
-          This is the only setup screen you need — no extra install step.
+          {t("trading.connect.subtitle")}
         </p>
       </header>
 
@@ -82,24 +83,24 @@ export function TradingConnect() {
               <Send className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-semibold">Telegram</h2>
-              <p className="text-xs text-muted-foreground">{channelState(telegram)}</p>
+              <h2 className="font-semibold">{t("trading.connect.telegram")}</h2>
+              <p className="text-xs text-muted-foreground">{channelState(telegram, t)}</p>
             </div>
           </div>
           <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Open Telegram and talk to @BotFather</li>
-            <li>Create a bot and copy the token</li>
-            <li>Paste it below and save</li>
+            <li>{t("trading.connect.telegramSteps.openBotFather")}</li>
+            <li>{t("trading.connect.telegramSteps.createBot")}</li>
+            <li>{t("trading.connect.telegramSteps.pasteToken")}</li>
           </ol>
           <Input
             type="password"
             autoComplete="off"
-            placeholder="123456:ABC-DEF..."
+            placeholder={t("trading.connect.tokenPlaceholder")}
             value={telegramToken}
             onChange={(event) => setTelegramToken(event.target.value)}
           />
           <Button className="mt-3" onClick={() => void saveTelegram()} disabled={busy}>
-            {busy ? "Saving…" : "Save Telegram token"}
+            {busy ? t("trading.connect.saving") : t("trading.connect.saveToken")}
           </Button>
         </section>
 
@@ -109,34 +110,33 @@ export function TradingConnect() {
               <MessageCircle className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-semibold">WhatsApp</h2>
-              <p className="text-xs text-muted-foreground">{channelState(whatsapp)}</p>
+              <h2 className="font-semibold">{t("trading.connect.whatsapp")}</h2>
+              <p className="text-xs text-muted-foreground">{channelState(whatsapp, t)}</p>
             </div>
           </div>
           {whatsapp ? (
             <ChannelQrConnectFlow
               token={token}
               channelName="whatsapp"
-              idleLabel="Show WhatsApp QR"
+              idleLabel={t("trading.connect.whatsappQr.idleLabel")}
               autoStart
               minimalPending
               forceOnRepeat
               labels={{
-                qrAlt: "WhatsApp linking QR code",
-                scanTitle: "Link WhatsApp",
-                scanDescription:
-                  "In WhatsApp, open Linked devices, choose Link a device, then scan this code.",
-                waiting: "Waiting for WhatsApp…",
-                connected: "WhatsApp is connected.",
-                stopped: "The WhatsApp connection attempt stopped. Start again to get a new code.",
-                connecting: "Connecting…",
-                scanAgain: "Link another account",
-                connect: "Link WhatsApp",
+                qrAlt: t("trading.connect.whatsappQr.qrAlt"),
+                scanTitle: t("trading.connect.whatsappQr.scanTitle"),
+                scanDescription: t("trading.connect.whatsappQr.scanDescription"),
+                waiting: t("trading.connect.whatsappQr.waiting"),
+                connected: t("trading.connect.whatsappQr.connected"),
+                stopped: t("trading.connect.whatsappQr.stopped"),
+                connecting: t("trading.connect.whatsappQr.connecting"),
+                scanAgain: t("trading.connect.whatsappQr.scanAgain"),
+                connect: t("trading.connect.whatsappQr.connect"),
               }}
               onFeaturesUpdate={setFeatures}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">Loading WhatsApp connector…</p>
+            <p className="text-sm text-muted-foreground">{t("trading.connect.loadingWhatsapp")}</p>
           )}
         </section>
       </div>
@@ -144,10 +144,13 @@ export function TradingConnect() {
   );
 }
 
-function channelState(feature: NanobotFeatureInfo | undefined): string {
-  if (!feature) return "Loading…";
-  if (feature.running) return "Connected and running";
-  if (feature.enabled && feature.configured) return "Enabled — starting";
-  if (feature.configured) return "Configured — not enabled";
-  return "Not connected";
+function channelState(
+  feature: NanobotFeatureInfo | undefined,
+  t: (key: string) => string,
+): string {
+  if (!feature) return t("trading.connect.channelLoading");
+  if (feature.running) return t("trading.connect.channelConnectedRunning");
+  if (feature.enabled && feature.configured) return t("trading.connect.channelEnabledStarting");
+  if (feature.configured) return t("trading.connect.channelConfiguredNotEnabled");
+  return t("trading.connect.channelNotConnected");
 }

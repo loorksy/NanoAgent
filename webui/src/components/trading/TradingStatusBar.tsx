@@ -1,5 +1,6 @@
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Briefing {
   summary: string;
@@ -8,6 +9,7 @@ interface Briefing {
 }
 
 export function TradingStatusBar() {
+  const { t } = useTranslation();
   const { getToken } = useClient();
   const [briefing, setBriefing] = useState<Briefing | null>(null);
 
@@ -33,7 +35,10 @@ export function TradingStatusBar() {
       <span className="font-medium">{briefing.summary}</span>
       {briefing.openRecommendation ? (
         <span className="text-muted-foreground">
-          Open {String(briefing.openRecommendation.direction ?? "").toUpperCase()} — {briefing.openRecommendation.summary}
+          {t("trading.statusBar.openDirection", {
+            direction: String(briefing.openRecommendation.direction ?? "").toUpperCase(),
+            summary: briefing.openRecommendation.summary,
+          })}
         </span>
       ) : null}
     </div>

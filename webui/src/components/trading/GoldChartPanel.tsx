@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TradingStatusBar } from "@/components/trading/TradingStatusBar";
@@ -46,6 +47,7 @@ interface AnalysisResult {
 }
 
 export function GoldChartPanel() {
+  const { t, i18n } = useTranslation();
   const { getToken } = useClient();
   const [status, setStatus] = useState<TradingStatus | null>(null);
   const [quote, setQuote] = useState<QuotePayload["quote"]>(null);
@@ -72,14 +74,14 @@ export function GoldChartPanel() {
       }),
     ]);
     if (!statusRes.ok || !quoteRes.ok) {
-      throw new Error("Failed to load trading status");
+      throw new Error(t("trading.chart.loadStatusFailed"));
     }
     const statusPayload = await statusRes.json() as TradingStatus;
     const quotePayload = await quoteRes.json() as QuotePayload;
     setStatus(statusPayload);
     setQuote(quotePayload.quote ?? null);
     setError(quotePayload.error ?? null);
-  }, [authHeaders]);
+  }, [authHeaders, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +113,7 @@ export function GoldChartPanel() {
       );
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || `Analyze failed (${res.status})`);
+        throw new Error(text || t("trading.chart.analyzeFailed", { status: res.status }));
       }
       const payload = await res.json() as AnalysisResult;
       setAnalysis(payload);
@@ -136,21 +138,21 @@ export function GoldChartPanel() {
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Gold Chart</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("trading.chart.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            XAUUSD · TradingView Advanced Charts · ask the agent in chat to analyze gold
+            {t("trading.chart.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => void runAnalysis()} disabled={analyzing}>
-            {analyzing ? "Analyzing…" : "Analyze gold"}
+            {analyzing ? t("trading.chart.analyzing") : t("trading.chart.analyze")}
           </Button>
           <div className="rounded-lg border bg-card px-4 py-2 text-sm">
             <div className="font-medium">
               {mid != null ? mid.toFixed(2) : "—"}
             </div>
             <div className="text-xs text-muted-foreground">
-              {status?.oanda_configured ? "Live market" : "Market data unavailable"}
+              {status?.oanda_configured ? t("trading.chart.liveMarket") : t("trading.chart.marketUnavailable")}
             </div>
           </div>
         </div>
@@ -168,7 +170,9 @@ export function GoldChartPanel() {
         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
           <div className="font-medium uppercase">{analysis.decision}</div>
           <p className="text-muted-foreground">{analysis.summary}</p>
-          <p className="text-xs">Confidence: {(analysis.confidence * 100).toFixed(0)}%</p>
+          <p className="text-xs">
+            {t("trading.chart.confidence", { percent: (analysis.confidence * 100).toFixed(0) })}
+          </p>
         </div>
       ) : null}
 
@@ -183,8 +187,11 @@ export function GoldChartPanel() {
           <ChartTradeOverlay recommendation={analysis?.recommendation ?? null} />
         </div>
         <div className="min-h-0 overflow-auto rounded-xl border bg-card p-3">
-          <h2 className="mb-3 text-sm font-semibold">Recommendation cards</h2>
-          <AgentCards cards={analysis?.cards ?? []} locale={analysis?.locale} />
+          <h2 className="mb-3 text-sm font-semibold">{t("trading.chart.recommendationCards")}</h2>
+          <AgentCards
+            cards={analysis?.cards ?? []}
+            locale={analysis?.locale ?? i18n.resolvedLanguage}
+          />
         </div>
       </div>
     </div>

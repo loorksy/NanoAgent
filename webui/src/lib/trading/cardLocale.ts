@@ -7,7 +7,7 @@ export function normalizeTradingLocale(locale?: string | null): TradingCardLocal
 const STRINGS = {
   en: {
     noCards: "No recommendation cards yet.",
-    gatesPass: "All required gates passed.",
+    gatesPass: "All quality checks passed.",
     gatesBlock: "Recommendation blocked by gates.",
     pass: "Pass",
     veto: "Veto",
@@ -31,7 +31,7 @@ const STRINGS = {
   },
   ar: {
     noCards: "لا توجد بطاقات توصية بعد.",
-    gatesPass: "اجتازت جميع البوابات المطلوبة.",
+    gatesPass: "اجتازت جميع فحوصات الجودة.",
     gatesBlock: "حُجبت التوصية بسبب البوابات.",
     pass: "ناجح",
     veto: "مرفوض",
