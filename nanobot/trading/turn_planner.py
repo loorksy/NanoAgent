@@ -11,6 +11,7 @@ from nanobot.trading.node_planner import select_analysis_nodes
 from nanobot.trading.operator_keywords import (
     EXPLICIT_NEW_ANALYSIS_PHRASES,
     wants_gate_report,
+    wants_live_plan_status,
 )
 
 TurnMode = Literal[
@@ -125,21 +126,22 @@ def _plan_turn_core(
                 budget=DEFAULT_BUDGET,
                 run_kernel=False,
             )
-        return TurnPlan(
-            "recommendation_followup",
-            intent,
-            emit_stages=False,
-            reason=(
-                "explicit_new_analysis_with_live_recommendation"
-                if requested
-                else "ambiguous_with_live_recommendation"
-            ),
-            redirected_from_analysis=True,
-            requested_new_plan=requested,
-            tools=FOLLOWUP_TOOLS,
-            nodes=MARKET_DATA_NODES,
-            budget=DEFAULT_BUDGET,
-        )
+        if requested or intent.kind in _ANALYSIS_KINDS or wants_live_plan_status(message):
+            return TurnPlan(
+                "recommendation_followup",
+                intent,
+                emit_stages=False,
+                reason=(
+                    "explicit_new_analysis_with_live_recommendation"
+                    if requested
+                    else "ambiguous_with_live_recommendation"
+                ),
+                redirected_from_analysis=True,
+                requested_new_plan=requested,
+                tools=FOLLOWUP_TOOLS,
+                nodes=MARKET_DATA_NODES,
+                budget=DEFAULT_BUDGET,
+            )
     if intent.kind not in _ANALYSIS_KINDS:
         specialist = intent.kind in _SPECIALIST_KINDS
         return TurnPlan(

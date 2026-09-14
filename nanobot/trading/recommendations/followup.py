@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from nanobot.trading.gold import DATA_SYMBOL
-from nanobot.trading.i18n import tr
+from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.operator_keywords import _FOLLOWUP_NEW_REC_MARKERS
@@ -155,11 +155,13 @@ def grade_live_recommendation(
     if live is not None and entry is not None and stop is not None:
         notes.append(f"live={live:.2f} entry={entry} sl={stop}")
 
+    direction_label = tr(f"direction.{direction.lower()}", locale)
+    status_label = label_map("outcome_status", locale).get(status, status)
     summary = tr(
         "followup.summary",
         locale,
-        direction=direction.upper(),
-        status=status,
+        direction=direction_label,
+        status=status_label,
     )
     if _FOLLOWUP_NEW_REC_MARKERS.search(operator_text):
         summary += tr("followup.no_second_rec", locale)

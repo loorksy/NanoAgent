@@ -1,6 +1,7 @@
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
+    grade_live_recommendation,
     grade_outcome_status,
 )
 
@@ -30,3 +31,21 @@ def test_grade_outcome_status_sell_invalidated():
 def test_live_and_closed_sets():
     assert "in_trade" in LIVE_OUTCOME_STATUSES
     assert "tp1" in CLOSED_OUTCOME_STATUSES
+
+
+def test_followup_summary_uses_arabic_labels():
+    row = {
+        "direction": "sell",
+        "entry": 2400.0,
+        "stop_loss": 2415.0,
+        "targets": [2380.0],
+        "status": "in_trade",
+        "confidence": 0.7,
+        "summary": "Sell plan",
+        "interval": "15m",
+    }
+    graded = grade_live_recommendation(row, operator_text="حالة التوصية", live_price=2390.0)
+    assert "SELL" not in graded.summary
+    assert "in_trade" not in graded.summary
+    assert "بيع" in graded.summary
+    assert "داخل الصفقة" in graded.summary

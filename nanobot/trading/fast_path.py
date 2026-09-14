@@ -35,8 +35,8 @@ def _outbound_from_wire(
     chat_id: str,
 ) -> OutboundMessage:
     decision = str(wire.get("decision", "wait")).upper()
-    summary = str(wire.get("summary", ""))
-    content = f"{decision}: {summary}" if summary else decision
+    summary = str(wire.get("summary", "")).strip()
+    content = summary or decision
     return OutboundMessage(
         channel=channel,
         chat_id=chat_id,
@@ -157,7 +157,12 @@ async def try_gold_fast_path(
         return None
 
     locale = locale_from_text(text)
-    if wants_trading_explain(text) and last_trading_wire:
+    ctx = current_request_context()
+    session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
+    live = latest_live_recommendation(session_key)
+    turn = plan_turn(text, active_recommendation_live=bool(live))
+
+    if turn.mode == "conversation" and wants_trading_explain(text) and last_trading_wire:
         return OutboundMessage(
             channel=channel,
             chat_id=chat_id,
@@ -169,11 +174,6 @@ async def try_gold_fast_path(
                 }
             },
         )
-
-    ctx = current_request_context()
-    session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
-    live = latest_live_recommendation(session_key)
-    turn = plan_turn(text, active_recommendation_live=bool(live))
 
     if turn.mode == "gate_report":
         return await execute_gate_report_path(

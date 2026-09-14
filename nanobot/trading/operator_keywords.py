@@ -110,6 +110,11 @@ def wants_gate_report(message: str) -> bool:
     return bool(_GATE_KEYWORDS.search(message or ""))
 
 
+def wants_live_plan_status(message: str) -> bool:
+    text = message or ""
+    return bool(_STATUS_KEYWORDS.search(text) or _LEVEL_KEYWORDS.search(text))
+
+
 def wants_trading_explain(message: str) -> bool:
     text = (message or "").strip()
     if not text or len(text) > 80:

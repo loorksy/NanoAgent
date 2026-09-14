@@ -304,6 +304,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "followup.no_second_rec": (
             " A second recommendation is not issued while this plan is live."
         ),
+        "direction.buy": "buy",
+        "direction.sell": "sell",
+        "direction.wait": "wait",
         "synth.no_usable_decision": (
             "The trading synthesizer could not produce a grounded recommendation from the evidence."
         ),
@@ -359,6 +362,9 @@ MESSAGES: dict[str, dict[str, str]] = {
             "هذه متابعة وليست توصية جديدة."
         ),
         "followup.no_second_rec": " لا يمكن إصدار توصية ثانية فيما تبقى الخطة الحالية سارية.",
+        "direction.buy": "شراء",
+        "direction.sell": "بيع",
+        "direction.wait": "انتظار",
         "synth.no_usable_decision": (
             "لم يستطع مُجمّع التداول إصدار توصية مبنية على الأدلة المتاحة."
         ),
