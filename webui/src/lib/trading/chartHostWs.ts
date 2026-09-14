@@ -3,7 +3,7 @@ export class ChartHostWsClient {
   private readonly token: string;
   private readonly wsPath: string;
 
-  constructor(token: string, wsPath = "/ws") {
+  constructor(token: string, wsPath = "/") {
     this.token = token;
     this.wsPath = wsPath;
   }
