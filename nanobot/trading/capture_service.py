@@ -91,7 +91,7 @@ async def _capture_via_chart_host(
     warmed = await ensure_chart_host_tab()
     if not warmed:
         return None
-    warmup_ms = int(os.environ.get("CHART_HOST_WARMUP_MS", "2500"))
+    warmup_ms = int(os.environ.get("CHART_HOST_WARMUP_MS", "15000"))
     if warmup_ms > 0:
         await asyncio.sleep(warmup_ms / 1000.0)
     capture_id = str(uuid.uuid4())

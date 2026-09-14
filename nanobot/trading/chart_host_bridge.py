@@ -8,8 +8,8 @@ from typing import Any
 
 from nanobot.trading.chart_capture import validate_chart_frames
 
-_DEFAULT_TIMEOUT_SEC = 45.0
-_JOB_TTL_SEC = 30.0
+_DEFAULT_TIMEOUT_SEC = 90.0
+_JOB_TTL_SEC = 120.0
 
 
 class ChartHostCaptureBridge:

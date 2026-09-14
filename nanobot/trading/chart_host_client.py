@@ -46,7 +46,7 @@ def _control_headers() -> dict[str, str]:
 def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=body, headers=_control_headers(), method="POST")
-    with urllib.request.urlopen(request, timeout=35) as response:
+    with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read().decode("utf-8"))
 
 

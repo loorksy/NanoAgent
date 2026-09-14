@@ -52,7 +52,7 @@ async def test_capture_roundtrip(base_url: str, page_token: str) -> None:
 
     smoke_url = f"{base_url}/api/trading/chart-host/smoke?interval=15m"
     req = urllib.request.Request(smoke_url, headers={"Authorization": f"Bearer {page_token}"})
-    with urllib.request.urlopen(req, timeout=90) as resp:
+    with urllib.request.urlopen(req, timeout=120) as resp:
         body = json.loads(resp.read().decode())
     if not body.get("ok"):
         raise SystemExit(f"FAIL: chart-host smoke capture failed: {body}")

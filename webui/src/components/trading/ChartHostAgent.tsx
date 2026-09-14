@@ -63,7 +63,8 @@ export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
           } finally {
             busyRef.current = false;
           }
-        } catch {
+        } catch (error) {
+          console.error("chart-host capture failed", error);
           await new Promise((resolve) => window.setTimeout(resolve, POLL_MS));
         }
       }
