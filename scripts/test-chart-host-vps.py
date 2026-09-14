@@ -10,7 +10,6 @@ import sys
 import uuid
 
 import websockets
-from websockets.datastructures import Headers
 
 
 async def test_ws_submit_auth(base_url: str, page_token: str) -> None:
@@ -48,18 +47,19 @@ async def test_ws_submit_auth(base_url: str, page_token: str) -> None:
 
 
 async def test_capture_roundtrip(base_url: str, page_token: str) -> None:
-    """Begin capture via HTTP poll loop + WS submit (simulates ChartHostAgent)."""
+    """Run full chart-host capture via the smoke endpoint."""
     import urllib.request
 
-    poll_url = f"{base_url}/api/trading/chart-host/poll"
-    headers = Headers({"Authorization": f"Bearer {page_token}"})
-
-    # Trigger capture by calling ensure + internal bridge via a gateway message is hard;
-    # instead poll until a job appears (agent may have queued one) or skip.
-    req = urllib.request.Request(poll_url, headers={"Authorization": f"Bearer {page_token}"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    smoke_url = f"{base_url}/api/trading/chart-host/smoke?interval=15m"
+    req = urllib.request.Request(smoke_url, headers={"Authorization": f"Bearer {page_token}"})
+    with urllib.request.urlopen(req, timeout=90) as resp:
         body = json.loads(resp.read().decode())
-    print(f"poll (idle): {body}")
+    if not body.get("ok"):
+        raise SystemExit(f"FAIL: chart-host smoke capture failed: {body}")
+    print(
+        "PASS: chart-host smoke capture",
+        f"frames={body.get('frameCount')} timeframes={body.get('timeframes')}",
+    )
 
 
 async def main() -> None:

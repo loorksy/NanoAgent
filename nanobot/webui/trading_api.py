@@ -367,6 +367,24 @@ def handle_trading_chart_host_poll(request: WsRequest) -> Response:
     return _http_json_response({"job": job})
 
 
+def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
+    """Run one chart-host capture roundtrip (ops smoke test; page token required)."""
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+    from nanobot.trading.capture_service import _capture_via_chart_host
+
+    params = _parse_query(request.path)
+    interval = (_query_first(params, "interval") or "15m").strip()
+    frames = _run_async(_capture_via_chart_host(interval, ["15m", "1h"]))
+    if not frames:
+        return _http_json_response({"ok": False, "error": "no_frames"})
+    return _http_json_response({
+        "ok": True,
+        "frameCount": len(frames),
+        "timeframes": [str(f.get("timeframe") or "") for f in frames],
+    })
+
+
 def handle_trading_chart_host_submit(request: WsRequest) -> Response:
     if not _chart_host_authorized(request):
         return _http_error(401, "unauthorized")
@@ -489,6 +507,8 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_chart_capture(request)
     if path == "/api/trading/chart-host/poll":
         return handle_trading_chart_host_poll(request)
+    if path == "/api/trading/chart-host/smoke":
+        return handle_trading_chart_host_smoke(request)
     if path == "/api/trading/chart-host/submit":
         return handle_trading_chart_host_submit(request)
     return None
