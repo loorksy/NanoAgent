@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from nanobot.trading.chart_capture import validate_chart_frames
@@ -12,17 +14,26 @@ _DEFAULT_TIMEOUT_SEC = 90.0
 _JOB_TTL_SEC = 120.0
 
 
+@dataclass
+class _CaptureWaiter:
+    event: threading.Event
+    result: dict[str, Any] | None = None
+    cancelled: bool = False
+
+
 class ChartHostCaptureBridge:
     def __init__(self) -> None:
-        self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        self._pending: dict[str, _CaptureWaiter] = {}
         self._jobs: dict[str, dict[str, Any]] = {}
         self._queued: list[str] = []
 
     def begin(self, capture_id: str, *, timeframes: list[str], interval: str = "15m") -> None:
         self._expire_stale()
-        if capture_id in self._pending and not self._pending[capture_id].done():
-            self._pending[capture_id].cancel()
-        self._pending[capture_id] = asyncio.get_running_loop().create_future()
+        existing = self._pending.get(capture_id)
+        if existing is not None and not existing.event.is_set():
+            existing.cancelled = True
+            existing.event.set()
+        self._pending[capture_id] = _CaptureWaiter(event=threading.Event())
         self._jobs[capture_id] = {
             "captureId": capture_id,
             "timeframes": list(timeframes),
@@ -34,19 +45,16 @@ class ChartHostCaptureBridge:
 
     async def wait(self, capture_id: str, *, timeout: float = _DEFAULT_TIMEOUT_SEC) -> dict[str, Any]:
         self._expire_stale()
-        future = self._pending.get(capture_id)
-        if future is None:
+        waiter = self._pending.get(capture_id)
+        if waiter is None:
             self.begin(capture_id, timeframes=["15m"])
-            future = self._pending[capture_id]
+            waiter = self._pending[capture_id]
+        loop = asyncio.get_running_loop()
+        signaled = await loop.run_in_executor(None, waiter.event.wait, timeout)
         try:
-            return await asyncio.wait_for(asyncio.shield(future), timeout=timeout)
-        except TimeoutError:
-            future.cancel()
-            self._pending.pop(capture_id, None)
-            self._jobs.pop(capture_id, None)
-            if capture_id in self._queued:
-                self._queued.remove(capture_id)
-            return {"frames": []}
+            if not signaled or waiter.cancelled:
+                return {"frames": []}
+            return waiter.result or {"frames": []}
         finally:
             self._pending.pop(capture_id, None)
             self._jobs.pop(capture_id, None)
@@ -66,8 +74,8 @@ class ChartHostCaptureBridge:
 
     def submit(self, capture_id: str, payload: dict[str, Any]) -> bool:
         self._expire_stale()
-        future = self._pending.get(capture_id)
-        if future is None or future.done():
+        waiter = self._pending.get(capture_id)
+        if waiter is None or waiter.event.is_set():
             return False
         frames_raw = payload.get("frames")
         if not isinstance(frames_raw, list):
@@ -76,7 +84,8 @@ class ChartHostCaptureBridge:
             frames = validate_chart_frames(frames_raw)
         except Exception:
             return False
-        future.set_result({"frames": frames})
+        waiter.result = {"frames": frames}
+        waiter.event.set()
         self._pending.pop(capture_id, None)
         self._jobs.pop(capture_id, None)
         if capture_id in self._queued:
@@ -91,9 +100,10 @@ class ChartHostCaptureBridge:
             if now - float(job.get("createdAt") or now) > _JOB_TTL_SEC
         ]
         for capture_id in stale:
-            future = self._pending.get(capture_id)
-            if future is not None and not future.done():
-                future.cancel()
+            waiter = self._pending.get(capture_id)
+            if waiter is not None and not waiter.event.is_set():
+                waiter.cancelled = True
+                waiter.event.set()
             self._pending.pop(capture_id, None)
             self._jobs.pop(capture_id, None)
             if capture_id in self._queued:
