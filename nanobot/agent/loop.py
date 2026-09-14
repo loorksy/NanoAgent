@@ -1823,6 +1823,10 @@ class AgentLoop:
     async def _dispatch_gold_fast_path(self, ctx: TurnContext) -> bool:
         if ctx.kind is not TurnKind.USER or ctx.msg.channel == "system":
             return False
+        from nanobot.trading.config import load_trading_config
+
+        if load_trading_config().agent_first_mode:
+            return False
         text = ctx.original_user_text or ctx.msg.content
         session = ctx.require_session()
         runtime = ctx.runtime or self.runtime_for_session(session)
