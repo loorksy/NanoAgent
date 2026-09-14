@@ -45,6 +45,7 @@ export interface TradingResultWire {
   decision: string;
   confidence: number;
   summary: string;
+  artifactOnly?: boolean;
   locale?: string;
   keyReasons?: string[];
   riskWarnings?: string[];

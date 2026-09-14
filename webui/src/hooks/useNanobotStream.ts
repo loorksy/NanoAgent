@@ -1188,6 +1188,14 @@ export function useNanobotStream(
           }
           if (agentUi?.kind === "trading_artifacts") {
             const artifacts = (agentUi.data as { artifacts?: unknown[] })?.artifacts ?? [];
+            const artifactTypes = artifacts.map(
+              (item) => String((item as { type?: string } | undefined)?.type ?? ""),
+            );
+            const artifactOnly =
+              artifacts.length > 0 &&
+              artifactTypes.every((type) =>
+                ["price_quote", "plan_status", "level_map", "tracked_plan", "chart_snapshot"].includes(type),
+              );
             setMessages((prev) => [
               ...prev,
               {
@@ -1198,9 +1206,10 @@ export function useNanobotStream(
                 ),
                 kind: "trading",
                 trading: {
-                  decision: "wait",
+                  decision: artifactOnly ? "" : "wait",
                   confidence: 0,
                   summary: "",
+                  artifactOnly,
                   artifacts: artifacts as TradingResultWire["artifacts"],
                 },
                 createdAt: Date.now(),

@@ -23,7 +23,8 @@ export function TradingRecommendationCard({
   const { getToken } = useClient();
   const [paperStatus, setPaperStatus] = useState<string | null>(null);
   const rec = result.recommendation;
-  const decision = result.decision.toUpperCase();
+  const decision = (result.decision || "").toUpperCase();
+  const artifactOnly = Boolean(result.artifactOnly);
 
   const onPaper = useCallback(async (action: "approve" | "reject") => {
     if (!result.recommendationId) return;
@@ -43,6 +44,7 @@ export function TradingRecommendationCard({
 
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
+      {!artifactOnly && decision ? (
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="text-lg font-semibold uppercase tracking-wide">{decision}</div>
@@ -64,8 +66,9 @@ export function TradingRecommendationCard({
           </div>
         ) : null}
       </div>
+      ) : null}
 
-      {rec?.entry != null ? (
+      {!artifactOnly && rec?.entry != null ? (
         <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-3 text-xs sm:grid-cols-4">
           <div><span className="text-muted-foreground">{t("trading.recommendation.entry")}</span><div className="font-medium">{rec.entry.toFixed(2)}</div></div>
           {rec.stopLoss != null ? (
