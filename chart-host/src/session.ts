@@ -27,6 +27,8 @@ export interface HostPage {
   close(): Promise<void>;
   isClosed(): boolean;
   url(): string;
+  onConsoleMessage?: (handler: (message: string) => void) => void;
+  evaluate?: <T>(fn: () => T | Promise<T>) => Promise<T>;
 }
 
 export interface HostBrowser {
@@ -42,7 +44,8 @@ export interface SessionEvent {
     | "recycled"
     | "refused_navigation"
     | "launch_failed"
-    | "memory_exceeded";
+    | "memory_exceeded"
+    | "page_console";
   detail?: string;
 }
 
@@ -207,6 +210,9 @@ export class ChartHostSession {
       const work = (async () => {
         browser = await this.deps.launch();
         const page = await browser.newPage();
+        page.onConsoleMessage?.((message) => {
+          this.emit({ type: "page_console", detail: message.slice(0, 500) });
+        });
         await page.goto(pageUrl);
         return { browser: browser!, page };
       })();
@@ -294,6 +300,13 @@ export class ChartHostSession {
       /* browser already gone */
     }
     this.emit({ type: "closed", detail: reason });
+  }
+
+  openPage(): HostPage | null {
+    if (!this.open || !this.open.browser.isConnected() || this.open.page.isClosed()) {
+      return null;
+    }
+    return this.open.page;
   }
 
   status(): SessionStatus {

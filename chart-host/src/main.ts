@@ -110,7 +110,19 @@ async function launchBrowser(): Promise<HostBrowser> {
     deviceScaleFactor: 1,
   });
   return {
-    newPage: () => context.newPage(),
+    newPage: async () => {
+      const page = await context.newPage();
+      return {
+        goto: (url: string) => page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 }),
+        close: () => page.close(),
+        isClosed: () => page.isClosed(),
+        url: () => page.url(),
+        onConsoleMessage: (handler: (message: string) => void) => {
+          page.on("console", (msg) => handler(msg.text()));
+        },
+        evaluate: <T>(fn: () => T | Promise<T>) => page.evaluate(fn),
+      };
+    },
     close: () => browser.close(),
     isConnected: () => browser.isConnected(),
   };
@@ -194,6 +206,26 @@ const server = createServer((req, res) => {
     if (req.method === "POST" && url.pathname === "/session/close") {
       await session.close("requested");
       json(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/session/debug") {
+      const status = session.status();
+      let pageState: unknown = null;
+      const page = session.openPage?.();
+      if (page?.evaluate) {
+        try {
+          pageState = await page.evaluate(() => ({
+            href: window.location.href,
+            hasTradingView: Boolean(window.TradingView?.widget),
+            title: document.title,
+          }));
+        } catch (error) {
+          pageState = {
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }
+      json(res, 200, { ok: true, status, pageState });
       return;
     }
     json(res, 404, { error: "not_found" });
