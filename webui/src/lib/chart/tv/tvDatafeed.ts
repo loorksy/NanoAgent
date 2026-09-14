@@ -82,6 +82,12 @@ export interface TvDatafeedOptions {
   getAuthToken?: () => string;
 }
 
+function defer<T extends (...args: never[]) => void>(callback: T): T {
+  return ((...args: never[]) => {
+    setTimeout(() => callback(...args), 0);
+  }) as T;
+}
+
 export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDataFeed {
   const subscriptions = new Map<string, ReturnType<typeof setInterval>>();
 
@@ -97,7 +103,7 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
 
   return {
     onReady(callback: (config: DatafeedConfiguration) => void): void {
-      callback({
+      defer(callback)({
         supported_resolutions: SUPPORTED_RESOLUTIONS,
         supports_marks: false,
         supports_timescale_marks: false,
@@ -111,7 +117,7 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
       _symbolType: string,
       onResult: (items: SearchSymbolResultItem[]) => void,
     ): void {
-      onResult([
+      defer(onResult)([
         {
           symbol: DATA_SYMBOL,
           description: "Gold / US Dollar",
@@ -129,7 +135,7 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
     ): void {
       const symbol = symbolName.toUpperCase().includes("XAU") ? DATA_SYMBOL : symbolName;
       if (symbol !== DATA_SYMBOL) {
-        onError("Only XAUUSD is supported");
+        defer(onError)("Only XAUUSD is supported");
         return;
       }
       const info: LibrarySymbolInfo = {
@@ -151,7 +157,7 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
         volume_precision: 0,
         data_status: "streaming",
       };
-      onResolve(info);
+      defer(onResolve)(info);
     },
 
     getBars(
@@ -180,9 +186,9 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
             close: c.close,
             volume: c.volume,
           }));
-          onResult(bars, { noData: bars.length === 0 });
+          defer(onResult)(bars, { noData: bars.length === 0 });
         })
-        .catch((err: Error) => onError(err.message));
+        .catch((err: Error) => defer(onError)(err.message));
     },
 
     subscribeBars(
