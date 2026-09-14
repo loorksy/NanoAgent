@@ -375,9 +375,33 @@ def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
 
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
-    frames = _run_async(_capture_via_chart_host(interval, ["15m", "1h"]))
+    debug: dict[str, Any] = {}
+
+    async def _smoke_capture() -> list[dict[str, Any]] | None:
+        from nanobot.trading.chart_host_client import ensure_chart_host_tab
+
+        if not await ensure_chart_host_tab():
+            debug["ensure"] = False
+            return None
+        debug["ensure"] = True
+        import os
+
+        warmup_ms = int(os.environ.get("CHART_HOST_WARMUP_MS", "15000"))
+        if warmup_ms > 0:
+            await asyncio.sleep(warmup_ms / 1000.0)
+        capture_id = str(uuid.uuid4())
+        bridge = get_chart_host_bridge()
+        bridge.begin(capture_id, timeframes=["15m", "1h"], interval=interval)
+        debug["queuedJob"] = bridge.poll_job()
+        payload = await bridge.wait(capture_id)
+        frames = payload.get("frames")
+        if not isinstance(frames, list) or not frames:
+            return None
+        return [frame for frame in frames if isinstance(frame, dict)]
+
+    frames = _run_async(_smoke_capture())
     if not frames:
-        return _http_json_response({"ok": False, "error": "no_frames"})
+        return _http_json_response({"ok": False, "error": "no_frames", "debug": debug})
     return _http_json_response({
         "ok": True,
         "frameCount": len(frames),
