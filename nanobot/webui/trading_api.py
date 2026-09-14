@@ -22,6 +22,9 @@ from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.chart_capture import ChartCaptureError, submit_chart_capture, validate_chart_frames
+from nanobot.trading.chart_host_bridge import get_chart_host_bridge
+from nanobot.trading.chart_host_token import verify_chart_host_page_token
+from nanobot.webui.http_utils import bearer_token as _bearer_token
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
@@ -349,6 +352,39 @@ def handle_trading_performance(_request: WsRequest) -> Response:
     })
 
 
+def _chart_host_authorized(request: WsRequest) -> bool:
+    token = _bearer_token(request.headers)
+    return bool(token and verify_chart_host_page_token(token))
+
+
+def handle_trading_chart_host_poll(request: WsRequest) -> Response:
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+    job = get_chart_host_bridge().poll_job()
+    return _http_json_response({"job": job})
+
+
+def handle_trading_chart_host_submit(request: WsRequest) -> Response:
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+    payload = getattr(request, "_nanobot_webui_mutation_payload", None)
+    if not isinstance(payload, dict):
+        return _http_error(400, "invalid body")
+    capture_id = str(payload.get("captureId") or payload.get("capture_id") or "")
+    frames = payload.get("frames")
+    if not capture_id:
+        return _http_error(400, "captureId required")
+    if not isinstance(frames, list):
+        return _http_error(400, "frames must be a list")
+    try:
+        validate_chart_frames(frames)
+    except ChartCaptureError as exc:
+        return _http_error(400, str(exc))
+    if not get_chart_host_bridge().submit(capture_id, {"frames": frames}):
+        return _http_error(404, "No pending chart-host capture for that id")
+    return _http_json_response({"ok": True})
+
+
 def handle_trading_chart_capture(_request: WsRequest) -> Response:
     payload = getattr(_request, "_nanobot_webui_mutation_payload", None)
     if isinstance(payload, dict):
@@ -448,4 +484,8 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_paper(request)
     if path == "/api/trading/chart-capture":
         return handle_trading_chart_capture(request)
+    if path == "/api/trading/chart-host/poll":
+        return handle_trading_chart_host_poll(request)
+    if path == "/api/trading/chart-host/submit":
+        return handle_trading_chart_host_submit(request)
     return None

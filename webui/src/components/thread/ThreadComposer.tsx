@@ -10,6 +10,7 @@ import {
   type Ref,
 } from "react";
 
+import { TradingChartComposerButton } from "@/components/trading/TradingChartComposerButton";
 import { MarkdownText, preloadMarkdownText } from "@/components/MarkdownText";
 import {
   CapabilityMentionToken,
@@ -233,6 +234,9 @@ interface ThreadComposerProps {
   quotedContext?: string | null;
   focusRequest?: number;
   onQuotedContextChange?: (text: string | null) => void;
+  showChartToggle?: boolean;
+  chartOpen?: boolean;
+  onToggleChart?: () => void;
 }
 
 const COMMAND_ICONS: Record<string, LucideIcon> = {
@@ -933,6 +937,9 @@ export function ThreadComposer({
   quotedContext = null,
   focusRequest = 0,
   onQuotedContextChange,
+  showChartToggle = false,
+  chartOpen = false,
+  onToggleChart,
 }: ThreadComposerProps) {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
@@ -2432,6 +2439,14 @@ export function ThreadComposer({
             >
               <Plus className={cn(isHero ? "h-[18px] w-[18px]" : "h-4 w-4")} />
             </Button>
+            {showChartToggle && onToggleChart ? (
+              <TradingChartComposerButton
+                open={chartOpen}
+                disabled={interactionDisabled}
+                isHero={isHero}
+                onToggle={onToggleChart}
+              />
+            ) : null}
             {voiceRecorder.isRecording ? (
               <VoiceRecordingMeter
                 ariaLabel={voiceRecordingStatusLabel}

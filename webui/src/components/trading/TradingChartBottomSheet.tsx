@@ -31,12 +31,12 @@ export function TradingChartBottomSheet({ chatId }: TradingChartBottomSheetProps
     >
       <SheetContent
         side="bottom"
-        className="h-[min(72vh,640px)] p-0 lg:hidden"
+        className="h-[min(78vh,720px)] gap-0 border-t border-border/60 p-0 lg:hidden"
         showCloseButton
       >
         <SheetTitle className="sr-only">Gold chart</SheetTitle>
         <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading chart…</div>}>
-          <TradingChartSidecar chatId={chatId} />
+          <TradingChartSidecar chatId={chatId} minimal />
         </Suspense>
       </SheetContent>
     </Sheet>

@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 
 import App from "./App";
 import "./globals.css";
+import "../public/trading-chart.css";
 import { initializeI18n } from "./i18n";
 import { initializeLoopbackRuntimeHost } from "./lib/runtime";
 

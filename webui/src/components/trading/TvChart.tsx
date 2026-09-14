@@ -12,6 +12,10 @@ import type {
   ResolutionString,
 } from "../../../vendor/tradingview/charting_library/charting_library";
 import { createTradingDatafeed } from "@/lib/chart/tv/tvDatafeed";
+import {
+  tvDisabledFeatures,
+  type TvChartVariant,
+} from "@/lib/chart/tv/tvWidgetConfig";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -69,6 +73,7 @@ export interface TvChartProps {
   symbol?: string;
   interval?: string;
   className?: string;
+  variant?: TvChartVariant;
   getAuthToken?: () => string;
   onWidgetReady?: (widget: IChartingLibraryWidget) => void;
 }
@@ -78,6 +83,7 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
     symbol = DATA_SYMBOL,
     interval = "15m",
     className,
+    variant = "full",
     getAuthToken,
     onWidgetReady,
   },
@@ -117,12 +123,8 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
           locale: "en",
           autosize: true,
           theme: "dark",
-          disabled_features: [
-            "header_symbol_search",
-            "symbol_search_hot_key",
-            "header_compare",
-          ],
-          enabled_features: ["study_templates"],
+          disabled_features: tvDisabledFeatures(variant),
+          enabled_features: variant === "minimal" ? [] : ["study_templates"],
           datafeed: createTradingDatafeed({ getAuthToken }),
         };
         const widget = new Widget(options);
@@ -144,10 +146,16 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
       widgetRef.current?.remove();
       widgetRef.current = null;
     };
-  }, [getAuthToken, interval, onWidgetReady, symbol]);
+  }, [getAuthToken, interval, onWidgetReady, symbol, variant]);
 
   return (
-    <div className={cn("relative h-full min-h-[420px] w-full", className)}>
+    <div
+      className={cn(
+        "relative h-full min-h-[420px] w-full",
+        variant === "minimal" && "aichart-minimal-chart",
+        className,
+      )}
+    >
       {loading ? (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
           Loading chart…

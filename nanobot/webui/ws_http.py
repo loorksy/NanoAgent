@@ -151,6 +151,7 @@ _WEBUI_MUTATION_PATHS = {
     "recovery.continue": "/api/webui/recovery/continue",
     "recovery.dismiss": "/api/webui/recovery/dismiss",
     "trading.chart_capture": "/api/trading/chart-capture",
+    "trading.chart_host_submit": "/api/trading/chart-host/submit",
     "settings.agent.update": "/api/settings/update",
     "settings.model_configuration.create": "/api/settings/model-configurations/create",
     "settings.model_configuration.update": "/api/settings/model-configurations/update",
@@ -549,7 +550,11 @@ class GatewayHTTPHandler:
         # Trading routes
         response = dispatch_trading_route(request, got)
         if response is not None:
-            if got.startswith("/api/trading/") and not self.check_api_token(request):
+            if (
+                got.startswith("/api/trading/")
+                and not got.startswith("/api/trading/chart-host/")
+                and not self.check_api_token(request)
+            ):
                 return _http_error(401, "Unauthorized")
             return response
 

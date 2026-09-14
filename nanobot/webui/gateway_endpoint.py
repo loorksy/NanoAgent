@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from websockets.asyncio.server import ServerConnection
 from websockets.http11 import Request as WsRequest
 
+from nanobot.trading.chart_host_token import verify_chart_host_page_token
 from nanobot.webui.gateway_tokens import GatewayTokenStore
 from nanobot.webui.http_utils import (
     is_trusted_proxy_authenticated_request,
@@ -86,6 +87,9 @@ class WebUIGatewayEndpoint:
             return None
 
         supplied = query_first(query, "token")
+        if supplied and verify_chart_host_page_token(supplied):
+            self.webui_connections.add(connection)
+            return None
         static_token = self._config.token.strip()
         if static_token:
             if supplied and hmac.compare_digest(supplied, static_token):

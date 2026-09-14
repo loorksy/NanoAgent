@@ -1,0 +1,6 @@
+/* AiChart-style: hide TradingView series title overlay on minimal charts */
+.aichart-minimal-chart [class*="pane-legend"],
+.aichart-minimal-chart [data-name="legend-source-item"],
+.aichart-minimal-chart .chart-markup-table {
+  display: none !important;
+}

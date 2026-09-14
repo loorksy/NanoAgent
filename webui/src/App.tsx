@@ -862,7 +862,16 @@ function resolveRuntimeSurface(
   return surface ? toRuntimeSurface(surface) : fallback;
 }
 
+function isChartHostPath(): boolean {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return path === "/chart-host";
+}
+
+const ChartHostPage = lazy(async () => import("@/pages/ChartHostPage"));
+
 export default function App() {
+  const chartHost = isChartHostPath();
   const { t } = useTranslation();
   const [state, setState] = useState<BootState>({ status: "loading" });
   const bootstrapSecretRef = useRef("");
@@ -972,9 +981,18 @@ export default function App() {
   }, [refreshReadyClient, state]);
 
   useEffect(() => {
+    if (chartHost) return undefined;
     const saved = consumeUrlBootstrapSecret() || loadSavedSecret();
     return bootstrapWithSecret(saved);
-  }, [bootstrapWithSecret]);
+  }, [bootstrapWithSecret, chartHost]);
+
+  if (chartHost) {
+    return (
+      <Suspense fallback={<SurfaceLoadingFallback label="Loading chart host…" />}>
+        <ChartHostPage />
+      </Suspense>
+    );
+  }
 
   if (state.status === "loading") {
     return (

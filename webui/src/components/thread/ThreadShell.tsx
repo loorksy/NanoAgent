@@ -52,6 +52,12 @@ import type {
 } from "@/lib/types";
 import { projectWebuiThreadMessages } from "@/lib/thread-display-compat";
 import { ThreadMessageCache } from "@/lib/thread-message-cache";
+import {
+  getTradingSession,
+  openTradingChart,
+  setTradingChartOpen,
+  subscribeTradingSession,
+} from "@/lib/trading/session-store";
 import { useClient } from "@/providers/ClientProvider";
 
 type MessageShape = Pick<UIMessage, "role" | "kind" | "content" | "isStreaming" | "turnId">;
@@ -726,6 +732,28 @@ export function ThreadShell({
 }: ThreadShellProps) {
   const { t } = useTranslation();
   const chatId = session?.chatId ?? null;
+  const [chartOpen, setChartOpen] = useState(
+    () => (chatId ? getTradingSession(chatId).chartOpen : false),
+  );
+  useEffect(() => {
+    if (!chatId) {
+      setChartOpen(false);
+      return;
+    }
+    setChartOpen(getTradingSession(chatId).chartOpen);
+    return subscribeTradingSession((id) => {
+      if (id !== chatId) return;
+      setChartOpen(getTradingSession(chatId).chartOpen);
+    });
+  }, [chatId]);
+  const handleToggleChart = useCallback(() => {
+    if (!chatId) return;
+    if (chartOpen) {
+      setTradingChartOpen(chatId, false);
+      return;
+    }
+    openTradingChart(chatId);
+  }, [chatId, chartOpen]);
   const historyKey = temporary ? null : session?.key ?? null;
   const mentionSessions = useMemo(
     () => sessions.filter((candidate) => candidate.key !== historyKey),
@@ -1613,6 +1641,9 @@ export function ThreadShell({
           quotedContext={quotedContext}
           focusRequest={composerFocusSignal}
           onQuotedContextChange={setQuotedContext}
+          showChartToggle={Boolean(chatId)}
+          chartOpen={chartOpen}
+          onToggleChart={handleToggleChart}
         />
       ) : (
         <ThreadComposer

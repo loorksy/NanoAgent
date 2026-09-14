@@ -1,5 +1,4 @@
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
-import { TradingTeamPanel } from "@/components/trading/TradingTeamPanel";
 import { TvChart, type TvChartHandle } from "@/components/trading/TvChart";
 import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
 import { captureTradingViewFrames } from "@/lib/trading/chartCapture";
@@ -13,9 +12,11 @@ import { useEffect, useRef, useState } from "react";
 
 interface TradingChartSidecarProps {
   chatId: string;
+  /** Minimal chrome for AiChart-style split pane / bottom sheet. */
+  minimal?: boolean;
 }
 
-export function TradingChartSidecar({ chatId }: TradingChartSidecarProps) {
+export function TradingChartSidecar({ chatId, minimal = true }: TradingChartSidecarProps) {
   const { client, getToken } = useClient();
   const chartRef = useRef<TvChartHandle>(null);
   const widgetRef = useRef<import("../../../vendor/tradingview/charting_library/charting_library").IChartingLibraryWidget | null>(null);
@@ -86,24 +87,13 @@ export function TradingChartSidecar({ chatId }: TradingChartSidecarProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">Gold chart</h2>
-        <p className="text-xs text-muted-foreground">XAUUSD · live market · agent analysis</p>
-      </div>
-      {session.teamAgents.length > 0 ? (
-        <div className="border-b p-3">
-          <TradingTeamPanel
-            agents={session.teamAgents}
-            teamMode={session.result?.teamMode}
-            compact
-          />
-        </div>
-      ) : null}
       <div className="relative min-h-0 flex-1">
         <TvChart
           ref={chartRef}
           interval={session.interval}
+          variant={minimal ? "minimal" : "full"}
           getAuthToken={getToken}
+          className="min-h-0"
           onWidgetReady={(widget) => {
             widgetRef.current = widget;
           }}
