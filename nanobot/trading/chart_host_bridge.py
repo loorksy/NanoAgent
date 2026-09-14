@@ -8,7 +8,7 @@ from typing import Any
 
 from nanobot.trading.chart_capture import validate_chart_frames
 
-_DEFAULT_TIMEOUT_SEC = 20.0
+_DEFAULT_TIMEOUT_SEC = 45.0
 _JOB_TTL_SEC = 30.0
 
 
