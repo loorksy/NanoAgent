@@ -53,12 +53,12 @@ export class ChartHostWsClient {
       const onMessage = (event: MessageEvent<string>) => {
         try {
           const payload = JSON.parse(event.data) as {
-            type?: string;
+            event?: string;
             request_id?: string;
             ok?: boolean;
             error?: { message?: string };
           };
-          if (payload.type !== "webui_response" || payload.request_id !== requestId) return;
+          if (payload.event !== "webui_response" || payload.request_id !== requestId) return;
           window.clearTimeout(timer);
           socket.removeEventListener("message", onMessage);
           if (payload.ok) {
