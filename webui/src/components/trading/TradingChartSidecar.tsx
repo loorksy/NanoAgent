@@ -43,31 +43,45 @@ export function TradingChartSidecar({ chatId }: TradingChartSidecarProps) {
 
   useEffect(() => {
     const capture = session.chartCapture;
-    if (!capture || !widgetRef.current) return;
+    if (!capture) return;
     if (captureRef.current === capture.captureId) return;
-    captureRef.current = capture.captureId;
 
-    void (async () => {
-      try {
-        const frames = await captureTradingViewFrames(
-          widgetRef.current!,
-          capture.timeframes,
-        );
-        await client.requestMutation("trading.chart_capture", {
-          captureId: capture.captureId,
-          sessionKey: capture.sessionKey,
-          frames,
-        });
-      } catch {
-        await client.requestMutation("trading.chart_capture", {
-          captureId: capture.captureId,
-          sessionKey: capture.sessionKey,
-          frames: [],
-        }).catch(() => undefined);
-      } finally {
-        clearChartCapture(chatId);
+    let cancelled = false;
+    let attempts = 0;
+
+    const runCapture = async () => {
+      while (!cancelled && attempts < 40) {
+        const widget = widgetRef.current;
+        if (!widget) {
+          attempts += 1;
+          await new Promise((resolve) => window.setTimeout(resolve, 250));
+          continue;
+        }
+        captureRef.current = capture.captureId;
+        try {
+          const frames = await captureTradingViewFrames(widget, capture.timeframes);
+          await client.requestMutation("trading.chart_capture", {
+            captureId: capture.captureId,
+            sessionKey: capture.sessionKey,
+            frames,
+          });
+        } catch {
+          await client.requestMutation("trading.chart_capture", {
+            captureId: capture.captureId,
+            sessionKey: capture.sessionKey,
+            frames: [],
+          }).catch(() => undefined);
+        } finally {
+          clearChartCapture(chatId);
+        }
+        return;
       }
-    })();
+    };
+
+    void runCapture();
+    return () => {
+      cancelled = true;
+    };
   }, [chatId, client, session.chartCapture]);
 
   return (

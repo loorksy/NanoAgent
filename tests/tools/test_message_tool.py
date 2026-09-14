@@ -355,6 +355,49 @@ async def test_message_tool_allows_ws_explicit_when_matches_context(tmp_path) ->
 
 
 @pytest.mark.asyncio
+async def test_message_tool_resolves_telegram_uuid_to_pairing_chat_id(monkeypatch) -> None:
+    sent: list[OutboundMessage] = []
+
+    async def _send(msg: OutboundMessage) -> None:
+        sent.append(msg)
+
+    monkeypatch.setattr(
+        "nanobot.agent.delivery_targets.get_approved",
+        lambda _channel: ["5969744996|aswadtr"],
+    )
+    tool = MessageTool(send_callback=_send)
+    with request_context(
+        RequestContext(
+            channel="websocket",
+            chat_id="b7508e2c-ac4a-4a9d-a51a-970409fb146c",
+            metadata={},
+        ),
+    ):
+        result = await tool.execute(
+            content="test telegram",
+            channel="telegram",
+            chat_id="b7508e2c-ac4a-4a9d-a51a-970409fb146c",
+        )
+    assert result == "Message sent to telegram:5969744996"
+    assert sent[0].chat_id == "5969744996"
+
+
+@pytest.mark.asyncio
+async def test_message_tool_rejects_telegram_without_resolvable_chat_id(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "nanobot.agent.delivery_targets.get_approved",
+        lambda _channel: [],
+    )
+    tool = MessageTool()
+    result = await tool.execute(
+        content="test",
+        channel="telegram",
+        chat_id="b7508e2c-ac4a-4a9d-a51a-970409fb146c",
+    )
+    assert result.startswith("Error: Telegram delivery requires a numeric chat id")
+
+
+@pytest.mark.asyncio
 async def test_message_tool_cli_context_may_target_other_ws_chat(tmp_path) -> None:
     """Cron / CLI handlers keep non-websocket defaults; explicit websocket + uuid remains valid."""
     sent: list[OutboundMessage] = []

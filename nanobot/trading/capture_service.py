@@ -111,6 +111,10 @@ async def run_chart_capture(
             "ok": False,
             "error": "no_frames",
             "message": _msg("no_frames", locale),
+            "hint": (
+                "The chart panel was opened but no snapshot arrived in time. "
+                "On mobile, wait for the chart sheet to finish loading and retry."
+            ),
             "artifacts": [],
         }
 

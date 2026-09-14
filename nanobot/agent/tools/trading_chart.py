@@ -494,4 +494,10 @@ class CaptureGoldChartTool(Tool):
             interval=interval,
             operator_text=operator_text,
         )
+        if not payload.get("ok"):
+            message = str(payload.get("message") or "Chart capture failed.")
+            hint = str(payload.get("hint") or "").strip()
+            if hint:
+                message = f"{message} {hint}"
+            return ToolResult.error(message)
         return chart_capture_tool_result(payload)

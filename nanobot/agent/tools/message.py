@@ -219,6 +219,25 @@ class MessageTool(Tool):
         if not channel or not chat_id:
             return ToolResult.error("Error: No target channel/chat specified")
 
+        if channel == "telegram":
+            from nanobot.agent.delivery_targets import (
+                default_telegram_chat_id,
+                resolve_telegram_chat_id,
+            )
+
+            resolved = resolve_telegram_chat_id(chat_id)
+            if resolved is None:
+                resolved = default_telegram_chat_id()
+            if resolved is None:
+                return ToolResult.error(
+                    "Error: Telegram delivery requires a numeric chat id (e.g. 5969744996). "
+                    "Do not use WebUI/WebSocket session UUIDs. Ask the operator to message "
+                    "the bot on Telegram first, or use list_sessions / send_session_message "
+                    "to reach their Telegram session."
+                )
+            if resolved != chat_id:
+                chat_id = resolved
+
         if not self._send_callback:
             return ToolResult.error("Error: Message sending not configured")
 

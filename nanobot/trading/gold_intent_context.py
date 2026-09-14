@@ -59,6 +59,16 @@ async def gold_intent_runtime_context(
         except Exception:
             pass
 
+    if request.channel == "websocket":
+        from nanobot.agent.delivery_targets import default_telegram_chat_id
+
+        tg_chat = default_telegram_chat_id()
+        if tg_chat:
+            lines.append(
+                f"Operator Telegram delivery id (for message tool): {tg_chat}. "
+                "Never use the WebUI session UUID as a Telegram chat_id."
+            )
+
     if request.channel in ("telegram", "whatsapp"):
         lines.append(
             "When a trading tool already delivered the recommendation card, "

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from nanobot.trading.stage_delivery import TradingStagePublisher
 
 _CAPTURE_TTL_SEC = 30.0
-_DEFAULT_TIMEOUT_SEC = 8.0
+_DEFAULT_TIMEOUT_SEC = 20.0
 _MAX_FRAMES = 5
 _MAX_FRAME_BYTES = 2 * 1024 * 1024
 _MAX_TOTAL_BYTES = 4 * 1024 * 1024

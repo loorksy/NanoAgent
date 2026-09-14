@@ -116,6 +116,15 @@ Operators may opt into legacy periodic monitors:
 
 Default is `false`. Recommend keeping it false unless they understand the trade-off.
 
+## Cross-channel delivery (WebUI → Telegram / WhatsApp)
+
+When the operator chats on **WebUI** but asks you to notify them on **Telegram** or **WhatsApp**:
+
+1. Call the **`message`** tool with `channel="telegram"` (or `whatsapp`).
+2. **Never** pass the WebUI/WebSocket session UUID as `chat_id` — Telegram requires a **numeric** chat id.
+3. If you do not know the numeric id, omit `chat_id` and let the server resolve the approved Telegram operator from pairing — or use **`list_sessions`** / **`send_session_message`** to reach their Telegram session by `@handle`.
+4. **Only claim delivery after the tool succeeds.** If the tool returns an error, tell the operator honestly and do not say "تم الإرسال".
+
 ## Quick checklist
 
 ```
