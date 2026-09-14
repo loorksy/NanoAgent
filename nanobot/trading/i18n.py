@@ -304,6 +304,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "followup.no_second_rec": (
             " A second recommendation is not issued while this plan is live."
         ),
+        "synth.no_usable_decision": (
+            "The trading synthesizer could not produce a grounded recommendation from the evidence."
+        ),
+        "synth.unavailable": "Synthesizer unavailable",
+        "synth.operational_blocker": "Operational blocker",
+        "explain.header": "Trading kernel detail ({decision}):",
+        "explain.reason": "Technical reason: {reason}",
+        "explain.footer": "This answer comes from the trading kernel, not general chat.",
         "gate_report.summary": (
             "Quality checks for the live {direction} plan. Allowed: {allowed}."
         ),
@@ -351,6 +359,14 @@ MESSAGES: dict[str, dict[str, str]] = {
             "هذه متابعة وليست توصية جديدة."
         ),
         "followup.no_second_rec": " لا يمكن إصدار توصية ثانية فيما تبقى الخطة الحالية سارية.",
+        "synth.no_usable_decision": (
+            "لم يستطع مُجمّع التداول إصدار توصية مبنية على الأدلة المتاحة."
+        ),
+        "synth.unavailable": "مُجمّع التداول غير متاح",
+        "synth.operational_blocker": "عائق تشغيلي",
+        "explain.header": "تفاصيل قرار التداول ({decision}):",
+        "explain.reason": "السبب التقني: {reason}",
+        "explain.footer": "هذا الرد من نواة التداول وليس محادثة عامة.",
         "gate_report.summary": (
             "فحوصات الجودة للخطة النشطة ({direction}). مسموح: {allowed}."
         ),

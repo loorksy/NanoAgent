@@ -20,6 +20,8 @@ from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.i18n import tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.explain import build_trading_explain
+from nanobot.trading.operator_keywords import wants_trading_explain
 from nanobot.trading.turn_executor import execute_gate_report_path, execute_light_path
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
@@ -147,11 +149,26 @@ async def try_gold_fast_path(
     chat_id: str,
     bus: MessageBus | None = None,
     subagent_manager: Any | None = None,
+    last_trading_wire: dict | None = None,
 ) -> OutboundMessage | None:
     """Return an immediate gold response for confident price or analysis intents."""
     text = (message or "").strip()
     if not text:
         return None
+
+    locale = locale_from_text(text)
+    if wants_trading_explain(text) and last_trading_wire:
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=build_trading_explain(last_trading_wire, locale=locale),
+            metadata={
+                OUTBOUND_META_AGENT_UI: {
+                    "kind": "trading_explain",
+                    "data": {"wire": last_trading_wire, "locale": locale},
+                }
+            },
+        )
 
     ctx = current_request_context()
     session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"

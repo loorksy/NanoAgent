@@ -270,7 +270,7 @@ async def test_synthesizer_no_usable_decision_without_provider() -> None:
     result = await _synth_default_complete()
     assert result.decision == "wait"
     assert result.confidence == 0.0
-    assert "no usable decision" in result.summary.lower()
+    assert "synthesizer" in result.summary.lower()
 
 
 @pytest.mark.asyncio

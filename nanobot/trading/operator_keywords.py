@@ -100,8 +100,21 @@ _DEBATE_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 
+_EXPLAIN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(why|how come|reason)\b", re.I),
+    re.compile(r"(ليش|لماذا|ليه|السبب|وش السبب|ما السبب)"),
+)
+
+
 def wants_gate_report(message: str) -> bool:
     return bool(_GATE_KEYWORDS.search(message or ""))
+
+
+def wants_trading_explain(message: str) -> bool:
+    text = (message or "").strip()
+    if not text or len(text) > 80:
+        return False
+    return any(p.search(text) for p in _EXPLAIN_PATTERNS)
 
 
 def wants_quick_analysis(message: str) -> bool:
