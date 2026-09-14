@@ -119,12 +119,30 @@ async def run_chart_capture(
         bus, channel=channel, chat_id=chat_id, locale=locale,
     )
     requested = timeframes or visual_timeframes(interval)
-    host_snapshots = await _capture_via_chart_host(interval, requested)
-    if host_snapshots is not None:
-        async def host_capture_fn(_timeframes: list[str]) -> dict[str, Any]:
-            return {"frames": host_snapshots}
+    snapshots: list[dict[str, Any]]
+    if chart_host_url():
+        host_snapshots = await _capture_via_chart_host(interval, requested)
+        if host_snapshots:
+            async def host_capture_fn(_timeframes: list[str]) -> dict[str, Any]:
+                return {"frames": host_snapshots}
 
-        _visual, snapshots = await capture_visual_evidence(interval, capture=host_capture_fn)
+            _visual, snapshots = await capture_visual_evidence(interval, capture=host_capture_fn)
+        elif publisher.is_web_channel:
+            session_key = current_request_session_key() or f"{channel}:{chat_id}"
+            await publisher.open_chart(interval)
+            capture_fn = create_chart_capture_fn(session_key, publisher)
+            _visual, snapshots = await capture_visual_evidence(interval, capture=capture_fn)
+        else:
+            return {
+                "ok": False,
+                "error": "no_frames",
+                "message": _msg("no_frames", locale),
+                "hint": (
+                    "The chart-host sidecar did not return a snapshot in time. "
+                    "Check chart-host health and retry."
+                ),
+                "artifacts": [],
+            }
     elif publisher.is_web_channel:
         session_key = current_request_session_key() or f"{channel}:{chat_id}"
         await publisher.open_chart(interval)
