@@ -12,6 +12,7 @@ from nanobot.trading.evidence.node_sets import (
     SYNTHESIS_REQUIRED_NODES,
     mode_requires_synthesis,
 )
+from nanobot.trading.capabilities.catalog import CARD_REGISTRY, get_card
 from nanobot.trading.evidence.nodes import NODE_REGISTRY
 from nanobot.trading.turn_planner import TurnBudget, TurnPlan
 
@@ -37,6 +38,26 @@ class ValidatedPlan:
     adjustments: tuple[str, ...]
 
 
+def _normalize_capabilities(plan: TurnPlan) -> tuple[TurnPlan, list[str]]:
+    adjustments: list[str] = []
+    if not plan.capability_cards:
+        return plan, adjustments
+
+    unknown = sorted(set(plan.capability_cards) - set(CARD_REGISTRY))
+    if unknown:
+        raise PolicyViolation(
+            f"Unknown capability cards: {', '.join(unknown)}",
+            plan,
+        )
+
+    requested_spawn = sum(get_card(card_id).max_subagents for card_id in plan.capability_cards)
+    if requested_spawn > plan.budget.max_subagents:
+        adjustments.append(
+            f"capability_spawn_budget_capped:{requested_spawn}->{plan.budget.max_subagents}"
+        )
+    return plan, adjustments
+
+
 def _normalize_budget(budget: TurnBudget) -> tuple[TurnBudget, list[str]]:
     adjustments: list[str] = []
     normalized = budget
@@ -46,6 +67,9 @@ def _normalize_budget(budget: TurnBudget) -> tuple[TurnBudget, list[str]]:
     if budget.max_subagents < 1:
         normalized = replace(budget, max_subagents=1)
         adjustments.append("clamped_max_subagents_to_1")
+    if budget.max_subagents > 4:
+        normalized = replace(budget, max_subagents=4)
+        adjustments.append("clamped_max_subagents_to_4")
     return normalized, adjustments
 
 
@@ -73,12 +97,15 @@ def _normalize_nodes(plan: TurnPlan) -> tuple[tuple[str, ...], list[str]]:
 def validate_turn_plan(plan: TurnPlan, *, shadow_mode: bool = True) -> ValidatedPlan:
     """Validate and normalize a turn plan; resolve executed graph (shadow expands to full)."""
     budget, budget_adjustments = _normalize_budget(plan.budget)
-    planned_nodes, node_adjustments = _normalize_nodes(plan)
-    adjustments = tuple(budget_adjustments + node_adjustments)
+    capability_plan, capability_adjustments = _normalize_capabilities(
+        replace(plan, budget=budget)
+    )
+    planned_nodes, node_adjustments = _normalize_nodes(capability_plan)
+    adjustments = tuple(budget_adjustments + capability_adjustments + node_adjustments)
 
-    normalized_plan = plan
-    if budget is not plan.budget or planned_nodes is not plan.nodes:
-        normalized_plan = replace(plan, budget=budget, nodes=planned_nodes)
+    normalized_plan = capability_plan
+    if planned_nodes is not capability_plan.nodes:
+        normalized_plan = replace(capability_plan, nodes=planned_nodes)
 
     if shadow_mode and mode_requires_synthesis(plan.mode):
         executed_nodes = FULL_ANALYSIS_NODES

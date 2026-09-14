@@ -49,6 +49,10 @@ async def gold_intent_runtime_context(
         f"confidence={turn.intent.confidence:.2f}).",
         f"Turn mode: {turn.mode}.",
     ]
+    if turn.capability_cards:
+        lines.append(f"Capability cards: {', '.join(turn.capability_cards)}.")
+    if turn.team_preset:
+        lines.append(f"Team preset: {turn.team_preset}.")
     if turn.nodes:
         lines.append(f"Planned evidence nodes: {', '.join(turn.nodes)}.")
     if turn.budget.max_subagents != 4 or turn.budget.max_spawn_depth != 1:

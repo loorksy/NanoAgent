@@ -119,21 +119,23 @@ recommendation store. These stay in `orchestrator.py` after the evidence phase.
 
 ---
 
-## Capability Cards (Phase L — planned)
+## Capability Cards (Phase L) ✅ *implemented*
 
-Planner-readable cards describing optional capabilities:
+Catalog: `nanobot/trading/capabilities/catalog.py`
 
 | Card | Triggers | Subagent? |
 |------|----------|-----------|
 | `price_quote` | Price / spread questions | No |
 | `chart_snapshot` | Chart image intent | No |
-| `macro_scan` | News-heavy questions | Optional 1 role |
-| `structure_review` | Level / trend questions | Optional 1 role |
-| `committee` | Complex recommendation | 3–5 YAML roles |
-| `debate` | Bull/bear conflict | 2–3 roles |
-| `gate_report` | "Why blocked?" follow-up | No — reads stored gate chain |
+| `macro_scan` | News-heavy questions | Optional 1 role (preflight) |
+| `structure_review` | Level / trend questions | Optional 1 role (preflight) |
+| `committee` | Team / committee preset | Up to 5 roles (budget clamped to 4) |
+| `debate` | Bull/bear / debate preset | Up to 3 roles |
+| `gate_report` | Gate inquiry with live plan | No |
 
-Each card declares: `cost_estimate`, `required_nodes`, `max_subagents`, `output_schema`.
+Each card declares `cost_estimate`, `required_nodes`, `max_subagents`, `output_schema`,
+and optional `team_preset` / `spawn_role`. `plan_turn()` attaches cards via
+`apply_capability_plan()`; Policy Guard validates card ids and logs spawn budget caps.
 
 ---
 
@@ -174,13 +176,15 @@ Each card declares: `cost_estimate`, `required_nodes`, `max_subagents`, `output_
 - [x] `latest_live_recommendation()` returns `gate_json` for gate inquiries
 - [x] `execute_gate_report_path()` + fast_path routing
 - [x] Shadow off → subset graph; shadow on → still expands synthesis modes to full graph
-- [ ] Intent-specific subsets beyond quick/gate (Phase L capability cards)
+- [x] Intent-specific subsets via capability cards (Phase L)
 
-### Phase L — Capability Cards + dynamic committee
+### Phase L — Capability Cards + dynamic committee ✅ *implemented*
 
-- Card catalog in `nanobot/trading/capabilities/`
-- Planner maps intent → cards → nodes + optional subagent roles
-- Hard budgets: `max_agents`, `max_tokens`, `max_latency_ms`
+- [x] Card catalog in `nanobot/trading/capabilities/`
+- [x] `apply_capability_plan()` maps intent → cards → nodes + team preset
+- [x] `run_capability_preflight()` optional single-role macro/structure brief
+- [x] Policy Guard validates card ids + logs spawn budget caps (max 4 subagents)
+- [ ] Token/latency budgets (Phase M observability)
 
 ### Phase M — Recommendation state machine + observability
 

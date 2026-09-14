@@ -11,6 +11,7 @@ from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.evidence import is_light_path_mode
 from nanobot.trading.intent_router import resolve_team_preset
 from nanobot.agent.tools.context import current_request_context
+from nanobot.trading.capabilities.preflight import run_capability_preflight
 from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.teams.runtime import run_swarm
@@ -65,8 +66,14 @@ async def _run_analysis_fast_path(
     visual_capture = resolve_visual_capture(publisher)
 
     try:
+        capability_briefing = await run_capability_preflight(
+            turn,
+            subagent_manager=subagent_manager,
+            publisher=publisher,
+            interval=interval,
+        )
         if turn.mode == "team_swarm":
-            preset = resolve_team_preset(text) or "gold_analysis_committee"
+            preset = turn.team_preset or resolve_team_preset(text) or "gold_analysis_committee"
             if "debate" in preset:
                 debate = await run_debate_crew(
                     user_message=text,
@@ -94,6 +101,7 @@ async def _run_analysis_fast_path(
                 emit=publisher.sync_emit,
                 visual_capture=visual_capture,
                 turn_plan=turn,
+                team_briefing=capability_briefing,
             )
     except Exception as exc:
         return OutboundMessage(

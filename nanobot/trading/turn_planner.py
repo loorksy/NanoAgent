@@ -53,6 +53,8 @@ class TurnPlan:
     nodes: tuple[str, ...] = EMPTY_NODES
     budget: TurnBudget = TurnBudget()
     run_kernel: bool = True
+    capability_cards: tuple[str, ...] = ()
+    team_preset: str | None = None
 
 
 _SPECIALIST_KINDS: frozenset[IntentKind] = frozenset({"price_query"})
@@ -72,7 +74,7 @@ def wants_explicit_new_analysis(message: str) -> bool:
     return any(phrase.lower() in text for phrase in EXPLICIT_NEW_ANALYSIS_PHRASES)
 
 
-def plan_turn(
+def _plan_turn_core(
     message: str,
     *,
     active_recommendation_live: bool = False,
@@ -168,3 +170,19 @@ def plan_turn(
         nodes=select_analysis_nodes(message, intent),
         budget=DEFAULT_BUDGET,
     )
+
+
+def plan_turn(
+    message: str,
+    *,
+    active_recommendation_live: bool = False,
+    reevaluation: bool = False,
+) -> TurnPlan:
+    from nanobot.trading.capabilities.planner import apply_capability_plan
+
+    plan = _plan_turn_core(
+        message,
+        active_recommendation_live=active_recommendation_live,
+        reevaluation=reevaluation,
+    )
+    return apply_capability_plan(plan, message)

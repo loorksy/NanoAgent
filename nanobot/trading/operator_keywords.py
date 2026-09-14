@@ -84,6 +84,21 @@ _QUICK_ANALYSIS_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"(سريع|بدون شارت|بدون رسم)", re.I),
 )
 
+_MACRO_SCAN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(news|macro|fed|nfp|cpi|calendar)\b", re.I),
+    re.compile(r"(أخبار|ماكرو|فيدرال|تقويم)", re.I),
+)
+
+_STRUCTURE_REVIEW_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(level|structure|trend|support|resistance)\b", re.I),
+    re.compile(r"(مستوى|مستويات|ترند|دعم|مقاومة|هيكل)", re.I),
+)
+
+_DEBATE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(bull|bear|debate)\b", re.I),
+    re.compile(r"(صاعد|هابط|مناظرة|ثور|دب)", re.I),
+)
+
 
 def wants_gate_report(message: str) -> bool:
     return bool(_GATE_KEYWORDS.search(message or ""))
@@ -91,3 +106,15 @@ def wants_gate_report(message: str) -> bool:
 
 def wants_quick_analysis(message: str) -> bool:
     return any(p.search(message or "") for p in _QUICK_ANALYSIS_PATTERNS)
+
+
+def wants_macro_scan(message: str) -> bool:
+    return any(p.search(message or "") for p in _MACRO_SCAN_PATTERNS)
+
+
+def wants_structure_review(message: str) -> bool:
+    return any(p.search(message or "") for p in _STRUCTURE_REVIEW_PATTERNS)
+
+
+def wants_debate(message: str) -> bool:
+    return any(p.search(message or "") for p in _DEBATE_PATTERNS)
