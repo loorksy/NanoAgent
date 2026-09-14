@@ -128,8 +128,9 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 
 ### Still planned
 
-- Outcome-alert dedup across price oscillation (waiting ↔ in_trade)
 - Agent-initiated artifact bundles instead of plain text spam (ties to Phase G)
+
+**Done (Phase M):** Outcome-alert dedup across `waiting ↔ in_trade` oscillation — see `nanobot/trading/recommendations/state_machine.py`.
 
 ---
 

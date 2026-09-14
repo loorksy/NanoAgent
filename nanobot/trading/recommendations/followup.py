@@ -10,18 +10,18 @@ from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.operator_keywords import _FOLLOWUP_NEW_REC_MARKERS
 from nanobot.trading.recommendations.outcome_alerts import OutcomeTransition
+from nanobot.trading.recommendations.state_machine import (
+    CLOSED_OUTCOME_STATUSES,
+    LIVE_OUTCOME_STATUSES,
+    can_transition,
+    normalize_outcome_status,
+)
 from nanobot.trading.recommendations.store import (
     get_recommendation,
     list_recommendations,
     update_recommendation_status,
 )
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
-
-LIVE_OUTCOME_STATUSES = frozenset(
-    {"valid_now", "awaiting_activation", "waiting", "in_trade"}
-)
-CLOSED_OUTCOME_STATUSES = frozenset({"tp1", "invalidated", "expired"})
-
 
 def latest_open_recommendation() -> dict | None:
     for row in list_recommendations(limit=20):
@@ -39,7 +39,7 @@ def grade_outcome_status(
     entry = row.get("entry")
     stop = row.get("stop_loss")
     targets = list(row.get("targets") or [])
-    stored = str(row.get("status") or "valid_now")
+    stored = normalize_outcome_status(str(row.get("status") or "valid_now"))
     if stored in CLOSED_OUTCOME_STATUSES:
         return stored
     if direction not in {"buy", "sell"} or entry is None or stop is None:
@@ -80,9 +80,9 @@ def refresh_recommendation_outcomes(
     counts = {"updated": 0, "open": 0, "closed": 0}
     transitions: list[OutcomeTransition] = []
     for row in list_recommendations(limit=200):
-        current = str(row.get("status") or "valid_now")
-        graded = grade_outcome_status(row, live_price=live_price)
-        if graded != current:
+        current = normalize_outcome_status(str(row.get("status") or "valid_now"))
+        graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+        if graded != current and can_transition(current, graded):
             update_recommendation_status(str(row["id"]), graded)
             transitions.append(
                 OutcomeTransition(

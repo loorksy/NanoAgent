@@ -186,11 +186,12 @@ and optional `team_preset` / `spawn_role`. `plan_turn()` attaches cards via
 - [x] Policy Guard validates card ids + logs spawn budget caps (max 4 subagents)
 - [ ] Token/latency budgets (Phase M observability)
 
-### Phase M — Recommendation state machine + observability
+### Phase M — Recommendation state machine + observability ✅ *implemented*
 
-- Explicit FSM: `live → in_trade → tp1 → invalidated → closed`
-- Dedup outcome alerts across price oscillation
-- Structured logs: planner decisions, node timings, gate outcomes
+- [x] `recommendations/state_machine.py` — explicit FSM + `can_transition()`
+- [x] Outcome alert dedup: suppress `waiting ↔ in_trade` oscillation spam
+- [x] `observability.py` — structured logs for planner, evidence node timings, gates
+- [ ] Token/latency budgets (future hardening)
 
 ---
 

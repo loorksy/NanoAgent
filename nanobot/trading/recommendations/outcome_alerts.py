@@ -12,6 +12,8 @@ from nanobot.trading.i18n import label_map
 from nanobot.trading.locale import locale_from_text, normalize_locale
 
 ALERTABLE_OUTCOMES = frozenset({"in_trade", "tp1", "invalidated"})
+# Price oscillation around entry should not spam alerts.
+_OSCILLATION_PAIRS = frozenset({frozenset({"waiting", "in_trade"})})
 
 
 @dataclass(frozen=True)
@@ -23,7 +25,13 @@ class OutcomeTransition:
 
 
 def should_alert_transition(transition: OutcomeTransition) -> bool:
-    return transition.current in ALERTABLE_OUTCOMES and transition.previous != transition.current
+    previous = transition.previous
+    current = transition.current
+    if current not in ALERTABLE_OUTCOMES or previous == current:
+        return False
+    if frozenset({previous, current}) in _OSCILLATION_PAIRS:
+        return False
+    return True
 
 
 def _alert_locale(row: dict[str, Any], locale: str | None = None) -> str:

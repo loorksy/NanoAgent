@@ -10,6 +10,7 @@ from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
+from nanobot.trading.observability import log_gate_observability, log_planner_observability
 from nanobot.trading.policy_guard import ValidatedPlan, log_planner_shadow, validate_turn_plan
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
@@ -66,6 +67,7 @@ def _resolve_validated_plan(turn_plan: TurnPlan | None) -> ValidatedPlan | None:
         shadow_mode=config.planner_shadow_mode,
     )
     log_planner_shadow(validated)
+    log_planner_observability(validated)
     return validated
 
 
@@ -232,6 +234,7 @@ async def run_unified_chart_agent(
         )
     )
     gate_chain = await run_gate_chain(gates)
+    log_gate_observability(gate_chain)
     from nanobot.trading.gates.reprice_loop import apply_g7_reprice_loop
 
     gate_chain, plan, rec = await apply_g7_reprice_loop(gate_chain, gates, plan, rec)

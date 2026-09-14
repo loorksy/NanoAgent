@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from nanobot.trading.evidence.context import PipelineContext
+from nanobot.trading.observability import track_node_timing
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH, EvidenceGraph
 from nanobot.trading.evidence.nodes import NODE_REGISTRY, get_node
 from nanobot.trading.stage_events import StageEvent, emit_stage
@@ -29,7 +30,8 @@ async def _run_node(
     if stage is not None:
         track(emit_stage(stage, "running"))
     try:
-        await node.execute(ctx)
+        with track_node_timing(node_id):
+            await node.execute(ctx)
     except Exception:
         if stage is not None:
             track(emit_stage(stage, "failed"))
