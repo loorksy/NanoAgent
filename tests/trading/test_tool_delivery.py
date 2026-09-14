@@ -119,4 +119,6 @@ async def test_get_live_recommendation_returns_plan_and_price(monkeypatch) -> No
     assert payload["has_live_plan"] is True
     assert payload["live_price"] == 4332.5
     assert payload["plan"]["entry"] == 3349.42
+    assert payload["display"]["live_price"] == "4332.50"
+    assert payload["display"]["entry"] == "3349.42"
     bus.publish_outbound.assert_not_called()

@@ -218,6 +218,12 @@ class GetGoldQuoteTool(Tool):
             {
                 **quote_data,
                 "locale": locale,
+                "display": {
+                    "bid": f"{quote.bid:.2f}" if quote.bid is not None else None,
+                    "ask": f"{quote.ask:.2f}" if quote.ask is not None else None,
+                    "mid": f"{quote.mid:.2f}" if quote.mid is not None else None,
+                },
+                "instruction": "Quote display.mid (or bid/ask) verbatim — never invent or reformat with commas.",
                 "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
             },
             indent=2,
@@ -285,6 +291,15 @@ class GetLiveRecommendationTool(Tool):
                 pass
 
         outcome_status = grade_outcome_status(live, live_price=live_price)
+
+        def _plain(value: object | None) -> str | None:
+            if value is None:
+                return None
+            try:
+                return f"{float(value):.2f}"
+            except (TypeError, ValueError):
+                return None
+
         payload: dict[str, Any] = {
             "has_live_plan": True,
             "locale": locale,
@@ -302,6 +317,16 @@ class GetLiveRecommendationTool(Tool):
             },
             "live_price": live_price,
             "quote": quote_data,
+            "display": {
+                "live_price": _plain(live_price),
+                "entry": _plain(live.get("entry")),
+                "stop_loss": _plain(live.get("stop_loss")),
+                "targets": [_plain(t) for t in list(live.get("targets") or [])],
+            },
+            "instruction": (
+                "Use display.* strings verbatim for prices in your reply. "
+                "XAUUSD is near 4300+ on this feed — never write 3300-range prices."
+            ),
         }
 
         artifacts: list[dict[str, Any]] = []

@@ -44,7 +44,7 @@ def _payload() -> dict:
 
 
 def test_format_price_rounds_ugly_floats() -> None:
-    assert format_price(4358.8748214285715) == "$4,358.87"
+    assert format_price(4358.8748214285715) == "$4358.87"
 
 
 def test_translate_structure_reasons_arabic() -> None:
@@ -71,8 +71,8 @@ def test_telegram_card_is_arabic_and_rounded() -> None:
     card = render_telegram_card(_payload(), locale="ar")
     assert "توصية" in card
     assert "بيع" in card
-    assert "$4,349.42" in card
-    assert "$4,358.87" in card
+    assert "$4349.42" in card
+    assert "$4358.87" in card
     assert "4358.8748214285715" not in card
     assert "Opening" not in card
     assert "الشارت" not in card
@@ -94,6 +94,6 @@ def test_whatsapp_card_is_arabic() -> None:
     card = render_whatsapp_card(_payload(), locale="ar")
     assert "*التوصية:" in card
     assert "بيع" in card
-    assert "$4,349.42" in card
+    assert "$4349.42" in card
     assert "محركات الاقتصاد الكلي" in card
     assert "تم التخطي — مخزن مؤقت أو غير منطبق" in card

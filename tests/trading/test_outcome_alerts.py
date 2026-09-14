@@ -78,7 +78,7 @@ def test_format_outcome_alert_arabic_html():
     )
     assert "تحديث توصية الذهب" in text
     assert "تحقق الهدف الأول" in text
-    assert "$2,661.00" in text
+    assert "$2661.00" in text
 
 
 def test_format_outcome_alert_english_html():
