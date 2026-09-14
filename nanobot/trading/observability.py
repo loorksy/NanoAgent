@@ -6,12 +6,14 @@ import json
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from loguru import logger
 
-from nanobot.trading.policy_guard import ValidatedPlan
 from nanobot.trading.types import GateChainResult
+
+if TYPE_CHECKING:
+    from nanobot.trading.policy_guard import ValidatedPlan
 
 
 @dataclass(frozen=True)

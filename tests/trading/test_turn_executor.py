@@ -30,6 +30,29 @@ def test_light_path_never_shadow_expands_to_full_graph() -> None:
 
 
 @pytest.mark.asyncio
+async def test_execute_light_path_price_no_live_quote(monkeypatch) -> None:
+    from tests.trading.evidence_stubs import install_evidence_stubs
+
+    monkeypatch.setenv("OANDA_API_TOKEN", "test-token")
+    stubs = install_evidence_stubs(monkeypatch, gate_allowed=False)
+    stubs["market"].quote_mid = None
+    stubs["market"].quote_bid = None
+    stubs["market"].quote_ask = None
+    stubs["market"].last_close = 2400.0
+
+    turn = plan_turn("كم سعر الذهب؟")
+    result = await execute_light_path(
+        turn,
+        text="كم سعر الذهب؟",
+        channel="websocket",
+        chat_id="ws:1",
+        bus=None,
+    )
+    assert result is not None
+    assert "لا يوجد سعر حي" in result.content or "No live quote" in result.content
+
+
+@pytest.mark.asyncio
 async def test_execute_light_path_price(monkeypatch) -> None:
     from tests.trading.evidence_stubs import install_evidence_stubs
 

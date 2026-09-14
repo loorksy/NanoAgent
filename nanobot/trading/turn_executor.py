@@ -45,16 +45,15 @@ def _format_price_response(
 
 
 def _quote_from_market(market: Any) -> dict[str, Any] | None:
-    mid = market.quote_mid if market.quote_mid is not None else market.last_close
-    if mid is None:
+    if market.quote_mid is None:
         return None
-    bid = market.quote_bid if market.quote_bid is not None else mid
-    ask = market.quote_ask if market.quote_ask is not None else mid
+    bid = market.quote_bid if market.quote_bid is not None else market.quote_mid
+    ask = market.quote_ask if market.quote_ask is not None else market.quote_mid
     return {
         "symbol": market.symbol,
         "bid": bid,
         "ask": ask,
-        "mid": mid,
+        "mid": market.quote_mid,
         "tradeable": market.tradeable,
     }
 
