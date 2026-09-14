@@ -41,7 +41,12 @@ function envInt(name: string, fallback: number): number {
 }
 
 function controlToken(): string | null {
-  for (const name of ["CHART_HOST_CONTROL_TOKEN", "AICHART_SERVICE_TOKEN", "APP_SECRET"]) {
+  for (const name of [
+    "CHART_HOST_CONTROL_TOKEN",
+    "NANOBOT_CHART_HOST_TOKEN",
+    "AICHART_SERVICE_TOKEN",
+    "APP_SECRET",
+  ]) {
     const value = process.env[name]?.trim();
     if (value && value.length >= 16) return value;
   }
