@@ -49,7 +49,7 @@ export class ChartHostWsClient {
       const timer = window.setTimeout(() => {
         socket.removeEventListener("message", onMessage);
         reject(new Error("chart-host submit timeout"));
-      }, 30_000);
+      }, 60_000);
       const onMessage = (event: MessageEvent<string>) => {
         try {
           const payload = JSON.parse(event.data) as {

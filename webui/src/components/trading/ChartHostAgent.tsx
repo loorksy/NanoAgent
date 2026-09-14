@@ -89,7 +89,7 @@ export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
     return () => {
       cancelled = true;
     };
-  }, [token, widget]);
+  }, [token]);
 
   return null;
 }

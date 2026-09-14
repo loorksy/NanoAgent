@@ -53,7 +53,7 @@ function downscaleDataUrl(dataUrl: string, maxWidth = 960): Promise<string> {
 
 async function waitForChartData(
   widget: IChartingLibraryWidget,
-  timeoutMs = 2500,
+  timeoutMs = 8000,
 ): Promise<void> {
   const chart = widget.activeChart();
   await new Promise<void>((resolve) => {
@@ -105,8 +105,8 @@ export async function captureTradingViewFrames(
         image,
         context: `TradingView snapshot at ${timeframe} (${resolutionLabel(resolution)})`,
       });
-    } catch {
-      // Best-effort: skip frames that fail to render.
+    } catch (error) {
+      console.error(`chart capture failed for ${timeframe}`, error);
     }
   }
 

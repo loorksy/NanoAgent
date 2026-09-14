@@ -242,7 +242,7 @@ async def _run_trading_analyze(
         )
 
 
-def handle_trading_analyze(request: WsRequest) -> Response:
+async def handle_trading_analyze(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
     team_mode = (_query_first(params, "team_mode") or "core").strip()
@@ -251,7 +251,7 @@ def handle_trading_analyze(request: WsRequest) -> Response:
         return _http_error(400, "team_mode must be core, debate, or swarm")
 
     try:
-        result = _run_async(_run_trading_analyze(interval, team_mode, preset))
+        result = await _run_trading_analyze(interval, team_mode, preset)
         if result is None:
             return _http_error(500, "Analysis produced no result")
         return _http_json_response(result_to_wire(result))
@@ -368,11 +368,10 @@ def handle_trading_chart_host_poll(request: WsRequest) -> Response:
     return _http_json_response({"job": job})
 
 
-def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
+async def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
     """Run one chart-host capture roundtrip (ops smoke test; page token required)."""
     if not _chart_host_authorized(request):
         return _http_error(401, "unauthorized")
-    from nanobot.trading.capture_service import _capture_via_chart_host
 
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
@@ -400,7 +399,7 @@ def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
             return None
         return [frame for frame in frames if isinstance(frame, dict)]
 
-    frames = _run_async(_smoke_capture())
+    frames = await _smoke_capture()
     if not frames:
         return _http_json_response({"ok": False, "error": "no_frames", "debug": debug})
     return _http_json_response({
@@ -509,7 +508,7 @@ def handle_trading_paper(request: WsRequest) -> Response:
     return _http_json_response({"ok": True, "entry": entry})
 
 
-def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
+async def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
         return handle_trading_klines(request)
     if path == "/api/trading/quote":
@@ -519,7 +518,7 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/runtime/update":
         return handle_trading_runtime_update(request)
     if path == "/api/trading/analyze":
-        return handle_trading_analyze(request)
+        return await handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
         return handle_trading_recommendations(request)
     if path == "/api/trading/briefing":
@@ -533,7 +532,7 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/chart-host/poll":
         return handle_trading_chart_host_poll(request)
     if path == "/api/trading/chart-host/smoke":
-        return handle_trading_chart_host_smoke(request)
+        return await handle_trading_chart_host_smoke(request)
     if path == "/api/trading/chart-host/submit":
         return handle_trading_chart_host_submit(request)
     return None

@@ -567,7 +567,7 @@ class GatewayHTTPHandler:
             return response
 
         # Trading routes
-        response = dispatch_trading_route(request, got)
+        response = await dispatch_trading_route(request, got)
         if response is not None:
             if (
                 got.startswith("/api/trading/")
