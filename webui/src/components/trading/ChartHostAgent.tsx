@@ -19,6 +19,11 @@ const POLL_MS = 1_500;
 export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
   const busyRef = useRef(false);
   const wsRef = useRef<ChartHostWsClient | null>(null);
+  const widgetRef = useRef<IChartingLibraryWidget | null>(widget);
+
+  useEffect(() => {
+    widgetRef.current = widget;
+  }, [widget]);
 
   useEffect(() => {
     if (!token) return;
@@ -27,7 +32,7 @@ export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
 
     const poll = async () => {
       while (!cancelled) {
-        if (!widget || busyRef.current) {
+        if (busyRef.current) {
           await new Promise((resolve) => window.setTimeout(resolve, POLL_MS));
           continue;
         }
@@ -47,8 +52,15 @@ export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
           }
           busyRef.current = true;
           try {
-            let readyWidget = widget;
-            for (let i = 0; i < 60 && readyWidget; i += 1) {
+            let readyWidget = widgetRef.current;
+            for (let i = 0; i < 120 && !readyWidget; i += 1) {
+              await new Promise((resolve) => window.setTimeout(resolve, 500));
+              readyWidget = widgetRef.current;
+            }
+            if (!readyWidget) {
+              throw new Error("chart-host widget not ready");
+            }
+            for (let i = 0; i < 60; i += 1) {
               try {
                 readyWidget.activeChart();
                 break;
@@ -57,6 +69,9 @@ export function ChartHostAgent({ token, widget }: ChartHostAgentProps) {
               }
             }
             const frames = await captureTradingViewFrames(readyWidget, job.timeframes);
+            if (!frames.length) {
+              throw new Error("chart-host capture returned no frames");
+            }
             const client = wsRef.current ?? new ChartHostWsClient(token);
             wsRef.current = client;
             await client.submitCapture(job.captureId, frames);
