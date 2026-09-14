@@ -3,7 +3,6 @@
 import pytest
 
 from nanobot.trading.evidence import FULL_ANALYSIS_NODES, graph_for_nodes
-from nanobot.trading.intent_router import route_intent
 from nanobot.trading.policy_guard import PolicyViolation, log_planner_shadow, validate_turn_plan
 from nanobot.trading.turn_planner import TurnBudget, TurnPlan, plan_turn
 

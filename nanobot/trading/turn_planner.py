@@ -100,7 +100,7 @@ def plan_turn(
             emit_stages=False,
             reason="chart_image_intent",
             tools=CAPTURE_TOOLS,
-            nodes=EMPTY_NODES,
+            nodes=("visual_capture",),
             budget=DEFAULT_BUDGET,
         )
     if intent.kind not in _ANALYSIS_KINDS:
@@ -128,7 +128,7 @@ def plan_turn(
             redirected_from_analysis=True,
             requested_new_plan=requested,
             tools=FOLLOWUP_TOOLS,
-            nodes=EMPTY_NODES,
+            nodes=MARKET_DATA_NODES,
             budget=DEFAULT_BUDGET,
         )
     if intent.kind == "team_swarm":

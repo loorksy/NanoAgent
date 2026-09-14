@@ -94,6 +94,9 @@ class AgentMarketContext:
     atr: float
     sync: MarketSync
     quote_mid: float | None = None
+    quote_bid: float | None = None
+    quote_ask: float | None = None
+    tradeable: bool = True
 
 
 @dataclass

@@ -23,7 +23,12 @@ SYNTHESIS_REQUIRED_NODES: frozenset[str] = frozenset(
 )
 
 _SYNTHESIS_MODES = frozenset({"full_analysis", "team_swarm", "reevaluation"})
+LIGHT_PATH_MODES = frozenset({"market_data_only", "chart_capture", "recommendation_followup"})
 
 
 def mode_requires_synthesis(mode: str) -> bool:
     return mode in _SYNTHESIS_MODES
+
+
+def is_light_path_mode(mode: str) -> bool:
+    return mode in LIGHT_PATH_MODES

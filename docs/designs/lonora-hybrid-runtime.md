@@ -158,15 +158,14 @@ Each card declares: `cost_estimate`, `required_nodes`, `max_subagents`, `output_
 - [x] Orchestrator + fast_path pass `turn_plan` into evidence graph resolution
 - [ ] Metrics export (structured log only today; Phase M)
 
-### Phase J — Dynamic Executor (light paths)
+### Phase J — Dynamic Executor (light paths) ✅ *implemented*
 
-Planner fully controls:
-
-- `market_data_only` (price quote)
-- `chart_capture` (screenshot)
-- `recommendation_followup` (grade live plan)
-
-No change to full-analysis kernel yet.
+- [x] `turn_executor.execute_light_path()` — single entry for price / chart / follow-up
+- [x] Light paths run **subset evidence graphs** (never shadow-expanded)
+- [x] `market_data_only` → `market_data` node; `chart_capture` → `visual_capture`; follow-up → `market_data` + grade
+- [x] `fast_path.py` delegates light modes to turn executor
+- [x] `AgentMarketContext` exposes bid/ask/tradeable for price formatting
+- [ ] Full-analysis subset execution (Phase K)
 
 ### Phase K — Dynamic Executor (full analysis)
 

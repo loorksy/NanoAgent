@@ -49,4 +49,7 @@ def build_agent_market_context(
         atr=atr,
         sync=sync,
         quote_mid=quote.mid if quote else None,
+        quote_bid=quote.bid if quote else None,
+        quote_ask=quote.ask if quote else None,
+        tradeable=quote.tradeable if quote else False,
     )

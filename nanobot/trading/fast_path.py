@@ -8,48 +8,21 @@ from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
-from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
+from nanobot.trading.evidence import is_light_path_mode
 from nanobot.trading.intent_router import resolve_team_preset
-from nanobot.trading.oanda import fetch_quote
 from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
-from nanobot.trading.cards.artifacts import (
-    apply_result_artifacts,
-    build_price_quote_artifacts,
-)
-from nanobot.trading.i18n import label_map, tr
+from nanobot.trading.i18n import tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.types import AgentFinalResult
+from nanobot.trading.turn_executor import execute_light_path
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
-_PRICE_CONFIDENCE_MIN = 0.70
 _ANALYSIS_CONFIDENCE_MIN = 0.75
-
-
-def _format_price_response(
-    *,
-    bid: float,
-    ask: float,
-    mid: float,
-    tradeable: bool,
-    locale: str,
-) -> str:
-    labels = label_map("card", locale)
-    status = labels["tradeable"] if tradeable else labels["non_tradeable"]
-    return (
-        f"🥇 **{tr('price.header', locale)}**\n"
-        f"{labels['bid']}: `{bid:.2f}`\n"
-        f"{labels['ask']}: `{ask:.2f}`\n"
-        f"{labels['mid']}: `{mid:.2f}`\n"
-        f"{labels['state']}: {status}\n"
-        f"_{tr('price.footer', locale)}_"
-    )
 
 
 def _outbound_from_wire(
@@ -177,135 +150,17 @@ async def try_gold_fast_path(
     live = latest_live_recommendation(session_key)
     turn = plan_turn(text, active_recommendation_live=bool(live))
 
-    if turn.mode == "chart_capture":
-        if turn.intent.confidence < 0.75:
-            return None
-        from nanobot.trading.capture_service import run_chart_capture
-
-        payload = await run_chart_capture(
+    if is_light_path_mode(turn.mode):
+        return await execute_light_path(
+            turn,
+            text=text,
+            channel=channel,
+            chat_id=chat_id,
             bus=bus,
-            channel=channel,
-            chat_id=chat_id,
-            operator_text=text,
-        )
-        if not payload.get("ok"):
-            return OutboundMessage(
-                channel=channel,
-                chat_id=chat_id,
-                content=str(payload.get("message") or "Chart capture failed."),
-            )
-        return OutboundMessage(
-            channel=channel,
-            chat_id=chat_id,
-            content=str(payload.get("artifacts", [{}])[0].get("title") or "Chart captured."),
-            metadata={
-                OUTBOUND_META_AGENT_UI: {
-                    "kind": "trading_artifacts",
-                    "data": {
-                        "artifacts": payload.get("artifacts") or [],
-                        "locale": payload.get("locale"),
-                    },
-                }
-            },
-        )
-
-    if turn.mode == "recommendation_followup":
-        locale = locale_from_text(text)
-        graded = grade_live_recommendation(live, operator_text=text)
-        result = AgentFinalResult(
-            decision=graded,
-            team_mode="followup",
-            recommendation_id=str(live.get("id") or ""),
-        )
-        apply_result_artifacts(
-            result,
-            operator_text=text,
-            intent_kind="recommendation_followup",
-            locale=locale,
-            followup=True,
-            plan_row=live,
-        )
-        return OutboundMessage(
-            channel=channel,
-            chat_id=chat_id,
-            content=graded.summary,
-            metadata={
-                OUTBOUND_META_AGENT_UI: {
-                    "kind": "trading_artifacts",
-                    "data": {"artifacts": result.artifacts, "locale": locale},
-                }
-            }
-            if result.artifacts
-            else {},
-        )
-
-    if turn.mode == "market_data_only":
-        if turn.intent.confidence < _PRICE_CONFIDENCE_MIN:
-            return None
-        config = load_trading_config()
-        if not config.oanda_configured:
-            locale = locale_from_text(text)
-            return OutboundMessage(
-                channel=channel,
-                chat_id=chat_id,
-                content=tr("price.feed_unconfigured", locale),
-            )
-
-        try:
-            quote = fetch_quote(DATA_SYMBOL, config=config)
-        except GoldOnlyError as exc:
-            return OutboundMessage(channel=channel, chat_id=chat_id, content=str(exc))
-        except Exception as exc:
-            locale = locale_from_text(text)
-            return OutboundMessage(
-                channel=channel,
-                chat_id=chat_id,
-                content=tr("price.fetch_failed", locale, error=exc),
-            )
-
-        if quote is None:
-            locale = locale_from_text(text)
-            return OutboundMessage(
-                channel=channel,
-                chat_id=chat_id,
-                content=tr("price.no_quote", locale),
-            )
-
-        locale = locale_from_text(text)
-        content = _format_price_response(
-            bid=quote.bid,
-            ask=quote.ask,
-            mid=quote.mid,
-            tradeable=quote.tradeable,
-            locale=locale,
-        )
-        quote_data = {
-            "symbol": quote.symbol,
-            "bid": quote.bid,
-            "ask": quote.ask,
-            "mid": quote.mid,
-            "tradeable": quote.tradeable,
-        }
-        artifacts = build_price_quote_artifacts(quote_data, locale=locale)
-        if bus is not None:
-            publisher = TradingStagePublisher(
-                bus, channel=channel, chat_id=chat_id, locale=locale,
-            )
-            await publisher.publish_artifacts(artifacts, locale=locale)
-        return OutboundMessage(
-            channel=channel,
-            chat_id=chat_id,
-            content=content,
-            metadata={
-                OUTBOUND_META_AGENT_UI: {
-                    "kind": "trading_artifacts",
-                    "data": {"artifacts": artifacts, "locale": locale},
-                }
-            },
+            live=live,
         )
 
     if turn.mode in ("full_analysis", "team_swarm"):
-        # Gold-only product: a recommendation request always runs the pipeline.
         if turn.intent.kind != "recommendation" and turn.intent.confidence < _ANALYSIS_CONFIDENCE_MIN:
             return None
         config = load_trading_config()
