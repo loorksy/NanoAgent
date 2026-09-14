@@ -4,6 +4,7 @@ from nanobot.trading.evidence.context import PipelineContext
 from nanobot.trading.evidence.executor import run_evidence_graph, stage_sequence_from_graph
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH, EvidenceGraph, graph_for_nodes
 from nanobot.trading.evidence.node_sets import (
+    ANALYSIS_WITHOUT_VISUAL_NODES,
     EMPTY_NODES,
     FULL_ANALYSIS_NODES,
     LIGHT_PATH_MODES,
@@ -16,6 +17,7 @@ from nanobot.trading.evidence.nodes import NODE_REGISTRY, EvidenceNode, get_node
 
 __all__ = [
     "DEFAULT_ANALYSIS_GRAPH",
+    "ANALYSIS_WITHOUT_VISUAL_NODES",
     "EMPTY_NODES",
     "EvidenceGraph",
     "EvidenceNode",

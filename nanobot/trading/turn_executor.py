@@ -15,6 +15,7 @@ from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
 from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.types import AgentFinalResult
 from nanobot.trading.turn_planner import TurnPlan
@@ -233,6 +234,31 @@ async def _execute_followup_path(
         channel=channel,
         chat_id=chat_id,
         content=graded.summary,
+        metadata={
+            OUTBOUND_META_AGENT_UI: {
+                "kind": "trading_artifacts",
+                "data": {"artifacts": result.artifacts, "locale": locale},
+            }
+        }
+        if result.artifacts
+        else {},
+    )
+
+
+async def execute_gate_report_path(
+    turn: TurnPlan,
+    *,
+    text: str,
+    channel: str,
+    chat_id: str,
+    live: dict | None,
+) -> OutboundMessage:
+    locale = locale_from_text(text)
+    result = build_gate_report_result(live, operator_text=text, locale=locale)
+    return OutboundMessage(
+        channel=channel,
+        chat_id=chat_id,
+        content=result.decision.summary,
         metadata={
             OUTBOUND_META_AGENT_UI: {
                 "kind": "trading_artifacts",

@@ -304,6 +304,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "followup.no_second_rec": (
             " A second recommendation is not issued while this plan is live."
         ),
+        "gate_report.summary": (
+            "Quality checks for the live {direction} plan. Allowed: {allowed}."
+        ),
+        "gate_report.allowed_yes": "yes",
+        "gate_report.allowed_no": "no",
         "warning.ungrounded_levels": (
             "Direction is clear, but proposed levels were not grounded in evidence and were dropped."
         ),
@@ -346,6 +351,11 @@ MESSAGES: dict[str, dict[str, str]] = {
             "هذه متابعة وليست توصية جديدة."
         ),
         "followup.no_second_rec": " لا يمكن إصدار توصية ثانية فيما تبقى الخطة الحالية سارية.",
+        "gate_report.summary": (
+            "فحوصات الجودة للخطة النشطة ({direction}). مسموح: {allowed}."
+        ),
+        "gate_report.allowed_yes": "نعم",
+        "gate_report.allowed_no": "لا",
         "warning.ungrounded_levels": (
             "الاتجاه واضح، لكن المستويات المقترحة لم تُطابق مستويات الأدلة فلم تُعتمد."
         ),

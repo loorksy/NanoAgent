@@ -7,7 +7,11 @@ from typing import Literal
 
 from nanobot.trading.evidence.node_sets import EMPTY_NODES, FULL_ANALYSIS_NODES, MARKET_DATA_NODES
 from nanobot.trading.intent_router import IntentKind, RoutedIntent, route_intent
-from nanobot.trading.operator_keywords import EXPLICIT_NEW_ANALYSIS_PHRASES
+from nanobot.trading.node_planner import select_analysis_nodes
+from nanobot.trading.operator_keywords import (
+    EXPLICIT_NEW_ANALYSIS_PHRASES,
+    wants_gate_report,
+)
 
 TurnMode = Literal[
     "full_analysis",
@@ -18,6 +22,7 @@ TurnMode = Literal[
     "market_data_only",
     "chart_capture",
     "team_swarm",
+    "gate_report",
 ]
 
 
@@ -47,6 +52,7 @@ class TurnPlan:
     tools: TurnTools = TurnTools()
     nodes: tuple[str, ...] = EMPTY_NODES
     budget: TurnBudget = TurnBudget()
+    run_kernel: bool = True
 
 
 _SPECIALIST_KINDS: frozenset[IntentKind] = frozenset({"price_query"})
@@ -103,19 +109,20 @@ def plan_turn(
             nodes=("visual_capture",),
             budget=DEFAULT_BUDGET,
         )
-    if intent.kind not in _ANALYSIS_KINDS:
-        specialist = intent.kind in _SPECIALIST_KINDS
-        return TurnPlan(
-            "specialist" if specialist else "conversation",
-            intent,
-            emit_stages=False,
-            reason="specialist_intent" if specialist else "no_trade_signal",
-            tools=NO_TOOLS,
-            nodes=EMPTY_NODES,
-            budget=DEFAULT_BUDGET,
-        )
     if active_recommendation_live:
         requested = wants_explicit_new_analysis(message)
+        if wants_gate_report(message) and not requested:
+            return TurnPlan(
+                "gate_report",
+                intent,
+                emit_stages=False,
+                reason="gate_inquiry_with_live_recommendation",
+                redirected_from_analysis=True,
+                tools=NO_TOOLS,
+                nodes=EMPTY_NODES,
+                budget=DEFAULT_BUDGET,
+                run_kernel=False,
+            )
         return TurnPlan(
             "recommendation_followup",
             intent,
@@ -129,6 +136,17 @@ def plan_turn(
             requested_new_plan=requested,
             tools=FOLLOWUP_TOOLS,
             nodes=MARKET_DATA_NODES,
+            budget=DEFAULT_BUDGET,
+        )
+    if intent.kind not in _ANALYSIS_KINDS:
+        specialist = intent.kind in _SPECIALIST_KINDS
+        return TurnPlan(
+            "specialist" if specialist else "conversation",
+            intent,
+            emit_stages=False,
+            reason="specialist_intent" if specialist else "no_trade_signal",
+            tools=NO_TOOLS,
+            nodes=EMPTY_NODES,
             budget=DEFAULT_BUDGET,
         )
     if intent.kind == "team_swarm":
@@ -147,6 +165,6 @@ def plan_turn(
         emit_stages=True,
         reason="no_active_recommendation",
         tools=FULL_TOOLS,
-        nodes=FULL_ANALYSIS_NODES,
+        nodes=select_analysis_nodes(message, intent),
         budget=DEFAULT_BUDGET,
     )

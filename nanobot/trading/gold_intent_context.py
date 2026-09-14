@@ -19,6 +19,10 @@ _MODE_TOOL_HINTS: dict[str, str] = {
         "A live recommendation already exists. Do not mint a second plan. "
         "Call analyze_gold only to grade the live plan (follow-up)."
     ),
+    "gate_report": (
+        "Operator asked about quality checks on the live plan. "
+        "Return the stored gate report — do not run analyze_gold or issue a new recommendation."
+    ),
     "conversation": "",
     "specialist": "",
 }

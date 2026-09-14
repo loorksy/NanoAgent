@@ -19,7 +19,7 @@ from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.i18n import tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.turn_executor import execute_light_path
+from nanobot.trading.turn_executor import execute_gate_report_path, execute_light_path
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 
 _ANALYSIS_CONFIDENCE_MIN = 0.75
@@ -149,6 +149,15 @@ async def try_gold_fast_path(
     session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
     live = latest_live_recommendation(session_key)
     turn = plan_turn(text, active_recommendation_live=bool(live))
+
+    if turn.mode == "gate_report":
+        return await execute_gate_report_path(
+            turn,
+            text=text,
+            channel=channel,
+            chat_id=chat_id,
+            live=live,
+        )
 
     if is_light_path_mode(turn.mode):
         return await execute_light_path(

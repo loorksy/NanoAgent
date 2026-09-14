@@ -78,3 +78,16 @@ _GATE_KEYWORDS = re.compile(
 _FOLLOWUP_NEW_REC_MARKERS = re.compile(
     r"(توصية جديدة|حلل|حلّل|recommend|analy)", re.I,
 )
+
+_QUICK_ANALYSIS_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(quick|fast|without chart|no chart)\b", re.I),
+    re.compile(r"(سريع|بدون شارت|بدون رسم)", re.I),
+)
+
+
+def wants_gate_report(message: str) -> bool:
+    return bool(_GATE_KEYWORDS.search(message or ""))
+
+
+def wants_quick_analysis(message: str) -> bool:
+    return any(p.search(message or "") for p in _QUICK_ANALYSIS_PATTERNS)

@@ -167,13 +167,14 @@ Each card declares: `cost_estimate`, `required_nodes`, `max_subagents`, `output_
 - [x] `AgentMarketContext` exposes bid/ask/tradeable for price formatting
 - [ ] Full-analysis subset execution (Phase K)
 
-### Phase K — Dynamic Executor (full analysis)
+### Phase K — Dynamic Executor (full analysis) ✅ *implemented*
 
-Planner selects Evidence Node subset for full recommendations:
-
-- Example: "what are the gates?" → `gate_report` artifact only, no re-synthesis
-- Example: fresh analysis → full default graph
-- Fallback: if planner omits required node for synthesis, Policy Guard injects it
+- [x] `select_analysis_nodes()` — quick analysis omits `visual_capture` when `LONORA_PLANNER_SHADOW=false`
+- [x] `gate_report` turn mode — stored gate JSON, no synthesizer (`run_kernel=false`)
+- [x] `latest_live_recommendation()` returns `gate_json` for gate inquiries
+- [x] `execute_gate_report_path()` + fast_path routing
+- [x] Shadow off → subset graph; shadow on → still expands synthesis modes to full graph
+- [ ] Intent-specific subsets beyond quick/gate (Phase L capability cards)
 
 ### Phase L — Capability Cards + dynamic committee
 

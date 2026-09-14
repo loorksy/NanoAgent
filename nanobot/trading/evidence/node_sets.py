@@ -5,6 +5,9 @@ from __future__ import annotations
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH
 
 FULL_ANALYSIS_NODES: tuple[str, ...] = tuple(sorted(DEFAULT_ANALYSIS_GRAPH.node_ids()))
+ANALYSIS_WITHOUT_VISUAL_NODES: tuple[str, ...] = tuple(
+    node_id for node_id in FULL_ANALYSIS_NODES if node_id != "visual_capture"
+)
 MARKET_DATA_NODES: tuple[str, ...] = ("market_data",)
 EMPTY_NODES: tuple[str, ...] = ()
 
@@ -24,6 +27,7 @@ SYNTHESIS_REQUIRED_NODES: frozenset[str] = frozenset(
 
 _SYNTHESIS_MODES = frozenset({"full_analysis", "team_swarm", "reevaluation"})
 LIGHT_PATH_MODES = frozenset({"market_data_only", "chart_capture", "recommendation_followup"})
+GATE_REPORT_MODE = "gate_report"
 
 
 def mode_requires_synthesis(mode: str) -> bool:

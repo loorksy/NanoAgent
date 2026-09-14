@@ -10,7 +10,7 @@ from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
-from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
+from nanobot.trading.policy_guard import ValidatedPlan, log_planner_shadow, validate_turn_plan
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
 from nanobot.trading.intent_router import route_intent
@@ -57,15 +57,22 @@ def _operator_text() -> str:
     return (ctx.original_user_text if ctx else "") or ""
 
 
-def _resolve_evidence_graph(turn_plan: TurnPlan | None):
+def _resolve_validated_plan(turn_plan: TurnPlan | None) -> ValidatedPlan | None:
     if turn_plan is None:
-        return DEFAULT_ANALYSIS_GRAPH
+        return None
     config = load_trading_config()
     validated = validate_turn_plan(
         turn_plan,
         shadow_mode=config.planner_shadow_mode,
     )
     log_planner_shadow(validated)
+    return validated
+
+
+def _resolve_evidence_graph(turn_plan: TurnPlan | None):
+    validated = _resolve_validated_plan(turn_plan)
+    if validated is None:
+        return DEFAULT_ANALYSIS_GRAPH
     return validated.executed_graph
 
 
@@ -118,6 +125,15 @@ async def run_unified_chart_agent(
 
     if runtime.kill_switch:
         return AgentFinalResult(decision=_wait_decision("Trading kill switch is active.", "Kill switch", interval))
+
+    if turn_plan is not None and not turn_plan.run_kernel:
+        return AgentFinalResult(
+            decision=_wait_decision(
+                "This turn does not run the trading kernel.",
+                "kernel_skipped",
+                interval,
+            ),
+        )
 
     stages: list[dict[str, Any]] = []
 
