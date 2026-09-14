@@ -1,3 +1,10 @@
+export interface TradingArtifact {
+  type: string;
+  title?: string;
+  mime?: string;
+  payload?: Record<string, unknown>;
+}
+
 export interface TradingStageWire {
   stage: string;
   status: string;
@@ -42,7 +49,7 @@ export interface TradingResultWire {
   keyReasons?: string[];
   riskWarnings?: string[];
   recommendationId?: string;
-  artifacts?: Array<Record<string, unknown>>;
+  artifacts?: TradingArtifact[];
   cards?: Array<Record<string, unknown>>;
   stages?: TradingStageWire[];
   teamMode?: string;

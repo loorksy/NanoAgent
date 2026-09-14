@@ -1,13 +1,9 @@
 import { cardStrings } from "@/lib/trading/cardLocale";
 import { gateLabel } from "@/lib/trading/gate-labels";
+import type { TradingArtifact } from "@/lib/trading/types";
 import { useTranslation } from "react-i18next";
 
-export interface TradingArtifact {
-  type: string;
-  title?: string;
-  mime?: string;
-  payload?: Record<string, unknown>;
-}
+export type { TradingArtifact };
 
 interface ArtifactRendererProps {
   artifacts: TradingArtifact[];
