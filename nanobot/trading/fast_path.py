@@ -15,6 +15,8 @@ from nanobot.trading.capabilities.preflight import run_capability_preflight
 from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.teams.runtime import run_swarm
+from nanobot.trading.operator_keywords import wants_explicit_new_analysis
+from nanobot.trading.recommendations.followup import finalize_live_plan_if_closed
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.i18n import tr
@@ -160,6 +162,17 @@ async def try_gold_fast_path(
     ctx = current_request_context()
     session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
     live = latest_live_recommendation(session_key)
+    if live and wants_explicit_new_analysis(text):
+        live_price: float | None = None
+        try:
+            from nanobot.trading.gold import DATA_SYMBOL
+            from nanobot.trading.oanda import fetch_quote
+
+            quote = fetch_quote(DATA_SYMBOL)
+            live_price = quote.mid if quote else None
+        except Exception:
+            live_price = None
+        live = finalize_live_plan_if_closed(live, live_price=live_price)
     turn = plan_turn(text, active_recommendation_live=bool(live))
 
     if turn.mode == "conversation" and wants_trading_explain(text) and last_trading_wire:

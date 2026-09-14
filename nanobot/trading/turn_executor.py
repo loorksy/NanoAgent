@@ -14,7 +14,10 @@ from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
-from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.followup import (
+    explain_new_rec_blocked,
+    grade_live_recommendation,
+)
 from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.types import AgentFinalResult
@@ -215,7 +218,10 @@ async def _execute_followup_path(
         except Exception:
             live_price = None
 
-    graded = grade_live_recommendation(live, operator_text=text, live_price=live_price)
+    if turn.requested_new_plan:
+        graded = explain_new_rec_blocked(live, operator_text=text, live_price=live_price)
+    else:
+        graded = grade_live_recommendation(live, operator_text=text, live_price=live_price)
     result = AgentFinalResult(
         decision=graded,
         team_mode="followup",

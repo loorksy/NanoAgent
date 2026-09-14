@@ -304,6 +304,15 @@ MESSAGES: dict[str, dict[str, str]] = {
         "followup.no_second_rec": (
             " A second recommendation is not issued while this plan is live."
         ),
+        "followup.new_rec_blocked": (
+            "A new recommendation cannot be issued yet. Active plan: {direction} — {status}.{levels} "
+            "The trading kernel allows one live plan per conversation until it closes."
+        ),
+        "followup.plan_levels": " Entry: {entry} — Stop: {stop}.",
+        "followup.one_plan_rule": "System rule: one live recommendation per conversation.",
+        "followup.kernel_not_chat": (
+            "This response comes from the AI trading kernel, not a static chatbot."
+        ),
         "direction.buy": "buy",
         "direction.sell": "sell",
         "direction.wait": "wait",
@@ -362,6 +371,15 @@ MESSAGES: dict[str, dict[str, str]] = {
             "هذه متابعة وليست توصية جديدة."
         ),
         "followup.no_second_rec": " لا يمكن إصدار توصية ثانية فيما تبقى الخطة الحالية سارية.",
+        "followup.new_rec_blocked": (
+            "لا يمكن إصدار توصية جديدة الآن. الخطة النشطة: {direction} — {status}.{levels} "
+            "نواة التداول تسمح بتوصية واحدة نشطة لكل محادثة حتى تُغلق الخطة."
+        ),
+        "followup.plan_levels": " الدخول: {entry} — الوقف: {stop}.",
+        "followup.one_plan_rule": "قاعدة النظام: توصية واحدة نشطة لكل محادثة.",
+        "followup.kernel_not_chat": (
+            "هذا رد من نواة التداول الذكية (LLM + أدلة + بوابات) وليس بوتاً ثابتاً."
+        ),
         "direction.buy": "شراء",
         "direction.sell": "بيع",
         "direction.wait": "انتظار",

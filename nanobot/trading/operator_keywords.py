@@ -75,8 +75,12 @@ _GATE_KEYWORDS = re.compile(
     re.I,
 )
 
-_FOLLOWUP_NEW_REC_MARKERS = re.compile(
-    r"(توصية جديدة|حلل|حلّل|recommend|analy)", re.I,
+_EXPLICIT_NEW_ANALYSIS_RE = re.compile(
+    r"(توصية\s*جديد[ةه]|فرصة\s*جديد[ةه]|صفقة\s*جديد[ةه]|تحليل\s*جديد|"
+    r"new\s+recommend|another\s+recommend|fresh\s+analysis|"
+    r"(اعطني|اعطيني|أعطني|اريد|أريد|بدي|ابي|أبي).{0,24}توصية|"
+    r"give\s+me\s+a\s+recommend)",
+    re.I,
 )
 
 _QUICK_ANALYSIS_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -120,6 +124,16 @@ def wants_trading_explain(message: str) -> bool:
     if not text or len(text) > 80:
         return False
     return any(p.search(text) for p in _EXPLAIN_PATTERNS)
+
+
+def wants_explicit_new_analysis(message: str) -> bool:
+    text = (message or "").strip()
+    if not text:
+        return False
+    lowered = text.lower()
+    if _EXPLICIT_NEW_ANALYSIS_RE.search(text):
+        return True
+    return any(phrase.lower() in lowered for phrase in EXPLICIT_NEW_ANALYSIS_PHRASES)
 
 
 def wants_quick_analysis(message: str) -> bool:

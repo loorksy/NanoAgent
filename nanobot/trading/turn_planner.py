@@ -9,7 +9,7 @@ from nanobot.trading.evidence.node_sets import EMPTY_NODES, FULL_ANALYSIS_NODES,
 from nanobot.trading.intent_router import IntentKind, RoutedIntent, route_intent
 from nanobot.trading.node_planner import select_analysis_nodes
 from nanobot.trading.operator_keywords import (
-    EXPLICIT_NEW_ANALYSIS_PHRASES,
+    wants_explicit_new_analysis,
     wants_gate_report,
     wants_live_plan_status,
 )
@@ -68,11 +68,6 @@ FOLLOWUP_TOOLS = TurnTools(fetch_market_data=True)
 FULL_TOOLS = TurnTools(fetch_market_data=True, capture_charts=True, run_full_pipeline=True)
 CAPTURE_TOOLS = TurnTools(capture_charts=True)
 DEFAULT_BUDGET = TurnBudget()
-
-
-def wants_explicit_new_analysis(message: str) -> bool:
-    text = (message or "").lower()
-    return any(phrase.lower() in text for phrase in EXPLICIT_NEW_ANALYSIS_PHRASES)
 
 
 def _plan_turn_core(
