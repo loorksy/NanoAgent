@@ -354,7 +354,10 @@ def handle_trading_performance(_request: WsRequest) -> Response:
 
 def _chart_host_authorized(request: WsRequest) -> bool:
     token = _bearer_token(request.headers)
-    return bool(token and verify_chart_host_page_token(token))
+    if token and verify_chart_host_page_token(token):
+        return True
+    ws_token = getattr(request, "_nanobot_chart_host_ws_token", None)
+    return bool(ws_token and verify_chart_host_page_token(str(ws_token)))
 
 
 def handle_trading_chart_host_poll(request: WsRequest) -> Response:

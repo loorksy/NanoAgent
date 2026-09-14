@@ -470,6 +470,12 @@ class GatewayHTTPHandler:
         setattr(request, "_nanobot_trusted_proxy_authenticated", True)
         setattr(request, _WEBUI_MUTATION_REQUEST_ATTR, True)
         setattr(request, _WEBUI_MUTATION_PAYLOAD_ATTR, dict(payload))
+        source_request = getattr(connection, "request", None)
+        if source_request is not None:
+            _, query = _parse_request_path(source_request.path)
+            ws_token = _query_first(query, "token")
+            if ws_token:
+                setattr(request, "_nanobot_chart_host_ws_token", ws_token)
         response = await self._dispatch_resolved(connection, request, path)
         if isinstance(response, Response):
             return response
