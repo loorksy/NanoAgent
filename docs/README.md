@@ -55,6 +55,13 @@ For shorter, outcome-focused walkthroughs, browse the [task guide index](./guide
 | Setup and runtime diagnosis | [Troubleshooting](./troubleshooting.md) |
 | Older development highlights | [Release Archive](./release-archive.md) |
 
+## Design prompts
+
+| Doc | Purpose |
+|---|---|
+| [Claude Code — XAUUSD Core Engine](./prompts/claude-code-xauusd-core-engine.md) | Implementation brief: MetaAPI live execution, zero-cost macro stack, chat grants, Tasks/Skills UI (no backtest, no paid SaaS) |
+| [ملخص عربي للبرومبت](./prompts/README.ar.md) | Arabic summary of the same brief |
+
 ## Reference
 
 Use reference pages to look up an exact option after you know what you are trying to configure:
