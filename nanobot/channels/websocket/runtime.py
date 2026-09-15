@@ -398,6 +398,12 @@ class WebSocketChannel(BaseChannel):
         self._temporary_chats = gateway.temporary_chats
         self._session_projection = gateway.session_projection
         self._commands = WebUICommandRouter(self, gateway)
+        from nanobot.trading.stream_hub import get_trading_stream_hub
+
+        get_trading_stream_hub().configure(
+            broadcaster=self._commands.broadcast_webui_event,
+            has_listeners=lambda: bool(self._webui_connections),
+        )
         self._webui_request_tasks = self._commands.request_tasks
         self._webui_request_operations = self._commands.request_operations
         self._webui_request_locks = self._commands.request_locks
@@ -676,8 +682,10 @@ class WebSocketChannel(BaseChannel):
             )
 
     async def start(self) -> None:
+        from nanobot.trading.stream_hub import get_trading_stream_hub
         from nanobot.utils.logging_bridge import redirect_lib_logging
 
+        await get_trading_stream_hub().start()
         redirect_lib_logging("websockets", level="WARNING")
         ws_logger = websockets_server_logger()
 
@@ -884,6 +892,8 @@ class WebSocketChannel(BaseChannel):
     # -- Outbound WebSocket events -----------------------------------------
 
     async def stop(self) -> None:
+        from nanobot.trading.stream_hub import get_trading_stream_hub
+
         server_task = self._server_task
         if (
             not self._running
@@ -891,6 +901,7 @@ class WebSocketChannel(BaseChannel):
             and not self._connection_outbound
             and not self._outbound_retire_tasks
         ):
+            await get_trading_stream_hub().stop()
             return
         self._running = False
         if self._stop_event:
@@ -913,6 +924,7 @@ class WebSocketChannel(BaseChannel):
         if retire_tasks:
             await asyncio.gather(*retire_tasks, return_exceptions=True)
         await self._commands.close()
+        await get_trading_stream_hub().stop()
         self._subs.clear()
         self._conn_chats.clear()
         self._conn_default.clear()

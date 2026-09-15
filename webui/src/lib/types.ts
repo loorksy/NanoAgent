@@ -1482,6 +1482,21 @@ export type InboundEvent =
       event: "sidebar_state_updated";
       state: SidebarStatePayload;
     }
+  | {
+      event: "trading_stream";
+      kind: "quote";
+      symbol: string;
+      bid?: number;
+      ask?: number;
+      mid: number;
+      tradeable?: boolean;
+      ts: number;
+    }
+  | {
+      event: "trading_stream";
+      kind: "trace";
+      stage: Record<string, unknown>;
+    }
   | { event: "transcription_result"; request_id: string; text: string }
   | {
       event: "transcription_error";
