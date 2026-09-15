@@ -59,6 +59,7 @@ For shorter, outcome-focused walkthroughs, browse the [task guide index](./guide
 
 | Doc | Purpose |
 |---|---|
+| [XAUUSD complete encyclopedia (AR, one file)](./prompts/xauusd-complete-encyclopedia.md) | Master Arabic rulebook: 11 principles + behavior + chart rule + FEATURE-01…10 + 400 numbered rules |
 | [Claude Code — XAUUSD Core Engine](./prompts/claude-code-xauusd-core-engine.md) | Implementation brief: MetaAPI live execution, zero-cost macro stack, chat grants, Tasks/Skills UI (no backtest, no paid SaaS) |
 | [ملخص عربي للبرومبت](./prompts/README.ar.md) | Arabic summary of the same brief |
 

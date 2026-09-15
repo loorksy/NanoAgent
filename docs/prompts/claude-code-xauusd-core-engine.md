@@ -174,33 +174,36 @@ Implement as modules/toggles. Group by capability domain.
 - Silence in dead ranges (no spam signals).
 - End-of-day reflection question for journal.
 
-### 4.10 Field rulebooks — FULL TEXT ALREADY IN REPO (400 rules)
+### 4.10 Field rulebooks — ONE MASTER FILE (Arabic full text)
 
-Do **not** summarize or regenerate these from memory. The complete operator encyclopedias are already checked in as builtin skills. Claude Code must **load and obey** them; only translate/wire toggles/UI — do not drop rules.
+**Canonical single file (do not split when reading for Claude Code):**
 
-| Skill path | Rules | Topic |
-|------------|------:|-------|
-| `nanobot/skills/gold-entry-timing/SKILL.md` | 1–25 (25) | Entry flexibility & timing |
-| `nanobot/skills/gold-stop-protection/SKILL.md` | 26–55 (30) | Stop placement & protection |
-| `nanobot/skills/gold-retest/SKILL.md` | 56–80 (25) | Retest philosophy |
-| `nanobot/skills/gold-trendlines/SKILL.md` | 81–105 (25) | Trendlines & channels |
-| `nanobot/skills/gold-xauusd-dynamics/SKILL.md` | 106–135 (30) | Gold-specific liquidity/sessions |
-| `nanobot/skills/gold-take-profit/SKILL.md` | 136–160 (25) | Targets & harvesting |
-| `nanobot/skills/gold-candle-traps/SKILL.md` | 161–180 (20) | Candle psychology & traps |
-| `nanobot/skills/gold-execution-discipline/SKILL.md` | 181–200 (20) | Execution discipline |
-| `nanobot/skills/gold-news-volatility/SKILL.md` | 1–100 (100) | News & violent volatility |
-| `nanobot/skills/gold-news-candle-detection/SKILL.md` | 1–100 (100) | News-candle classifiers |
-| **Total** | **400** | |
+→ [`docs/prompts/xauusd-complete-encyclopedia.md`](./xauusd-complete-encyclopedia.md)
+
+Contents of that one file:
+
+| Block | Count |
+|-------|------:|
+| أ) Operator 11 principles (includes chart-image rule #7) | 11 |
+| ب) Behavioral skill | 4 |
+| ج) Chart-image rule (detailed) | 1 section |
+| د) FEATURE-01…10 zero-cost engine specs | 10 |
+| هـ) Operational encyclopedia | **200** |
+| News & volatility guide | **100** |
+| News-candle detection guide | **100** |
+| **Numbered encyclopedia rules** | **400** |
+
+English runtime skills under `nanobot/skills/gold-*/` remain optional mirrors for the agent loop; if anything conflicts, **the Arabic master file wins**.
+
+Do **not** regenerate rules from memory. Do **not** implement Fast Backtest.
 
 Also keep/update:
 
-1. `nanobot/skills/gold-trading/SKILL.md` — constitution (allow execution tools when live grants exist; still no WAIT as analytical side).
+1. `nanobot/skills/gold-trading/SKILL.md` — constitution + pointer to the master file.
 2. `nanobot/skills/trading-proactive/SKILL.md` — extend for execution alerts.
 3. `nanobot/skills/cron/SKILL.md`, `memory/SKILL.md` — keep.
 
-**Integrity check:** after any edit, recount `^\d+\.\s+\*\*` headings across the ten rule skills — must remain **400**.
-
-Skills are toggleable in the Skills WebUI. Builtin skill files remain **English only**; operator replies match operator language.
+Skills remain toggleable in the Skills WebUI. Builtin English skill bodies stay English-only; operator replies match operator language.
 
 ---
 
@@ -658,7 +661,7 @@ All mutate routes must re-validate: kill switch, pause, grant, paper/live, risk,
 
 - Simple Tasks UX.
 - First-class Skills page + gold skill pack toggles.
-- **Rulebooks already shipped** (400 rules in `nanobot/skills/gold-*/`) — wire enable/disable only; do not rewrite or truncate them.
+- **Master rulebook already shipped** as one file: `docs/prompts/xauusd-complete-encyclopedia.md` (11 principles + behavior + chart rule + FEATURE specs + 400 rules). Wire enable/disable only; do not rewrite or truncate.
 
 ### Phase G — Behavioral + briefs + reports
 

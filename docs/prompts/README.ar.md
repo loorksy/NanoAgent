@@ -18,7 +18,12 @@
 - صلاحيات تنفيذ من الشات
 - قسمي **Tasks** و **Skills** في الواجهة
 - إعدادات تفعيل/تعطيل لكل قدرة
-- **400 قاعدة ميدانية كاملة** منسوخة داخل `nanobot/skills/gold-*/SKILL.md` (200 تشغيل + 100 أخبار + 100 شموع أخبار) — انظر [`rulebooks/README.md`](./rulebooks/README.md)
+- **ملف واحد شامل لكل القواعد:** [`xauusd-complete-encyclopedia.md`](./xauusd-complete-encyclopedia.md)
+  - المبادئ الـ11 (مع قاعدة صورة الشارت)
+  - مهارة السلوك
+  - FEATURE-01…10 التفصيلية
+  - 200 قاعدة تشغيل + 100 أخبار + 100 شموع أخبار (= **400**)
+- فهرس مختصر: [`rulebooks/README.md`](./rulebooks/README.md)
 
 ---
 
