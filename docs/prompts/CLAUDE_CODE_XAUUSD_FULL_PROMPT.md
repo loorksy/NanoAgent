@@ -1,7 +1,7 @@
 # Claude Code — Single Prompt: XAUUSD Gold Trading Agent (NanoAgent)
 
 > **Give THIS FILE ONLY to Claude Code.**  
-> It contains the full product brief, constraints, UI/settings requirements, FEATURE specs, operator doctrine, behavior rules, and all **400** field rules.  
+> English only. It contains the full product brief, constraints, UI/settings, FEATURE-01…10 engineering specs, capability specs 1–9 (algorithms, ratios, timings), operator doctrine with full reasons, behavior, and all **400** field rules with **title plus full why/how** (not summaries).  
 > Do not invent missing rules. Do not add paid SaaS. Do not implement backtesting.
 
 ---
@@ -148,19 +148,20 @@ No paid terminals (Bloomberg, Benzinga, paid X API). Operator BYOK only. Each fe
 
 ## 5. Operator doctrine — 11 principles (always-on)
 
-1. After candle analysis, entry need not be classic horizontal S/R — price often reverses from a trendline.
-2. Stop need not sit on classic S/R — price may pierce the stop area, form a pattern, then reverse; or touch a trendline then reverse.
-3. A stop level may actually be the better **entry** zone (wick-stop then reclaim).
-4. Always keep a stop **buffer / protection zone**.
-5. A recommendation need not wait for “touch then rise” if that scenario already happened — enter with momentum.
-6. Retest is not mandatory; a slow retest can mean reversal, not continuation.
-7. **Chart-image rule:** From the chart screenshot, identify the formed pattern or the pattern about to form. Chart capture is analytical input, not decoration. Images confirm shape; numeric levels come from market data.
-8. Do not wait for a pattern that already completed — once the call is issued, enter immediately with the recommendation direction (subject to grants).
-9. Multiple trendlines can exist on the same swings; entry may come from a specific inner line/zone.
-10. Do not wait for a long travel-to-entry if that creates a paradox (e.g. 100 pts to entry and only 100 pts to target).
-11. TP1/TP2/TP3 need not be S/R or liquidity or “revenge” zones — price may hit a trendline then reverse.
+Each principle is a standing constraint. Full reason included.
 
----
+1. **Entry is not required at classic S/R:** After candle analysis, the entry zone does not have to be a horizontal support or resistance line. Candles often travel to a trendline and then reverse for a buy or a sell.
+2. **The stop is not required at classic S/R:** The stop-loss location does not have to sit on the same resistance or support line. Candles may pierce the stop area, form a pattern, then reverse (buy or sell), or they may tag a trendline and then reverse.
+3. **A stop level may be the better entry:** The place used as a stop is not always the correct stop; that same level can be the appropriate new entry zone.
+4. **Always keep a stop protection buffer:** There must always be a protection zone around the stop (see field rules 28+).
+5. **Do not wait for a condition that already happened:** A recommendation does not have to be built on a remaining condition such as “must touch the zone then rise” if that scenario has already occurred.
+6. **Retest is not mandatory and can mean reversal:** A retest is not a required condition. A slow retest can be evidence of reversal rather than continuation.
+7. **Chart-image rule:** From the chart screenshot, identify the pattern that has formed or the pattern that is about to form. Chart capture (`capture_gold_chart` / TradingView snapshot) is an analytical input, not decoration. Infer current pattern, forming pattern, entry/stop/target zones, visible liquidity, and multiple trendlines. Images confirm **shape**; numeric levels come from market data, not pixel guessing. If visual analysis or a recommendation is requested, attach or request a snapshot before locking the pattern when a snapshot is available.
+8. **Immediate entry when the call is issued:** It is not required to wait for a specific pattern or scenario to finish forming if it has already formed. Once the trade call is given, enter immediately with the recommendation direction (subject to execution grants).
+9. **Multiple trendlines on the same candles:** More than one trendline can form on the same candle structure; a specific inner line/zone can be the entry.
+10. **Distance-versus-target paradox:** It is not required to wait for price to fall or rise a long way into an entry. Example: 100 points of travel to entry and only 100 points to target is a logical contradiction — prefer current momentum.
+11. **Targets are not required to be S/R or liquidity:** TP1/TP2/TP3 need not be built on support, resistance, a liquidity pool, or a “revenge” zone. Price may reach a trendline and then reverse.
+
 
 ## 6. Behavioral skill (capability 9 — full)
 
@@ -389,504 +390,866 @@ webui: Tasks page, Skills page, ExecutionGrantChip, MetaApiConnect, PositionsPan
 
 ## 15. Field rules 1–200 (operational encyclopedia)
 
-### 15.1 Entry timing (rules 1–25)
+Each rule includes the title and the full reason. Obey both.
 
-Operator field encyclopedia — enforce these when planning XAUUSD entries. Builtin skill text is English only; reply to the operator in their language.
+### 15.1 Entry timing (1–25)
 
-## Rules
+1. **Bypassing Classic Support and Resistance:** It is not necessary for the agent to wait for a touch of a horizontal support or resistance line; in strong trends, gold often bounces from dynamic trendlines or liquidity gaps in the middle of the distance.
 
-1. **Beyond classic S/R:** Do not require a horizontal support/resistance touch. In strong trends gold often reverses from dynamic trendlines or mid-path liquidity gaps.
-2. **Immediate entry when ready:** If buy/sell conditions are complete and liquidity was already swept, send a market order. Do not wait for an extra dip/rally that may miss the move.
-3. **Distance vs target paradox:** If the entry requires a 100-point pullback but total target is only ~100 points, the setup is logically inconsistent — prefer entering with current momentum.
-4. **Pre-close entry on explosive bars:** On explosive gold momentum candles, waiting for candle close is not always required; waiting can consume ~60% of the expected move.
-5. **Front-running levels:** Institutions often rest orders 15–30 gold points before the printed S/R. Open an entry window that starts before the level.
-6. **Enter from FVG, not only the broken high:** In an uptrend, gold often reverses from the first fair-value gap above the broken high instead of fully retesting that high.
-7. **Counter engulfing entry:** Slow prior down candles followed by a strong bullish engulfing of two bars is enough for an immediate long — no mandatory support touch.
-8. **Direct breakout at liquidity sessions:** At London or New York open, a sharp break of the Asian range is a momentum entry — do not require a pullback.
-9. **Equilibrium entries:** On large impulse waves, the 50% equilibrium of the wave is a preferred entry even without a prior swing high/low.
-10. **Two-timeframe sync:** If M15 shows a reversal pattern while H1 is mid-impulse with the trend, priority is the H1-aligned immediate entry.
-11. **Trendline fan entry:** On accelerating rises/selloffs, enter off the steepest inner trendline, not only the slow outer trendline.
-12. **Time-decay cancel:** If price fails to reach a conditional entry zone for more than 4 hours, cancel the idea — break odds rise above bounce odds.
-13. **News-candle wick as support:** The economic-news candle itself becomes a support zone; enter on wick touch, not by waiting for the day low.
-14. **Absorption entry:** Repeated lower wicks in a tight price pocket are an immediate long signal without drawn levels.
-15. **Small trendline break:** In a corrective move, a break of the minor descending trendline is a long trigger with the higher-timeframe uptrend.
-16. **No deep pullback in steep trends:** When the ascent angle exceeds ~60 degrees, waiting for a deep pullback usually misses the entire rally.
-17. **Round-number psychology:** Levels like 2400 or 2450 are automatic psychological entries when a rejection candle appears, even without prior support.
-18. **Failed bearish pattern flip:** If a double-top fails and price breaks the neckline upward, trigger an immediate counter long.
-19. **Three white soldiers:** Three rising bullish candles with expanding size after congestion is sufficient entry rationale without indicators.
-20. **Range reclaim:** Price dips below support then closes back above on the same candle — immediate long.
-21. **Hourly close entry:** Prefer entry near minute 59 of the hour when the candle confirms a key break, avoiding first-minute slippage of the new hour.
-22. **Fast EMA alignment:** In strong trends, a bounce from EMA 20 is enough — do not require prior swing lows.
-23. **ADR exhaustion reverse:** If gold has moved ~150% of average daily range, a counter entry on the first micro rejection candle is justified.
-24. **Split entries:** Scale in with two clips (market + pending ~20 points away) instead of all-or-nothing.
-25. **Broken high becomes support:** Classic role reversal is valid only if the bounce is fast with a clear rejection candle.
+2. **Immediate Entry Scenario Without Waiting:** If the agent detects that buy or sell conditions are complete and liquidity has already been swept, it must issue an immediate market entry order and not wait for an additional drop or rise that may miss the move.
 
-### 15.2 Stop protection (rules 26–55)
+3. **The Distance-versus-Target Paradox:** If the entry condition requires the price to retrace 100 points to a specific level, while the overall target is only 100 points, the trade becomes logically contradictory, and priority goes to entering with the current momentum.
 
-## Rules
+4. **Anticipatory Entry Before the Close:** On explosive momentum candles in gold, it is not always required to wait for the candle to close; waiting for the close can consume 60% of the expected move range.
 
-26. **SL is not the support line:** Placing the stop directly under classic support/swing low is a critical error — that zone is preferred liquidity for stop hunts.
-27. **Hit stop as alternate entry:** If SL is tagged by a wick then price closes back inside the range quickly, the prior stop level itself is often the best new entry.
-28. **Mandatory buffer zone:** Always add at least 25–40 gold points of buffer beyond swing lows/highs against random noise.
-29. **ATR-based stop:** Size stop distance from true volatility (ATR multiple), not a fixed point count.
-30. **Stop beyond the impulse candle:** For shorts, place SL above the wick of the break candle, not above a distant historical high.
-31. **Structural stop, not fixed points:** Abandon fixed stops (e.g. always 30 points). Place SL where the technical thesis is fully invalidated.
-32. **Avoid round-number stops:** Market makers target round figures; prefer odd fractions (e.g. 2447.80 not 2450.00).
-33. **Dynamic trendline stop:** In some trades, a close beyond the trendline is the stop criterion rather than a static price.
-34. **Tighten after confirmation:** Once price prints a momentum candle in trade direction, pull SL behind that candle’s extreme to cut risk.
-35. **Never widen the stop:** Expanding SL after entry to accept larger loss is strictly forbidden.
-36. **Time stop:** If gold opens a trade and chops dead for more than 3 hours without expansion, close or tighten — reverse explosion risk rises.
-37. **Stop beyond liquidity pools:** Place SL safely beyond equal lows/highs (magnets for wicks).
-38. **Breakeven rule:** Move to breakeven only after price travels at least 1R and forms a new M15 swing in favor.
-39. **Protect peak profits:** If the trade reaches ~70% of target, place a profit-protect stop near 50% of the move so winners cannot fully reverse to losers.
-40. **Order-block buffer:** Place SL ~15 points beyond the institutional order block, not exactly on its edge.
-41. **Shorts account for spread:** On sells, widen SL by the closing-time spread so a fake spread spike does not stop you out.
-42. **Chandelier / ATR trail:** Use highest high of last N bars minus ATR multiple as a trailing stop.
-43. **Asia sweep short stop:** After selling following an Asia liquidity grab, place SL ~10 points above the sweep wick high.
-44. **Never park SL inside open FVG:** Do not place stops mid open fair-value gap — price tends to fill the gap fully.
-45. **Momentum-break early exit:** Exit if two consecutive M5 closes print against the trade with rising momentum, even before original SL.
-46. **Do not BE too early:** Moving to entry before a minor swing is cleared often stops you on a noise wick before the real move.
-47. **Portfolio-percent stop:** Entry-to-SL distance must map via lot size to exactly the configured risk % (1% or 2%).
-48. **Close-based stop option:** Some setups use “H1 close beyond level” rather than a wick touch.
-49. **News-time free zone:** Five minutes before hot news, ensure SL sits clear of liquidity voids to reduce slippage impact.
-50. **Split stops on scaled entries:** With two contracts, one can use a tighter SL and the other a wider structural SL.
-51. **Channel mid-line early stop:** In channels, a break of the equidistant median can be an early stop before the far rail.
-52. **Overnight safety:** Before rollover, add ~20 points to SL to absorb temporary spread widening.
-53. **Shooting-star short stop:** Place sell stop ~10 points above the shooting-star upper wick extreme.
-54. **Demand-zone long stop:** For longs, place SL under the demand zone that fully absorbed the last sell wave.
-55. **Manual invalidate on clear opposite pattern:** Flatten if a clear H1 head-and-shoulders (or equivalent) forms against the position.
+5. **Incomplete Bounce (Front-Running):** Trading institutions often place their orders several points before support and resistance zones; therefore an entry window must be opened starting 15 to 30 gold points before the level.
 
-### 15.3 Retest philosophy (rules 56–80)
+6. **Entry via the Liquidity Gap (FVG), Not the High:** In an uptrend, gold often reverses from the first fair value gap above the broken high instead of dropping to retest the high itself.
 
-## Rules
+7. **Entry with a Counter Engulfing Candle:** If the previous candles were slowly bearish and then a strong bullish candle appeared that engulfed two candles, this is an immediate buy entry without requiring a touch of any support.
 
-56. **Retest is not mandatory:** On true gold explosions, price runs without retesting the broken level — waiting misses the trade.
-57. **Slow retest can mean reversal:** Slow hesitant return to the broken level with growing opposite candles often means failed break, not a clean retest.
-58. **Deep retest:** Gold frequently overshoots the broken resistance downward to deeper demand before continuing up.
-59. **Retest candle speed:** A valid retest candle is fast with a long rejection wick; fat bodies that linger on the level often mean break failure.
-60. **Trendline retest over horizontal:** Price may ignore the horizontal and retest a previously broken slanted trendline instead.
-61. **Fake retest liquidity grab:** Return to the broken zone may only trigger retail pendings before a violent reverse.
-62. **Failed retest = flip:** If price fails to bounce from retest and breaks through, flip immediately with the new direction.
-63. **Lower-TF retest inside higher-TF break:** An H1 “direct break” often contains a complete M1/M5 retest.
-64. **Low tick-volume retests are safer:** Retests on weak tick volume are more credible for continuation.
-65. **Fib retests preferred:** Gold often prefers retesting 61.8% of the breakout wave over the zero break point.
-66. **Right shoulder may skip neckline retest:** In H&S, price may never retest the neckline and drop after the right shoulder.
-67. **Multiple retests weaken the level:** Three returns to the same level usually mean buy orders are exhausted and a break is near — not “stronger support”.
-68. **Time-conditioned retest:** A 1-minute break followed by a ~30-minute hesitant retest can still be a healthy pullback.
-69. **Zones not lines:** Treat retest levels as 15–30 point bands, not single ticks.
-70. **Weekly open gaps:** Monday open gaps are later retest magnets during the week.
-71. **Runaway breakout with DXY:** If breakout coincides with a strong opposite DXY move, gold may trend without any retest.
-72. **Confirm with rejection candles:** Do not enter a retest on touch alone — require M15 pin bar or engulfing rejection.
-73. **Broken Asia low:** When London breaks Asia low, the maximum bounce is often a touch of that low before sharp continuation down.
-74. **Mid-air retest:** Price may reverse ~20 points before the broken support, testing the nearest MA instead.
-75. **Parallel channel outer rail:** After breaking a descending channel, price often retests the outer roof as new support.
-76. **Psychological retests:** Holding above a round level like 2400.00 after reclaim is stronger confirmation than a random swing retest.
-77. **Post-storm quiet retests:** Violent news breaks are often retested calmly after the session heat fades.
-78. **All-time-high retests:** New ATH retests may be long sideways digests, not sharp dumps.
-79. **Oversold H4 RSI:** With extreme H4 oversold RSI, a resistance retest often turns into a buy explosion.
-80. **Cancel if retest exceeds 78.6%:** If the pullback exceeds 78.6% of the breakout wave, treat the break as false and cancel.
+8. **Direct Break Entry at Liquidity Time:** At the London or New York session open, a sharp break of the Asian range is treated as a direct momentum entry without waiting for a bounce.
 
-### 15.4 Trendlines & channels (rules 81–105)
+9. **Entry at Equilibrium Zones:** In large impulse waves, the 50% level of the wave length is considered a preferred entry zone even if it does not coincide with any previous high or low.
 
-## Rules
+10. **Synchronizing Entry Across Two Different Timeframes:** If a reversal pattern forms on M15 while H1 is trading in the middle of a directional candle, priority goes to the instantaneous entry with the H1 trend.
 
-81. **Multiple trendlines on one chart:** Draw a steep inner trendline and a slower outer trendline on the same swings; entries often start from the inner.
-82. **Trendline as a band:** Draw trendlines as a price bundle covering wicks and bodies to absorb gold’s wick pierce noise.
-83. **Bounce from trendline without horizontal:** Gold often ignores horizontals and reverses on a rising/falling slant alone.
-84. **Third touch rule:** The third touch of a trendline is the highest-probability quick win; fourth/fifth touches carry elevated break risk.
-85. **Break ≠ immediate reversal:** Breaking a rising gold trendline often leads to sideways accumulation, not necessarily a crash.
-86. **Adjusted trendlines:** If a wick pierces then closes back above, redraw to contain that wick as the new slope.
-87. **Parallel channel roof:** A parallel drawn on opposite swings makes a channel; touching the roof is a mandatory partial/take-profit magnet.
-88. **Right-angle acceleration:** Price racing away from the trendline at a near-right angle signals a blow-off that often collapses back to the line.
-89. **Minor trendline confirm:** Do not buy a horizontal support touch until the small M5 descending trendline breaks.
-90. **Obvious retail trendlines are bait:** Crystal-clear beginner trendlines are often drawn to be broken for stop liquidity just behind them.
-91. **Counter-trendlines for scalp:** Scalps are built on breaks of counter-trendlines against the daily path.
-92. **Channel median magnet:** The mid-line acts as a magnet; bounce from it confirms trend strength toward the far rail.
-93. **Trendline + horizontal confluence:** Mathematical intersection of a slant and a horizontal is a top-tier confluence entry.
-94. **Break-and-retest of trendline:** After breaking a rising line, enter short on the retest from below as resistance.
-95. **Body-based vs wick-based lines:** On gold, lines on candle bodies/closes are more truthful for break detection than random wick lines.
-96. **Speed resistance / fan lines:** Three fans at different angles — break of first targets second; break of second targets third.
-97. **RSI trendlines lead price:** A break of an RSI trendline often precedes the price trendline break by 2–3 candles.
-98. **D1 trendlines are heavy:** A daily trendline rarely yields without a violent macro catalyst.
-99. **Overextension ban:** If price is extremely far from the rising trendline, ban immediate longs until price breathes back near the line.
-100. **Double-top trendline trigger:** Breaking the line connecting the two double-top troughs can arm the short even before neckline break.
-101. **Broken line flips role:** A forcefully broken rising trendline later acts as a resistance roof.
-102. **Symmetrical triangle compression:** Narrowing distance between rising and falling lines warns of a directional explosion on the break.
-103. **Trendline as moving target:** For longs, the upper falling trendline can be a time-advancing profit target.
-104. **Doji break = likely fake:** Breaking a trendline with weak dojis usually means liquidity absence, not a true force shift.
-105. **Session sync boost:** A rising-trendline touch timed with the first minute of London open gives maximum thrust.
+11. **Entry on Fan Lines (Trendline Fan):** When gold's decline or rally accelerates, the entry is built on the steepest trendline, not the slow main trendline.
 
-### 15.5 XAUUSD dynamics (rules 106–135)
+12. **Canceling the Entry Condition When Time Slows:** If the price is delayed in reaching the conditional entry zone for more than 4 hours, the idea is canceled because the probability of breaking the zone becomes higher than the probability of bouncing from it.
 
-## Rules
+13. **Entry from the News-Candle Low:** The candle produced by an economic news release becomes itself a support zone; the entry is at a touch of the candle wick, not waiting for the day's low.
 
-106. **Asia range sweep:** On ~80% of days, early London sweeps Asia high or low for liquidity then reverses.
-107. **Gold does not forgive late stops:** Once gold reverses, exiting at −20 is better than waiting — gold can run 300 points without pause.
-108. **Major psychological traps:** Around levels like 2400.00, gold often fake-breaks by 50–80 points to flush retail before the real move.
-109. **Makkah 15:30 / NY open candle:** This hour often erases London’s work in minutes — close or fully protect scalps before it.
-110. **Fear haven over instant inflation:** On sudden military shocks, cancel technical resistance and treat aggressive institutional market buys as fact.
-111. **Temporary DXY decoupling:** In banking panic, gold can rise with the dollar — never treat inverse DXY correlation as 100% sacred.
-112. **Gold ATR day:** Normal daily range is often ~250–400 points; moves under ~150 often mean the day explosion has not started.
-113. **News wick trap:** The first ~5 seconds after CPI/rates are often a reverse liquidity trap before the true direction.
-114. **Equal highs/lows always hunted:** Gold rarely leaves equal highs/lows untouched — it returns to raid stops even days later.
-115. **Liquidity voids fill:** Huge news candles leave magnets; price usually refills at least ~50% later.
-116. **Loves 78.6% Fib:** Unlike many FX pairs that stop at 50/61.8, gold prefers deep 78.6 corrections to raid more stops before launch.
-117. **London PM fixing window:** Around 18:00–19:00 London, gold fixing flows can force sudden liquidations.
-118. **Midnight spread trap:** Roughly 23:55–00:15 platform time, gold spread blows out — ban trading and tight stops.
-119. **True support break = vertical:** If gold breaks real support and holds with two H1 closes below, expect vertical continuation to next historic support, not a mild correction.
-120. **Do not chase giant green candles:** Buying after +150 points in 5 minutes is suicide; buy in pre-explosion congestion.
-121. **Real yields (TIPS) drag:** Persistently rising real yields are a structural lid on large-TF gold rallies.
-122. **Friday behavior:** Friday closes often see fund profit-taking and strong counter-week moves.
-123. **Monday first hour:** Week-open chop often reflects weekend sentiment and gap fills.
-124. **Dead ranges kill oscillators:** In a tight ~70-point box, RSI/Stoch give serial false signals — ignore them.
-125. **Safe-haven runaway:** On geopolitical panic days, every small dip is an immediate buy.
-126. **Silver lead:** If silver breaks its prior high while gold lags, gold usually catches up violently.
-127. **US bank holidays:** On US holidays (e.g. Labor Day) gold is dead/random and burns accounts via spread — stand aside.
-128. **Late NY reversal:** After ~20:00 Makkah time, gold often corrects against the day’s main path.
-129. **Previous day close magnet:** Prior day close acts as invisible S/R magnet.
-130. **H4 200 EMA regime:** Above H4 200 EMA = long-biased regime; below = short-biased — treat as major regime line.
-131. **Pre-NFP stagnation:** Days before NFP trap gold in a tiny range — trading inside is equity death.
-132. **Miners lead (GDX):** Gold miner index can lead spot gold by hours.
-133. **Bollinger extreme snap:** A full H1 close outside the outer Bollinger band warns of a snap back toward mid-band.
-134. **Dollar-per-point math:** A $1 gold move equals 100 points on many point-accounting setups — precise risk math prevents one-candle margin calls.
-135. **Slow grind up, violent down:** Gold rallies often grind for days; profit-taking selloffs can finish in hours with giant engulfing bars.
+14. **Entry Based on Price Absorption:** Repeated lower wicks in a narrow price area are considered an immediate buy-entry signal without the need for drawn technical lines.
 
-### 15.6 Take profit (rules 136–160)
+15. **Small-Trendline-Break Entry:** In a corrective move, a break of the minor descending trendline is used as a buy-entry signal with the overall uptrend.
 
-## Rules
+16. **Avoid Waiting for a Correction in a Steep Trend:** When gold's ascent angle exceeds 60 degrees, any wait for a deep pullback to enter will result in missing the entire rally.
 
-136. **Target is not always S/R:** First target can be a slanted trendline, channel mid-line, or an ATR-based percent — not only horizontals.
-137. **Mandatory partial at 1R:** Take 50% off when price travels 1R, then move stop to entry.
-138. **Open targets at ATH:** When gold prints new all-time highs with no prior resistance, use Fib extensions 1.272 and 1.618.
-139. **Exit before round psychology:** If target is 2500.00, park TP near 2496.00 so a pre-round rejection does not steal the fill.
-140. **Time exit before session end:** Flatten day trades about one hour before New York close even if final TP is unmet.
-141. **Prior day high/low:** PDH/PDL are among the most reliable daily targets on gold.
-142. **Extend on marubozu thrust:** If TP1 is hit by a giant full-body marubozu, do not fully exit — extend toward the next level.
-143. **Hard RSI exhaustion:** Manually exit if H1 RSI exceeds ~85 even if structural TP is farther.
-144. **Momentum exhaustion:** If price needs 10 candles to cover what one candle covered earlier, bank profits now.
-145. **First opposing FVG:** On longs, the first bearish FVG ahead is a primary exit magnet.
-146. **Take 70–80% of the wave:** Leave the final tip of the move — wave ends produce sharp reversals.
-147. **After TP2, lock behind TP1:** When TP2 hits, trail stop to behind TP1 so remaining size is house money.
-148. **Channel trade single target:** Longs from channel floor target the roof only — do not assume a breakout.
-149. **Shrink targets before major news:** If a winner sits 15 minutes before a rate decision, flatten available profit immediately.
-150. **External liquidity target:** A long born from a low often targets the external high that started the prior sell.
-151. **Spread-aware TP on longs:** Compute TP so it still nets the planned R after exit spread cost.
-152. **H&S measured move:** Project head-to-neckline distance from the break for the pattern target.
-153. **Three-stage harvest:** Example ladder: 40% / 30% / 30% runner with the trend.
-154. **Lower-TF reverse pattern exit:** In an H1 long, a clear M5 double top is enough to flatten now.
-155. **Promote day trade to swing:** From a confirmed weekly low, cancel the tiny day target and trail for multi-day expansion.
-156. **SMA 50 pullback target:** In corrections, the 50-day SMA is often the decisive rebound target.
-157. **No weekend holds for day book:** Avoid Saturday/Sunday exposure that can gap against the position at Monday open.
-158. **Liquidation-run target:** Aim beneath clusters of retail buy stops to capture the full flush.
-159. **Elliott third-wave minimum:** In a third wave up, minimum objective is often 1.618 of wave one.
-160. **Structure break ends greed:** On first M15 opposite swing break, exit any remaining profit — do not wait for entry stop.
+17. **Entry on a Touch of Round-Number Levels:** Numbers such as 2400 or 2450 form automatic psychological entry zones if they coincide with a reversal candle even without prior support.
 
-### 15.7 Candle traps (rules 161–180)
+18. **Entry After a Failed Bearish Pattern:** If a double-top pattern fails to push the price down and breaks the neckline to the upside, the immediate opposite buy is activated.
 
-## Rules
+19. **Entry Conditioned on Candle Sequence:** A succession of 3 rising bullish candles of increasing size (Three White Soldiers) after chop is a sufficient entry justification without the need for indicators.
 
-161. **Hammer trap mid-path:** A hammer without a real liquidity base mid-move is bait for retail longs before the drop.
-162. **Silent breakout is weak:** Breaking resistance with a tiny body is not buyer strength; real breaks need a body ~80% of the range.
-163. **Doji = indecision, not auto reverse:** A doji means both sides pause for new liquidity — trend may continue.
-164. **Failed bearish engulfing flip:** If a bearish engulfing prints then the next bar fails to continue down, treat it as a short trap and buy.
-165. **Shooting star at ATH:** Highest short credibility when upper wick is ≥3× the body at a historic high.
-166. **Gradual momentum shift:** Large bearish bodies shrinking to tiny bodies signal seller exhaustion and a pending upside explosion.
-167. **Micro new highs distribution:** Printing new highs by only a few points with long wicks often means cautious institutional distribution before a collapse.
-168. **Inside-bar compression:** Three bars inside a giant mother bar = coiled spring; trade the break direction.
-169. **First London 15m trap:** The first M15 of London open is frequently a fake direction magnet.
-170. **Close in top quartile:** A candle closing in the top 25% of its range confirms bulls regardless of a long lower wick.
-171. **Late chase ban:** Five consecutive M15 green candles make correction more likely than continuation — ban chasing longs.
-172. **Double rejection wicks:** Two long wicks at the same pocket confirm an institutional wall that will not break yet.
-173. **Absorption engulf:** A strong down bar fully engulfed by the next up bar on the same TF wipes seller control.
-174. **Prior-day low wick reclaim:** Sweeping yesterday’s low by wick then closing back inside yesterday’s range is a top long reversal.
-175. **Strong trends shed long wicks:** True thrusts print one-color bodies with minimal opposing wicks.
-176. **Range-box trap:** A fake break one side of a rectangle often reverses to run the opposite side completely.
-177. **Selling climax:** A giant high-volume down bar after a long decline often marks end of selling (flush), not the start of a new leg down.
-178. **Bodies tell truth, wicks hunt liquidity:** Bias structure decisions to open/close bodies; treat wick noise as stop-raid material.
-179. **Not every gap must fill now:** Breakaway structural gaps can stay open for months — do not force an immediate fill trade.
-180. **Spinning tops at support:** After a decline, spinning tops at support often precede a new launch base.
+20. **Entry via Range Reclaim:** A drop of price below support then a rapid return to close above it in the same candle is an immediate buy-entry signal.
 
-### 15.8 Execution discipline (rules 181–200)
+21. **Hourly Closing-Candle Entry:** Enter at minute 59 of the hour if the candle confirms a break of an important level, to avoid price slippage in the first minute of the new hour.
 
-## Rules
+22. **Entry Aligned with the Fast Moving Average:** In strong trends, a bounce of gold from EMA 20 is sufficient as an entry zone without waiting for previous lows.
 
-181. **Standing aside is a trade:** When signals conflict and clarity is gone, flat is a profitable capital-protecting decision.
-182. **Zero-hesitation execution:** Once algorithmic conditions are true and grants allow, send immediately — do not wait for late human second-guessing (unless chat grant is `ask`, which requires Approve first).
-183. **Auto-cancel stale pendings:** Any buy/sell limit/stop unfilled for 3 hours is cancelled — context expired.
-184. **No double-down on same side loser:** Ban opening a new gold long while a prior losing long is still open (no loss stacking).
-185. **Separate scalp vs swing magic numbers:** Each strategy has its own magic number; never merge a scalp stop with a swing stop.
-186. **Unscheduled 80-point spike:** If gold moves ~80 points in one minute with no technical cause and no calendar event, flatten immediately — likely news leak.
-187. **Revenge freeze:** After two consecutive losses in the same session, freeze new entries for 60 minutes (extendable via settings cooldown).
-188. **Double-check lot math:** Recompute lot size twice in code before send so a decimal error cannot blow the account.
-189. **Fresh tick before send:** If the last MT5/MetaAPI tick is older than 5 seconds, abort — suspect disconnect.
-190. **No bias lock:** If structure breaks against the bias, drop the prior narrative immediately — market is right.
-191. **Daily max loss halt:** At configured daily drawdown (default 3%), flatten all and disconnect trading until next day.
-192. **Market orders on hard confirmation:** Prefer market over limit when a confirmed break candle exists so you catch the train.
-193. **Cancel if price already ran half to TP:** If price travels ~50% to target before the pending fills, delete the pending — do not chase the return.
-194. **Comment the thesis code:** Write the setup code into the order comment (e.g. `BOS_M15_FVG_Retest`) for later review.
-195. **No new entries last 15 minutes of day:** End-of-day liquidity is thin; swap/spread costs rise.
-196. **Live R:R recompute:** If price drifts one point worse than planned entry and R:R falls below 1:1.5 (or configured floor), cancel.
-197. **Holiday blackout:** Fully disable the algo on major holidays (New Year, Thanksgiving, etc.) when primary market makers are absent.
-198. **Kill TF contradictions:** If H4 is explicit long while M15 shows a completed distribution short pattern, ban entry until frames agree.
-199. **Lot scales on balance, not floating equity:** Increase size from closed balance growth, never from unrealized equity spikes.
-200. **Golden rule:** The market is always right; technical analysis is a probability map. Protect capital first; profits second.
+23. **Counter Entry After Daily Range Exhaustion:** If gold has moved 150% of its average daily range (ADR), a counter entry is justified at the first instantaneous reversal candle.
 
-## 16. News & violent volatility rules (1–100)
+24. **Entry with a Split-Order System:** Distribute the entry across two tranches (market and a pending order 20 points away) instead of missing the move or entering the full size at a single point.
 
-## Section 1 — Pre-news precautions (1-18)
+25. **Bullish Entry from a Broken Prior High That Turned into Support:** The classic role-reversal rule is used only if the bounce is fast and with a clear rejection candle.
 
-1. **Pre-news freeze window:** Ban new entries 15 minutes before high-impact releases (CPI, NFP, FOMC).
-2. **Cancel all pendings:** Delete limit/stop pendings 10 minutes before the event to avoid catastrophic slippage fills.
-3. **Protect winners:** Move open winners to BE or close ~70% size 10 minutes before pivotal data.
-4. **Flatten near-entry trades:** Close any trade still within ~30 gold points of entry to avoid instant stop-out from spread blowouts.
-5. **Pre-emptive spread watch:** Two minutes before release, if spread is >3× normal, engage auto trade lock.
-6. **Priced-in analysis:** Compare the prior 4 hours of price vs consensus — a sharp pre-move often means the outcome is already absorbed.
-7. **Pre-news range box:** Mark high/low of the last 30 minutes before the print as sweep boundaries.
-8. **Disable tight trailing:** Turn off tight trailing immediately before news — initial chaos will stop you out of the real trend.
-9. **Simultaneous prints risk:** Escalate danger when two red events print together (e.g. unemployment + NFP).
-10. **Ping check:** If MetaAPI/MT5 latency >50ms one minute before news, ban trading.
-11. **Avoid rollover collisions:** Ban entries if the event collides with daily swap/rollover.
-12. **Consensus deviation threshold:** Require a minimum surprise delta (e.g. ~50k NFP jobs) before treating the print as tradable shock.
-13. **Fed testimony silence:** Stay fully flat for the entire chair testimony and press Q&A.
-14. **DXY pre-leak:** If DXY breaks lows minutes before the print with no visible cause, treat as early leak favoring gold upside.
-15. **Macro extreme rails:** Prefetch nearest daily S/R 150–300 points away as likely wick magnets.
-16. **Half risk on data days:** Cap risk at 0.5% (vs 1%) for any trade taken the same day as major data.
-17. **No stop-market chase:** Never place buy-stop/sell-stop to catch the explosion — fills at worst slippage.
-18. **Scheduled vs unscheduled split:** Code paths must distinguish calendar events from sudden geopolitics.
+### 15.2 Stop protection (26–55)
 
-## Section 2 — Reading the live print (19-34)
+26. **The Stop Loss Is Not the Support:** Placing the stop loss directly under the support line or the classic low is a grave error, because that zone is market makers' preferred target for hitting liquidity.
 
-19. **CPI logic:** Hotter-than-expected CPI → yields/USD up → sharp gold dump (inverse when cooler).
-20. **NFP dynamics:** Very strong jobs + falling unemployment → delayed cuts → immediate gold sell pressure.
-21. **Split-data paralysis:** Strong jobs but soft wages → classify as conflicted high-risk and cancel all trades.
-22. **Revisions matter:** A downside revision to last month can erase a “good” headline and flip gold bullish.
-23. **Decision vs presser:** The rate decision sets the first move; the chair’s tone ~30 minutes later often sets the day trend.
-24. **Buy rumor, sell fact:** If gold rallied hard into a 99% priced cut, the actual print often dumps as profit-taking.
-25. **Surprise delta score:** Exact consensus matches usually mean chop — do not force a directional trade.
-26. **PMI < 50:** Sub-50 PMI contraction impulse often lifts gold as a hedge.
-27. **Ignore secondary noise:** Drop consumer confidence / home sales when they land in the same week as CPI/NFP.
-28. **Yield divergence:** USD-positive headline but falling 10Y yields → gold dip is likely temporary.
-29. **PPI as CPI preview:** Hot PPI often seeds gradual gold downside into the next CPI.
-30. **Absorption speed:** If a bad print is absorbed back to release price in <5 minutes, institutional bid is dominant.
-31. **Jobless claims spikes:** Unusual claims jumps support tactical gold longs.
-32. **Dovish keyword buy:** Phrases like slowdown, downside risks, watch employment → tactical long bias.
-33. **FedWatch jump:** Post-print spike in cut odds supports gold continuation for the session.
-34. **USD+gold both down:** Simultaneous dumps mean broad de-leveraging, not a clean data response.
+27. **The Stop Zone as an Alternative Entry Zone:** If the stop loss is hit by a candle wick and then price closes quickly back inside the range, the previous stop level is itself the best new entry zone.
 
-## Section 3 — News candle microstructure (35-55)
+28. **Mandatory Protection Zone (Buffer Zone):** A protective margin must always be added to the stop loss below the lows of no less than 25 to 40 points on gold to resist random volatility.
 
-35. **60-second void:** Absolute ban on entries/analysis in the first 60 seconds — algorithmic chaos.
-36. **Two-sided liquidity sweep:** A candle that tags pre-news high then low in the same minute is a flush, not a trend.
-37. **First M5 close is reference:** Trade in the direction of the first post-news M5 body if body ≥70% of range.
-38. **Rejection wick rule:** Upper wick ≥2× body after a spike up = trap → arm short.
-39. **News FVG:** Giant one-minute voids become later magnets — do not buy until ~50% fill.
-40. **True break needs M15 close:** Direction counts only after an M15 fully closes outside the pre-news box.
-41. **Instant engulf reverse:** +100 in minute one fully engulfed in minute two → day bias is down.
-42. **No FOMO mid-giant bar:** After a 150-point bar, ban chasing the extreme — enter only on pullback.
-43. **Tick volume climax:** Volume collapsing right after the first burst means fuel is spent.
-44. **Range reclaim reversal:** Break of a major daily low then reclaim within 10 minutes = short trap / major long.
-45. **Wickless cascade:** Successive one-way minutes with no wicks = sustained institutional flow — ride it.
-46. **Asia high fake:** News wick through Asia high by a few points then collapse is a textbook daily sweep.
-47. **M1 noise filter:** Do not make fatal decisions on M1 closes after news — use M5/M15.
-48. **Bollinger > extreme:** ~90% of the bar outside upper band implies mandatory mean reversion toward mid.
-49. **Shock wick as future SL:** The extreme wick of the shock candle is the ideal later stop anchor.
-50. **Trendline break confirmation:** If the shock closes above a major H1 descending trendline, bias flips sustainably up.
-51. **Volatility compression trap:** If gold barely moves (~20 points) on a huge print, a delayed violent expansion often hits within 30 minutes.
-52. **Hollow break:** Fast support break on weak tick volume is a fake — do not sell it.
-53. **News doji stalemate:** First M15 as a huge-volume doji = war draw — wait for a side break.
-54. **First micro LL warning:** In a spike up, breaking the prior one-minute low is the first profit-taking warning.
-55. **Hold above shock high:** Holding above the first shock high for >15 minutes supports continuation to new extremes.
+29. **Volatility-Based Stop (ATR-Based SL):** The stop-loss distance must be measured as a multiple of true volatility (ATR) (for example, ) and not as a fixed number of points.
 
-## Section 4 — Spread, slippage, operational safety (56-72)
+30. **Stop Loss Above the Explosive Candle:** In sell trades, the stop is placed above the wick of the candle that caused the break, not above the distant historical high.
 
-56. **Spread kill switch:** Halt execution if gold spread >60 points (60 cents); resume only after 3 minutes of normal spread.
-57. **Slippage tolerance:** Reject market sends if expected slippage >25 points.
-58. **No martingale under volatility:** Ban add-ons/doubling during post-news violence.
-59. **Execution latency:** If order round-trip >1000ms in the journal, cancel further entry attempts.
-60. **Prefer offset limits after news:** Post-news entries use calculated buy/sell limits, not naked market chases.
-61. **Intraday equity guard:** If floating equity drops 2% in one news candle, flatten everything.
-62. **Post-stop cooldown:** After a news stop-out, mandatory 45-minute cool-off before scanning again.
-63. **Wide buffer SL after calm:** Post-stabilization entries need ≥+30 points extra SL buffer for late wicks.
-64. **Avoid :58–:02 around news hours:** Skip new orders across the hour boundary during event windows.
-65. **Half-distance pending cancel:** If price runs 50% to TP before fill, delete the pending forever.
-66. **Bad tick shield:** Ignore a tick that spikes ~80 points and snaps back on the next tick.
-67. **Volatility-adjusted lots:** If ATR doubles, cut lot size roughly in half.
-68. **No blind fade:** Ban buying “because it fell a lot” or selling “because it rose a lot” without a completed pattern.
-69. **Windfall protocol:** If the full day target prints within 2 minutes of the release, close 100% and stop trading.
-70. **Margin level warning:** Ban new risk if margin level falls below 500% in high vol.
-71. **Disconnect alert:** If feed drops >10 seconds with an open news trade, emergency-alert the operator.
-72. **SL-first packet:** Send stop loss in the same atomic packet as entry — never naked.
+31. **Structural Stop, Not a Point Stop:** The concept of a fixed stop (such as always 30 points) is canceled; the stop is placed at the point that, if price reaches it, completely invalidates the technical idea.
 
-## Section 5 — Riding the real post-news trend (73-86)
+32. **Avoid Placing the Stop at Round Numbers:** Market makers target whole numbers; the stop must always be placed at odd fractions (such as 2447.80 instead of 2450.00).
 
-73. **15-minute rule:** Best high-odds entries usually begin 15–30 minutes after the print.
-74. **Retest shock high/low:** Wait for a calm retest of the break level, then enter with the rebound/continuation.
-75. **First H1 close after data:** Day bias often equals the first post-event H1 close direction.
-76. **OTE pullback:** After the first explosion, Fib the full impulse and enter 61.8–78.6.
-77. **NY continuation window:** If 15:30 Makkah data confirms direction, trend often persists until ~18:30.
-78. **Staged exits after majors:** Split TP into three clips to ride extended data trends.
-79. **Weekly level break → swing:** Data break + hold above a prior weekly high can justify multi-day swing longs.
-80. **Absorption detection:** Failure to print a new high in the next three bars after the shock warns of reverse/correction.
-81. **Engulf after pullback:** After the shock pullback, an M5 engulfing of corrective bars arms continuation.
-82. **ADR overextension:** At ~200% ADR on the news move, ban chase; hunt reversals instead.
-83. **Broken roof becomes floor:** Any ceiling detonated by news becomes the best buy-on-dip later.
-84. **DXY must confirm gold longs:** Do not buy gold post-news unless DXY keeps breaking its micro lows (except geopolitics).
-85. **Broadening wedge exit:** Higher highs + lower lows after news = chaotic expansion — flatten.
-86. **Follow-up official comments:** Post-data Fed speak that affirms the print holds the trend; contradictory speak can reverse it.
+33. **Stop at the Dynamic Trendline:** In some trades, a break and close of a candle below the trendline is the stop criterion, not a fixed numeric price.
 
-## Section 6 — Geopolitical safe haven (87-100)
+34. **Tightening the Stop When a Confirmation Candle Appears:** As soon as price launches and forms a momentum candle in the trade's direction, the stop is immediately pulled behind that candle's low to reduce risk.
 
-87. **Cancel technicals in hot war:** On sudden airstrikes/war breaks, ignore resistance and oscillators — priority is long.
-88. **No shorting panic:** Absolute ban on gold shorts during escalating geopolitical attacks regardless of TA bait.
-89. **Trusted flash → market buy:** On confirmed major geo flash from reputable wires, market-buy without waiting for a dip.
-90. **Weekend gap caution:** Gap-up >150 points on Monday from weekend events — ban immediate chase; wait for gap digest.
-91. **Full decoupling allowed:** In global panic, gold can rise with USD and falling equities — do not require weak USD.
-92. **Open extension targets:** In geo panic, cancel near TPs; use outer Fib extensions 2.0 / 2.618.
-93. **De-escalation invalidation:** Official ceasefire/de-escalation → flatten longs immediately ahead of violent dumps.
-94. **Banking panic dips are buys:** Regional bank failures / sovereign stress — every dip is a buy.
-95. **Announcement candle stop:** Place SL ~20 points under the low of the candle that launched on the geo flash.
-96. **Media amplification trap:** Distinguish skirmishes from major crises; hype of minor events often dumps hours later.
-97. **Mainstream FOMO peak:** When non-traders’ TV leads with gold mania, the rally is late — raise caution.
-98. **News velocity metric:** Escalation headlines every few minutes keep the long light green.
-99. **Chokepoint / oil shocks:** Threats to shipping lanes that lift oil also lift gold — strategic long bias.
-100. **Sovereign volatility rule:** In panic, the smart trader is not the one who catches every tick — it is the one who exits the storm with capital intact.
+35. **Forbidding Moving the Stop Backward:** It is strictly forbidden under any circumstance to widen the stop loss after it has been entered in order to accept a larger loss than planned.
+
+36. **Time-Based Stop Loss (Time Stop):** If gold opens a trade and oscillates in a dead range for more than 3 hours without launching, the contract is closed or the stop is tightened in anticipation of a reverse explosion.
+
+37. **Stop Below the Liquidity Pool:** Always place the stop behind two equal lows (Equal Lows) at a safe distance because these lows are a magnet for candle wicks.
+
+38. **Moving the Stop to Entry (Breakeven Rule):** The stop is moved to entry only after price has traveled a distance equal to the stop's own value ( ) and a new low has formed on M15.
+
+39. **Protecting Peak Profits:** If the trade has achieved 70% of the target, a profit-protection stop must be placed at the 50% level of the move to deny the market the chance to turn the profit into a loss.
+
+40. **Stop Protected by an Order-Block Buffer:** The stop is placed 15 points after the end of the institutional Order Block, not exactly at it.
+
+41. **Separating the Sell Stop from the Spread:** In sell trades, the stop distance must be increased by the amount of spread widening at close time to avoid the trade being stopped out by a phantom spread.
+
+42. **Dynamic Trailing Stop (Chandelier Exit):** Use the highest high of the last 10 candles minus an ATR multiple as a trailing stop level that follows price.
+
+43. **Stop Behind the Asia High:** When selling gold after an Asia-session liquidity sweep, the stop is placed 10 points above the highest wick recorded by the sweep candle.
+
+44. **Avoid Placing the Stop Inside Price Gaps:** The stop is never placed in the middle of an open FVG because price will inevitably return to fill it completely.
+
+45. **Instant Stop on Momentum Break:** Exit the trade if two consecutive candles close against the direction on the M5 timeframe with rising momentum, even before the original stop is hit.
+
+46. **Do Not Move the Stop to Entry Too Early:** Moving the stop to the entry point before a minor high is exceeded causes the trade to be stopped out by a volatility wick before the launch toward the target.
+
+47. **Portfolio-Percentage-Based Stop:** The distance between entry and stop must programmatically equal exactly 1% or 2% of the balance by adjusting the lot size.
+
+48. **Close-Referenced Stop Loss:** In some cases, the stop is programmed on the basis of "an hourly candle closing below the level" and not merely a quick wick touch.
+
+49. **Protecting Trades at News Time:** 5 minutes before hot news, the stop must be in a zone completely free of liquidity gaps to reduce the effect of price slippage.
+
+50. **Distributing Stop Losses Across Split Contracts:** When entering with two contracts, the first stop can be placed tight and the second behind the larger structural low to distribute risk.
+
+51. **Stop on a Break of the Channel Midline:** In price channels, a break of the midline (Equidistant Median) is considered an early stop level before the channel low.
+
+52. **Overnight Safety Stop:** Before overnight contract settlement (Rollover), the stop is increased by an extra 20 points to absorb the temporary widening of the spread.
+
+53. **Stop Behind the Inverted Hammer (Shooting Star):** The sell stop is placed 10 points above the highest point of the shooting-star wick.
+
+54. **Stop Based on Supply Balance:** If the trade is a buy, the stop is placed under the demand zone that engulfed the entire last down-wave.
+
+55. **Protective Exit When an Opposite Pattern Appears:** Cancel the trade and hit the stop manually if a clear opposing head-and-shoulders pattern appears on the H1 timeframe.
+
+### 15.3 Retest philosophy (56–80)
+
+56. **A Retest Is Not a Mandatory Condition:** In true price explosions on gold, price runs away without any retest of the broken level, and waiting misses the trade.
+
+57. **A Retest as Evidence of Reversal:** If price returns slowly and hesitantly to the broken level and then bearish candles begin to dominate, this is often not a retest but a failed break and a true reversal.
+
+58. **Deep Retest:** In many cases gold overshoots the broken resistance line to the downside to retest deeper demand zones beneath it before rising.
+
+59. **Speed of the Test Candle:** A successful retest candle must be fast and rejected with a long wick; full-bodied candles that settle at the level mean the breakout has failed.
+
+60. **Retesting the Trendline, Not the Horizontal Line:** Price may ignore the horizontal level and retest a previously broken sloping trendline to rest on it and launch.
+
+61. **Fake Retest to Sweep Liquidity:** Price returning to the broken zone may be only to trigger traders' pending buy orders and then drop violently to hunt them.
+
+62. **Failed Retest as a Sell Opportunity:** When price fails to bounce from the retest level and drops below it, the position is immediately flipped to a sell trade with the new trend.
+
+63. **Retest on a Smaller Timeframe:** What appears as a direct breakout on the H1 timeframe often contains a completed and ideal retest on the M1 or M5 timeframe.
+
+64. **Effect of Trading Volumes on the Test:** A retest that occurs with weak trading volumes (Low Tick Volume) is the safest and most credible for continuation.
+
+65. **Retesting Fibonacci Levels:** Gold prefers to retest the 61.8% Fibonacci level of the broken wave instead of retesting the zero breakout point.
+
+66. **Testing the Right Shoulder:** In head-and-shoulders patterns, price may never bounce to retest the neckline at all, and instead simply drop directly after forming the right shoulder.
+
+67. **Multiple Retests Weaken the Level:** If price returns to test the same level 3 times, this does not indicate its strength but the exhaustion of buy orders and the approach of its break.
+
+68. **Time-Conditioned Retest:** If the breakout candle took one minute and the retest candle took 30 minutes of hesitant decline, this is a healthy bounce.
+
+69. **Retesting Zones, Not Lines:** Retest levels must be treated as a "price range" spanning 15 to 30 points and not as a mere numeric price.
+
+70. **Retesting the Weekly Opening Gap:** Price gaps left at the market open on Monday are considered inevitable later retest targets during the week.
+
+71. **Upside Break Without a Test (Runaway Breakout):** If the breakout is accompanied by a strong opposite rise in the DXY index, gold will drop without any test of the highs.
+
+72. **Confirming the Retest with Reversal Candles:** Do not enter a retest trade merely on a price touch; a Pin Bar or engulfing candle on M15 confirming rejection must be seen.
+
+73. **Retesting the Broken Asia Low:** When gold breaks the Asia session low at the London open, the maximum bounce rise is a touch of that same low before the sharp drop.
+
+74. **Mid-Air Retest:** Price may bounce 20 points before reaching the broken support line and content itself with testing the nearest moving average.
+
+75. **Retesting Parallel Trendlines:** When a descending channel is broken, price often retests the outer ceiling of the channel as new support.
+
+76. **Retesting Psychological Levels:** Price resting above a level such as 2400.00 after exceeding it represents a stronger confirmation than retesting any random high.
+
+77. **Retest After Stormy News:** News shocks leave violent break levels; these levels are often retested after the session ends in complete calm.
+
+78. **Retesting the All-Time High:** When gold records a new all-time high, the retest may be via a long sideways oscillation range and not a sharp drop.
+
+79. **Failed Test in Exhaustion Zones:** If the RSI indicator is in sharp oversold zones on H4, any retest of broken resistance will turn into a buying explosion.
+
+80. **Canceling the Retest Idea When the Range Widens:** If the retest decline exceeds 78.6% of the break wave, the scenario is canceled and the break is considered entirely fake.
+
+### 15.4 Trendlines and channels (81–105)
+
+81. **Multiple Trendlines on the Same Chart:** An inner sharp trendline (Inner Trendline) and a main outer trendline (Outer Trendline) can be drawn on the same candles; the entry starts from the inner one.
+
+82. **The Trendline as a Zone, Not a Thin Line:** The trendline is drawn as a price bundle that embraces both wicks and bodies together to absorb gold's instantaneous wick breakouts.
+
+83. **Bounce from the Trendline Without Touching Support:** Gold often completely ignores horizontal levels and reverses as soon as it touches a sloping rising trendline.
+
+84. **The Third-Touch Rule:** The third rest on the trendline is the strongest and highest-probability for a fast profit, while the fourth and fifth rests carry an elevated break risk.
+
+85. **A Trendline Break Does Not Mean Reversal:** A break of the rising trendline on gold often leads to a sideways accumulation path and not necessarily to a sharp decline.
+
+86. **Adjusted Trendlines:** If a candle wick breaks the trendline and returns to close above it, the line is redrawn to contain this wick as a new slope angle.
+
+87. **The Dual Parallel Trendline:** Drawing a line parallel to the trendline on the opposite highs creates a price channel; a touch of the channel ceiling is considered a mandatory take-profit target.
+
+88. **The Accelerating Horizontal Trendline:** Acceleration of price movement and its departure from the trendline at a right angle indicates a nearby price explosion that ends with a collapse toward the line.
+
+89. **Breaking the Minor Trendline as a Confirmation Signal:** Do not buy on a touch of horizontal support except after a break of the small minor descending trendline on the 5-minute timeframe.
+
+90. **The Fake Trendline of Market Makers:** Trendlines that are very obvious to novice traders are drawn for the purpose of breaking them and sweeping the stop liquidity placed directly behind them.
+
+91. **Counter-Trendlines:** Entry into fast trades (scalping) is built on breaking trendlines that run counter to the overall daily path.
+
+92. **The Channel Midline (Channel Median):** The midline plays the role of a price magnet; a bounce from it confirms trend strength and reaching the opposite side.
+
+93. **Intersection of a Trendline with a Horizontal Level:** The mathematical meeting point between a sloping trendline and a horizontal support level represents an entry point with the highest possible success rate (Confluence Zone).
+
+94. **Break and Retest of the Trendline:** Entry after a break of the rising trendline is when price bounces to re-touch the line from below as a resistance barrier.
+
+95. **Trendline Based on Wicks versus Bodies:** On gold, trendlines drawn on body closes are more truthful in revealing a break than random wick lines.
+
+96. **Fan Trendline (Speed Resistance Lines):** Draw three trendlines at different angles; a break of the first line warns of a drop to the second, and a break of the second targets the third.
+
+97. **RSI Indicator Trendline:** Draw trendlines on the RSI indicator; a break of the indicator trendline precedes a break of the actual price trendline on the chart by two to three candles.
+
+98. **Trendlines on Large Timeframes:** A trendline drawn on the D1 timeframe remains a solid barrier that cannot be easily exceeded except with a violent macro economic release.
+
+99. **Price Divergence from the Trendline:** Price moving a very large distance away from the rising trendline imposes a ban on immediate buying until price returns to breathe near its line.
+
+100. **Breaking the Double-Top Trendline:** A break of the trendline connecting the two lows of the double-top pattern represents activation of the sell signal even before the neckline is broken.
+
+101. **A Broken Trendline Reverses Its Function:** A strongly broken rising trendline turns in the future into a resistance ceiling that blocks any new upside attempts.
+
+102. **Symmetrical-Triangle Trendlines:** Narrowing of the distance between the rising and falling trendlines inside the triangle warns of an explosion that determines direction based on which line is broken.
+
+103. **Using Trendlines as Moving Targets:** In a buy, the upper descending trendline can be made the moving take-profit target as time advances.
+
+104. **Breaking the Trendline with a Doji Candle:** A trendline break with weak Doji candles indicates a false break caused by an absence of liquidity and not a real change in forces.
+
+105. **Synchronizing the Trendline with the Trading Session:** Price resting on a rising trendline in sync with the first minute of the London exchange open gives the trade maximum thrust.
+
+### 15.5 XAUUSD dynamics (106–135)
+
+106. **Asia Session Liquidity Trap (Asian Range Sweep):** On 80% of days, gold at the start of the London open breaks the highest high or lowest low of the Asia market to sweep liquidity and then fully reverses.
+
+107. **Gold Does Not Forgive a Late Stop:** If gold's reverse move has started, exiting with a 20-point loss is better than waiting, because gold is capable of moving 300 points without stopping.
+
+108. **Major Psychological-Number Traps:** Around levels such as 2400.00, gold repeats oscillation and fake breaks by a margin of 50 to 80 points to flush small traders' contracts before the real move.
+
+109. **The 3:30 PM (15:30) Makkah Candle (New York Open):** This 15:30 candle often wipes out everything the London session built in minutes; instantaneous contracts must be closed or fully secured before it.
+
+110. **Gold Is a Haven of Fear, Not Instant Inflation:** In moments of urgent military tensions, technical analysis is canceled entirely and gold moves up as a fait accompli driven by institutional market orders.
+
+111. **Temporary Decoupling from the Dollar Index (DXY Decoupling):** Gold may rise with a rising dollar in cases of severe banking panic; do not rely on the inverse relationship as a 100% sacred rule.
+
+112. **Gold's Natural Volatility Size (Gold ATR):** Gold's natural daily range is between 250 and 400 points; any move of less than 150 points means the market has not yet started its explosion.
+
+113. **News-Candle Wick Trick (News Wick Trap):** The first move 5 seconds after a CPI or rate-decision release is often a reverse trap move to swallow liquidity before the true direction.
+
+114. **Targeting Equal Highs/Lows:** Gold does not leave equal lows or highs without returning to break them and hunt the stops placed behind them even after days.
+
+115. **Sharp Liquidity Void:** The very long candles gold leaves at news time are attraction zones that price will later return to fill at least 50% of.
+
+116. **Gold Loves the Bounce from 78.6% Fibonacci:** Unlike currencies that content themselves with 50% or 61.8%, gold prefers very deep corrections to hit the largest number of stops before launching.
+
+117. **Daily Closing Move (Daily Fixing):** From 6:00 to 7:00 PM London time, spot gold prices are fixed, and sudden contract liquidations occur in it.
+
+118. **Trading During Spread Widening (The Midnight Spread Trap):** From 11:55 PM until 12:15 AM platform time, the gold spread widens insanely; trading or placing tight stops is forbidden then.
+
+119. **Breaking Gold Support and Turning It into a Bearish Explosion:** If gold breaks a true support level and holds below it with two H1 candles, it does not correct but collapses vertically to touch the next historical support.
+
+120. **Do Not Chase Giant Green Candles:** Buying after gold has risen 150 points in 5 minutes is trading suicide; the correct buy is in the stagnation zones before the explosion.
+
+121. **Gold's Relationship with Real Bond Yields (TIPS Yields):** A continuous rise in bond yields forms a permanent restraining pressure on gold's rise on large timeframes.
+
+122. **Gold's Behavior on Friday:** Friday closes often see profit-taking and liquidation of major funds' positions, causing strong reverse moves against the week's direction.
+
+123. **The First-Hour Candle of Monday:** The week's opening oscillation reflects holiday sentiment and often sees filling of leftover price gaps.
+
+124. **Gold Cancels Indicators in Sideways Paths:** Indicators such as RSI or Stochastics give successive false signals when gold is trapped in a tight 70-point range.
+
+125. **Safe Haven Runaway:** On days of geopolitical panic, every bearish correction no matter how small is an immediate buy opportunity without hesitation.
+
+126. **Harmonic Correlation with Silver:** If silver breaks its previous high and gold lags in breaking its high, gold will inevitably catch up with it in an accelerated form (Silver Leading).
+
+127. **Avoid Trading on US Bank Holidays:** Gold's movement on United States holidays (such as Labor Day) is dead and random and burns the account with the spread.
+
+128. **Afternoon Reversals (Late NY Reversal):** After 8:00 PM Makkah time, gold often starts a corrective move that opposes the direction it followed throughout the day.
+
+129. **Gold Tests Invisible Liquidity Zones:** Previous days' closing levels (Previous Day Close) represent magnetic support and resistance barriers on gold.
+
+130. **Breaking the 200 EMA on the H4 Timeframe:** This is considered the dividing line between gold's long-term uptrend and downtrend; trading above it is a permanent buy and below it a permanent sell.
+
+131. **Pre-Employment-Data Move (NFP Stagnation):** Gold adheres to a very tight trading range on the days preceding the US jobs report; trading inside it is a drain on the portfolio.
+
+132. **Gold Moves as One Block with Mining Stocks:** Watching the gold-mining companies index (GDX) gives a leading indicator of actual gold moves by hours.
+
+133. **Bounce from Bollinger Bands Limits:** A gold candle exiting entirely outside the outer Bollinger Band range on H1 warns of an immediate corrective bounce toward the midline.
+
+134. **Contract Size and Pricing:** A one-dollar move in gold's price equals 100 points in pip accounts; accurate risk calculation is the foundation to prevent a margin call in a single candle.
+
+135. **Quiet Ascent and Violent Descent:** Gold's rise often takes days of slow graduation, while profit-taking and the decline occur in a few hours and with giant engulfing candles.
+
+### 15.6 Take profit (136–160)
+
+136. **The Target Is Not Always Support or Resistance:** The first target can be a sloping trendline, or a price-channel midline, or merely a percentage calculated with the ATR indicator.
+
+137. **Mandatory Partial Close (Take Partial):** Take 50% of the contract's profits as soon as a distance equal to the stop point ( ) is achieved and immediately move the stop to the entry point.
+
+138. **Open Target in Historic Trends:** When gold records a new all-time high and prior resistances vanish, targets are set with Fibonacci extensions (1.272 and 1.618).
+
+139. **Exit Before the Psychological Level by a Safety Distance:** If the target resistance is 2500.00, the take-profit order must be placed at 2496.00 to avoid price bouncing before touching the whole number.
+
+140. **Timed Exit Before Session Close:** Close open instantaneous trades one hour before the New York session close, regardless of whether price reached the final target or not.
+
+141. **Targeting Previous-Day Highs and Lows:** Yesterday's high (Previous Day High) and yesterday's low (PDL) are the most accurate and reliable daily targets in gold trading.
+
+142. **Extended Target with Engulfing Candles:** If price reaches the first target with a giant full Marubozu candle, do not close the trade; extend the target to the next level because the momentum is extraordinary.
+
+143. **Taking Profit When Sharp Exhaustion Appears:** Close the trade manually if the RSI indicator reaches levels above 85 on the H1 timeframe even if the technical target is farther.
+
+144. **Exit on Slowing Price Movement (Momentum Exhaustion):** If price took 10 candles to move a distance it previously covered in one candle, close your profits immediately.
+
+145. **Target at the First Opposite Liquidity Gap:** In buy trades, the first bearish FVG zone that meets price on the way is considered a primary exit target because it will block the rise.
+
+146. **Do Not Be Greedy for the Entire Wave:** Content yourself with 70% to 80% of the expected range of the price move and leave the rest, because wave endings see sharp reversals.
+
+147. **Securing Profits After the Second Target:** When the second target is hit, the stop loss is pulled and placed behind the first target so it becomes a guaranteed profit in the pocket.
+
+148. **The Opposite Target in Price Channels:** A buy from the price-channel low has as its only target the channel ceiling and not an attempt to break it.
+
+149. **Shrinking Targets Before Major News Releases:** If there is a winning trade 15 minutes before a rate-decision release, targets are closed immediately on the available profit.
+
+150. **Targeting External Liquidity Levels:** The logical target of a buy trade that launched from a low is hunting the high from which the original decline started.
+
+151. **Adjusting Targets According to the Spread:** In buy trades, the profit target must be calculated precisely to offset the spread cost deducted on exit.
+
+152. **Target Based on the Head-and-Shoulders Pattern:** The pattern target is measured by calculating the vertical distance from the head to the neckline and projecting it from the break point.
+
+153. **Gradual Multi-Stage Exit:** Split taking profit into 3 levels: 40% first target, 30% second target, 30% left as a running contract to chase the overall trend.
+
+154. **Exit When a Reversal Pattern Appears on a Smaller Timeframe:** If you are in an H1 buy trade and an explicit double-top pattern appears on M5, close the trade immediately.
+
+155. **Converting the Instant Trade into a Swing Trade:** If the entry is from a confirmed weekly low, the limited daily target is canceled and replaced with chasing profits over the long term.
+
+156. **Target at the Bounce from the 50-Day Average:** In corrective moves, the SMA 50 moving average is a decisive target for the bouncing wave.
+
+157. **Taking Profit Before the Weekend Holiday:** Avoid holding trades overnight over Saturday and Sunday to avoid the market opening on a catastrophic price Gap against the trade.
+
+158. **Targeting Liquidation Lows (Liquidation Run Target):** Make the target below the levels at which buy stops have clustered in order to capture the entire liquidation move.
+
+159. **Proportional Target for Elliott Waves:** In the third rising wave, the minimum target is 1.618 of the length of the first wave.
+
+160. **Accepting Realized Profit When Market Structure Changes:** Exit with any available profit as soon as the first minor low is broken on M15 and do not wait for the entry stop to be hit.
+
+### 15.7 Candle traps (161–180)
+
+161. **Hammer-Candle Trap (Hammer Trap):** A hammer candle that appears in the middle of the path without resting on a true liquidity zone is a trap for small traders to buy before the drop.
+
+162. **Silent-Breakout Trick:** Breaking resistance with a small-bodied candle does not express buyers' strength; a true breakout requires a full-bodied candle representing 80% of its range.
+
+163. **A Doji Candle Means Hesitation, Not Reversal:** The appearance of a Doji does not require a reverse entry; it means both sides have paused awaiting new liquidity that may continue the same trend.
+
+164. **Failed Engulfing-Candle Trap:** If a bearish candle engulfs a previous bullish candle, then the next candle fails to continue downward, this is considered a sell trap and buying must be done immediately.
+
+165. **Shooting Star at the All-Time High:** It gives the highest credibility for a sell if the upper wick is three times longer than the candle body.
+
+166. **Gradual Engulfing (Momentum Shift):** A shift of candles from a decline with large bodies to a decline with tiny bodies indicates selling exhaustion and an approaching bullish explosion.
+
+167. **Multiple-High-Break Trap:** Recording new highs by a margin of only a few points and with long wicks reflects cautious institutional distribution that warns of an imminent collapse.
+
+168. **Inside Bars:** 3 candles inside the range of a giant mother candle indicate price compression followed by an explosion in the direction of the break.
+
+169. **First Impulse-Candle Trap in London:** The first 15-minute candle at the London open is in many cases a trap to steer attention toward a false direction.
+
+170. **Strength of the Close in the Upper Third:** A candle that closes in the upper 25% of its range confirms bulls' control regardless of the length of the lower wick.
+
+171. **Late-Entry Trap Behind Consecutive Candles:** A succession of 5 consecutive bullish candles on the M15 timeframe makes the probability of a correction higher than the probability of continuation; buying is banned here.
+
+172. **Double Price Rejection (Double Rejection Wicks):** Formation of two consecutive long wicks in the same price zone confirms the presence of an institutional wall of force that cannot currently be broken.
+
+173. **Lower Absorption Candle:** A strong bearish candle followed by a bullish candle that fully engulfs it on the same timeframe wipes out sellers' influence and confirms the rise.
+
+174. **Previous-Day-Candle-Break Trap:** Breaking yesterday's lowest low with the wick and quickly bouncing to close inside yesterday's range is the strongest bullish bounce pattern.
+
+175. **Fading Wicks in a Strong Trend:** A strong trend does not contain long upper and lower wicks, but single-color candles that push price regularly.
+
+176. **Rectangle-Pattern Trap (Range Box Trap):** Price exits the sideways range in one direction to deceive traders into a breakout, then reverses to fully break the opposite side.
+
+177. **Selling-Climax Candles:** A giant bearish candle with historic trading volume appearing after a long down-wave represents the end of the decline and the flushing of contracts, not its beginning.
+
+178. **Candle Bodies Tell the Truth and Wicks Hunt Liquidity:** Always rely on the close and open prices of candle bodies to determine the true price direction and ignore wick noise.
+
+179. **Gap-Fill Trap:** Not every price gap must close immediately; gaps resulting from a structural breakaway (Breakaway Gaps) may remain open for months.
+
+180. **Spinning Tops in Support Zones:** They indicate sellers' confusion after a descending path and are considered a prelude to building a new bullish launch base.
+
+### 15.8 Execution discipline (181–200)
+
+181. **Refraining from Trading Is Itself a Trade:** In times of absent clear vision and overlapping signals, remaining in spectator mode is a profitable decision that protects capital.
+
+182. **Strict Execution Without Hesitation (Zero-Hesitation Execution):** As soon as the algorithmic conditions for the trade are met, the order must be sent immediately without waiting for consultation or a late human confirmation.
+
+183. **Automatically Canceling Pending Trades:** Any pending order (Buy Limit / Sell Limit) that has not triggered within 3 hours of being issued is canceled programmatically because the technical context has expired.
+
+184. **Preventing Double Entry on the Same Asset:** Ban opening a new buy trade on gold if there is a previous losing buy trade that has not yet been closed, to prevent stacking losses.
+
+185. **Separating Scalping Trades from Swing:** Each strategy has its own Magic Number; it is not permitted to merge an instantaneous trade's stop with a long-term trade's stop.
+
+186. **Immediate Exit on Leakage of Hot News:** If gold moves 80 points in one minute without a technical reason or an announced news time, close positions immediately due to the possibility of an emergency news leak.
+
+187. **Programmatically Banning Revenge Trading:** Freeze the trading platform and prevent opening any new orders for 60 minutes in the event of recording two consecutive losses in the same session.
+
+188. **Dual-Verification Rule for Lot Size:** Review the contract-size calculation twice via the code before sending to ensure that a decimal-point error will not lead to an arithmetic disaster.
+
+189. **Updating Instant Data Before Sending:** Check the last price tick issued from MT5; if the data is older than 5 seconds, execution is canceled on suspicion of a connection outage.
+
+190. **Flexibility Before a Changing Market:** If gold's direction suddenly changes and market structure is broken, the bullish bias is canceled immediately without intellectual stubbornness or clinging to the previous analysis.
+
+191. **Respecting Maximum Daily Loss Levels:** If the account reaches a 3% daily drawdown, the agent automatically closes all trades and cuts its connection until the next morning.
+
+192. **Executing at Market Prices in Cases of Decisive Confirmation:** Rely on market orders instead of limits when a break-and-confirmation candle is detected to ensure catching the move's train.
+
+193. **Canceling the Recommendation If Price Moves Half the Distance to the Target:** If price runs toward the target before the pending entry order is triggered, the trade is canceled and price is not chased on its return.
+
+194. **Documenting the Entry Reason in the Order Log:** Record the technical code on which the trade was built (such as: BOS_M15_FVG_Retest) in the Comment field of each contract for review.
+
+195. **Banning Trading 15 Minutes Before the Daily Market Close:** Avoid opening new positions at the end of the day because of the sharp drop in liquidity and the rise in overnight and spread costs.
+
+196. **Instant Recalculation of Reward versus Risk:** If price moves one point worse than the specified entry point and the R:R ratio deteriorates to less than 1:1.5, the entry is canceled.
+
+197. **Banning Trades on Official Holidays:** Fully disable the trading algorithm on New Year's and Thanksgiving due to the absence of market makers and major central banks.
+
+198. **Confirming the Chart Is Free of Contradictions:** If the H4 timeframe signal is an explicit buy while the M15 timeframe shows a completed bearish distribution pattern, entry is forbidden until the two timeframes align.
+
+199. **Controlling the Lot When Balance Increases:** Increasing lot size with account growth is done based on the fixed closing balance and not floating profits (Equity vs Balance).
+
+200. **The Ongoing Golden Rule:** The market is always right, and technical analysis is merely a map of probabilities; the absolute priority is protecting capital first, and achieving profits second.
+
+## 16. News and violent-volatility rules (1–100)
+
+### 16.1 Pre-news precautions (1–18)
+
+1. **Mandatory Freeze Window (Pre-News Freeze Window):** Ban opening any new trades 15 minutes before the release of high-impact news (CPI, NFP, FOMC) to avoid the chaos of a liquidity sweep.
+
+2. **Cancel All Pending Orders:** Delete all pending buy and sell orders (Limit & Stop) 10 minutes before the news to prevent them from being triggered by destructive price slippage.
+
+3. **Securing Running Winning Trades:** Move the stop loss of previously open trades to the entry point or close 70% of their size 10 minutes before pivotal data.
+
+4. **Liquidating Trades Near the Entry Point:** Close any trade that has not moved more than 30 gold points away from its entry point to prevent an immediate stop hit due to spread widening.
+
+5. **Monitoring Preemptive Spread Widening:** Measure the spread 2 minutes before the news; if it has widened to more than 3 times the normal average, the automatic trading lock is activated immediately.
+
+6. **Checking Pre-Market Pricing (Priced-in Analysis):** Compare price movement in the 4 hours preceding the news with expectations; a sharp directional move before the news means the market has already absorbed the result in advance.
+
+7. **Defining the Quiet Positioning Range (Pre-News Range):** Draw the highest high and lowest low gold formed in the last 30 minutes before the news and adopt them as break boundaries and liquidity traps.
+
+8. **Disabling the Tight Trailing Stop:** Cancel the instantaneous profit-chasing feature (Trailing Stop) immediately before the news, because the initial random volatility will hit the stop and deprive you of trend continuation.
+
+9. **Filtering Simultaneous News:** Classify the danger of the moment when two simultaneous releases occur (such as the unemployment rate in parallel with Non-Farm Payrolls NFP).
+
+10. **Verifying Connection Efficiency and Ping:** Confirm that the response time of the connection to the MT5 server is less than 50ms one minute before the news; if delay increases, trading is completely forbidden.
+
+11. **Avoid Trading at Preliminary Market Close:** Ban entry if the news coincides with the daily contract rollover and interest-update time (Rollover).
+
+12. **Calculating Expected Deviation (Consensus Deviation Threshold):** Program the value of the gap between expected and actual needed to truly move the market (such as a 50,000-job gap in NFP).
+
+13. **Banning Trades on Federal Chair Testimony Days:** Maintain complete silence throughout the duration of the central bank chair's testimony before Congress until the press conference fully ends.
+
+14. **Detecting Liquidity Rush in DXY Before the News:** If the dollar index is breaking lows minutes before the news without an apparent reason, it is considered an early leak of negative data that supports a gold rise.
+
+15. **Defining Maximum Bounce Zones (Macro Extreme Zones):** Draw the nearest daily support and resistance zones 150 to 300 points away from the current price in anticipation of them being touched by the news candle.
+
+16. **Fixing Exceptional Lot Size:** Reduce the allowed risk size to half (0.5% instead of 1%) for any operation executed on the same day as major data.
+
+17. **Banning Direct Stop Trading Orders (Stop-Market Trap):** Refrain from placing Buy Stop or Sell Stop orders to hunt the news explosion because they are filled at the worst prices of financial slippage.
+
+18. **Separating Periodic News from Sudden News:** Programmatically distinguish between calendar-scheduled data and emergency geopolitical events that require immediate intervention without timetables.
+
+### 16.2 Reading the live print (19–34)
+
+19. **CPI Shock Rule (CPI Logic):** Release of an inflation figure higher than expectations = a rise in bond yields and the dollar = a sharp and fast drop in gold, and the reverse is true.
+
+20. **Jobs-Report Shock (NFP Dynamics):** Very strong employment with falling unemployment supports postponing a rate cut = immediate selling pressure on gold.
+
+21. **Conflicting-Numbers Predicament (Split Data Paralysis):** If jobs come in dollar-positive and average wages come in negative, the market is classified as "high-risk conflicting" and all trades are canceled automatically.
+
+22. **Impact of Prior Revisions (Revisions Impact):** Watch the revision of last month's data; a downward revision of last month's figure immediately cancels the positivity of the current figure and reverses in gold's favor.
+
+23. **Rate Decisions versus the Press Conference:** The decision to hold or raise rates determines the first move, but the Federal chair's tone in the conference 30 minutes later is what leads the final direction of the day.
+
+24. **The "Buy the Rumor and Sell the Fact" Equation:** If gold rose strongly before an expected rate-cut release with 99% probability, the moment of the actual news release will see a distributional drop for profit-taking.
+
+25. **Surprise-Gap Gauge (Surprise Delta Score):** Do not react to the news if it is an exact match to expectations; a match means stability and tight oscillation with no true direction.
+
+26. **Reading the Purchasing Managers' Index (PMI Index):** A drop of purchasing managers' indices below the 50.0 barrier indicates economic contraction and pushes gold into a fast rise as an investment haven.
+
+27. **Ignoring Secondary Figures:** Filter and ignore consumer-confidence and home-sales indicators if they are released in the same week as major inflation and employment data.
+
+28. **Immediate Impact of Bond Yields (Yield Divergence):** If dollar-positive news is released but 10-year bond yields decline, gold's drop will be temporary and it will bounce up quickly.
+
+29. **Interpreting the Producer Price Index (PPI):** It is treated as an early warning for upcoming CPI data; positive PPI surprises pave the way for gradual bearish waves on gold.
+
+30. **Calculating the Speed of Number Absorption:** Measure the time taken for price to return to the release point; rapid absorption of negative data in less than 5 minutes indicates overwhelming institutional buying power.
+
+31. **Reading the Weekly Jobless-Claims Report:** Unusually large jumps in claims applications indicate labor-market weakness and grant gold instantaneous buying support.
+
+32. **Interpreting Federal Speeches via Keywords:** Detect easing (Dovish) phrases such as "slowdown, downside risks, monitoring employment" to support an instantaneous buy.
+
+33. **Detecting a Shift in Rate-Futures Probabilities:** Track the FedWatch tool immediately after the news; any jump in the probability of a rate cut supports continuation of gold's rise for the rest of the session.
+
+34. **Isolating the Instant Dollar Effect:** If gold drops with a dropping dollar at the same time, the driver is a comprehensive liquidity flush in the market and not a natural response to the data.
+
+### 16.3 News-candle microstructure (35–55)
+
+35. **The Dead First-Minute Rule (The 60-Second Void):** An absolute ban on any entry or analysis attempt during the first 60 seconds of data release; the candles in this minute represent algorithmic chaos.
+
+36. **Double-Sweep Trap (Two-Sided Liquidity Sweep):** Formation of a candle that hits the high of the pre-news range then drops in the same minute to hit the low is a model of flushing traders' contracts and not a trend.
+
+37. **M5 Candle Close as the Primary Reference:** The first 5-minute candle that closes after the news is the adopted technical standard; trading is in the direction of the candle body if it represents more than 70% of its range.
+
+38. **Long Reversal-Wick Rule (Rejection Wick Rule):** If the news candle forms a long upper wick equal to twice its body after a sudden rise, the rise is classified as a trap and selling is activated immediately.
+
+39. **Defining the Imbalance Gap Produced by the News (News FVG):** Leaving a huge price void in the one-minute candle defines a later bounce zone; do not buy until price returns to fill 50% of this void.
+
+40. **True-Break Rule of the Pre-News Range:** The post-news direction is not credited unless a 15-minute (M15) candle closes entirely outside the boundaries of the range defined before the news.
+
+41. **Instant Engulfing-Candle Trick:** If gold rises 100 points in a minute, then the next candle engulfs the entire rise in the second minute, the true direction of the day is down.
+
+42. **Refraining from Entering in the Middle of a Giant Candle:** If the gold candle has moved 150 points, buying at the high out of FOMO is banned; entry is exclusively with the correction.
+
+43. **Monitoring Consecutive Tick Volumes (Tick Volume Climax):** A decline in volumetric trading volumes immediately after the first candle means the algorithmic fuel has run out and the move is about to stop.
+
+44. **Range Reclaim Reversal Rule:** If the news breaks a major daily low then price returns within 10 minutes and trades above the low, this is conclusive evidence of a sell trap and a major buy opportunity.
+
+45. **Fading Wicks in a Sweeping Trend:** When the minutes' candles following the news open and move in one direction without forming any wicks, this is continuous institutional liquidity flow that supports riding with the trend.
+
+46. **Detecting a Fake Break of the Highest Asian High:** Exploiting the news candle to break the Asia high by a few points then an immediate collapse is considered the clearest daily liquidity-sweep model on gold.
+
+47. **One-Minute Timeframe Rule (M1 Noise Filter):** Do not rely on one-minute candle closes to make fateful decisions at news time; always rely on M5 and M15 to filter noise.
+
+48. **Outer Bollinger Band Explosion:** The news candle exiting 90% outside the upper Bollinger Band limit indicates extreme price extension that imposes an inevitable correction toward the midline.
+
+49. **Analyzing the Shock-Candle Wick as a Support Level:** The lowest point reached by the wick of the rising news candle is considered the ideal stop-loss level for any subsequent buy trade.
+
+50. **Synchronizing Candles with a Trendline Break:** If the news explosion leads to a break of a major descending trendline on H1 and a close above it, the trend automatically changes to a sustained uptrend.
+
+51. **Paralyzed-Oscillation Phenomenon (Volatility Compression Trap):** If gold does not move after important news and remains confined in a 20-point range, a delayed violent explosion will occur within 30 minutes.
+
+52. **Support-Break Trap with a Hollow Candle:** Breaking support with a fast candle of weak tick volume resulting from a liquidity void is considered a fake break not credited for a sell.
+
+53. **Balance of Forces at the News Doji Candle:** Closing of the first 15-minute candle after the news as a Doji candle with huge trading volume means buyers and sellers are equal and trading is banned until one of its sides is broken.
+
+54. **Momentum Reversal with a Break of the First Minor Low:** In an explosive rise, a break of the lowest low of a previous one-minute candle is the first warning of the start of a profit-taking and correction wave.
+
+55. **Price Holding Above the News High:** If gold holds above the high recorded by the first news candle for more than 15 minutes, the rising path continues toward new historic targets.
+
+### 16.4 Spread, slippage, operational safety (56–72)
+
+56. **Burning-Spread Filter (Spread Kill Switch):** Stop the execution engine programmatically if the gold spread exceeds 60 points (60 cents), and restore it only after the spread has stabilized for 3 minutes.
+
+57. **Calculating Mandatory Price Slippage (Slippage Tolerance):** Reject execution of any market order if the expected slippage between the quoted and filled price exceeds 25 points.
+
+58. **Preventing Doubling Contracts at Loss Time (No Martingale Under Volatility):** Ban opening any averaging or multiplier contracts during violent market movement after news to avoid account liquidation.
+
+59. **Confirming Market Depth in MT5:** Monitor order-execution speed through the Journal event log; if processing time exceeds 1000ms, entry attempts are canceled immediately.
+
+60. **Using Protected Limit Orders (Limit Orders with Offset):** Entry after the news is exclusively via Buy/Sell Limit orders placed at calculated levels instead of buying directly at market.
+
+61. **Protecting Instant Drawdown (Intraday Equity Guard):** If the account's total floating equity drops by 2% in a single candle at news time, all account trades are closed automatically.
+
+62. **Freezing the Account After a News Stop Hit:** In the event of a trade exiting by a stop hit at news time, the system imposes a mandatory cooling-off period of 45 minutes before examining the market again.
+
+63. **Widening-Stop Rule (Wide Buffer SL):** In trades that open after the news has settled, a safety margin of no less than an extra 30 points must be added to the stop to protect it from late wicks.
+
+64. **Avoid Trading in the Last Minutes of the Hour:** Avoid sending any new orders between minute 58 and minute 02 of the following hour at news time because of contract settlement and a change in liquidity.
+
+65. **Canceling the Recommendation If Price Moves Half the Distance to the Target:** If price runs a distance equal to 50% of the specified target before the entry order is caught, the pending order is deleted permanently.
+
+66. **Verifying the Validity of Received Prices (Bad Tick Shield):** Isolate and ignore any price tick that suddenly jumps by a margin of 80 points and returns on the next tick, to avoid technical errors of the liquidity provider.
+
+67. **Contract-Size Rule Adapting to ATR (Volatility-Adjusted Lots):** Automatically shrink lot size in inverse proportion to the ATR indicator; if gold's volatility doubles, lot size drops to half.
+
+68. **Preventing Immediate Counter Entry Against the Shock Move:** Ban opening buy trades merely because price "dropped a lot," or sell trades merely because it "rose a lot," without a completed technical pattern.
+
+69. **Protecting Shock Profits (Windfall Profit Protocol):** If the trade achieves the entire day's target within two minutes of the news, it is closed immediately at 100% and trading is ended.
+
+70. **Monitoring the Free-Margin Level (Margin Level Warning):** Ban opening any new trade if the available margin level in the account drops below 500% during high-volatility periods.
+
+71. **Handling a Sudden Connection Outage:** In the event of losing connection to the trading server for more than 10 seconds while an open trade exists at news time, an emergency alert is sent to the operator.
+
+72. **Automatic Execution of the Safety Condition (SL First Execution):** Program sending the stop order in inevitable sync with the entry order in the same data Packet without any time delay.
+
+### 16.5 Riding the real post-news trend (73–86)
+
+73. **The Golden Stability Window (The 15-Minute Rule):** The best timing to enter high-success-rate trades starts after 15 to 30 minutes have passed from the news release.
+
+74. **Entry on a Retest of the Shock-Candle High/Low:** Wait for price's calm return to test the break level of the first news candle and enter with the bounce direction.
+
+75. **Relying on H1 Candle Closes After the News:** Gold's true direction is determined by the close of the first hourly candle after the economic statement is released; trading is in the direction of this close.
+
+76. **Exploiting the Equilibrium Gap (Retracement to OTE):** After the first explosive move ends, Fibonacci is drawn on the entire candle, and entry is between the 61.8% and 78.6% levels.
+
+77. **Momentum-Continuation Rule in the New York Session:** If 3:30 PM (15:30) Makkah-time news confirms gold's direction, the move often continues in the same direction until 6:30 PM.
+
+78. **Gradual Exit After Major News:** Split take-profit targets into three successive parts to absorb the long extended trends that economic data create.
+
+79. **Confirming the Trend with a Break of Historic Levels:** If the news explosion coincides with a break of a previous weekly high and holding above it, it is considered a swing opportunity to buy gold that lasts for days.
+
+80. **Detecting Momentum Decline After the Shock (Absorption Detection):** If price fails to record a new high in the three candles following the news candle, this is a warning of trend reversal or the start of a corrective path.
+
+81. **Entry with a Confirmed Engulfing Candle After the Correction:** Wait for the news-candle correction to end and an M5 candle to appear that engulfs the corrective candles for immediate entry with the main trend.
+
+82. **Counter Trading After Daily-Range Exhaustion (ADR Overextension):** If gold has covered 200% of its average daily range in the news move, continuing to chase the trend is forbidden and reversal signals are stalked.
+
+83. **Broken Resistance Turning into a Solid Support Wall:** Any price ceiling that was blown up by news immediately turns into the best buy point on the first calm pullback to touch the price.
+
+84. **Alignment Rule with the DXY Index After the Shock:** Do not enter a gold buy after the news unless the dollar index confirms the move with a continuous break of its instantaneous lows.
+
+85. **Exit When a Broadening Wedge Pattern Appears:** Formation of successive higher highs and lower lows after the news indicates insane random volatility that imposes an immediate exit from the market.
+
+86. **Following Post-Data Statements:** Monitor Federal officials' statements in the hours following the data; statements supporting the figure confirm the trend, and those opposing it reverse it.
+
+### 16.6 Geopolitical safe haven (87–100)
+
+87. **Canceling Technical Analysis at Military-Crisis Time:** When wars or sudden airstrikes break out, all technical resistances and oversold indicators are canceled and gold turns to an explicit buy.
+
+88. **Absolute Ban on Selling in Safe-Haven Waves (No Shorting Panic):** Ban opening any sell trades on gold no matter how tempting the technicals during escalating attacks and geopolitical crises.
+
+89. **Immediate Buy with the First Reliable Emergency Report:** Enter with a direct and fast market buy order as soon as global news agencies confirm a huge geopolitical event without waiting for any correction.
+
+90. **Handling Inflamed Weekly Opening Gaps:** If gold opens a rising Gap Up due to weekend events of more than 150 points, immediately chasing the buy is banned and gap liquidation is awaited.
+
+91. **Complete Decoupling from the Dollar and Stocks:** In times of global panic, gold rises in sync with a rising dollar and falling stock markets; do not rely on dollar weakness as a condition for gold's rise here.
+
+92. **Targeting Historic Highs as Open Targets:** In geopolitical panic waves, nearby targets are canceled and outer Fibonacci extensions (2.0 and 2.618) are used as primary targets.
+
+93. **Tracking a Decline in Statement Intensity (De-escalation Invalidation):** As soon as official data is released indicating de-escalation or a ceasefire, buy trades are closed immediately in anticipation of a violent and fast price collapse.
+
+94. **Riding Banking-Panic Waves:** On the bankruptcy of major banks or a sovereign default, gold is treated as the first survival asset; every corrective decline represents an inevitable buy opportunity.
+
+95. **Stop Based on the Urgent-Announcement Candle Low:** The stop loss is placed 20 points below the low from which price launched as soon as the geopolitical report spread.
+
+96. **Caution Against Media-Amplification Traps:** Distinguish between limited skirmishes and major crises; media amplification of passing events is followed by strong bearish distribution after a few hours.
+
+97. **Avoid Buying at the Peak of the Panic Wave:** When gold news and its purchases headline general news channels for non-traders, the rally is at its end and caution against a corrective drop is required.
+
+98. **Calculating News-Flow Speed (News Velocity Metric):** Detect the pace of successive urgent reports; succession of escalation news every few minutes gives a green light to continue buy trades.
+
+99. **Managing Gold Contracts at the Close of Global Trade Straits:** Crises that threaten shipping lanes and oil prices raise inflation and gold together; buying is the only strategic option then.
+
+100. **The Sovereign Rule of Gold Volatility:** In times of panic and major news, always remember: the smart trader is not the one who profits every point in the market, but the one who crosses the storm with a sound account and protected capital.
 
 ## 17. News-candle detection rules (1–100)
 
-When multiple detectors fire (ATR×3 + tick z-score + spread blowout), classify as a definite news candle and engage news-shield protocols whether or not the calendar listed an event.
+### 17.1 Calendar / clock sync (1–15)
 
-## Section 1 — Calendar / clock sync (1-15)
+1. **Zero-Minute Rule for US Data (The 8:30 AM / 10:00 AM EST Rule):** If a wide-range candle forms at minute 00 or 30 in sync with the timing of major US data, it is classified as a news candle immediately.
 
-1. **US 8:30 / 10:00 ET rule:** Wide-range bars at :00 or :30 synced to major US data windows classify as news candles immediately.
-2. **:45 flash PMI:** Explosive bars at minute :45 (e.g. 9:45 ET) tied to flash PMI are news candles.
-3. **FOMC 14:00 ET:** Any bar at 14:00 ET on FOMC day is a rate-decision candle regardless of shape.
-4. **Presser 14:30 ET:** Sequential bars starting 14:30 ET for ~45 minutes are live speech news candles.
-5. **NFP first Friday:** 8:30 ET first Friday is NFP by definition — no TA confirmation required.
-6. **London open EU macro:** Giant bars 08:00–08:15 London with UK GDP/CPI classify as EU macro news candles.
-7. **London PM gold fix:** High-volume surge near 15:00 London reflects bullion fixing flows.
-8. **Treasury auction 13:00 ET:** Explosive bars at US auction times link to 10Y/30Y results.
-9. **OpEx / futures expiry Fridays:** Abnormal late-month Friday volatility = liquidation/settlement candles.
-10. **API sync <60s:** If candle start vs red calendar event delta <60 seconds → auto news candle.
-11. **Oil inventory spillover:** Wednesday ~10:30 ET bars that violently move gold with oil = energy-linked news candle.
-12. **ECB decision Thursday:** ECB meeting decision bars (CET schedule) are monetary shock candles affecting gold.
-13. **OPEC+ meetings:** Unscheduled production decision spikes classify as commodity news candles.
-14. **Unscheduled Fed speech streams:** Bars synced to live Fed principal speeches are news candles.
-15. **Quarter-end rebalance:** Final 30 minutes of Mar/Jun/Sep/Dec sessions with abnormal flow = institutional rebalance candles.
+2. **The Minute-45 Candle (Flash PMI Releases):** Explosive candles that appear at minute 45 (such as 9:45 AM New York time) are usually linked to the release of preliminary purchasing managers' indices and are treated as a news candle.
 
-## Section 2 — Range / ATR detectors (16-30)
+3. **Federal Rate-Decision Window (FOMC 2:00 PM EST):** Any candle that forms at exactly 2:00 PM Washington time every 6 weeks is a rate-decision candle regardless of its shape.
 
-16. **3× ATR rule:** Candle range (H−L) > 3× ATR(14) of same TF → confirmed news candle.
-17. **M1 outlier:** Gold moving 60–80+ points in one M1 outside dead sessions is a news fingerprint.
-18. **ADR fraction:** One M5 consuming >40% of average daily range → news candle.
-19. **Velocity metric:** >~1.5 points/second sustained ~30 seconds without pullback.
-20. **vs last 20 bars:** Current bar length ≈ sum of prior 10 bars → external news driver.
-21. **Hidden intraday gap:** Tick-to-tick jumps leaving an untraded void inside the bar.
-22. **Bollinger > 3.5σ:** Close beyond 3.5σ Bollinger = crushing news event.
-23. **Weekly range eat:** One H1 engulfing the prior three days’ full range.
-24. **Spike candle:** Vertical >100 points in <120 seconds then abrupt stop on a pivot.
-25. **Expanding bar anomaly:** M5 lengths doubling geometrically within minutes.
-26. **Low-vol breakout bar:** Giant bar after a ≤15-point coil = news ignition.
-27. **PDH+PDL same M15:** Breaking yesterday high and low inside one M15 = major data shock.
-28. **Near-marubozu M5:** ≥120-point M5 with almost no wicks.
-29. **Air-retrace bar:** Huge travel then ~80% retrace inside the same candle without clean bases.
-30. **Range z-score > 4:** Statistical range anomaly vs session history.
+4. **Federal Press-Conference Candle (2:30 PM Presser):** The successive candles that start at 2:30 PM and last for 45 minutes are live-statement candles and are classified as sequential news candles.
 
-## Section 3 — Tick velocity and volume (31-45)
+5. **Jobs-Report Candle (First Friday of the Month):** The 8:30 AM New York-time candle on the first Friday of every calendar month is officially the NFP candle without the need for technical confirmation.
 
-31. **Tick volume z-score > 3.5:** Tick count >3.5σ vs last 50 bars.
-32. **Tick frequency spike:** From ~5–15 ticks/s to ~80–150 ticks/s on gold.
-33. **Volume climax front-load:** ~70% of the bar’s ticks in the first 15 seconds then sudden drop.
-34. **M1 ultra-high volume:** One M1 matching a quiet-session full H1 tick count.
-35. **Gapless torrent:** Continuous orders with <5ms gaps between ticks.
-36. **Buy volume in giant down bar:** Heavy buy absorption at the lows of a crash bar.
-37. **25% of session volume in one bar:** Single candle contributes ≥25% of session activity so far.
-38. **Rocket on falling follow-through volume:** Spike then dying volume = news impulse without sustainable liquidity.
-39. **ATH break volume peak:** Day’s highest tick reading exactly on a key break driven by data.
-40. **Heavy delta imbalance:** One side >90% of ticks in the bar.
-41. **Ask evaporation:** Buy ticks with wide jumps as liquidity providers pull offers.
-42. **Same-minute historical compare:** Volume >500% vs same minute on prior days → news certainty.
-43. **Edge density:** Tick density piled on wick extremes = rapid stop flush battle.
-44. **Freeze then burst:** ~2s tick freeze (broker load) then 200-tick burst.
-45. **Vacuum slip:** Huge slippage on relatively low ticks because opposing book vanished at the print.
+6. **London Exchange Opening Candle (London Open News Flow):** The huge candles between 8:00 and 8:15 AM London time coincident with UK GDP or inflation data are classified as a European macro candle.
 
-## Section 4 — Spread dynamics (46-60)
+7. **Daily Gold-Fixing Candle (London PM Gold Fix):** At 3:00 PM London time, candles of sudden high volume express spot-gold repricing flows among banks.
 
-46. **Spread > 3× normal:** Bid/ask from ~15–20 to 60–120 points in fractions of a second.
-47. **Pumping spread:** Spread expands/contracts wildly tick-to-tick — classic protective LP signature.
-48. **Wide spread into a trend up:** Rocketing price while spread stays huge = unstable offers.
-49. **Bid/Ask freeze asymmetry:** Ask frozen while Bid keeps jumping (or reverse).
-50. **Live slippage >20 points:** Between shown and filled price on probe orders.
-51. **DOM clearance:** Depth-of-market levels vanish, leaving a vacuum moved by tiny size.
-52. **Spread leads price by ~10s:** Dealers widen before the print before price actually runs.
-53. **Gapped ticks:** e.g. 2450.10 → 2451.80 with no intermediate prints.
-54. **Mid-NY abnormal spread:** Sudden wide spread in peak NY liquidity = emergency event.
-55. **Open-spread rejection:** Resistance touch with doubled spread then snap — stop-raid trap.
-56. **Spread stays wide >3 minutes after the bar:** Panic regime continues.
-57. **Gold-only spread blowout:** Gold spread ×5 while EURUSD normal → metal/geo specific event.
-58. **Ask-only ATH pierce:** Ask tags ATH while Bid never does — engineered short squeeze of stops.
-59. **Liquidity vacuum slip:** Straight-line drop with no opposing bids.
-60. **Wide spread + low realized vol pre-speech:** Classic minutes before a Fed chair talk.
+8. **US Bond-Auction Candle (Treasury Auctions):** Explosive candles at 1:00 PM New York time are linked to the results of 10- or 30-year Treasury bond auctions.
 
-## Section 5 — Intermarket sync (61-75)
+9. **Monthly Contract-Close Candle (OpEx / Futures Expiration):** Candles of anomalous volatility on the last Fridays of the month at gold futures contract close are classified as liquidation and settlement-flow candles.
 
-61. **DXY mirror spike:** Violent gold up bar second-synced with equally violent DXY down bar.
-62. **US10Y shock:** 10Y yield jumps >~1.5% relative move as the gold bar forms.
-63. **XAG synchrony:** Gold and silver bars agree >95% in the same minute.
-64. **Decoupling anomaly:** Gold and USD both rocket — war/banking absolute haven.
-65. **Risk-off with SPX:** Giant SPX down bar synced with giant gold up bar.
-66. **Oil sync:** Gold and Brent explode same minute → Middle East / energy geopolitics fingerprint.
-67. **USDJPY flash:** USDJPY ±80 points with the gold bar → shared US data shock.
-68. **Copper split test:** Gold alone (copper flat) → rates/monetary; gold+copper together → growth/PMI.
-69. **VIX spike:** VIX +5% within minutes synced to the gold bar.
-70. **CHF/JPY haven sync:** Gold rising with CHF strength across pairs confirms haven news candle.
-71. **Central-bank intervention candles:** Extreme FX moves from direct BOJ/etc intervention spilling to gold.
-72. **Crypto risk dump:** BTC dumping while gold rockets → flight from risk to traditional haven.
-73. **XAUEUR confirmation:** New highs in both XAUUSD and XAUEUR deny “USD-only” explanation.
-74. **TIPS breakdown:** Real yields collapsing on CPI → historic gold buy candle fuel.
-75. **FX leads gold by ~10s:** Violent EURUSD move 10 seconds before gold warns the gold news candle is imminent.
+10. **Synchronizing the Candle with the Calendar Window (API Sync):** If the time gap between the start of the candle forming and the time of a red-classified (High Impact) event on the calendar is less than 60 seconds, it is classified as a news candle automatically.
 
-## Section 6 — Morphology and structure (76-90)
+11. **Oil-Inventories Report Candle and Its Extended Effect:** The Wednesday 10:30 AM Eastern America-time candle; if it causes a violent gold move in sync with an oil jump, it is recorded as a correlated energy news candle.
 
-76. **Expanding horn candle:** Long upper + long lower wick with tiny body — two-way news thrash.
-77. **Engulfing flush:** Break prior high by ~30 then close ~50 below prior low in the same bar.
-78. **Exhaustion pin-bar:** Wick ≥80% of a ≥150-point range — classic news rejection.
-79. **Wickless cascade:** Missing shadows on successive M1/M5 = relentless institutional pressure.
-80. **Tower / imbalance candle:** Vertical pierce of multiple zones leaving a full imbalance void.
-81. **Outside bar extremum:** Range above prior 5 highs and below prior 5 lows simultaneously.
-82. **V-reversal pair:** −80 on one minute then +100 on the next — flush then true path.
-83. **Body hold above resistance:** M15 full close above hard resistance with no upper wick = news thrust.
-84. **3-bar news cascade:** Three near-equal wickless M5 thrusts — rare except after major data.
-85. **Multi-level single-bar break:** One candle breaks descending TL + horizontal + Fib together.
-86. **Super-sized doji:** ~200-point range with open≈close — bulls vs bears war on the print.
-87. **Fake hang / collapse close:** Spikes a high then collapses in last ~10 seconds into a small red body.
-88. **Breakaway tick gap:** Next M1 opens ≥15 points above prior close in live continuous session.
-89. **Asia range eaten in one pulse:** One bar consumes the entire Tokyo range in the first NY minute.
-90. **H4 marubozu from news chain:** An H4 becomes a full marubozu from a sequence of aligned prints.
+12. **European Central Bank Statement Candle (ECB Rate Decision):** The Thursday 2:15 PM Central Europe-time candle (meeting days) is treated as a monetary-shock candle for currencies and is reflected on gold.
 
-## Section 7 — Unscheduled geopolitics (91-100)
+13. **OPEC Plus Meeting Candle (OPEC Meetings):** Explosive candles on OPEC meeting days, resulting from production decisions not scheduled by the hour, are classified as commodity news.
 
-91. **Asian midnight flash:** >100-point move in the quietest Asia hours → military/urgent statement.
-92. **Volatility halt candle:** CME circuit-breaker pause then huge spot jump after halt.
-93. **Weekend gap candle:** Monday open gap >150 points from weekend political shocks.
-94. **Strike / chokepoint candle:** Vertical long with record buy ticks on attack or strait-closure headlines.
-95. **Silent coil then 80-point blast:** No calendar event — wire flash fingerprint.
-96. **Tariff / sanctions candle:** Sudden duty/sanctions packages hitting metals trade.
-97. **Banking panic buy:** Regional bank equity crash spawning panic gold buying.
-98. **De-escalation dump candle:** Giant red bar on official ceasefire/diplomatic end.
-99. **Sovereign downgrade candle:** Gold ignition after major US/sovereign rating cuts.
-100. **Master classifier:** If ATR ≥3× and tick volume explodes and spread blows out together → definite news candle; engage news shield/protection immediately whether scheduled or surprise.
+14. **Unscheduled Central-Bank-Governor Speech Candle:** The candle that coincides with the appearance of a live broadcast or statement texts of the Federal chair at an economic forum.
+
+15. **Quarter-End Candle (End of Quarter Rebalancing):** Anomalous price candles in the last 30 minutes of trading at the end of March, June, September, and December are classified as institutional portfolio-rebalancing candles.
+
+### 17.2 Range / ATR detectors (16–30)
+
+16. **Range-Multiple Exceedance Rule (3x ATR Rule):** If the instantaneous candle's range (High - Low) is greater than 3 times the ATR indicator average of the last 14 candles, it is a confirmed news candle.
+
+17. **Explosion in the One-Minute Candle (M1 Range Outlier):** Gold moving more than 60 to 80 points in a single one-minute candle outside stagnation times is considered a direct fingerprint of a news candle.
+
+18. **Instant Daily-Range Breakout Candle:** If a 5-minute candle covers more than 40% of gold's average daily range (ADR) in one burst, it is immediately recorded as a news candle.
+
+19. **Accelerating Distance-Covering Speed (Velocity Metric):** Price moving at a rate exceeding 1.5 points per second for a continuous distance without any bounce for 30 seconds.
+
+20. **Range Expansion Compared with the Last 20 Candles:** If the current candle's size equals the combined lengths of the last 10 previous candles together, the driver is an external news engine.
+
+21. **Hidden Gap Candle (Hidden Intraday Gap):** Price jumping from one tick to the next without executing trades in the middle space, leaving a price void inside the instantaneous candle.
+
+22. **Immediate Break of Extreme Bollinger Limits (> 3.5σ):** Closing of the candle outside the 3.5 standard-deviation range of the Bollinger Bands indicator indicates a sweeping news event.
+
+23. **Weekly-Range Liquidation Candle:** A one-hour candle engulfing the entire trading range of the previous three days to the upside or the downside.
+
+24. **Instant-Jump Candle (The Spike Candle):** A fast vertical move exceeding 100 points in less than 120 seconds followed by a sudden stop at a pivotal number.
+
+25. **Doubling of Average Candle Range (Expanding Bar Anomaly):** When the length of successive candles increases with doubling geometry ( ) on the M5 timeframe within a few minutes.
+
+26. **Low-Volatility Dump Candle:** Appearance of a huge candle after a period of extremely tight volatility whose range does not exceed 15 points; the shocking contrast confirms intervention of the news engine.
+
+27. **Exceeding Yesterday's High and Low in a 15-Minute Candle:** Breaking yesterday's highest price and yesterday's lowest price inside the same 15-minute candle indicates a major data shock.
+
+28. **Extended One-Direction Range Candle:** A candle longer than 120 points with almost no upper or lower wick (Full Body Marubozu) on the M5 timeframe.
+
+29. **Air-Retracement Candle:** Price covering a huge distance then bouncing 80% in the same candle without forming clear support and correction zones.
+
+30. **Statistical Range-Anomaly Coefficient (Z-Score of Range > 4):** When the standard deviation of the current candle's range is four degrees higher than the session's historical average.
+
+### 17.3 Tick velocity and volume (31–45)
+
+31. **Tick-Volume Explosion (Z-Score of Tick Volume > 3.5):** Recording a tick count inside the candle that exceeds the average tick volumes of the last 50 candles by more than three standard deviations.
+
+32. **Ticks-per-Second Rate (Tick Frequency Spike):** A rise in tick-flow pace from the normal average (5-15 ticks/second) to more than 80-150 ticks/second on gold.
+
+33. **Declining-Volume Climax Candle (Volume Climax):** Concentration of 70% of the candle's total tick volume in only the first 15 seconds of the candle's life then a sudden drop in pace.
+
+34. **Benchmark Volume on the Minute Timeframe (M1 Ultra-High Volume):** Tick volume of a single M1 candle exceeding the equivalent of a full H1 candle's volume in quiet trading times.
+
+35. **Explosive-Volume Candle Without Time Gaps:** Continuous order flow that does not allow recording a time gap exceeding 5 milliseconds between one tick and the next.
+
+36. **Rising Volume in a Giant Bearish Candle:** Concentration of huge buying trading volume at the bottom of a fast bearish candle; an instantaneous news-absorption fingerprint of the market maker.
+
+37. **Doubling of the Session's Cumulative Volume:** A single candle contributing 25% of the session's entire volumetric activity up to that moment.
+
+38. **Opposite Volume-Void Candle:** Rocket-like price rise with declining trading volume in the candles immediately following; evidence of a news-response move unsupported by sustainable liquidity.
+
+39. **Volume Explosion on a Break of the All-Time High:** Recording the highest tick reading of the day at the moment of breaking a major level driven by economic data.
+
+40. **Unbalanced-Flow Candle (Heavy Delta Imbalance):** Complete dominance of one side of the market (buy or sell) at a ratio exceeding 90% of the candle's total ticks.
+
+41. **Sell-Offer Disappearance Candle (Ask Evaporation):** An increase in buying ticks with wide price jumps resulting from market makers withdrawing from placing limit orders.
+
+42. **Comparing Volume with the Historical Average of the Same Time:** Comparing the candle's volume with the volume of the same minute on previous days; an increase of more than 500% means it is certainly a news candle.
+
+43. **Trading Density at the Candle Extremes:** Concentration of trading ticks densely at the candle's upper or lower wick, illustrating a fast liquidation battle at news time.
+
+44. **Synchronizing a Volume Jump with a Temporary Price Halt:** Freeze of tick movement for two seconds as a result of order-processing pressure on the broker's server then an explosion of 200 ticks in one burst.
+
+45. **Complete Volume-Dump Candle:** Occurrence of huge price slippage with relatively low tick volume due to a complete absence of opposing liquidity in the order book at the moment the figure is released.
+
+### 17.4 Spread dynamics (46–60)
+
+46. **Sudden Spread Widening (Spread > 3x Normal):** Doubling of the gap between Bid and Ask from 15-20 points to 60-120 points in fractions of a second.
+
+47. **Oscillating-Spread Phenomenon (Pumping Spread):** Stretching and shrinking of the spread at an insane speed with every new tick, which is the classic fingerprint of precautionary liquidity-sweep algorithms.
+
+48. **Wide Spread with a Bullish Directional Candle:** Rocket-like price rise with the spread remaining very wide; a sign that liquidity providers refuse to offer stable sell prices.
+
+49. **Delayed Update of Bid or Ask Price (Bid/Ask Freeze):** Freeze of the Ask price with the Bid price continuing to jump higher; an instantaneous pricing imbalance resulting from a news shock.
+
+50. **Price Slippage in Instant Order Execution:** Occurrence of price slippage between the order price and the execution price exceeding 20 points in the engine's experimental trades.
+
+51. **Order-Book Liquidation Candle (Order Book Clearance):** Disappearance of deep liquidity levels (Depth of Market) on the trading platform, leaving a void that moves price with small trades.
+
+52. **Spread Widening 10 Seconds Before the Price Move:** Liquidity providers anticipating the statement release by deliberately widening the price gap before actual price moves by points.
+
+53. **Interrupted-Tick Phenomenon (Price Gap Ticks):** Price transferring from 2450.10 to 2451.80 in a single tick without passing through the intermediate prices.
+
+54. **Liquidity Drop in Peak Hours:** Sudden spread widening in the middle of the New York session (where liquidity is at its highest levels); conclusive evidence of an emergency event.
+
+55. **Rejection Candle with an Open Spread:** Price reaching resistance with the spread doubling and price bouncing; a market-maker trap to trigger buy stops at depressed prices.
+
+56. **Spread Not Returning to Normal After the Candle Closes:** Continued spread widening for more than 3 minutes after the explosive candle closes confirms continuation of the panic state in the market.
+
+57. **Spread Divergence Between Gold and Currencies:** Gold spread widening 5 times while the EURUSD spread is normal; evidence that the news concerns metals or political tensions exclusively.
+
+58. **High-Break Candle by Spread Only:** Hitting an all-time high by extension of the Ask price without the actual Bid price reaching it, to liquidate sell positions.
+
+59. **Liquidity-Free Price Slide (Liquidity Vacuum Slip):** Drop of the gold candle without opposing buy offers, making the decline appear as a straight line with no resistances.
+
+60. **Spread Widening Synchronized with a Drop in Instant Volatility:** Prices diverging with hesitant candle movement minutes before the Federal chair's speech.
+
+### 17.5 Intermarket sync (61–75)
+
+61. **Instant Opposite Explosion of the Dollar Index (DXY Mirror Spike):** Formation of a violent rising candle on gold in exact second-level sync with an equally violent falling candle on the dollar index.
+
+62. **Bond-Yield Shock (US10Y Yield Shock):** A move of 10-year bond yields of more than 1.5% up or down at the moment the gold candle forms.
+
+63. **Complete Synchronization with Silver (XAGUSD Synchrony):** Movement of the gold candle at a speed paralleling the silver candle's movement at a concordance ratio exceeding 95% in the same minute.
+
+64. **Exceptional Decoupling Candle (Decoupling Anomaly):** A rocket-like rise of gold with a rocket-like rise of the dollar in the same candle; conclusive indication of a war report or a sharp banking crisis (absolute safe haven).
+
+65. **Index-Drop Candle with a Gold Rise:** Formation of a giant falling candle on the S&P 500 index in sync with a giant rising candle on gold (Risk-Off Shock).
+
+66. **Synchronized Jump in Crude Oil Prices:** Explosion of the gold candle and the Brent oil candle in the same minute; a fingerprint of a geopolitical-tension report in the Middle East region or energy supplies.
+
+67. **Dollar/Yen Pair Explosion (USDJPY Flash Move):** USDJPY moving 80 points at the same moment as the gold candle; confirmation of a joint US data release (such as inflation or employment).
+
+68. **Industrial-Metals Bounce Candle (Copper):** If gold moves alone while copper is static, the news is monetary/rates; and if they move together the news concerns global growth indicators and PMI indices.
+
+69. **Volatility-Index Jump (VIX Spike):** A rise of the fear and volatility index VIX by a percentage exceeding 5% within a few minutes in sync with the gold candle.
+
+70. **Synchronizing Gold's Move with Safe Currencies (Franc and Yen):** A parallel rise of gold and the Swiss franc against all currencies confirms the safe-haven character of the news candle.
+
+71. **Central-Bank Float or Intervention Candle:** Movement of gold-linked currency pairs at record figures as a result of direct banking intervention (such as Bank of Japan intervention).
+
+72. **Opposite Crypto-Market Shock:** A drop of Bitcoin and high-risk liquidity in sync with an explosion of the green gold candle; evidence of liquidity exiting toward traditional assets.
+
+73. **Synchronizing Gold's Break with Gold Priced in Euros (XAUEUR):** Recording an all-time high on gold in dollars and in euros together in the same candle negates that the move is merely dollar weakness.
+
+74. **Inflation-Bond Response Candle (TIPS Breakdown):** A drop of real bond yields at record levels feeds a historic buy candle on gold as soon as CPI data is released.
+
+75. **Gold's Delayed Response to Currency News:** A violent EURUSD move 10 seconds before the gold candle; an early signal to the agent that the gold news candle is coming immediately.
+
+### 17.6 Morphology and structure (76–90)
+
+76. **Two-Headed Spoon Candle (Expanding Horn Candle):** A candle that leaves a long upper wick and a long lower wick with a tiny body; a result of violent news oscillation in both directions.
+
+77. **Instant Full-Engulfing Candle (Engulfing Flush):** A candle that breaks a previous candle's high by 30 points then drops to engulf its low and closes 50 points below it in the same timeframe.
+
+78. **Single-Wick Rocket Candle (Exhaustion Pin-Bar):** A candle whose wick represents more than 80% of its total length of more than 150 points; the classic news-rejection pattern.
+
+79. **Loss of Small Shadows on the Path:** Complete disappearance of shadows from successive candles on the M1 and M5 timeframes; indication of continuous institutional buying or selling pressure that does not allow any correction.
+
+80. **Hollow Tower Candle (Tower Candle):** A vertical candle that breaks several technical zones without any pause, leaving behind a complete liquidity void (Imbalance).
+
+81. **Outer-Range Candle (Outside Bar Extremum):** A candle whose range is higher than the highest high of the last 5 candles and lower than the lowest low of the same candles combined.
+
+82. **Counter-Attack Candle (V-Reversal Candle):** A drop of the one-minute candle by 80 points then a rise of the next candle immediately by 100 points; a fast liquidation before the rising path.
+
+83. **Candle Body Holding Outside Resistance Without Correction:** A 15-minute candle closing entirely above solid resistance without any upper wick indicates the news's driving force.
+
+84. **Three Merged-Candles Candle (3-Bar News Cascade):** A succession of 3 candles on M5 of the same size, momentum, and direction with almost no wicks; a rare state that occurs only after major data.
+
+85. **Simultaneous Break of Trendlines and Levels:** The candle breaking a descending trendline and a horizontal resistance and a Fibonacci level at once and with only a single candle.
+
+86. **Oversized-Volume Doji Candle (Super-Sized Doji):** A candle of 200-point range but whose close price exactly matches its open price; a result of a fierce war between bulls and bears at statement time.
+
+87. **Fake Rising Hanging Candle:** A candle that rises strongly to record a high, but 10 seconds before its close it collapses leaving a giant wick and a small red body at the bottom.
+
+88. **Instant Breakaway Gap (Breakaway Tick Gap):** Opening of the next one-minute candle 15 points above the previous candle's close inside the live market without a daily close.
+
+89. **Asian-Range Breakout Candle in a Single Pulse:** A candle that overruns the entire Tokyo session trading range in the first minute of the New York open.
+
+90. **Formation of a Marubozu Candle Pattern on Large Timeframes:** Transformation of a 4-hour (H4) candle entirely into a driving Marubozu candle resulting from a sequence of aligned news.
+
+### 17.7 Unscheduled geopolitics (91–100)
+
+91. **Anomalous Midnight Candle (Asian Midnight Flash):** Occurrence of a move exceeding 100 points on gold in the quietest trading periods (early Asia session); conclusive evidence of a military report or an emergency statement.
+
+92. **Temporary Trading-Halt Candle (Volatility Halt Candle):** Freeze of gold futures trading on the Chicago exchange (CME Circuit Breaker) for minutes is reflected on the spot chart as a halt of ticks then a huge price jump.
+
+93. **Weekend News-Gap Candle (Weekend Gap Candle):** Opening of the Monday-dawn candle with a price gap exceeding 150 points resulting from emergency political events that occurred while markets were closed.
+
+94. **Warnings and Military-Strikes Candle:** A vertical rising candle of record buying trading volume appearing as soon as reports of a military attack or the closing of shipping straits are circulating.
+
+95. **Succession of Silent Candles Then a Sudden Explosion:** Complete price stability then a launch of 80 points in a single candle without any economic indicator on the agenda; a fingerprint of breaking news on news agencies.
+
+96. **Presidential-Intervention or Economic-Sanctions Candle:** Candles resulting from announcements of sudden tariff imposition or international sanctions packages affecting gold and metals trade.
+
+97. **Fast Banking-Collapse Candle:** A drop of regional bank stocks that generates a panic-buying candle (Panic Buying) on gold as an immediate haven from systemic risks.
+
+98. **Reverse Bounce of the Political-De-escalation Candle:** Gold collapsing with a giant falling candle as soon as an official statement of a ceasefire or the end of a diplomatic crisis is released.
+
+99. **Sudden Credit-Rating-Downgrade Candle:** A candle in which gold prices ignite following a sovereign credit-rating downgrade of the United States by the major rating agencies.
+
+100. **Reference Rule for Settling a News Candle:** If a tripling of the ATR indicator coincides with a huge jump in tick volume and a sudden widening of the spread, the agent classifies the candle as a "inevitable news candle" and immediately activates the news-shield and protection protocol, whether the news is announced on the calendar or a sudden event.
 
 ## 18. Integrity checksum
 
 - Operator principles: 11 (includes chart-image rule)
-- Behavioral rules: 4
-- FEATURE specs: 10
+- Behavioral rules: 4 (capability 9 full)
+- FEATURE-01…10: full engineering specs (stack, logic, perf)
+- Capability specs 1.1–8.5: full algorithms, default ratios and timings (5.2 backtest excluded)
 - Operational rules: 200
 - News/volatility rules: 100
 - News-candle rules: 100
 - **Total numbered encyclopedia rules: 400**
 
-If any rule is missing while implementing, stop and ask — do not invent.
+If any rule or capability spec is missing while implementing, stop and ask — do not invent. Do not implement §5.2 backtest.
 
 ---
 
