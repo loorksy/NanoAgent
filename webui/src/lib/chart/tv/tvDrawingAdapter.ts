@@ -37,7 +37,13 @@ export async function applyTradingDrawings(
     const price = drawing.points[0]?.price;
     if (price == null) continue;
     try {
-      if (drawing.type === "price_line" || drawing.type === "entry" || drawing.type === "stop") {
+      if (
+        drawing.type === "price_line"
+        || drawing.type === "entry"
+        || drawing.type === "stop"
+        || drawing.type === "target"
+        || drawing.type === "tp"
+      ) {
         const id = await chart.createShape(
           { time: Math.floor(Date.now() / 1000), price },
           {

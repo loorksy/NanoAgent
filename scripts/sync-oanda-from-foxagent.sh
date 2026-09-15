@@ -4,6 +4,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/vps_ssh_target.sh
+source "$ROOT/scripts/vps_ssh_target.sh"
+SSH_TARGET="$(normalize_vps_ssh_target "${VPS:-}")"
 ENV_FILE="${ROOT}/.env"
 MARKER="# --- OANDA (synced from foxagent VPS) ---"
 
@@ -21,7 +24,7 @@ command -v sshpass >/dev/null 2>&1 || {
   exit 0
 }
 
-payload="$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 "root@${VPS}" \
+payload="$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 "$SSH_TARGET" \
   "docker exec foxagent-backend python -c \"
 import sqlite3, json
 from app.services.settings_store import _fernet

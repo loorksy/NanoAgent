@@ -8,7 +8,7 @@ from typing import Any, Literal
 TrendLabel = Literal["uptrend", "downtrend", "range", "unknown"]
 Bias = Literal["bullish", "bearish", "neutral", "unknown"]
 GateId = Literal["G1", "G2", "G3", "G4", "G6", "G7"]
-GateStatus = Literal["pass", "veto", "unavailable"]
+GateStatus = Literal["pass", "veto", "unavailable", "warn"]
 Decision = Literal["buy", "sell", "wait"]
 PlanType = Literal["immediate", "anticipatory", "conditional"]
 ExecutionState = Literal[
@@ -94,6 +94,9 @@ class AgentMarketContext:
     atr: float
     sync: MarketSync
     quote_mid: float | None = None
+    quote_bid: float | None = None
+    quote_ask: float | None = None
+    tradeable: bool = True
 
 
 @dataclass

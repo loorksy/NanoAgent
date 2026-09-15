@@ -11,6 +11,7 @@ from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.apply_model_decision import apply_model_decision
 from nanobot.trading.agents.evidence import build_evidence_snapshot
 from nanobot.trading.agents.synth_prompt import synth_system_prompt
+from nanobot.trading.i18n import tr
 from nanobot.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
@@ -234,12 +235,12 @@ async def run_final_decision_synthesizer(
         return FinalDecisionResult(
             decision="wait",
             confidence=0.0,
-            summary="Synthesizer returned no usable decision.",
-            key_reasons=["Operational blocker"],
+            summary=tr("synth.no_usable_decision", language),
+            key_reasons=[tr("synth.operational_blocker", language)],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait", symbol=symbol, interval=interval),
             execution_state="blocked",
-            refusal_summary="Synthesizer unavailable",
+            refusal_summary=tr("synth.unavailable", language),
             visual_review=visual,
             evidence_snapshot=snapshot,
         )

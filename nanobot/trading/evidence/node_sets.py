@@ -1,0 +1,43 @@
+"""Named evidence node sets for turn planning."""
+
+from __future__ import annotations
+
+from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH
+
+FULL_ANALYSIS_NODES: tuple[str, ...] = tuple(sorted(DEFAULT_ANALYSIS_GRAPH.node_ids()))
+ANALYSIS_WITHOUT_VISUAL_NODES: tuple[str, ...] = tuple(
+    node_id for node_id in FULL_ANALYSIS_NODES if node_id != "visual_capture"
+)
+MARKET_DATA_NODES: tuple[str, ...] = ("market_data",)
+EMPTY_NODES: tuple[str, ...] = ()
+
+# Minimum evidence required before the synthesizer may run.
+SYNTHESIS_REQUIRED_NODES: frozenset[str] = frozenset(
+    {
+        "market_data",
+        "structure",
+        "liquidity",
+        "supply_demand",
+        "multi_timeframe",
+        "news",
+        "geometry",
+        "risk",
+    }
+)
+
+_SYNTHESIS_MODES = frozenset({"full_analysis", "team_swarm", "reevaluation"})
+LIGHT_PATH_MODES = frozenset({
+    "market_data_only",
+    "chart_capture",
+    "recommendation_followup",
+    "recommendation_supersede",
+})
+GATE_REPORT_MODE = "gate_report"
+
+
+def mode_requires_synthesis(mode: str) -> bool:
+    return mode in _SYNTHESIS_MODES
+
+
+def is_light_path_mode(mode: str) -> bool:
+    return mode in LIGHT_PATH_MODES

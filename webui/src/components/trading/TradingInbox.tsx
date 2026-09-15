@@ -1,5 +1,7 @@
+import { RecommendationCard } from "@/components/trading/RecommendationCard";
 import { TradingOutcomeBanner } from "@/components/trading/TradingOutcomeBanner";
 import { TradingRecommendationCard } from "@/components/trading/TradingRecommendationCard";
+import { setActiveRecommendation } from "@/lib/trading/activeRecommendationStore";
 import { Button } from "@/components/ui/button";
 import type { TradingOutcomeWire, TradingResultWire } from "@/lib/trading/types";
 import { useClient } from "@/providers/ClientProvider";
@@ -40,10 +42,6 @@ function rowToResult(row: InboxRow): TradingResultWire {
     },
     cards: [],
   };
-}
-
-function statusLabel(status: string): string {
-  return status.replaceAll("_", " ");
 }
 
 export function TradingInbox() {
@@ -132,38 +130,33 @@ export function TradingInbox() {
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : null}
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]">
-        <div className="min-h-0 overflow-auto rounded-xl border bg-card">
-          <ul className="divide-y">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(280px,1.2fr)_minmax(0,1.8fr)]">
+        <div className="min-h-0 overflow-auto">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             {filteredRows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-muted/50"
-                  onClick={() => setSelected(row)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs uppercase text-muted-foreground">{row.symbol}</span>
-                    <span className="rounded-full border px-2 py-0.5 text-[10px] uppercase">
-                      {statusLabel(row.status)}
-                    </span>
-                  </div>
-                  <span className="font-medium uppercase">{row.direction}</span>
-                  <span className="text-sm text-muted-foreground line-clamp-2">{row.summary}</span>
-                  {row.paperAction ? (
-                    <span className="text-xs text-muted-foreground">
-                      {t("trading.inbox.paper", { action: row.paperAction })}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
+              <RecommendationCard
+                key={row.id}
+                row={row}
+                selected={selected?.id === row.id}
+                onSelect={() => {
+                  setSelected(row);
+                  setActiveRecommendation({
+                    id: row.id,
+                    direction: row.direction,
+                    entry: row.entry,
+                    stopLoss: row.stop_loss,
+                    targets: row.targets,
+                    status: row.status,
+                  });
+                }}
+              />
             ))}
             {filteredRows.length === 0 ? (
-              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <div className="rounded-xl border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
                 {t("trading.inbox.empty")}
-              </li>
+              </div>
             ) : null}
-          </ul>
+          </div>
         </div>
         <div className="min-h-0 overflow-auto">
           {selected ? (

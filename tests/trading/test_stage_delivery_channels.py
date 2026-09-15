@@ -27,7 +27,7 @@ def test_publish_result_sends_telegram_html_card() -> None:
     content = html_calls[0].args[0].content
     assert "توصية" in content
     assert "شراء" in content
-    assert "$2,400.00" in content
+    assert "$2400.00" in content
     assert html_calls[0].args[0].event is None
 
 
@@ -49,7 +49,7 @@ def test_publish_result_sends_whatsapp_plain_card() -> None:
     ]
     assert len(wa_calls) == 1
     assert "بيع" in wa_calls[0]
-    assert "$2,400.00" in wa_calls[0]
+    assert "$2400.00" in wa_calls[0]
 
 
 def test_telegram_stages_publish_one_checklist_not_agent_ui() -> None:

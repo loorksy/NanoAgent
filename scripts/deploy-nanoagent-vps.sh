@@ -9,6 +9,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/vps_ssh_target.sh
+source "$ROOT/scripts/vps_ssh_target.sh"
+SSH_TARGET="$(normalize_vps_ssh_target "${VPS:-}")"
 DOMAIN="${NANOAGENT_DOMAIN:-nanoagent.lork.cloud}"
 BRANCH="${NANOAGENT_BRANCH:-main}"
 INSTALL_DIR="/opt/nanoagent"
@@ -177,8 +180,8 @@ echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT"
 EOS
 )
 
-echo "Deploying NanoAgent to ${VPS} (${DOMAIN})..."
-OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no "root@${VPS}" \
+echo "Deploying NanoAgent to ${SSH_TARGET} (${DOMAIN})..."
+OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 "$SSH_TARGET" \
   "bash -s" -- "$INSTALL_DIR" "$SERVICE_USER" "$WEB_PORT" "$HEALTH_PORT" "$DOMAIN" "$BRANCH" "$REPO_URL" "$WEB_TOKEN" <<< "$REMOTE_SCRIPT")
 
 echo "$OUT"

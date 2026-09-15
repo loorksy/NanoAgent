@@ -11,7 +11,12 @@ import type {
   IChartingLibraryWidget,
   ResolutionString,
 } from "../../../vendor/tradingview/charting_library/charting_library";
+import { acquireChartPolling } from "@/lib/chart/chartPolling";
 import { createTradingDatafeed } from "@/lib/chart/tv/tvDatafeed";
+import {
+  tvDisabledFeatures,
+  type TvChartVariant,
+} from "@/lib/chart/tv/tvWidgetConfig";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -63,12 +68,14 @@ function loadTvScript(): Promise<void> {
 
 export type TvChartHandle = {
   currentSymbol: () => string;
+  reload: () => void;
 };
 
 export interface TvChartProps {
   symbol?: string;
   interval?: string;
   className?: string;
+  variant?: TvChartVariant;
   getAuthToken?: () => string;
   onWidgetReady?: (widget: IChartingLibraryWidget) => void;
 }
@@ -78,6 +85,7 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
     symbol = DATA_SYMBOL,
     interval = "15m",
     className,
+    variant = "full",
     getAuthToken,
     onWidgetReady,
   },
@@ -85,13 +93,39 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetRef = useRef<IChartingLibraryWidget | null>(null);
+  const readyRef = useRef(false);
+  const lastBarsResetRef = useRef(0);
+  const getAuthTokenRef = useRef(getAuthToken);
+  const onWidgetReadyRef = useRef(onWidgetReady);
+  const symbolRef = useRef(symbol);
+  const intervalRef = useRef(interval);
+  const variantRef = useRef(variant);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useImperativeHandle(ref, () => ({
-    currentSymbol: () => symbol,
-  }), [symbol]);
+  getAuthTokenRef.current = getAuthToken;
+  onWidgetReadyRef.current = onWidgetReady;
+  symbolRef.current = symbol;
+  intervalRef.current = interval;
+  variantRef.current = variant;
 
+  useImperativeHandle(ref, () => ({
+    currentSymbol: () => symbolRef.current,
+    reload: () => {
+      if (!readyRef.current) return;
+      try {
+        widgetRef.current?.activeChart().resetData();
+      } catch {
+        /* widget torn down */
+      }
+    },
+  }), []);
+
+  useEffect(() => {
+    return acquireChartPolling();
+  }, []);
+
+  // Mount widget once — symbol/interval sync via setSymbol/setResolution.
   useEffect(() => {
     let cancelled = false;
     const container = containerRef.current;
@@ -106,31 +140,39 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
         const Widget = window.TradingView?.widget;
         if (!Widget) throw new Error("TradingView widget unavailable");
 
-        widgetRef.current?.remove();
-        widgetRef.current = null;
-
         const options: ChartingLibraryWidgetOptions = {
-          symbol,
-          interval: (INTERVAL_TO_RES[interval] ?? "15") as ResolutionString,
+          symbol: symbolRef.current,
+          interval: (INTERVAL_TO_RES[intervalRef.current] ?? "15") as ResolutionString,
           container,
           library_path: LIBRARY_PATH,
           locale: "en",
           autosize: true,
           theme: "dark",
-          disabled_features: [
-            "header_symbol_search",
-            "symbol_search_hot_key",
-            "header_compare",
-          ],
-          enabled_features: ["study_templates"],
-          datafeed: createTradingDatafeed({ getAuthToken }),
+          disabled_features: tvDisabledFeatures(variantRef.current),
+          enabled_features: variantRef.current === "minimal" ? [] : ["study_templates"],
+          datafeed: createTradingDatafeed({
+            getAuthToken: () => getAuthTokenRef.current?.() ?? "",
+            onBarsStale: () => {
+              if (!readyRef.current) return;
+              const now = Date.now();
+              if (now - lastBarsResetRef.current < 2_000) return;
+              lastBarsResetRef.current = now;
+              try {
+                widgetRef.current?.activeChart().resetData();
+              } catch {
+                /* ignore */
+              }
+            },
+          }),
         };
         const widget = new Widget(options);
         widgetRef.current = widget;
         widget.onChartReady(() => {
-          if (!cancelled) onWidgetReady?.(widget);
+          if (cancelled) return;
+          readyRef.current = true;
+          setLoading(false);
+          onWidgetReadyRef.current?.(widget);
         });
-        setLoading(false);
       })
       .catch((err: Error) => {
         if (!cancelled) {
@@ -141,13 +183,49 @@ export const TvChart = forwardRef<TvChartHandle, TvChartProps>(function TvChart(
 
     return () => {
       cancelled = true;
+      readyRef.current = false;
       widgetRef.current?.remove();
       widgetRef.current = null;
     };
-  }, [getAuthToken, interval, onWidgetReady, symbol]);
+  }, []);
+
+  useEffect(() => {
+    const widget = widgetRef.current;
+    if (!widget || !readyRef.current) return;
+    try {
+      const chart = widget.activeChart();
+      const current = chart.symbol();
+      const bare = current.includes(":") ? current.split(":").pop()! : current;
+      if (bare !== symbol) {
+        chart.setSymbol(symbol, () => undefined);
+      }
+    } catch {
+      /* chart not ready */
+    }
+  }, [symbol]);
+
+  useEffect(() => {
+    const widget = widgetRef.current;
+    if (!widget || !readyRef.current) return;
+    try {
+      const chart = widget.activeChart();
+      const target = (INTERVAL_TO_RES[interval] ?? "15") as ResolutionString;
+      if (chart.resolution() !== target) {
+        chart.setResolution(target, () => undefined);
+      }
+    } catch {
+      /* chart not ready */
+    }
+  }, [interval]);
 
   return (
-    <div className={cn("relative h-full min-h-[420px] w-full", className)}>
+    <div
+      className={cn(
+        "relative h-full min-h-[420px] w-full",
+        variant === "minimal" && "aichart-minimal-chart",
+        className,
+      )}
+    >
       {loading ? (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
           Loading chart…

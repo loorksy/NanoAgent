@@ -23,6 +23,16 @@ def test_fast_path_runs_analysis_for_arabic_request() -> None:
     assert turn.intent.confidence >= 0.75
 
 
+def test_greeting_is_conversation_even_with_live_plan() -> None:
+    turn = plan_turn("مرحبا كيفك", active_recommendation_live=True)
+    assert turn.mode == "conversation"
+
+
+def test_what_question_is_conversation_with_live_plan() -> None:
+    turn = plan_turn("ماذا؟", active_recommendation_live=True)
+    assert turn.mode == "conversation"
+
+
 def test_fast_path_runs_recommendation_without_gold_keyword() -> None:
     turn = plan_turn("اعطيني توصية")
     assert turn.mode == "full_analysis"
@@ -31,6 +41,17 @@ def test_fast_path_runs_recommendation_without_gold_keyword() -> None:
 
 def test_resolve_team_preset_war_room() -> None:
     assert resolve_team_preset("شغّل غرفة الأخبار") == "gold_news_war_room"
+
+
+def test_fast_path_greeting_does_not_hijack_chat() -> None:
+    result = asyncio.run(
+        try_gold_fast_path(
+            "مرحبا كيفك",
+            channel="websocket",
+            chat_id="ws:1",
+        )
+    )
+    assert result is None
 
 
 def test_fast_path_skips_low_confidence_gold_mention() -> None:

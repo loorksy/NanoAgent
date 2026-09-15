@@ -9,6 +9,7 @@ from typing import Any
 
 from nanobot.trading.agents.news_macro import news_provider_configured
 from nanobot.trading.gates.entry_semantics import validate_entry_coherence
+from nanobot.trading.gates.news_policy import news_gate_mode
 from nanobot.trading.gates.news_window import evaluate_news_window
 from nanobot.trading.gates.plan_alignment import (
     evaluate_liquidity_alignment,
@@ -53,12 +54,26 @@ class GateInputs:
 
 def build_gates(inp: GateInputs) -> list[GateDefinition]:
     async def g1() -> dict[str, Any]:
+        mode = news_gate_mode()
+        if mode == "off":
+            return {"status": "pass", "confidence_delta": 0, "evidence": {"news_risk": "skipped"}}
+
+        def _warn_unconfigured(reason_ar: str) -> dict[str, Any]:
+            if mode == "strict":
+                return {"status": "unavailable", "reason_ar": reason_ar}
+            return {
+                "status": "warn",
+                "reason_ar": reason_ar,
+                "confidence_delta": -8,
+                "evidence": {"news_risk": "unknown", "policy": mode},
+            }
+
         if not news_provider_configured():
-            return {"status": "unavailable", "reason_ar": "News calendar not configured"}
+            return _warn_unconfigured("News calendar not configured")
         if inp.news is None:
-            return {"status": "unavailable", "reason_ar": "News data unavailable"}
+            return _warn_unconfigured("News data unavailable")
         if inp.news.news_risk == "unknown":
-            return {"status": "unavailable", "reason_ar": inp.news.reason or "News risk unknown"}
+            return _warn_unconfigured(inp.news.reason or "News risk unknown")
         verdict = evaluate_news_window(inp.news.upcoming_events, inp.now_ms)
         if verdict.blocked:
             return {
@@ -69,6 +84,7 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         return {
             "status": "pass",
             "confidence_delta": -10 if inp.news.news_risk == "high" else 0,
+            "evidence": {"news_risk": inp.news.news_risk},
         }
 
     async def g2() -> dict[str, Any]:

@@ -420,10 +420,11 @@ export function MessageBubble({
         ) : null}
         {hasText ? (
           <p
+            dir="auto"
             data-temporary-message={temporary ? "true" : undefined}
             className={cn(
               "ml-auto w-fit max-w-full min-w-0 rounded-floating px-4 py-2",
-              "text-left text-[16px]/[1.75] whitespace-pre-wrap [overflow-wrap:anywhere]",
+              "text-start text-[16px]/[1.75] whitespace-pre-wrap [overflow-wrap:anywhere]",
               temporary
                 ? "border border-dashed border-muted-foreground/40 bg-transparent"
                 : "bg-secondary/70",
@@ -521,7 +522,7 @@ export function MessageBubble({
         <ThinkingState />
       ) : empty && message.isStreaming ? null : (
         <>
-          <div data-assistant-selectable={message.isStreaming ? undefined : "true"}>
+          <div data-assistant-selectable={message.isStreaming ? undefined : "true"} dir="auto">
             {/* A mode switch rebuilds Streamdown's subtree and moves the scroll anchor. */}
             <MarkdownText
               streaming={!!message.isStreaming}

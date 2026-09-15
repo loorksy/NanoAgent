@@ -5,11 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 from nanobot.trading.gold import DATA_SYMBOL
-from nanobot.trading.i18n import tr
+from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.operator_keywords import _FOLLOWUP_NEW_REC_MARKERS
 from nanobot.trading.recommendations.outcome_alerts import OutcomeTransition
+from nanobot.trading.recommendations.state_machine import (
+    CLOSED_OUTCOME_STATUSES,
+    LIVE_OUTCOME_STATUSES,
+    can_transition,
+    normalize_outcome_status,
+)
 from nanobot.trading.recommendations.store import (
     get_recommendation,
     list_recommendations,
@@ -17,10 +22,73 @@ from nanobot.trading.recommendations.store import (
 )
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
 
-LIVE_OUTCOME_STATUSES = frozenset(
-    {"valid_now", "awaiting_activation", "waiting", "in_trade"}
-)
-CLOSED_OUTCOME_STATUSES = frozenset({"tp1", "invalidated", "expired"})
+def finalize_live_plan_if_closed(
+    row: dict[str, Any] | None,
+    *,
+    live_price: float | None = None,
+) -> dict[str, Any] | None:
+    """Persist terminal outcomes so a new recommendation can be issued."""
+    if not row:
+        return None
+    current = normalize_outcome_status(str(row.get("status") or "valid_now"))
+    graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+    if graded in CLOSED_OUTCOME_STATUSES and graded != current:
+        update_recommendation_status(str(row["id"]), graded)
+        return None
+    if graded in CLOSED_OUTCOME_STATUSES:
+        return None
+    return row
+
+
+def explain_new_rec_blocked(
+    row: dict[str, Any] | None,
+    *,
+    operator_text: str = "",
+    live_price: float | None = None,
+) -> FinalDecisionResult:
+    locale = locale_from_text(operator_text)
+    if not row:
+        return FinalDecisionResult(
+            decision="wait",
+            confidence=0.0,
+            summary=tr("followup.no_live_plan", locale),
+            key_reasons=[tr("followup.one_plan_rule", locale)],
+            risk_warnings=[],
+            recommendation=AgentRecommendation(action="wait"),
+            execution_state="blocked",
+            refusal_summary="no live plan",
+        )
+    direction = str(row.get("direction") or "wait")
+    status = grade_outcome_status(row, live_price=live_price)
+    direction_label = tr(f"direction.{direction.lower()}", locale)
+    status_label = label_map("outcome_status", locale).get(status, status)
+    entry = row.get("entry")
+    stop = row.get("stop_loss")
+    levels = ""
+    if entry is not None and stop is not None:
+        levels = tr(
+            "followup.plan_levels",
+            locale,
+            entry=f"{float(entry):.2f}",
+            stop=f"{float(stop):.2f}",
+        )
+    summary = tr(
+        "followup.new_rec_blocked",
+        locale,
+        direction=direction_label,
+        status=status_label,
+        levels=levels,
+    )
+    return FinalDecisionResult(
+        decision="wait",
+        confidence=float(row.get("confidence") or 0.5),
+        summary=summary,
+        key_reasons=[tr("followup.one_plan_rule", locale)],
+        risk_warnings=[tr("followup.kernel_not_chat", locale)],
+        recommendation=AgentRecommendation(action="wait"),
+        execution_state="blocked",
+        refusal_summary=tr("followup.one_plan_rule", locale),
+    )
 
 
 def latest_open_recommendation() -> dict | None:
@@ -39,7 +107,7 @@ def grade_outcome_status(
     entry = row.get("entry")
     stop = row.get("stop_loss")
     targets = list(row.get("targets") or [])
-    stored = str(row.get("status") or "valid_now")
+    stored = normalize_outcome_status(str(row.get("status") or "valid_now"))
     if stored in CLOSED_OUTCOME_STATUSES:
         return stored
     if direction not in {"buy", "sell"} or entry is None or stop is None:
@@ -80,9 +148,9 @@ def refresh_recommendation_outcomes(
     counts = {"updated": 0, "open": 0, "closed": 0}
     transitions: list[OutcomeTransition] = []
     for row in list_recommendations(limit=200):
-        current = str(row.get("status") or "valid_now")
-        graded = grade_outcome_status(row, live_price=live_price)
-        if graded != current:
+        current = normalize_outcome_status(str(row.get("status") or "valid_now"))
+        graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+        if graded != current and can_transition(current, graded):
             update_recommendation_status(str(row["id"]), graded)
             transitions.append(
                 OutcomeTransition(
@@ -155,15 +223,14 @@ def grade_live_recommendation(
     if live is not None and entry is not None and stop is not None:
         notes.append(f"live={live:.2f} entry={entry} sl={stop}")
 
+    direction_label = tr(f"direction.{direction.lower()}", locale)
+    status_label = label_map("outcome_status", locale).get(status, status)
     summary = tr(
         "followup.summary",
         locale,
-        direction=direction.upper(),
-        status=status,
+        direction=direction_label,
+        status=status_label,
     )
-    if _FOLLOWUP_NEW_REC_MARKERS.search(operator_text):
-        summary += tr("followup.no_second_rec", locale)
-
     rec = AgentRecommendation(
         action=direction if direction in ("buy", "sell") else "wait",
         entry=float(entry) if entry is not None else None,

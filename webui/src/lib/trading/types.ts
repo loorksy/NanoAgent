@@ -1,3 +1,10 @@
+export interface TradingArtifact {
+  type: string;
+  title?: string;
+  mime?: string;
+  payload?: Record<string, unknown>;
+}
+
 export interface TradingStageWire {
   stage: string;
   status: string;
@@ -38,11 +45,12 @@ export interface TradingResultWire {
   decision: string;
   confidence: number;
   summary: string;
+  artifactOnly?: boolean;
   locale?: string;
   keyReasons?: string[];
   riskWarnings?: string[];
   recommendationId?: string;
-  artifacts?: Array<Record<string, unknown>>;
+  artifacts?: TradingArtifact[];
   cards?: Array<Record<string, unknown>>;
   stages?: TradingStageWire[];
   teamMode?: string;
@@ -74,6 +82,20 @@ export interface TradingChartCaptureWire {
   timeframes: string[];
 }
 
+export interface SupersedeDecisionWire {
+  session_key: string;
+  live_recommendation: {
+    id: string;
+    direction?: string;
+    entry?: number | null;
+    stop_loss?: number | null;
+    targets?: number[];
+    live_price?: number | null;
+    status?: string;
+  };
+  locale?: string;
+}
+
 export interface TradingSessionState {
   chartOpen: boolean;
   interval: string;
@@ -82,4 +104,5 @@ export interface TradingSessionState {
   result: TradingResultWire | null;
   chartCapture: TradingChartCaptureWire | null;
   outcomeAlerts: TradingOutcomeWire[];
+  supersedeDecision: SupersedeDecisionWire | null;
 }

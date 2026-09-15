@@ -72,6 +72,9 @@ from nanobot.webui.http_utils import (
     is_trusted_proxy_authenticated_request as _is_trusted_proxy_authenticated_request,
 )
 from nanobot.webui.http_utils import (
+    bearer_token as _bearer_token,
+)
+from nanobot.webui.http_utils import (
     issue_route_secret_matches as _issue_route_secret_matches,
 )
 from nanobot.webui.http_utils import (
@@ -151,6 +154,7 @@ _WEBUI_MUTATION_PATHS = {
     "recovery.continue": "/api/webui/recovery/continue",
     "recovery.dismiss": "/api/webui/recovery/dismiss",
     "trading.chart_capture": "/api/trading/chart-capture",
+    "trading.chart_host_submit": "/api/trading/chart-host/submit",
     "settings.agent.update": "/api/settings/update",
     "settings.model_configuration.create": "/api/settings/model-configurations/create",
     "settings.model_configuration.update": "/api/settings/model-configurations/update",
@@ -405,6 +409,16 @@ class GatewayHTTPHandler:
             return True
         return self.tokens.check_api_token(request)
 
+    def _chart_host_trading_authorized(self, request: WsRequest, path: str) -> bool:
+        if path.startswith("/api/trading/chart-host/"):
+            return True
+        if path not in {"/api/trading/klines", "/api/trading/quote"}:
+            return False
+        from nanobot.trading.chart_host_token import verify_chart_host_page_token
+
+        token = _bearer_token(request.headers)
+        return bool(token and verify_chart_host_page_token(token))
+
     # -- Main dispatch ------------------------------------------------------
 
     async def dispatch(self, connection: Any, request: WsRequest) -> Any | None:
@@ -456,6 +470,12 @@ class GatewayHTTPHandler:
         setattr(request, "_nanobot_trusted_proxy_authenticated", True)
         setattr(request, _WEBUI_MUTATION_REQUEST_ATTR, True)
         setattr(request, _WEBUI_MUTATION_PAYLOAD_ATTR, dict(payload))
+        source_request = getattr(connection, "request", None)
+        if source_request is not None:
+            _, query = _parse_request_path(source_request.path)
+            ws_token = _query_first(query, "token")
+            if ws_token:
+                setattr(request, "_nanobot_chart_host_ws_token", ws_token)
         response = await self._dispatch_resolved(connection, request, path)
         if isinstance(response, Response):
             return response
@@ -547,9 +567,13 @@ class GatewayHTTPHandler:
             return response
 
         # Trading routes
-        response = dispatch_trading_route(request, got)
+        response = await dispatch_trading_route(request, got)
         if response is not None:
-            if got.startswith("/api/trading/") and not self.check_api_token(request):
+            if (
+                got.startswith("/api/trading/")
+                and not self.check_api_token(request)
+                and not self._chart_host_trading_authorized(request, got)
+            ):
                 return _http_error(401, "Unauthorized")
             return response
 

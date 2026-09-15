@@ -99,6 +99,15 @@ class TradingStagePublisher:
             content="Capturing chart evidence…",
         )
 
+    async def publish_supersede_decision(self, payload: dict[str, Any]) -> None:
+        if not self._is_web():
+            return
+        await self._agent_ui(
+            "recommendation_decision_required",
+            payload,
+            content=tr("supersede.prompt", self._locale),
+        )
+
     async def publish_outcome(self, payload: dict[str, Any]) -> None:
         if not self._is_web():
             return
@@ -196,11 +205,15 @@ class TradingStagePublisher:
         if self._bus is None or not self._channel or not self._chat_id:
             return
         if self._is_web():
+            wire = event.to_wire()
             await self._agent_ui(
                 "trading_stage",
-                event.to_wire(),
+                wire,
                 content=stage_label(event.stage, "en"),
             )
+            from nanobot.trading.stream_hub import get_trading_stream_hub
+
+            await get_trading_stream_hub().publish_trace(wire)
             return
         if self._channel == "telegram":
             self._telegram_rows = apply_stage_event(self._telegram_rows, event)

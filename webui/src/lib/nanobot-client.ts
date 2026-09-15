@@ -11,6 +11,7 @@ import type {
   GoalStateWsPayload,
   WorkspaceScopePayload,
 } from "./types";
+import { publishTradingTick } from "./trading/tickBus";
 import { createHostWebSocket } from "./runtime";
 
 /** WebSocket readyState constants, referenced by value to stay portable
@@ -68,6 +69,25 @@ type Unsubscribe = () => void;
 type EventHandler = (ev: InboundEvent) => void;
 type StatusHandler = (status: ConnectionStatus) => void;
 type RuntimeModelHandler = (modelName: string | null, modelPreset?: string | null) => void;
+
+export interface TradingStreamQuoteEvent {
+  kind: "quote";
+  symbol: string;
+  bid?: number;
+  ask?: number;
+  mid: number;
+  tradeable?: boolean;
+  ts: number;
+}
+
+export interface TradingStreamTraceEvent {
+  kind: "trace";
+  stage: Record<string, unknown>;
+}
+
+export type TradingStreamEvent = TradingStreamQuoteEvent | TradingStreamTraceEvent;
+
+type TradingStreamHandler = (event: TradingStreamEvent) => void;
 type SessionUpdateScope = "metadata" | "thread" | string;
 type SessionUpdateHandler = (
   chatId: string,
@@ -190,6 +210,7 @@ export class NanobotClient {
   private socket: WebSocket | null = null;
   private statusHandlers = new Set<StatusHandler>();
   private runtimeModelHandlers = new Set<RuntimeModelHandler>();
+  private tradingStreamHandlers = new Set<TradingStreamHandler>();
   private sessionUpdateHandlers = new Set<SessionUpdateHandler>();
   private sidebarStateUpdateHandlers = new Set<SidebarStateUpdateHandler>();
   private runStatusHandlers = new Set<RunStatusHandler>();
@@ -279,6 +300,13 @@ export class NanobotClient {
     this.runtimeModelHandlers.add(handler);
     return () => {
       this.runtimeModelHandlers.delete(handler);
+    };
+  }
+
+  onTradingStream(handler: TradingStreamHandler): Unsubscribe {
+    this.tradingStreamHandlers.add(handler);
+    return () => {
+      this.tradingStreamHandlers.delete(handler);
     };
   }
 
@@ -1203,6 +1231,27 @@ export class NanobotClient {
       return;
     }
 
+    if (parsed.event === "trading_stream") {
+      const kind = (parsed as { kind?: string }).kind;
+      if (kind === "quote") {
+        const quote = parsed as TradingStreamQuoteEvent & { event: string };
+        const mid = Number(quote.mid);
+        if (Number.isFinite(mid) && mid > 0) {
+          publishTradingTick({
+            symbol: quote.symbol || "XAUUSD",
+            bid: Number(quote.bid ?? mid),
+            ask: Number(quote.ask ?? mid),
+            mid,
+            time: quote.ts || Date.now(),
+          });
+        }
+        this.emitTradingStream(quote);
+      } else if (kind === "trace") {
+        this.emitTradingStream(parsed as TradingStreamTraceEvent);
+      }
+      return;
+    }
+
     if (parsed.event === "transcription_result") {
       this.resolveTranscription(parsed.request_id, parsed.text);
       return;
@@ -1259,6 +1308,12 @@ export class NanobotClient {
   private emitRuntimeModelUpdate(modelName: string | null, modelPreset?: string | null): void {
     for (const handler of this.runtimeModelHandlers) {
       handler(modelName, modelPreset);
+    }
+  }
+
+  private emitTradingStream(event: TradingStreamEvent): void {
+    for (const handler of this.tradingStreamHandlers) {
+      handler(event);
     }
   }
 

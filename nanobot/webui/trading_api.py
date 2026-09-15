@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import uuid
 from dataclasses import replace
 from typing import Any, TypeVar
 
@@ -22,6 +23,9 @@ from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.chart_capture import ChartCaptureError, submit_chart_capture, validate_chart_frames
+from nanobot.trading.chart_host_bridge import get_chart_host_bridge
+from nanobot.trading.chart_host_token import verify_chart_host_page_token
+from nanobot.webui.http_utils import bearer_token as _bearer_token
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
@@ -238,7 +242,7 @@ async def _run_trading_analyze(
         )
 
 
-def handle_trading_analyze(request: WsRequest) -> Response:
+async def handle_trading_analyze(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     interval = (_query_first(params, "interval") or "15m").strip()
     team_mode = (_query_first(params, "team_mode") or "core").strip()
@@ -247,7 +251,7 @@ def handle_trading_analyze(request: WsRequest) -> Response:
         return _http_error(400, "team_mode must be core, debate, or swarm")
 
     try:
-        result = _run_async(_run_trading_analyze(interval, team_mode, preset))
+        result = await _run_trading_analyze(interval, team_mode, preset)
         if result is None:
             return _http_error(500, "Analysis produced no result")
         return _http_json_response(result_to_wire(result))
@@ -349,6 +353,83 @@ def handle_trading_performance(_request: WsRequest) -> Response:
     })
 
 
+def _chart_host_authorized(request: WsRequest) -> bool:
+    token = _bearer_token(request.headers)
+    if token and verify_chart_host_page_token(token):
+        return True
+    ws_token = getattr(request, "_nanobot_chart_host_ws_token", None)
+    return bool(ws_token and verify_chart_host_page_token(str(ws_token)))
+
+
+def handle_trading_chart_host_poll(request: WsRequest) -> Response:
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+    job = get_chart_host_bridge().poll_job()
+    return _http_json_response({"job": job})
+
+
+async def handle_trading_chart_host_smoke(request: WsRequest) -> Response:
+    """Run one chart-host capture roundtrip (ops smoke test; page token required)."""
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+
+    params = _parse_query(request.path)
+    interval = (_query_first(params, "interval") or "15m").strip()
+    debug: dict[str, Any] = {}
+
+    async def _smoke_capture() -> list[dict[str, Any]] | None:
+        from nanobot.trading.chart_host_client import ensure_chart_host_tab
+
+        if not await ensure_chart_host_tab():
+            debug["ensure"] = False
+            return None
+        debug["ensure"] = True
+        import os
+
+        warmup_ms = int(os.environ.get("CHART_HOST_WARMUP_MS", "15000"))
+        if warmup_ms > 0:
+            await asyncio.sleep(warmup_ms / 1000.0)
+        capture_id = str(uuid.uuid4())
+        bridge = get_chart_host_bridge()
+        bridge.begin(capture_id, timeframes=["15m", "1h"], interval=interval)
+        debug["queuedJob"] = bridge.poll_job()
+        payload = await bridge.wait(capture_id)
+        frames = payload.get("frames")
+        if not isinstance(frames, list) or not frames:
+            return None
+        return [frame for frame in frames if isinstance(frame, dict)]
+
+    frames = await _smoke_capture()
+    if not frames:
+        return _http_json_response({"ok": False, "error": "no_frames", "debug": debug})
+    return _http_json_response({
+        "ok": True,
+        "frameCount": len(frames),
+        "timeframes": [str(f.get("timeframe") or "") for f in frames],
+    })
+
+
+def handle_trading_chart_host_submit(request: WsRequest) -> Response:
+    if not _chart_host_authorized(request):
+        return _http_error(401, "unauthorized")
+    payload = getattr(request, "_nanobot_webui_mutation_payload", None)
+    if not isinstance(payload, dict):
+        return _http_error(400, "invalid body")
+    capture_id = str(payload.get("captureId") or payload.get("capture_id") or "")
+    frames = payload.get("frames")
+    if not capture_id:
+        return _http_error(400, "captureId required")
+    if not isinstance(frames, list):
+        return _http_error(400, "frames must be a list")
+    try:
+        validate_chart_frames(frames)
+    except ChartCaptureError as exc:
+        return _http_error(400, str(exc))
+    if not get_chart_host_bridge().submit(capture_id, {"frames": frames}):
+        return _http_error(404, "No pending chart-host capture for that id")
+    return _http_json_response({"ok": True})
+
+
 def handle_trading_chart_capture(_request: WsRequest) -> Response:
     payload = getattr(_request, "_nanobot_webui_mutation_payload", None)
     if isinstance(payload, dict):
@@ -417,6 +498,63 @@ def handle_trading_briefing(_request: WsRequest) -> Response:
     })
 
 
+async def handle_trading_recommendation_transition(request: WsRequest) -> Response:
+    payload = getattr(request, "_nanobot_webui_mutation_payload", None)
+    if not isinstance(payload, dict):
+        params = _parse_query(request.path)
+        payload = {
+            "action": _query_first(params, "action"),
+            "session_key": _query_first(params, "session_key"),
+            "recommendation_id": _query_first(params, "recommendation_id"),
+        }
+    action = str(payload.get("action") or "").strip()
+    session_key = str(payload.get("session_key") or "").strip()
+    recommendation_id = str(payload.get("recommendation_id") or payload.get("recommendationId") or "")
+    if action not in {"approve_new", "reject_new"}:
+        return _http_error(400, "action must be approve_new or reject_new")
+    if not session_key:
+        return _http_error(400, "session_key required")
+    from nanobot.trading.recommendations.supersede import apply_supersede_transition
+
+    result = apply_supersede_transition(
+        session_key,
+        recommendation_id=recommendation_id,
+        action=action,  # type: ignore[arg-type]
+    )
+    if not result.get("ok"):
+        return _http_error(409, str(result.get("error") or "transition_failed"))
+    if action == "reject_new":
+        return _http_json_response(result)
+    from nanobot.bus.events import OUTBOUND_META_AGENT_UI
+    from nanobot.trading.fast_path import _run_analysis_fast_path
+    from nanobot.trading.intent_router import RoutedIntent
+    from nanobot.trading.turn_planner import FULL_TOOLS, TurnPlan
+
+    turn = TurnPlan(
+        "full_analysis",
+        RoutedIntent(kind="recommendation", confidence=1.0, reason="supersede_approved"),
+        emit_stages=True,
+        reason="supersede_approved",
+        tools=FULL_TOOLS,
+    )
+    parts = session_key.split(":", 1)
+    channel = parts[0] if parts else "websocket"
+    chat_id = parts[1] if len(parts) > 1 else session_key
+    outbound = await _run_analysis_fast_path(
+        turn,
+        "supersede approved new recommendation",
+        channel=channel,
+        chat_id=chat_id,
+        bus=None,
+    )
+    wire = None
+    if outbound and outbound.metadata:
+        agent_ui = outbound.metadata.get("agent_ui") or outbound.metadata.get(OUTBOUND_META_AGENT_UI)
+        if isinstance(agent_ui, dict) and agent_ui.get("kind") == "trading_result":
+            wire = agent_ui.get("data")
+    return _http_json_response({**result, "new_recommendation": wire})
+
+
 def handle_trading_paper(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     rec_id = _query_first(params, "recommendation_id") or ""
@@ -427,7 +565,7 @@ def handle_trading_paper(request: WsRequest) -> Response:
     return _http_json_response({"ok": True, "entry": entry})
 
 
-def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
+async def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
         return handle_trading_klines(request)
     if path == "/api/trading/quote":
@@ -437,7 +575,7 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/runtime/update":
         return handle_trading_runtime_update(request)
     if path == "/api/trading/analyze":
-        return handle_trading_analyze(request)
+        return await handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
         return handle_trading_recommendations(request)
     if path == "/api/trading/briefing":
@@ -446,6 +584,14 @@ def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
         return handle_trading_performance(request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
+    if path == "/api/trading/recommendations/transition":
+        return await handle_trading_recommendation_transition(request)
     if path == "/api/trading/chart-capture":
         return handle_trading_chart_capture(request)
+    if path == "/api/trading/chart-host/poll":
+        return handle_trading_chart_host_poll(request)
+    if path == "/api/trading/chart-host/smoke":
+        return await handle_trading_chart_host_smoke(request)
+    if path == "/api/trading/chart-host/submit":
+        return handle_trading_chart_host_submit(request)
     return None

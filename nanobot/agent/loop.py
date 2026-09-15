@@ -48,7 +48,12 @@ from nanobot.agent.turn_delivery import (
 )
 from nanobot.agent.turn_delivery import TurnRoute as TurnRoute
 from nanobot.agent.turn_hooks import AgentTurnHookSpec, build_agent_turn_hook
-from nanobot.bus.events import INBOUND_META_USER_SHELL, InboundMessage, OutboundMessage
+from nanobot.bus.events import (
+    INBOUND_META_USER_SHELL,
+    OUTBOUND_META_AGENT_UI,
+    InboundMessage,
+    OutboundMessage,
+)
 from nanobot.bus.outbound_events import (
     StreamDeltaEvent,
     StreamedResponseEvent,
@@ -1818,23 +1823,42 @@ class AgentLoop:
     async def _dispatch_gold_fast_path(self, ctx: TurnContext) -> bool:
         if ctx.kind is not TurnKind.USER or ctx.msg.channel == "system":
             return False
+        from nanobot.trading.config import load_trading_config
+
+        if load_trading_config().agent_first_mode:
+            return False
         text = ctx.original_user_text or ctx.msg.content
+        session = ctx.require_session()
+        runtime = ctx.runtime or self.runtime_for_session(session)
+        ctx.runtime = runtime
+        request_ctx = self._request_context_for_turn(ctx)
+        from nanobot.trading.explain import last_trading_wire_from_messages
         from nanobot.trading.fast_path import try_gold_fast_path
 
-        result = await try_gold_fast_path(
-            text,
-            channel=ctx.msg.channel,
-            chat_id=ctx.msg.chat_id,
-            bus=self.bus,
-            subagent_manager=self.subagents,
-        )
+        last_wire = last_trading_wire_from_messages(session.messages)
+        request_token = bind_request_context(request_ctx)
+        try:
+            result = await try_gold_fast_path(
+                text,
+                channel=ctx.msg.channel,
+                chat_id=ctx.msg.chat_id,
+                bus=self.bus,
+                subagent_manager=self.subagents,
+                last_trading_wire=last_wire,
+            )
+        finally:
+            reset_request_context(request_token)
         if result is None:
             return False
-        session = ctx.require_session()
         ctx.outbound = result
         ctx.final_content = result.content
         ctx.input_persisted_early = self._persist_user_message_early(ctx.msg, session)
-        session.add_message("assistant", result.content, _gold_fast_path=True)
+        agent_meta = (result.metadata or {}).get(OUTBOUND_META_AGENT_UI) or {}
+        wire = agent_meta.get("data") if agent_meta.get("kind") == "trading_result" else None
+        msg_kwargs: dict[str, Any] = {"_gold_fast_path": True}
+        if isinstance(wire, dict):
+            msg_kwargs["_trading_wire"] = wire
+        session.add_message("assistant", result.content, **msg_kwargs)
         self._clear_pending_user_turn(session)
         self.sessions.save(session)
         if not ctx.ephemeral:

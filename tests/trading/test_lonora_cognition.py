@@ -189,7 +189,7 @@ def test_scenario_path_pins_to_target_and_stop() -> None:
 
 def test_plan_turn_followup_when_live() -> None:
     turn = plan_turn("اعطيني توصية", active_recommendation_live=True)
-    assert turn.mode == "recommendation_followup"
+    assert turn.mode == "recommendation_supersede"
     assert turn.requested_new_plan is True
     assert turn.tools.run_full_pipeline is False
 
@@ -270,7 +270,7 @@ async def test_synthesizer_no_usable_decision_without_provider() -> None:
     result = await _synth_default_complete()
     assert result.decision == "wait"
     assert result.confidence == 0.0
-    assert "no usable decision" in result.summary.lower()
+    assert "synthesizer" in result.summary.lower()
 
 
 @pytest.mark.asyncio

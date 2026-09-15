@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
 
 from nanobot.agent.tools.context import current_request_context
-from nanobot.trading.agents.liquidity import run_liquidity_agent
-from nanobot.trading.agents.market_data import run_market_data_agent
-from nanobot.trading.agents.multi_timeframe import run_multi_timeframe_agent
-from nanobot.trading.agents.news_macro import run_news_macro_agent
-from nanobot.trading.agents.risk import run_risk_agent
-from nanobot.trading.agents.structure import run_structure_agent
-from nanobot.trading.agents.supply_demand import run_supply_demand_agent
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
-from nanobot.trading.agents.visual_capture import capture_visual_evidence
+from nanobot.trading.config import load_trading_config
+from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
+from nanobot.trading.observability import log_gate_observability, log_planner_observability
+from nanobot.trading.policy_guard import ValidatedPlan, log_planner_shadow, validate_turn_plan
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
 from nanobot.trading.intent_router import route_intent
@@ -24,13 +19,13 @@ from nanobot.trading.locale import locale_from_text
 from nanobot.trading.drawings.plan import build_drawing_plan
 from nanobot.trading.gates.build_gates import GateInputs, build_gates
 from nanobot.trading.gates.chain import run_gate_chain
-from nanobot.trading.geometry.snapshot import build_geometry_snapshot
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.stage_events import StageEvent, emit_stage
+from nanobot.trading.turn_planner import TurnPlan
 from nanobot.trading.types import AgentFinalResult, AgentRecommendation, EntryPlan, FinalDecisionResult
 
 StageEmitter = Callable[[StageEvent], None]
@@ -63,6 +58,26 @@ def _operator_text() -> str:
     return (ctx.original_user_text if ctx else "") or ""
 
 
+def _resolve_validated_plan(turn_plan: TurnPlan | None) -> ValidatedPlan | None:
+    if turn_plan is None:
+        return None
+    config = load_trading_config()
+    validated = validate_turn_plan(
+        turn_plan,
+        shadow_mode=config.planner_shadow_mode,
+    )
+    log_planner_shadow(validated)
+    log_planner_observability(validated)
+    return validated
+
+
+def _resolve_evidence_graph(turn_plan: TurnPlan | None):
+    validated = _resolve_validated_plan(turn_plan)
+    if validated is None:
+        return DEFAULT_ANALYSIS_GRAPH
+    return validated.executed_graph
+
+
 async def run_unified_chart_agent(
     *,
     symbol: str = DATA_SYMBOL,
@@ -76,6 +91,7 @@ async def run_unified_chart_agent(
     team_briefing: str | None = None,
     complete: Any = None,
     visual_capture: Any = None,
+    turn_plan: TurnPlan | None = None,
 ) -> AgentFinalResult:
     emit_fn = emit or _noop_emit
     runtime = get_runtime_store().snapshot()
@@ -112,48 +128,47 @@ async def run_unified_chart_agent(
     if runtime.kill_switch:
         return AgentFinalResult(decision=_wait_decision("Trading kill switch is active.", "Kill switch", interval))
 
+    if turn_plan is not None and not turn_plan.run_kernel:
+        return AgentFinalResult(
+            decision=_wait_decision(
+                "This turn does not run the trading kernel.",
+                "kernel_skipped",
+                interval,
+            ),
+        )
+
     stages: list[dict[str, Any]] = []
 
     def track(event: StageEvent) -> None:
         stages.append(event.to_wire())
         emit_fn(event)
 
-    track(emit_stage("market_data", "running"))
-    market = await asyncio.to_thread(run_market_data_agent, symbol, interval)
-    if not market.sync.ok:
-        track(emit_stage("market_data", "failed"))
+    pipeline = PipelineContext(
+        symbol=symbol,
+        interval=interval,
+        visual_capture=visual_capture,
+    )
+    evidence_graph = _resolve_evidence_graph(turn_plan)
+    pipeline = await run_evidence_graph(pipeline, evidence_graph, track=track)
+    if pipeline.aborted or pipeline.market is None:
+        market = pipeline.market
+        reason = pipeline.abort_reason or "Market data sync failed"
         return AgentFinalResult(
-            decision=_wait_decision(market.sync.reason or "Market data sync failed", market.sync.reason, interval),
+            decision=_wait_decision(reason, reason, interval),
             market=market,
             stages=stages,
         )
-    track(emit_stage("market_data", "done"))
 
-    fleet_stages = ("structure", "liquidity", "supply_demand", "multi_timeframe")
-    for name in fleet_stages:
-        track(emit_stage(name, "running"))
-    structure, liquidity, supply_demand, mtf = await asyncio.gather(
-        asyncio.to_thread(run_structure_agent, market),
-        asyncio.to_thread(run_liquidity_agent, market),
-        asyncio.to_thread(run_supply_demand_agent, market),
-        asyncio.to_thread(run_multi_timeframe_agent, market),
-    )
-    for name in fleet_stages:
-        track(emit_stage(name, "done"))
-
-    track(emit_stage("news", "running"))
-    news = await asyncio.to_thread(run_news_macro_agent)
-    track(emit_stage("news", "done"))
-
-    geometry = build_geometry_snapshot(structure)
-
-    track(emit_stage("risk", "running"))
-    risk = await asyncio.to_thread(run_risk_agent, market, structure, supply_demand)
-    track(emit_stage("risk", "done"))
-
-    track(emit_stage("research", "running"))
-    visual, snapshots = await capture_visual_evidence(interval, capture=visual_capture)
-    track(emit_stage("research", "done"))
+    market = pipeline.market
+    structure = pipeline.structure
+    liquidity = pipeline.liquidity
+    supply_demand = pipeline.supply_demand
+    mtf = pipeline.mtf
+    news = pipeline.news
+    geometry = pipeline.geometry
+    risk = pipeline.risk
+    visual = pipeline.visual
+    snapshots = pipeline.snapshots
 
     track(emit_stage("final_decision", "running"))
     decision = await run_final_decision_synthesizer(
@@ -219,6 +234,7 @@ async def run_unified_chart_agent(
         )
     )
     gate_chain = await run_gate_chain(gates)
+    log_gate_observability(gate_chain)
     from nanobot.trading.gates.reprice_loop import apply_g7_reprice_loop
 
     gate_chain, plan, rec = await apply_g7_reprice_loop(gate_chain, gates, plan, rec)

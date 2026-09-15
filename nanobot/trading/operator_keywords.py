@@ -75,6 +75,78 @@ _GATE_KEYWORDS = re.compile(
     re.I,
 )
 
-_FOLLOWUP_NEW_REC_MARKERS = re.compile(
-    r"(توصية جديدة|حلل|حلّل|recommend|analy)", re.I,
+_EXPLICIT_NEW_ANALYSIS_RE = re.compile(
+    r"(توصية\s*جديد[ةه]|فرصة\s*جديد[ةه]|صفقة\s*جديد[ةه]|تحليل\s*جديد|"
+    r"new\s+recommend|another\s+recommend|fresh\s+analysis|"
+    r"(اعطني|اعطيني|أعطني|اريد|أريد|بدي|ابي|أبي).{0,24}توصية|"
+    r"give\s+me\s+a\s+recommend)",
+    re.I,
 )
+
+_QUICK_ANALYSIS_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(quick|fast|without chart|no chart)\b", re.I),
+    re.compile(r"(سريع|بدون شارت|بدون رسم)", re.I),
+)
+
+_MACRO_SCAN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(news|macro|fed|nfp|cpi|calendar)\b", re.I),
+    re.compile(r"(أخبار|ماكرو|فيدرال|تقويم)", re.I),
+)
+
+_STRUCTURE_REVIEW_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(level|structure|trend|support|resistance)\b", re.I),
+    re.compile(r"(مستوى|مستويات|ترند|دعم|مقاومة|هيكل)", re.I),
+)
+
+_DEBATE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(bull|bear|debate)\b", re.I),
+    re.compile(r"(صاعد|هابط|مناظرة|ثور|دب)", re.I),
+)
+
+
+_EXPLAIN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\b(why|how come|reason)\b", re.I),
+    re.compile(r"(ليش|لماذا|ليه|السبب|وش السبب|ما السبب)"),
+)
+
+
+def wants_gate_report(message: str) -> bool:
+    return bool(_GATE_KEYWORDS.search(message or ""))
+
+
+def wants_live_plan_status(message: str) -> bool:
+    text = message or ""
+    return bool(_STATUS_KEYWORDS.search(text) or _LEVEL_KEYWORDS.search(text))
+
+
+def wants_trading_explain(message: str) -> bool:
+    text = (message or "").strip()
+    if not text or len(text) > 80:
+        return False
+    return any(p.search(text) for p in _EXPLAIN_PATTERNS)
+
+
+def wants_explicit_new_analysis(message: str) -> bool:
+    text = (message or "").strip()
+    if not text:
+        return False
+    lowered = text.lower()
+    if _EXPLICIT_NEW_ANALYSIS_RE.search(text):
+        return True
+    return any(phrase.lower() in lowered for phrase in EXPLICIT_NEW_ANALYSIS_PHRASES)
+
+
+def wants_quick_analysis(message: str) -> bool:
+    return any(p.search(message or "") for p in _QUICK_ANALYSIS_PATTERNS)
+
+
+def wants_macro_scan(message: str) -> bool:
+    return any(p.search(message or "") for p in _MACRO_SCAN_PATTERNS)
+
+
+def wants_structure_review(message: str) -> bool:
+    return any(p.search(message or "") for p in _STRUCTURE_REVIEW_PATTERNS)
+
+
+def wants_debate(message: str) -> bool:
+    return any(p.search(message or "") for p in _DEBATE_PATTERNS)

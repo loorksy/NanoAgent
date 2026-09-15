@@ -23,11 +23,12 @@ async def test_get_gold_quote_unconfigured() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_gold_publishes_result() -> None:
+async def test_analyze_gold_publishes_result_when_present_ui(monkeypatch) -> None:
+    monkeypatch.setenv("LONORA_AGENT_FIRST", "true")
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
     tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
-    ctx = RequestContext(channel="websocket", chat_id="chat-1")
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:chat-1")
     fake_result = MagicMock()
     fake_result.decision = MagicMock(
         decision="wait",
@@ -55,11 +56,15 @@ async def test_analyze_gold_publishes_result() -> None:
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_chart.run_unified_chart_agent",
-            new_callable=AsyncMock,
-            return_value=fake_result,
+            "nanobot.agent.tools.trading_chart.latest_live_recommendation",
+            return_value=None,
         ):
-            raw = await tool.execute(interval="15m")
+            with patch(
+                "nanobot.agent.tools.trading_chart.run_unified_chart_agent",
+                new_callable=AsyncMock,
+                return_value=fake_result,
+            ):
+                raw = await tool.execute(interval="15m", present_ui=True)
     payload = json.loads(raw)
     assert payload["decision"] == "wait"
     assert bus.publish_outbound.await_count >= 2

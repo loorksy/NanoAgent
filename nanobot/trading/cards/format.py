@@ -20,7 +20,8 @@ _RR_RE = re.compile(r"R\s*:\s*R\s*([0-9]+(?:\.[0-9]+)?)", re.I)
 
 
 def format_price(value: Any) -> str:
-    return f"${float(value):,.2f}"
+    """Format gold prices without thousands separators (LLMs misread $4,349 as $3,349)."""
+    return f"${float(value):.2f}"
 
 
 def _labels(locale: str) -> dict[str, str]:

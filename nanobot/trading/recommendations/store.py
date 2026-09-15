@@ -144,7 +144,7 @@ def latest_live_recommendation(session_key: str | None) -> dict | None:
     with _conn() as conn:
         row = conn.execute(
             "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, "
-            "summary, confidence, created_at, session_key "
+            "summary, confidence, created_at, session_key, gate_json "
             "FROM recommendations WHERE session_key = ? "
             "AND status IN ('valid_now', 'awaiting_activation', 'waiting', 'in_trade') "
             "ORDER BY created_at DESC LIMIT 1",
@@ -165,7 +165,25 @@ def latest_live_recommendation(session_key: str | None) -> dict | None:
         "confidence": row[9],
         "created_at": row[10],
         "session_key": row[11],
+        "gate_json": row[12],
     }
+
+
+def close_live_recommendation(
+    rec_id: str,
+    *,
+    status: str = "superseded",
+    reason: str = "",
+) -> bool:
+    """Close an active recommendation (superseded, invalidated, etc.)."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE recommendations SET status = ? WHERE id = ? "
+            "AND status IN ('valid_now', 'awaiting_activation', 'waiting', 'in_trade')",
+            (status, rec_id),
+        )
+        conn.commit()
+    return cur.rowcount > 0
 
 
 def update_recommendation_status(rec_id: str, status: str) -> bool:

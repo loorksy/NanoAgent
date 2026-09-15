@@ -4,7 +4,10 @@ import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TradingStatusBar } from "@/components/trading/TradingStatusBar";
 import { TvChart } from "@/components/trading/TvChart";
+import { acquireChartPolling } from "@/lib/chart/chartPolling";
+import { useQuoteStream } from "@/lib/trading/useQuoteStream";
 import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
+import { useActiveRecommendation } from "@/lib/trading/activeRecommendationStore";
 import { Button } from "@/components/ui/button";
 import { useClient } from "@/providers/ClientProvider";
 import { fetchWithTimeout } from "@/lib/http";
@@ -50,11 +53,40 @@ export function GoldChartPanel() {
   const { t, i18n } = useTranslation();
   const { getToken } = useClient();
   const [status, setStatus] = useState<TradingStatus | null>(null);
+  const liveQuote = useQuoteStream("XAUUSD", true);
   const [quote, setQuote] = useState<QuotePayload["quote"]>(null);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const chartWidgetRef = useRef<import("../../../vendor/tradingview/charting_library/charting_library").IChartingLibraryWidget | null>(null);
+  const activeRecommendation = useActiveRecommendation();
+
+  useEffect(() => acquireChartPolling(), []);
+
+  useEffect(() => {
+    if (!liveQuote) return;
+    setQuote({
+      bid: liveQuote.bid,
+      ask: liveQuote.ask,
+      mid: liveQuote.mid,
+      tradeable: true,
+    });
+  }, [liveQuote]);
+
+  useEffect(() => {
+    if (analysis?.drawings?.length) return;
+    const lines = activeRecommendation.lines;
+    if (!lines.length) return;
+    void applyTradingDrawings(
+      chartWidgetRef.current,
+      lines.map((line) => ({
+        type: line.kind === "entry" ? "entry" : line.kind === "sl" ? "stop" : "target",
+        label: line.label ?? line.kind,
+        color: line.kind === "entry" ? "#3b82f6" : line.kind === "sl" ? "#ef4444" : "#22c55e",
+        points: [{ price: line.price }],
+      })),
+    );
+  }, [activeRecommendation.lines, analysis?.drawings]);
 
   const authHeaders = useCallback((): Record<string, string> => {
     const token = getToken();
@@ -95,7 +127,7 @@ export function GoldChartPanel() {
       }
     };
     void load();
-    const timer = setInterval(() => void load(), 15_000);
+    const timer = setInterval(() => void load(), 60_000);
     return () => {
       cancelled = true;
       clearInterval(timer);
