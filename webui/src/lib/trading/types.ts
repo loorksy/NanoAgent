@@ -82,6 +82,20 @@ export interface TradingChartCaptureWire {
   timeframes: string[];
 }
 
+export interface SupersedeDecisionWire {
+  session_key: string;
+  live_recommendation: {
+    id: string;
+    direction?: string;
+    entry?: number | null;
+    stop_loss?: number | null;
+    targets?: number[];
+    live_price?: number | null;
+    status?: string;
+  };
+  locale?: string;
+}
+
 export interface TradingSessionState {
   chartOpen: boolean;
   interval: string;
@@ -90,4 +104,5 @@ export interface TradingSessionState {
   result: TradingResultWire | null;
   chartCapture: TradingChartCaptureWire | null;
   outcomeAlerts: TradingOutcomeWire[];
+  supersedeDecision: SupersedeDecisionWire | null;
 }

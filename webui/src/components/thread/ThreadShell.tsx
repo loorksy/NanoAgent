@@ -7,6 +7,8 @@ import { FilePreviewAvailabilityProvider } from "@/components/FilePreviewAvailab
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 import { SessionHandleLabel } from "@/components/SessionHandleLabel";
 import { PromptNavigator } from "@/components/thread/PromptNavigator";
+import { AgentTraceDrawer } from "@/components/trading/AgentTraceDrawer";
+import { RecommendationDecisionNotice } from "@/components/trading/RecommendationDecisionNotice";
 import { RecoveryNotice } from "@/components/thread/RecoveryNotice";
 import { SessionInfoPopover } from "@/components/thread/SessionInfoPopover";
 import { ThreadComposer } from "@/components/thread/ThreadComposer";
@@ -53,6 +55,7 @@ import type {
 import { projectWebuiThreadMessages } from "@/lib/thread-display-compat";
 import { ThreadMessageCache } from "@/lib/thread-message-cache";
 import {
+  clearSupersedeDecision,
   getTradingSession,
   openTradingChart,
   setTradingChartOpen,
@@ -735,15 +738,27 @@ export function ThreadShell({
   const [chartOpen, setChartOpen] = useState(
     () => (chatId ? getTradingSession(chatId).chartOpen : false),
   );
+  const [supersedeDecision, setSupersedeDecision] = useState(
+    () => (chatId ? getTradingSession(chatId).supersedeDecision : null),
+  );
+  const [tradingStages, setTradingStages] = useState(
+    () => (chatId ? getTradingSession(chatId).stages : []),
+  );
   useEffect(() => {
     if (!chatId) {
       setChartOpen(false);
+      setSupersedeDecision(null);
+      setTradingStages([]);
       return;
     }
     setChartOpen(getTradingSession(chatId).chartOpen);
+    setSupersedeDecision(getTradingSession(chatId).supersedeDecision);
+    setTradingStages(getTradingSession(chatId).stages);
     return subscribeTradingSession((id) => {
       if (id !== chatId) return;
       setChartOpen(getTradingSession(chatId).chartOpen);
+      setSupersedeDecision(getTradingSession(chatId).supersedeDecision);
+      setTradingStages(getTradingSession(chatId).stages);
     });
   }, [chatId]);
   const handleToggleChart = useCallback(() => {
@@ -1584,6 +1599,15 @@ export function ThreadShell({
           state={recoveryState}
           onContinue={continueRecovery}
           onDismiss={dismissRecovery}
+        />
+      ) : null}
+      {tradingStages.length > 0 ? (
+        <AgentTraceDrawer stages={tradingStages} className="mx-auto mb-2 w-full max-w-[49.5rem]" />
+      ) : null}
+      {supersedeDecision && chatId ? (
+        <RecommendationDecisionNotice
+          payload={supersedeDecision}
+          onResolved={() => clearSupersedeDecision(chatId)}
         />
       ) : null}
       {streamError && !hasInlineDeliveryError(messages, streamError) ? (

@@ -1,4 +1,5 @@
 import type {
+  SupersedeDecisionWire,
   TradingChartCaptureWire,
   TradingOutcomeWire,
   TradingResultWire,
@@ -15,6 +16,7 @@ const DEFAULT_STATE: TradingSessionState = {
   result: null,
   chartCapture: null,
   outcomeAlerts: [],
+  supersedeDecision: null,
 };
 
 const sessions = new Map<string, TradingSessionState>();
@@ -142,6 +144,25 @@ export function clearChartCapture(chatId: string) {
   sessions.set(chatId, {
     ...prev,
     chartCapture: null,
+  });
+  notify(chatId);
+}
+
+export function pushSupersedeDecision(chatId: string, payload: SupersedeDecisionWire) {
+  const prev = snapshot(chatId);
+  sessions.set(chatId, {
+    ...prev,
+    supersedeDecision: payload,
+  });
+  notify(chatId);
+}
+
+export function clearSupersedeDecision(chatId: string) {
+  const prev = snapshot(chatId);
+  if (!prev.supersedeDecision) return;
+  sessions.set(chatId, {
+    ...prev,
+    supersedeDecision: null,
   });
   notify(chatId);
 }

@@ -4,7 +4,9 @@ import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TradingStatusBar } from "@/components/trading/TradingStatusBar";
 import { TvChart } from "@/components/trading/TvChart";
+import { setChartPollingPaused } from "@/lib/chart/chartPolling";
 import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
+import { useActiveRecommendation } from "@/lib/trading/activeRecommendationStore";
 import { Button } from "@/components/ui/button";
 import { useClient } from "@/providers/ClientProvider";
 import { fetchWithTimeout } from "@/lib/http";
@@ -55,6 +57,27 @@ export function GoldChartPanel() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const chartWidgetRef = useRef<import("../../../vendor/tradingview/charting_library/charting_library").IChartingLibraryWidget | null>(null);
+  const activeRecommendation = useActiveRecommendation();
+
+  useEffect(() => {
+    setChartPollingPaused(false);
+    return () => setChartPollingPaused(true);
+  }, []);
+
+  useEffect(() => {
+    if (analysis?.drawings?.length) return;
+    const lines = activeRecommendation.lines;
+    if (!lines.length) return;
+    void applyTradingDrawings(
+      chartWidgetRef.current,
+      lines.map((line) => ({
+        type: line.kind === "entry" ? "entry" : line.kind === "sl" ? "stop" : "target",
+        label: line.label ?? line.kind,
+        color: line.kind === "entry" ? "#3b82f6" : line.kind === "sl" ? "#ef4444" : "#22c55e",
+        points: [{ price: line.price }],
+      })),
+    );
+  }, [activeRecommendation.lines, analysis?.drawings]);
 
   const authHeaders = useCallback((): Record<string, string> => {
     const token = getToken();

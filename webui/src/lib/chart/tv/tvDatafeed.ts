@@ -1,3 +1,4 @@
+import { isChartPollingPaused } from "@/lib/chart/chartPolling";
 import type {
   Bar,
   DatafeedConfiguration,
@@ -50,13 +51,26 @@ function resolutionToInterval(res: string): string {
   return RES_TO_INTERVAL[res] ?? "15m";
 }
 
-function pollMsForResolution(res: string): number {
+function resolutionToSeconds(res: string): number {
   const iv = resolutionToInterval(res);
-  if (iv === "1m") return 1_000;
-  if (iv === "5m") return 2_000;
-  if (iv === "15m" || iv === "30m") return 5_000;
-  if (iv === "1h") return 10_000;
-  return 30_000;
+  const map: Record<string, number> = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "4h": 14400,
+    "1d": 86400,
+    "1w": 604800,
+  };
+  return map[iv] ?? 900;
+}
+
+function pollMsForResolution(res: string): number {
+  const secs = resolutionToSeconds(res);
+  if (secs <= 60) return 1_000;
+  if (secs <= 300) return 3_000;
+  return Math.min(Math.max(Math.floor(secs * 1000 / 6), 15_000), 60_000);
 }
 
 export function buildKlinesUrl(params: {
@@ -199,9 +213,10 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
     ): void {
       const interval = resolutionToInterval(resolution);
       const pollMs = pollMsForResolution(resolution);
-      let lastBarTime: number | undefined;
+      let lastKnown: { time: number; close: number } | null = null;
 
       const poll = async () => {
+        if (isChartPollingPaused()) return;
         try {
           const url = buildKlinesUrl({
             symbol: symbolInfo.ticker ?? DATA_SYMBOL,
@@ -212,8 +227,15 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
           const latest = candles[candles.length - 1];
           if (!latest) return;
           const barTime = latest.time * 1000;
-          if (lastBarTime != null && barTime < lastBarTime) return;
-          lastBarTime = barTime;
+          if (
+            lastKnown != null
+            && lastKnown.time === barTime
+            && lastKnown.close === latest.close
+          ) {
+            return;
+          }
+          if (lastKnown != null && barTime < lastKnown.time) return;
+          lastKnown = { time: barTime, close: latest.close };
           onTick({
             time: barTime,
             open: latest.open,

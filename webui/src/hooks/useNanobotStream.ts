@@ -34,6 +34,7 @@ import { formatQuotedUserMessage } from "@/lib/user-message-quote";
 import {
   openTradingChart,
   requestChartCapture,
+  pushSupersedeDecision,
   pushTradingOutcome,
   pushTradingStage,
   pushTradingTeamAgent,
@@ -1165,6 +1166,13 @@ export function useNanobotStream(
                 timeframes: data.timeframes,
               });
             }
+            return;
+          }
+          if (agentUi?.kind === "recommendation_decision_required") {
+            pushSupersedeDecision(
+              chatId,
+              agentUi.data as import("@/lib/trading/types").SupersedeDecisionWire,
+            );
             return;
           }
           if (agentUi?.kind === "trading_stage") {
