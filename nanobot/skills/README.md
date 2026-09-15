@@ -24,25 +24,9 @@ The skill format and metadata structure follow OpenClaw's conventions to maintai
 
 | Skill | Description |
 |-------|-------------|
-| `gold-trading` | Gold (XAUUSD) recommendation/execution constitution |
-| `trading-proactive` | When to notify vs stay silent for gold ops |
-| `gold-entry-timing` | Field rules 1–25 — entry flexibility |
-| `gold-stop-protection` | Field rules 26–55 — stops & protection |
-| `gold-retest` | Field rules 56–80 — retest philosophy |
-| `gold-trendlines` | Field rules 81–105 — trendlines & channels |
-| `gold-xauusd-dynamics` | Field rules 106–135 — gold session/liquidity quirks |
-| `gold-take-profit` | Field rules 136–160 — targets & harvest |
-| `gold-candle-traps` | Field rules 161–180 — candle traps |
-| `gold-execution-discipline` | Field rules 181–200 — execution discipline |
-| `gold-news-volatility` | News/volatility operating rules 1–100 |
-| `gold-news-candle-detection` | News-candle detection rules 1–100 |
-| `cron` | Schedule reminders and recurring tasks |
-| `memory` | Long-term memory guidance |
 | `github` | Interact with GitHub using the `gh` CLI |
 | `weather` | Get weather info using wttr.in and Open-Meteo |
 | `summarize` | Summarize URLs, files, and YouTube videos |
 | `tmux` | Remote-control tmux sessions |
 | `clawhub` | Search and install skills from ClawHub registry |
 | `skill-creator` | Create new skills |
-
-Gold field encyclopedias above total **400** numbered rules. Index: `docs/prompts/rulebooks/README.md`.
