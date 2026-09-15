@@ -1,6 +1,7 @@
 import json
 from unittest.mock import MagicMock
 
+import pytest
 from websockets.http11 import Request
 
 from nanobot.agent.tools.context import RequestContext, current_request_context, request_context
@@ -126,7 +127,8 @@ def test_analyze_request_context_keeps_existing_runtime(monkeypatch) -> None:
     assert ctx.channel == "cli"
 
 
-def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
         "nanobot.webui.trading_api.create_trading_subagent_manager",
@@ -146,7 +148,7 @@ def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None
         return {"final": _fake_final()}
 
     monkeypatch.setattr("nanobot.webui.trading_api.run_swarm", fake_swarm)
-    response = handle_trading_analyze(
+    response = await handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=swarm"),
     )
     assert response.status_code == 200
@@ -154,7 +156,8 @@ def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None
     assert seen["runtime"] is runtime
 
 
-def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
         "nanobot.webui.trading_api.create_trading_subagent_manager",
@@ -176,7 +179,7 @@ def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
         return _fake_final(decision="wait", confidence=0.0)
 
     monkeypatch.setattr("nanobot.webui.trading_api.run_unified_chart_agent", fake_core)
-    response = handle_trading_analyze(
+    response = await handle_trading_analyze(
         _request("/api/trading/analyze?interval=15m&team_mode=core"),
     )
     assert response.status_code == 200
@@ -185,7 +188,8 @@ def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     assert seen["interval"] == "15m"
 
 
-def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
         "nanobot.webui.trading_api.create_trading_subagent_manager",
@@ -204,7 +208,7 @@ def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
         return MagicMock(final=_fake_final(decision="wait", confidence=0.1))
 
     monkeypatch.setattr("nanobot.webui.trading_api.run_debate_crew", fake_debate)
-    response = handle_trading_analyze(
+    response = await handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=debate"),
     )
     assert response.status_code == 200
