@@ -43,6 +43,12 @@ def _conn() -> sqlite3.Connection:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(recommendations)")}
     if "session_key" not in cols:
         conn.execute("ALTER TABLE recommendations ADD COLUMN session_key TEXT")
+    if "closed_at" not in cols:
+        conn.execute("ALTER TABLE recommendations ADD COLUMN closed_at INTEGER")
+    if "close_reason" not in cols:
+        conn.execute("ALTER TABLE recommendations ADD COLUMN close_reason TEXT")
+    if "archive_category" not in cols:
+        conn.execute("ALTER TABLE recommendations ADD COLUMN archive_category TEXT")
     conn.commit()
     return conn
 
@@ -176,48 +182,104 @@ def close_live_recommendation(
     reason: str = "",
 ) -> bool:
     """Close an active recommendation (superseded, invalidated, etc.)."""
+    now_ms = int(time.time() * 1000)
     with _conn() as conn:
         cur = conn.execute(
-            "UPDATE recommendations SET status = ? WHERE id = ? "
+            "UPDATE recommendations SET status = ?, closed_at = ?, close_reason = ? "
+            "WHERE id = ? "
             "AND status IN ('valid_now', 'awaiting_activation', 'waiting', 'in_trade')",
-            (status, rec_id),
+            (status, now_ms, reason or status, rec_id),
+        )
+        conn.commit()
+    return cur.rowcount > 0
+
+
+def archive_recommendation(
+    rec_id: str,
+    *,
+    category: str,
+    reason: str = "",
+) -> bool:
+    """Tag a closed recommendation with an archive bucket for history views."""
+    now_ms = int(time.time() * 1000)
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE recommendations SET archive_category = ?, closed_at = COALESCE(closed_at, ?), "
+            "close_reason = COALESCE(NULLIF(close_reason, ''), ?) WHERE id = ?",
+            (category, now_ms, reason or category, rec_id),
         )
         conn.commit()
     return cur.rowcount > 0
 
 
 def update_recommendation_status(rec_id: str, status: str) -> bool:
+    from nanobot.trading.recommendations.state_machine import CLOSED_OUTCOME_STATUSES
+
+    now_ms = int(time.time() * 1000)
     with _conn() as conn:
-        cur = conn.execute(
-            "UPDATE recommendations SET status = ? WHERE id = ?",
-            (status, rec_id),
-        )
+        if status in CLOSED_OUTCOME_STATUSES:
+            cur = conn.execute(
+                "UPDATE recommendations SET status = ?, closed_at = COALESCE(closed_at, ?), "
+                "close_reason = COALESCE(NULLIF(close_reason, ''), ?) WHERE id = ?",
+                (status, now_ms, status, rec_id),
+            )
+        else:
+            cur = conn.execute(
+                "UPDATE recommendations SET status = ? WHERE id = ?",
+                (status, rec_id),
+            )
         conn.commit()
     return cur.rowcount > 0
+
+
+def _row_to_dict(row: tuple) -> dict:
+    return {
+        "id": row[0],
+        "symbol": row[1],
+        "interval": row[2],
+        "direction": row[3],
+        "entry": row[4],
+        "stop_loss": row[5],
+        "targets": json.loads(row[6] or "[]"),
+        "status": row[7],
+        "summary": row[8],
+        "confidence": row[9],
+        "created_at": row[10],
+        "session_key": row[11] if len(row) > 11 else None,
+        "closed_at": row[12] if len(row) > 12 else None,
+        "close_reason": row[13] if len(row) > 13 else None,
+        "archive_category": row[14] if len(row) > 14 else None,
+    }
 
 
 def list_recommendations(limit: int = 20) -> list[dict]:
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, summary, confidence, created_at "
+            "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, "
+            "summary, confidence, created_at, session_key, closed_at, close_reason, archive_category "
             "FROM recommendations ORDER BY created_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
-    out = []
-    for row in rows:
-        out.append(
-            {
-                "id": row[0],
-                "symbol": row[1],
-                "interval": row[2],
-                "direction": row[3],
-                "entry": row[4],
-                "stop_loss": row[5],
-                "targets": json.loads(row[6] or "[]"),
-                "status": row[7],
-                "summary": row[8],
-                "confidence": row[9],
-                "created_at": row[10],
-            }
-        )
-    return out
+    return [_row_to_dict(row) for row in rows]
+
+
+def list_archived_recommendations(
+    session_key: str,
+    *,
+    category: str | None = None,
+    limit: int = 20,
+) -> list[dict]:
+    query = (
+        "SELECT id, symbol, interval, direction, entry, stop_loss, targets_json, status, "
+        "summary, confidence, created_at, session_key, closed_at, close_reason, archive_category "
+        "FROM recommendations WHERE session_key = ? AND archive_category IS NOT NULL "
+    )
+    params: list[object] = [session_key]
+    if category:
+        query += "AND archive_category = ? "
+        params.append(category)
+    query += "ORDER BY COALESCE(closed_at, created_at) DESC LIMIT ?"
+    params.append(limit)
+    with _conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [_row_to_dict(row) for row in rows]

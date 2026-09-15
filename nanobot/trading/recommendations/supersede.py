@@ -57,6 +57,9 @@ def apply_supersede_transition(
     clear_supersede_pending(session_key)
     if not closed:
         return {"ok": False, "error": "close_failed"}
+    from nanobot.trading.recommendations.store import archive_recommendation
+
+    archive_recommendation(live_id, category="superseded", reason="user_superseded")
     return {
         "ok": True,
         "closed_recommendation": get_recommendation(live_id),

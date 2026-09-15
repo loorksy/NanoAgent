@@ -15,6 +15,7 @@ from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
 from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 from nanobot.trading.recommendations.supersede import mark_supersede_pending
 from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.stage_delivery import TradingStagePublisher
@@ -205,6 +206,8 @@ async def _execute_followup_path(
     text: str,
     live: dict | None,
 ) -> OutboundMessage:
+    from nanobot.agent.tools.context import current_request_context
+
     locale = locale_from_text(text)
     live_price: float | None = None
 
@@ -215,6 +218,17 @@ async def _execute_followup_path(
                 live_price = pipeline.market.quote_mid
         except Exception:
             live_price = None
+
+    ctx = current_request_context()
+    session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
+    if live:
+        live = sync_session_live_plan(session_key, live_price=live_price)
+    if not live:
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=tr("followup.no_live_plan", locale),
+        )
 
     graded = grade_live_recommendation(live, operator_text=text, live_price=live_price)
     result = AgentFinalResult(

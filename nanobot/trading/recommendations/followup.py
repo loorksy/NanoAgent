@@ -34,8 +34,25 @@ def finalize_live_plan_if_closed(
     graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
     if graded in CLOSED_OUTCOME_STATUSES and graded != current:
         update_recommendation_status(str(row["id"]), graded)
+        from nanobot.trading.recommendations.state_machine import classify_archive_category
+        from nanobot.trading.recommendations.store import archive_recommendation
+
+        archive_recommendation(
+            str(row["id"]),
+            category=classify_archive_category(graded),
+            reason=graded,
+        )
         return None
     if graded in CLOSED_OUTCOME_STATUSES:
+        from nanobot.trading.recommendations.state_machine import classify_archive_category
+        from nanobot.trading.recommendations.store import archive_recommendation
+
+        if not row.get("archive_category"):
+            archive_recommendation(
+                str(row["id"]),
+                category=classify_archive_category(graded),
+                reason=graded,
+            )
         return None
     return row
 
@@ -152,6 +169,15 @@ def refresh_recommendation_outcomes(
         graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
         if graded != current and can_transition(current, graded):
             update_recommendation_status(str(row["id"]), graded)
+            if graded in CLOSED_OUTCOME_STATUSES:
+                from nanobot.trading.recommendations.state_machine import classify_archive_category
+                from nanobot.trading.recommendations.store import archive_recommendation
+
+                archive_recommendation(
+                    str(row["id"]),
+                    category=classify_archive_category(graded),
+                    reason=graded,
+                )
             transitions.append(
                 OutcomeTransition(
                     rec_id=str(row["id"]),
