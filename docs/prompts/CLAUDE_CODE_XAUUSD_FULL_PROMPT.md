@@ -70,60 +70,79 @@ Do not rebuild the product. Extend what exists.
 
 ---
 
-## 4. Zero-cost FEATURE specs (FEATURE-01…10)
+## 4. Zero-cost FEATURE specs (FEATURE-01…10) — full engineering detail
 
-### FEATURE-01 — Telegram MTProto news listener
-- Goal: free urgent news via operator Telegram user session (BYOK Telethon).
-- Stack: `telethon`
-- Logic: `events.NewMessage` → RAM → FEATURE-05
-- Perf: capture+prefilter < 250ms
-- Default: OFF until configured
+No paid terminals (Bloomberg, Benzinga, paid X API). Operator BYOK only. Each feature is a settings toggle; defaults are safe (listeners OFF until configured).
 
-### FEATURE-02 — Async RSS aggregator
-- Stack: `aiohttp`, `feedparser`, `asyncio`
-- Poll open feeds (Reuters/AP/Fed) every 10–15s; dedupe by guid in a `set`
-- Perf: light CPU (<~2%)
+### FEATURE-01 — Instant Telegram news (MTProto scraper)
+- **Goal:** Capture economic/political flashes with zero paid subscription.
+- **Stack:** Python, Telethon (Telegram MTProto). Operator supplies their own user session.
+- **Logic:** Lightweight userbot listens to fast news channels (examples: FinancialJuice, Walter Bloomberg, and similar public fast-wire channels the operator chooses). On `events.NewMessage`, pass raw text immediately into FEATURE-05 in RAM (no disk round-trip).
+- **Perf:** capture + handoff < 250ms.
+- **Default:** OFF until session is configured.
 
-### FEATURE-03 — VIP statements tracker
-- Stack: Nitter RSS or `snscrape` (no paid X API)
-- Tag High/Medium impact authors
-- Perf: 30–60s from publish
+### FEATURE-02 — Async economic/geopolitical RSS aggregator
+- **Goal:** 24h watch of open wire/central-bank feeds with no API bill.
+- **Stack:** `aiohttp`, `feedparser`, `asyncio`.
+- **Logic:** Async loop polls RSS (Reuters, AP News, Federal Reserve press releases, and similar open feeds) every 10–15 seconds. Store `guid` / `entry.id` in an in-memory `set()` to skip duplicates. Extract title + summary into the central event matrix.
+- **Perf:** poll cycle should stay very light (target < ~2% CPU).
 
-### FEATURE-04 — Open economic calendar scraper
-- Extend `nanobot/trading/news/forex_factory.py`
-- Daily pull + Actual refresh near red events + surprise delta
-- Perf: sync actual within 1–3s when possible
+### FEATURE-03 — VIP official statements tracker
+- **Goal:** Watch central-bank / policy principals without paying for X API.
+- **Stack:** public or self-hosted Nitter RSS instances, or `snscrape`.
+- **Logic:** Follow RSS of Fed, ECB, Treasury/policy principals. Extract new posts, quoted text, and links. Tag author weight High/Medium impact.
+- **Perf:** 30–60 seconds from publish.
+
+### FEATURE-04 — Open economic calendar JSON/HTML scraper
+- **Goal:** Daily structured CPI / NFP / GDP / FOMC schedule with live Actual updates.
+- **Stack:** `httpx` / `requests`, BeautifulSoup4. Extend existing `nanobot/trading/news/forex_factory.py`.
+- **Logic:** Pull the free calendar (Forex Factory / Investing open endpoints) at 00:01 GMT into a table: `[event, time, currency, forecast, previous]`. Around red events, re-scrape every 30 seconds to fill Actual and compute Surprise Delta (actual − forecast).
+- **Perf:** Actual sync within 1–3 seconds of the official print when the open source updates.
 
 ### FEATURE-05 — Zero-latency regex emergency engine
-- Stack: Python `re`
-- Patterns for war/airstrike/bank failure/emergency rate cut
-- On match: freeze new entries + protect open positions
-- Perf: < 1ms / headline
+- **Goal:** Protect/freeze instantly on catastrophe keywords without waiting for an LLM.
+- **Stack:** Python built-in `re`.
+- **Logic:** Classified regex matrices, for example:
+  - Attack/war: `\b(missile|airstrike|war declared|explosion|invaded|ceasefire)\b`
+  - Monetary shock: `\b(emergency rate cut|surprise hike|bank failure|default)\b`
+- Any text from FEATURE-01 or FEATURE-02 is scanned in-memory. On a ban-class match: freeze new orders and protect open MT5/MetaAPI positions immediately.
+- **Perf:** match < 1ms per headline.
 
 ### FEATURE-06 — Local vector playbook
-- Stack: ChromaDB or LanceDB local only
-- Cosine similarity of current context vs stored gold scenarios
-- Perf: < 10ms
-- Not a backtest
+- **Goal:** Compare current technical+macro context to stored successful gold scenarios (not a backtest).
+- **Stack:** ChromaDB or LanceDB, 100% local.
+- **Logic:** Store 500+ historical gold scenarios with embeddings, e.g. “false break of Asia high + M15 structure break + overbought + weak dollar”. Embed the live context; retrieve by cosine similarity; return match % plus how price behaved then.
+- **Perf:** retrieve < 10ms.
 
-### FEATURE-07 — FastDTW pattern matcher
-- Stack: `fastdtw`, `numpy`, `scipy`
-- Normalize last ~30 closes to [0,1]; match templates; return confidence %
-- Perf: < 15ms
-- Not a backtest / walk-forward
+### FEATURE-07 — FastDTW live pattern matcher
+- **Goal:** Compare last ~30 gold bars to template shapes (Accumulation, Distribution, Turtle Soup) mathematically, free.
+- **Stack:** `fastdtw`, `numpy`, `scipy`.
+- **Logic:** Normalize recent closes to [0, 1]. Run Dynamic Time Warping vs stored templates. Return Match Confidence %.
+- **Perf:** < 15ms. **Not a backtest / walk-forward engine.**
 
 ### FEATURE-08 — Post-mortem lessons SQLite
-- On SL: store context; before new plan query last 3 similar losers; refuse repeats
-- Perf: < 3ms
+- **Goal:** Self-learning memory that blocks repeating the same losing setup.
+- **Stack:** local `sqlite3`.
+- **Logic:** On stop-out, record `[entry, SL, time, DXY state, break pattern, spread, direct technical cause]`. Before a new recommendation, SQL-check whether the candidate matches the last 3 losing setups in the same conditions. If yes, refuse and tell the operator: rejected because it repeats yesterday’s liquidity-context error.
+- **Perf:** query < 3ms.
 
 ### FEATURE-09 — Local sentiment via Ollama
-- Local Qwen 2.5 / FinBERT only; JSON `{bias, confidence, reason}`
-- Graceful skip if Ollama down
-- Perf: ~500–1200ms
+- **Goal:** Hawkish vs Dovish / inflation tone with zero cloud cost and no data leaving the machine.
+- **Stack:** local Ollama with Qwen 2.5 (3B/7B) or FinBERT.
+- **Logic:** Only texts that already passed FEATURE-05 go to the model. Prompt must return JSON only:
+  `{"bias": "BULLISH_GOLD" | "BEARISH_GOLD" | "NEUTRAL", "confidence": 0.0-1.0, "reason": "short explanation"}`.
+  Use as a confirmatory weight, not a standalone trade trigger. If Ollama is down, skip gracefully.
+- **Perf:** ~500–1200ms depending on hardware/GPU.
 
-### FEATURE-10 — Intermarket macro
-- DXY / XAG / oil via MetaAPI symbols if present else free `yfinance`
-- Allow safe-haven decoupling in panic
+### FEATURE-10 — Free intermarket macro engine
+- **Goal:** Watch gold drivers (DXY, yields if available, silver, oil) without paid data vendors.
+- **Stack:** MetaAPI/MT5 broker symbols when listed; free `yfinance` fallback.
+- **Logic:** Live/close snapshots for:
+  - Dollar index: USDX or DXY
+  - Silver: XAGUSD
+  - Oil: USOIL or UKOIL
+  Build a short-horizon correlation / divergence matrix. Example: DXY prints a new high while gold fails to print a new low → strong gold-up confluence. Safe-haven decoupling (gold up with USD) is allowed in panic — never treat inverse DXY as 100% sacred.
+- **Perf:** update with platform ticks / short poll cycle.
 
 ---
 
@@ -143,40 +162,124 @@ Do not rebuild the product. Extend what exists.
 
 ---
 
-## 6. Behavioral skill
+## 6. Behavioral skill (capability 9 — full)
 
-1. Adaptive tone: strict when the operator tries to break risk rules; light sarcasm against overconfidence after win streaks; supportive after losses; decisive when execution is authorized.
-2. Honest admission after stop-outs — no fake excuses; state the loss in numbers.
-3. Full silence in dead/compressed ranges — no spam signals.
-4. End-of-day reflective question for the trading journal (discipline / calm).
+1. Adaptive speech modes: military-strict if the operator tries to break risk or remove a stop; light sarcasm to deflate ego after a fast win streak; calm support after losses; decisive when execution is authorized.
+2. Direct technical admission after any stop-out — no invented excuses. State how liquidity hunted the pattern and the loss in numbers to keep realism.
+3. Total silence in dead, untradeable ranges — no random signals (trains patience until real liquidity).
+4. A short end-of-day journal question (example: “Did you follow the plan today without hesitation or rushing?”) to record psychological discipline.
 
 ---
 
-## 7. Capability map (implement as modules + settings toggles)
+## 7. Detailed capability specifications (from the original engineering docs)
 
-### Technical
-Supply/Demand + FVG; MTF D1/H4→H1/M15; liquidity sweeps/turtle soup; BOS/CHoCH; auto Fib + discount/premium; tick volume + ATR; RSI/MACD divergence.
+Implement each item as a module + settings toggle. Numbers below are defaults the operator can change.
 
-### Macro
-Calendar + surprise; DXY confluence (geo decoupling allowed); Fed tone via Ollama; geo keyword radar (F01+F05 first).
+### 7.1 Technical & price action
 
-### Risk
-Auto lot from risk%; daily DD breaker; spread guard; cooldown after consecutive losses; max concurrent gold positions; min R:R ≥ 1:2; never widen SL; no martingale.
+**1.1 Supply/Demand and Fair Value Gaps (FVG).** Scan three-bar sequences for imbalance left by aggressive liquidity. Draw the zone precisely and mark whether the gap is fully filled, partially filled, or still open. Use unfilled/partial FVGs as bounce zones or as targets to dump remaining size.
 
-### Execution (MetaAPI)
-Market + pending; trailing; auto BE after TP1; partial TPs; news shield; early-exit on momentum death; separate magic numbers for scalp vs swing.
+**1.2 Multi-timeframe.** Layered read: extract regime and structural zones from D1 and H4, then drop to H1 and M15 for timing. Never open a micro trade that fights the governing higher-timeframe path.
 
-### Memory (no backtest)
-F06 playbook; F07 DTW; F08 lessons; dual pre-trade review (tech + risk).
+**1.3 Liquidity sweeps and fakeouts (Turtle Soup).** Watch historical swing highs/lows. If price raids the level (takes stops) then closes back inside with a long rejection wick, classify as a liquidity trap and prepare a reversal with the sweep — not a breakout chase.
 
-### Alerts
-Chart snapshot alerts; human Approve/Reject; London/NY briefs; PnL reports; NL Q&A; feed disconnect alerts; WebUI+Telegram fan-out.
+**1.4 Market structure (BOS & CHoCH).** Algorithmic swing-point engine. Continuation = Break of Structure (break of highs in an uptrend / lows in a downtrend). Early reversal = Change of Character (break of the last low that formed a new high, or the symmetric bearish case).
 
-### Security
-Kill switch; encrypted MetaAPI secrets; SQLite ticket recovery; bad-tick filter; adopt manual trades when asked.
+**1.5 Auto Fibonacci and dynamic levels.** Measure the last impulse automatically. Mark institutional discount/premium including 0.618–0.786. Compute session S/R without manual drawing.
 
-### Multi-task
-Manage open trades while scanning; dual conditional scenarios (OCO-like software cancel); NL management commands; feature toggles in Settings/Skills UI.
+**1.6 Tick volume + ATR.** Use MT5/MetaAPI tick volume to confirm that a break has real participation (avoid empty fake breaks). Use ATR for natural gold noise and logical stop distance.
+
+**1.7 RSI / MACD divergence.** Continuously compare gold swing highs/lows vs momentum-indicator swing highs/lows. Bullish/bearish divergence is an early warning that buyers or sellers are weakening before it is obvious on candles.
+
+### 7.2 Macro & sentiment radar
+
+**2.1 Live economic calendar.** Track Fed funds, CPI, NFP (and related gold drivers). Compute surprise = actual − consensus to size the shock.
+
+**2.2 DXY linkage.** Gold is USD-priced and usually inverse to DXY. A dollar break/bounce is mandatory confluence for gold longs/shorts — except the documented safe-haven decoupling case (banking panic / hot war).
+
+**2.3 Central-bank tone.** Process open news summaries of Fed-official speeches. Classify Hawkish (pressures gold down) vs Dovish (supports gold up) via FEATURE-09 after FEATURE-05.
+
+**2.4 Geopolitical safe-haven radar.** Scan open flash headlines for crisis/war tokens (FEATURE-01 + FEATURE-05). Priority: fast longs and a ban on gold shorts during genuine fear waves.
+
+### 7.3 Risk guardrails
+
+**3.1 Auto lot size.** Once entry and stop are known, size the contract so potential loss equals a fixed percent of balance (default 1%, optional 2%). No manual lot typing.
+
+**3.2 Daily drawdown breaker.** Track session realized+floating loss. At the cap (default 3% of balance): flatten all gold, cancel pendings, freeze trading until next day.
+
+**3.3 Spread guard.** Read Bid–Ask from MetaAPI before send. If spread is abnormal (session close, violent news), abort the order.
+
+**3.4 Cooldown lock.** After two consecutive losses, mandatory freeze (default 2–4 hours, minimum 60 minutes per discipline rule 187) to block revenge trading.
+
+**3.5 Max concurrent gold positions.** Default cap 2 so floating size and margin are not stacked into a shock.
+
+**3.6 Minimum R:R filter.** If projected reward < 2× risk (1:2), reject automatically so the book can grow even with a modest win rate.
+
+### 7.4 Execution & trade management (MetaAPI → operator MT5)
+
+**4.1 Direct-safe execution.** Send, modify, cancel market orders and pending Limit/Stop via MetaAPI with low latency. No second paid execution broker.
+
+**4.2 Dynamic trailing stop.** Trail behind live swing highs/lows or an ATR multiple (Chandelier: highest high of last 10 bars minus ATR multiple).
+
+**4.3 Auto breakeven.** When programmed TP1 is hit (and M15 structure confirms when stop-protection rules require it), move SL to entry so residual size is risk-free.
+
+**4.4 Partial take profit.** Default ladder: close 50% at TP1, 25% at TP2, leave 25% as runner. Operator-editable percents.
+
+**4.5 News shield.** About 10 minutes before a red event: alert the operator and/or protect open trades (BE or flatten ~70%) to avoid slippage/spread blowouts. Also honor the 15-minute pre-news new-entry freeze.
+
+**4.6 Early-exit recommendation/action.** If candles show a strong reversal or momentum dies before TP or SL, recommend or (if grant allows) flatten to bank/cut.
+
+### 7.5 Memory & internal review (no backtest)
+
+**5.1 Historical analogue search.** Compare current structure+volatility+sweep context to stored gold history (FEATURE-06) before deciding.
+
+**5.2 Fast backtest.** **DO NOT IMPLEMENT.** Forbidden. Use FEATURE-07 shape match only.
+
+**5.3 Post-trade self-review.** On every close, auto-write whether exit followed the plan or was undisciplined, and expected vs actual.
+
+**5.4 Lessons ledger.** Persist repeated errors (early entry before close, trading a dead market, etc.) and require them as pre-checks (FEATURE-08).
+
+**5.5 Dual internal review.** Technical engine proposes; risk engine audits lot, spread, exposure. The order goes out only if both pass.
+
+### 7.6 Alerts & operator interface
+
+**6.1 Instant alert + drawn chart image.** Auto snapshot showing entry, stop, targets, and the technical reason. Send immediately (apply chart-image rule: the picture is used to name the formed/forming pattern).
+
+**6.2 Human-in-the-loop.** Recommendation with Approve / Ignore (and Execute Live vs Paper). Wait for operator approval when grant is `ask`.
+
+**6.3 Morning brief before London and New York.** Compact briefing: key liquidity, prior highs/lows, gold pivot levels for the session.
+
+**6.4 Daily/weekly performance.** Net P&L, win rate, realized R:R, max drawdown for the period.
+
+**6.5 Natural-language Q&A.** Operator may ask “what is gold doing now?” and get a short data-backed answer in their language.
+
+**6.6 Feed-loss alert.** Heartbeat on MetaAPI/MT5 ticks. If ticks stall beyond a few seconds, emergency-notify the operator.
+
+**6.7 Simultaneous fan-out.** Publish the same update to WebUI and Telegram (and WhatsApp if already enabled) without a material delay between them.
+
+### 7.7 Security & resilience
+
+**7.1 Master kill switch.** One UI button, chat emergency phrase, or API call: close all gold at market, cancel all pendings, freeze the agent.
+
+**7.2 Encrypted local secrets.** MetaAPI token/account stored encrypted locally (not plaintext git). Treat like a protected env store under `~/.nanobot/`.
+
+**7.3 Local trade-state recovery.** Persist ticket IDs and management state in SQLite continuously so a process restart resumes managing live positions.
+
+**7.4 Bad-tick filter.** If a print jumps an absurd distance vs the last trade and snaps back, ignore it so a broker glitch cannot fire orders.
+
+**7.5 Adopt operator manual trades.** Detect positions the operator opened on phone/desktop, ask whether to take over management (protect, trail, partials).
+
+### 7.8 Multi-tasking & orchestration
+
+**8.1 Continuous scan while managing.** Async: trail/protect open tickets in seconds **and** scan gold for new confluence without blocking.
+
+**8.2 Two conditional plans.** Arm buy-on-break and sell-on-failure together. Whichever price confirms first is activated; the sibling is cancelled immediately (software OCO).
+
+**8.3 Scalp vs swing isolation.** A multi-day H4/D1 swing can coexist with M-frame scalps via separate magic numbers. Never merge their stops.
+
+**8.4 Natural-language orders.** Example: “move every gold stop to entry if price tags 2500” → execute via MetaAPI modify when grant includes `manage`.
+
+**8.5 Skill/feature toggles.** Operator can enable/disable any capability (news shield, early exit, F01–F10, etc.) from Settings/Skills without code edits.
 
 ---
 
