@@ -4,7 +4,8 @@ import { AgentCards, type AgentCard } from "@/components/trading/AgentCards";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TradingStatusBar } from "@/components/trading/TradingStatusBar";
 import { TvChart } from "@/components/trading/TvChart";
-import { setChartPollingPaused } from "@/lib/chart/chartPolling";
+import { acquireChartPolling } from "@/lib/chart/chartPolling";
+import { useQuoteStream } from "@/lib/trading/useQuoteStream";
 import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
 import { useActiveRecommendation } from "@/lib/trading/activeRecommendationStore";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export function GoldChartPanel() {
   const { t, i18n } = useTranslation();
   const { getToken } = useClient();
   const [status, setStatus] = useState<TradingStatus | null>(null);
+  const liveQuote = useQuoteStream("XAUUSD", true);
   const [quote, setQuote] = useState<QuotePayload["quote"]>(null);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -59,10 +61,17 @@ export function GoldChartPanel() {
   const chartWidgetRef = useRef<import("../../../vendor/tradingview/charting_library/charting_library").IChartingLibraryWidget | null>(null);
   const activeRecommendation = useActiveRecommendation();
 
+  useEffect(() => acquireChartPolling(), []);
+
   useEffect(() => {
-    setChartPollingPaused(false);
-    return () => setChartPollingPaused(true);
-  }, []);
+    if (!liveQuote) return;
+    setQuote({
+      bid: liveQuote.bid,
+      ask: liveQuote.ask,
+      mid: liveQuote.mid,
+      tradeable: true,
+    });
+  }, [liveQuote]);
 
   useEffect(() => {
     if (analysis?.drawings?.length) return;
@@ -118,7 +127,7 @@ export function GoldChartPanel() {
       }
     };
     void load();
-    const timer = setInterval(() => void load(), 15_000);
+    const timer = setInterval(() => void load(), 60_000);
     return () => {
       cancelled = true;
       clearInterval(timer);

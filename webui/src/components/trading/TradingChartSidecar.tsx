@@ -1,7 +1,7 @@
 import { AgentTraceDrawer } from "@/components/trading/AgentTraceDrawer";
 import { ChartTradeOverlay } from "@/components/trading/ChartTradeOverlay";
 import { TvChart, type TvChartHandle } from "@/components/trading/TvChart";
-import { setChartPollingPaused } from "@/lib/chart/chartPolling";
+import { acquireChartPolling } from "@/lib/chart/chartPolling";
 import { applyTradingDrawings } from "@/lib/chart/tv/tvDrawingAdapter";
 import { useActiveRecommendation } from "@/lib/trading/activeRecommendationStore";
 import { captureTradingViewFrames } from "@/lib/trading/chartCapture";
@@ -27,10 +27,7 @@ export function TradingChartSidecar({ chatId, minimal = true }: TradingChartSide
   const [session, setSession] = useState(() => getTradingSession(chatId));
   const activeRecommendation = useActiveRecommendation();
 
-  useEffect(() => {
-    setChartPollingPaused(false);
-    return () => setChartPollingPaused(true);
-  }, []);
+  useEffect(() => acquireChartPolling(), []);
 
   useEffect(() => {
     return subscribeTradingSession((id) => {

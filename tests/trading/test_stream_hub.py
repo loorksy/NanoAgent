@@ -6,26 +6,31 @@ from nanobot.trading.stream_hub import TradingStreamHub
 
 
 @pytest.mark.asyncio
-async def test_stream_hub_broadcasts_quote(monkeypatch) -> None:
+async def test_stream_hub_broadcasts_oanda_tick(monkeypatch) -> None:
     hub = TradingStreamHub()
     events: list[dict] = []
 
     async def broadcaster(event: str, **fields) -> None:
         events.append({"event": event, **fields})
 
-    class _Quote:
-        bid = 2650.1
-        ask = 2650.3
-        mid = 2650.2
-        tradeable = True
+    tick_payload = {
+        "symbol": "XAUUSD",
+        "bid": 2650.1,
+        "ask": 2650.3,
+        "mid": 2650.2,
+        "time": 1_700_000_000_000,
+    }
+
+    listeners: list = []
+
+    def fake_subscribe(_symbol: str, listener):
+        listeners.append(listener)
+        listener(tick_payload)
+        return lambda: None
 
     monkeypatch.setattr(
-        "nanobot.trading.stream_hub.load_trading_config",
-        lambda: type("Cfg", (), {"oanda_configured": True})(),
-    )
-    monkeypatch.setattr(
-        "nanobot.trading.stream_hub.fetch_quote",
-        lambda *_args, **_kwargs: _Quote(),
+        "nanobot.trading.stream_hub.subscribe_symbol_ticks",
+        fake_subscribe,
     )
 
     hub.configure(broadcaster=broadcaster, has_listeners=lambda: True)

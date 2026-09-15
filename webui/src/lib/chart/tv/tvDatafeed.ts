@@ -1,4 +1,6 @@
+import { APP_WAKE_EVENT, startAppWakeBridge } from "@/lib/chart/appWake";
 import { isChartPollingPaused } from "@/lib/chart/chartPolling";
+import { subscribeTradingTicks } from "@/lib/trading/tickBus";
 import type {
   Bar,
   DatafeedConfiguration,
@@ -13,6 +15,9 @@ import type {
 } from "../../../../vendor/tradingview/charting_library/charting_library";
 
 const DATA_SYMBOL = "XAUUSD";
+
+export const TICK_STALE_MS = 12_000;
+export const BACKFILL_AFTER_MS = 30_000;
 
 const RES_TO_INTERVAL: Record<string, string> = {
   "1": "1m",
@@ -38,6 +43,17 @@ const SUPPORTED_RESOLUTIONS = [
   "1W",
 ] as ResolutionString[];
 
+const INTERVAL_MS: Record<string, number> = {
+  "1m": 60_000,
+  "5m": 300_000,
+  "15m": 900_000,
+  "30m": 1_800_000,
+  "1h": 3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+  "1w": 604_800_000,
+};
+
 interface RawCandle {
   time: number;
   open: number;
@@ -47,30 +63,30 @@ interface RawCandle {
   volume?: number;
 }
 
+export function barEmittable(
+  lastBarTimeMs: number | undefined,
+  nextBarTimeMs: number,
+): boolean {
+  if (!Number.isFinite(nextBarTimeMs)) return false;
+  if (lastBarTimeMs == null || !Number.isFinite(lastBarTimeMs)) return true;
+  return nextBarTimeMs >= lastBarTimeMs;
+}
+
 function resolutionToInterval(res: string): string {
   return RES_TO_INTERVAL[res] ?? "15m";
 }
 
-function resolutionToSeconds(res: string): number {
-  const iv = resolutionToInterval(res);
-  const map: Record<string, number> = {
-    "1m": 60,
-    "5m": 300,
-    "15m": 900,
-    "30m": 1800,
-    "1h": 3600,
-    "4h": 14400,
-    "1d": 86400,
-    "1w": 604800,
-  };
-  return map[iv] ?? 900;
+function barDurationMs(interval: string): number {
+  return INTERVAL_MS[interval] ?? 60_000;
 }
 
 function pollMsForResolution(res: string): number {
-  const secs = resolutionToSeconds(res);
-  if (secs <= 60) return 1_000;
-  if (secs <= 300) return 3_000;
-  return Math.min(Math.max(Math.floor(secs * 1000 / 6), 15_000), 60_000);
+  const iv = resolutionToInterval(res);
+  if (iv === "1m") return 1_000;
+  if (iv === "5m") return 2_000;
+  if (iv === "15m" || iv === "30m") return 5_000;
+  if (iv === "1h") return 10_000;
+  return 30_000;
 }
 
 export function buildKlinesUrl(params: {
@@ -80,6 +96,7 @@ export function buildKlinesUrl(params: {
   from?: number;
   to?: number;
   before?: number;
+  fresh?: boolean;
 }): string {
   const search = new URLSearchParams({
     symbol: params.symbol,
@@ -89,12 +106,21 @@ export function buildKlinesUrl(params: {
   if (params.from != null) search.set("from", String(params.from));
   if (params.to != null) search.set("to", String(params.to));
   if (params.before != null) search.set("before", String(params.before));
+  if (params.fresh) search.set("fresh", "1");
   return `/api/trading/klines?${search.toString()}`;
 }
 
 export interface TvDatafeedOptions {
   getAuthToken?: () => string;
+  onBarsStale?: () => void;
 }
+
+type BarSubscription = {
+  timer?: ReturnType<typeof setInterval>;
+  unsubscribeTicks?: () => void;
+  onVisibility?: () => void;
+  onWake?: () => void;
+};
 
 function defer<T extends (...args: never[]) => void>(callback: T): T {
   return ((...args: never[]) => {
@@ -103,11 +129,14 @@ function defer<T extends (...args: never[]) => void>(callback: T): T {
 }
 
 export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDataFeed {
-  const subscriptions = new Map<string, ReturnType<typeof setInterval>>();
+  const subscriptions = new Map<string, BarSubscription>();
+  const getAuthTokenRef = { current: options.getAuthToken };
+  getAuthTokenRef.current = options.getAuthToken;
+  let wakeDisposer: (() => void) | null = null;
 
   async function fetchKlines(url: string): Promise<RawCandle[]> {
     const headers: Record<string, string> = {};
-    const token = options.getAuthToken?.();
+    const token = getAuthTokenRef.current?.();
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(url, { credentials: "same-origin", headers });
     if (!res.ok) throw new Error(`klines HTTP ${res.status}`);
@@ -192,14 +221,17 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
       });
       fetchKlines(url)
         .then((candles) => {
-          const bars: Bar[] = candles.map((c) => ({
-            time: c.time * 1000,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-            volume: c.volume,
-          }));
+          const bars: Bar[] = candles
+            .filter((c) => Number.isFinite(c.time) && c.time > 0)
+            .map((c) => ({
+              time: c.time * 1000,
+              open: c.open,
+              high: c.high,
+              low: c.low,
+              close: c.close,
+              volume: c.volume,
+            }))
+            .sort((a, b) => a.time - b.time);
           defer(onResult)(bars, { noData: bars.length === 0 });
         })
         .catch((err: Error) => defer(onError)(err.message));
@@ -210,53 +242,138 @@ export function createTradingDatafeed(options: TvDatafeedOptions = {}): IBasicDa
       resolution: ResolutionString,
       onTick: SubscribeBarsCallback,
       listenerGuid: string,
+      onResetCacheNeeded?: () => void,
     ): void {
+      if (!wakeDisposer) wakeDisposer = startAppWakeBridge();
+
       const interval = resolutionToInterval(resolution);
-      const pollMs = pollMsForResolution(resolution);
-      let lastKnown: { time: number; close: number } | null = null;
+      const ticker = symbolInfo.ticker ?? DATA_SYMBOL;
+      const barMs = barDurationMs(interval);
+      let forming: Bar | null = null;
+      let streamAlive = false;
+      let lastTickAt = 0;
+      let lastEmitAt = 0;
+      const subscribedAt = Date.now();
+
+      const emit = (bar: Bar) => {
+        forming = bar;
+        lastEmitAt = Date.now();
+        onTick(bar);
+      };
 
       const poll = async () => {
         if (isChartPollingPaused()) return;
+        const stale = lastTickAt === 0 || Date.now() - lastTickAt > TICK_STALE_MS;
+        if (streamAlive && !stale) return;
         try {
           const url = buildKlinesUrl({
-            symbol: symbolInfo.ticker ?? DATA_SYMBOL,
+            symbol: ticker,
             interval,
             limit: 2,
+            fresh: true,
           });
           const candles = await fetchKlines(url);
           const latest = candles[candles.length - 1];
-          if (!latest) return;
-          const barTime = latest.time * 1000;
           if (
-            lastKnown != null
-            && lastKnown.time === barTime
-            && lastKnown.close === latest.close
+            latest
+            && Number.isFinite(latest.time)
+            && barEmittable(forming?.time, latest.time * 1000)
           ) {
-            return;
+            emit({
+              time: latest.time * 1000,
+              open: latest.open,
+              high: latest.high,
+              low: latest.low,
+              close: latest.close,
+              volume: latest.volume ?? 0,
+            });
           }
-          if (lastKnown != null && barTime < lastKnown.time) return;
-          lastKnown = { time: barTime, close: latest.close };
-          onTick({
-            time: barTime,
-            open: latest.open,
-            high: latest.high,
-            low: latest.low,
-            close: latest.close,
-            volume: latest.volume,
-          });
         } catch {
-          // best-effort polling
+          // best-effort
         }
       };
 
-      const timer = setInterval(() => void poll(), pollMs);
-      subscriptions.set(listenerGuid, timer);
+      const applyTickPrice = (price: number, timeMs: number) => {
+        const openTime = Math.floor(timeMs / barMs) * barMs;
+        if (!barEmittable(forming?.time, openTime)) return;
+        if (!forming || forming.time !== openTime) {
+          emit({
+            time: openTime,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+          });
+          return;
+        }
+        emit({
+          time: openTime,
+          open: forming.open,
+          high: Math.max(forming.high, price),
+          low: Math.min(forming.low, price),
+          close: price,
+          volume: forming.volume ?? 0,
+        });
+      };
+
+      const sub: BarSubscription = {
+        timer: setInterval(() => void poll(), pollMsForResolution(resolution)),
+        unsubscribeTicks: subscribeTradingTicks((tick) => {
+          if (tick.symbol !== ticker) return;
+          streamAlive = true;
+          lastTickAt = Date.now();
+          applyTickPrice(tick.mid, tick.time || Date.now());
+        }),
+      };
+
+      let lastWakeHandledAt = 0;
+      const onWake = () => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+        const now = Date.now();
+        if (now - lastWakeHandledAt < 1_000) return;
+        lastWakeHandledAt = now;
+        const missedBars =
+          now - (lastEmitAt > 0 ? lastEmitAt : subscribedAt) > BACKFILL_AFTER_MS;
+        streamAlive = false;
+        if (missedBars) {
+          forming = null;
+          try {
+            onResetCacheNeeded?.();
+          } catch {
+            /* TV mid-teardown */
+          }
+          options.onBarsStale?.();
+        }
+        void poll();
+      };
+
+      const onVisibility = () => {
+        if (document.visibilityState === "hidden") {
+          streamAlive = false;
+          return;
+        }
+        onWake();
+      };
+
+      sub.onWake = onWake;
+      sub.onVisibility = onVisibility;
+      window.addEventListener(APP_WAKE_EVENT, onWake);
+      document.addEventListener("visibilitychange", onVisibility);
+
+      subscriptions.set(listenerGuid, sub);
       void poll();
     },
 
     unsubscribeBars(listenerGuid: string): void {
-      const timer = subscriptions.get(listenerGuid);
-      if (timer) clearInterval(timer);
+      const sub = subscriptions.get(listenerGuid);
+      if (!sub) return;
+      if (sub.timer) clearInterval(sub.timer);
+      sub.unsubscribeTicks?.();
+      if (sub.onWake) window.removeEventListener(APP_WAKE_EVENT, sub.onWake);
+      if (sub.onVisibility) {
+        document.removeEventListener("visibilitychange", sub.onVisibility);
+      }
       subscriptions.delete(listenerGuid);
     },
   };

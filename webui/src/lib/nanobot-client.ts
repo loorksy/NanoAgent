@@ -11,6 +11,7 @@ import type {
   GoalStateWsPayload,
   WorkspaceScopePayload,
 } from "./types";
+import { publishTradingTick } from "./trading/tickBus";
 import { createHostWebSocket } from "./runtime";
 
 /** WebSocket readyState constants, referenced by value to stay portable
@@ -1232,8 +1233,21 @@ export class NanobotClient {
 
     if (parsed.event === "trading_stream") {
       const kind = (parsed as { kind?: string }).kind;
-      if (kind === "quote" || kind === "trace") {
-        this.emitTradingStream(parsed as TradingStreamEvent);
+      if (kind === "quote") {
+        const quote = parsed as TradingStreamQuoteEvent & { event: string };
+        const mid = Number(quote.mid);
+        if (Number.isFinite(mid) && mid > 0) {
+          publishTradingTick({
+            symbol: quote.symbol || "XAUUSD",
+            bid: Number(quote.bid ?? mid),
+            ask: Number(quote.ask ?? mid),
+            mid,
+            time: quote.ts || Date.now(),
+          });
+        }
+        this.emitTradingStream(quote);
+      } else if (kind === "trace") {
+        this.emitTradingStream(parsed as TradingStreamTraceEvent);
       }
       return;
     }
