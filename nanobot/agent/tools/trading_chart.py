@@ -23,6 +23,12 @@ from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.recommendations.followup import grade_outcome_status
+from nanobot.trading.recommendations.lifecycle import (
+    close_plan_for_session,
+    list_session_archive,
+    prepare_for_new_recommendation,
+    sync_session_live_plan,
+)
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.stage_delivery import TradingStagePublisher
@@ -70,6 +76,13 @@ _ANALYZE_PARAMETERS = tool_parameters_schema(
             "Default false — use get_live_recommendation for status/price follow-ups."
         ),
     ),
+    force_new_plan=BooleanSchema(
+        description=(
+            "When true, auto-archive a terminal plan (invalidated/tp1/expired) for this "
+            "conversation before running analysis. Use after the operator confirms a new "
+            "recommendation once the prior plan is closed."
+        ),
+    ),
     present_ui=BooleanSchema(
         description=(
             "When true, open the chart panel and stream trading cards. "
@@ -87,6 +100,22 @@ _LIVE_PLAN_PARAMETERS = tool_parameters_schema(
         ),
     ),
     required=[],
+)
+
+_MANAGE_PLAN_PARAMETERS = tool_parameters_schema(
+    action=StringSchema(
+        "Lifecycle action for this conversation's recommendation.",
+        enum=["sync", "prepare_new", "close_plan", "list_archive"],
+    ),
+    archive_category=StringSchema(
+        "Optional filter when action=list_archive",
+        enum=["invalidated", "win", "loss", "modified", "superseded", "expired", "other"],
+    ),
+    close_status=StringSchema(
+        "Status written when action=close_plan (default superseded)",
+        enum=["superseded", "invalidated", "expired"],
+    ),
+    required=["action"],
 )
 
 
@@ -262,7 +291,7 @@ class GetLiveRecommendationTool(Tool):
     async def execute(self, present_ui: bool = False, **kwargs: Any) -> str:
         locale = _operator_locale()
         session_key = current_request_session_key()
-        live = latest_live_recommendation(session_key)
+        live = sync_session_live_plan(session_key)
         if not live:
             return json.dumps(
                 {
@@ -291,6 +320,7 @@ class GetLiveRecommendationTool(Tool):
                 pass
 
         outcome_status = grade_outcome_status(live, live_price=live_price)
+        can_issue_new = outcome_status in {"invalidated", "tp1", "expired", "superseded"}
 
         def _plain(value: object | None) -> str | None:
             if value is None:
@@ -325,7 +355,12 @@ class GetLiveRecommendationTool(Tool):
             },
             "instruction": (
                 "Use display.* strings verbatim for prices in your reply. "
-                "XAUUSD is near 4300+ on this feed — never write 3300-range prices."
+                "XAUUSD is near 4300+ on this feed — never write 3300-range prices. "
+                + (
+                    "Plan is terminal — call analyze_gold with force_new_plan=true for a fresh recommendation."
+                    if can_issue_new
+                    else ""
+                )
             ),
         }
 
@@ -347,6 +382,71 @@ class GetLiveRecommendationTool(Tool):
                 present_ui=True,
             )
         payload["artifacts"] = artifacts
+        return json.dumps(payload, indent=2)
+
+
+@tool_parameters(_MANAGE_PLAN_PARAMETERS)
+class ManageTradingPlanTool(Tool):
+    """Archive, sync, and close trading recommendations for this session."""
+
+    @classmethod
+    def create(cls, ctx: ToolContext) -> Tool:
+        return cls()
+
+    @property
+    def name(self) -> str:
+        return "manage_trading_plan"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Manage the conversation's gold recommendation lifecycle: sync outcomes to "
+            "the database, auto-clear terminal plans, close a live plan, or list archived "
+            "history (invalidated, win, loss, modified, superseded). Use before analyze_gold "
+            "when the operator wants a new recommendation but a stale plan still blocks."
+        )
+
+    @property
+    def read_only(self) -> bool:
+        return False
+
+    async def execute(
+        self,
+        action: str,
+        archive_category: str | None = None,
+        close_status: str = "superseded",
+        **kwargs: Any,
+    ) -> str:
+        session_key = current_request_session_key()
+        locale = _operator_locale()
+        if action == "sync":
+            live = sync_session_live_plan(session_key)
+            payload = {"ok": True, "has_live_plan": live is not None, "live_plan": live}
+        elif action == "prepare_new":
+            payload = prepare_for_new_recommendation(session_key)
+            payload["ok"] = True
+        elif action == "close_plan":
+            if not session_key:
+                return ToolResult.error("No session key for this conversation.")
+            from nanobot.trading.recommendations.state_machine import classify_archive_category
+
+            bucket = classify_archive_category(close_status, close_reason="operator_close")
+            payload = close_plan_for_session(
+                session_key,
+                status=close_status,
+                reason="operator_close",
+                category=bucket,
+            )
+        elif action == "list_archive":
+            rows = list_session_archive(session_key, category=archive_category)
+            payload = {"ok": True, "archive": rows, "count": len(rows)}
+        else:
+            return ToolResult.error(f"Unknown action: {action}")
+        payload["locale"] = locale
+        payload["instruction"] = (
+            "After prepare_new or closing a terminal plan, call analyze_gold "
+            "(force_new_plan=true if a live plan was superseded)."
+        )
         return json.dumps(payload, indent=2)
 
 
@@ -382,21 +482,35 @@ class AnalyzeGoldTool(Tool):
         team_mode: str = "core",
         preset: str | None = None,
         reevaluate: bool = False,
+        force_new_plan: bool = False,
         present_ui: bool = False,
         **kwargs: Any,
     ) -> str:
         config = load_trading_config()
         session_key = current_request_session_key()
+        prepare_for_new_recommendation(session_key)
         if config.agent_first_mode and not reevaluate:
             live = latest_live_recommendation(session_key)
             if live:
-                return ToolResult.error(
-                    "This conversation already has a live recommendation. "
-                    "Use get_live_recommendation for price/status follow-ups, or "
-                    "get_gold_quote for the live XAUUSD price. Pass reevaluate=true "
-                    "only when the operator explicitly asks to re-run analysis on the "
-                    "existing plan."
-                )
+                if force_new_plan:
+                    closed = close_plan_for_session(
+                        session_key or "",
+                        status="superseded",
+                        reason="operator_force_new",
+                        category="modified",
+                    )
+                    if not closed.get("ok"):
+                        return ToolResult.error(
+                            "Could not close the active plan. Use manage_trading_plan with "
+                            "action=close_plan first."
+                        )
+                else:
+                    return ToolResult.error(
+                        "This conversation already has a live recommendation. "
+                        "Use get_live_recommendation for price/status follow-ups, "
+                        "manage_trading_plan to archive/close, or pass force_new_plan=true "
+                        "when the operator confirms a new recommendation."
+                    )
 
         channel, chat_id = _request_route()
         locale = _operator_locale()

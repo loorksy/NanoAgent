@@ -12,12 +12,13 @@ OutcomeStatus = Literal[
     "tp1",
     "invalidated",
     "expired",
+    "superseded",
 ]
 
 LIVE_STATES: frozenset[str] = frozenset(
     {"valid_now", "awaiting_activation", "waiting", "in_trade"}
 )
-CLOSED_STATES: frozenset[str] = frozenset({"tp1", "invalidated", "expired"})
+CLOSED_STATES: frozenset[str] = frozenset({"tp1", "invalidated", "expired", "superseded"})
 TERMINAL_STATES: frozenset[str] = CLOSED_STATES
 LIVE_OUTCOME_STATUSES = LIVE_STATES
 CLOSED_OUTCOME_STATUSES = CLOSED_STATES
@@ -36,6 +37,7 @@ _ALLOWED: dict[str, frozenset[str]] = {
     "tp1": frozenset(),
     "invalidated": frozenset(),
     "expired": frozenset(),
+    "superseded": frozenset(),
 }
 
 
@@ -63,3 +65,37 @@ def is_live_status(status: str) -> bool:
 
 def is_closed_status(status: str) -> bool:
     return normalize_outcome_status(status) in CLOSED_STATES
+
+
+ArchiveCategory = Literal[
+    "invalidated",
+    "win",
+    "loss",
+    "modified",
+    "superseded",
+    "expired",
+    "other",
+]
+
+_ARCHIVE_BY_STATUS: dict[str, ArchiveCategory] = {
+    "invalidated": "invalidated",
+    "tp1": "win",
+    "expired": "expired",
+    "superseded": "superseded",
+}
+
+
+def classify_archive_category(
+    status: str,
+    *,
+    close_reason: str = "",
+) -> ArchiveCategory:
+    normalized = normalize_outcome_status(status)
+    if normalized in _ARCHIVE_BY_STATUS:
+        bucket = _ARCHIVE_BY_STATUS[normalized]
+        if bucket == "invalidated" and "stop" in close_reason.lower():
+            return "loss"
+        return bucket
+    if "supersede" in close_reason or "modified" in close_reason:
+        return "modified"
+    return "other"

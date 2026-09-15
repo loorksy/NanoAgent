@@ -22,6 +22,7 @@ from nanobot.trading.gates.chain import run_gate_chain
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.stage_events import StageEvent, emit_stage
@@ -96,6 +97,8 @@ async def run_unified_chart_agent(
     emit_fn = emit or _noop_emit
     runtime = get_runtime_store().snapshot()
     key = session_key or _session_key()
+    if key:
+        sync_session_live_plan(key)
     live = latest_live_recommendation(key) if key else None
 
     if followup_only or (live and issued_side is None):

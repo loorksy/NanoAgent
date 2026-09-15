@@ -7,7 +7,7 @@ from nanobot.runtime_context import RuntimeContextBlock, wrap_runtime_context_li
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.recommendations.store import latest_live_recommendation
+from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 
 
 def _plain_price(value: object | None) -> str | None:
@@ -26,7 +26,7 @@ async def gold_intent_runtime_context(
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    live = latest_live_recommendation(request.session_key)
+    live = sync_session_live_plan(request.session_key)
     if not live:
         return None
 
@@ -35,6 +35,8 @@ async def gold_intent_runtime_context(
         f"A live {direction} XAUUSD recommendation is on file for this conversation.",
         "Interpret the operator's message and choose trading tools accordingly.",
         "One live recommendation per conversation — do not issue a second plan while active.",
+        "When outcome_status is invalidated/tp1/expired, the plan is closed automatically — "
+        "you may call analyze_gold for a fresh recommendation.",
         "For status or price follow-ups, call get_live_recommendation (or get_gold_quote for price only).",
         "Copy exact numeric prices from tool JSON in replies — gold trades near 4300+, never 3300-range.",
     ]
