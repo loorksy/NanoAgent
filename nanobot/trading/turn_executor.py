@@ -14,10 +14,8 @@ from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
 from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
-from nanobot.trading.recommendations.followup import (
-    explain_new_rec_blocked,
-    grade_live_recommendation,
-)
+from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.supersede import mark_supersede_pending
 from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.types import AgentFinalResult
@@ -218,10 +216,7 @@ async def _execute_followup_path(
         except Exception:
             live_price = None
 
-    if turn.requested_new_plan:
-        graded = explain_new_rec_blocked(live, operator_text=text, live_price=live_price)
-    else:
-        graded = grade_live_recommendation(live, operator_text=text, live_price=live_price)
+    graded = grade_live_recommendation(live, operator_text=text, live_price=live_price)
     result = AgentFinalResult(
         decision=graded,
         team_mode="followup",
@@ -247,6 +242,62 @@ async def _execute_followup_path(
         }
         if result.artifacts
         else {},
+    )
+
+
+async def _execute_supersede_path(
+    turn: TurnPlan,
+    *,
+    channel: str,
+    chat_id: str,
+    text: str,
+    bus: MessageBus | None,
+    live: dict | None,
+    session_key: str,
+) -> OutboundMessage:
+    locale = locale_from_text(text)
+    if not live:
+        return OutboundMessage(
+            channel=channel,
+            chat_id=chat_id,
+            content=tr("followup.no_live_plan", locale),
+        )
+    mark_supersede_pending(session_key, live)
+    live_price: float | None = None
+    try:
+        from nanobot.trading.gold import DATA_SYMBOL
+        from nanobot.trading.oanda import fetch_quote
+
+        quote = fetch_quote(DATA_SYMBOL)
+        live_price = quote.mid if quote else None
+    except Exception:
+        live_price = None
+    payload = {
+        "session_key": session_key,
+        "live_recommendation": {
+            **live,
+            "live_price": live_price,
+        },
+        "requested_action": "new_recommendation",
+        "locale": locale,
+    }
+    if bus is not None:
+        publisher = TradingStagePublisher(
+            bus, channel=channel, chat_id=chat_id, locale=locale,
+        )
+        await publisher.publish_supersede_decision(payload)
+    buttons = [[tr("supersede.reject_btn", locale), tr("supersede.approve_btn", locale)]]
+    return OutboundMessage(
+        channel=channel,
+        chat_id=chat_id,
+        content=tr("supersede.prompt", locale),
+        buttons=buttons if channel == "telegram" else [],
+        metadata={
+            OUTBOUND_META_AGENT_UI: {
+                "kind": "recommendation_decision_required",
+                "data": payload,
+            }
+        },
     )
 
 
@@ -311,5 +362,19 @@ async def execute_light_path(
             chat_id=chat_id,
             text=text,
             live=live,
+        )
+    if turn.mode == "recommendation_supersede":
+        from nanobot.agent.tools.context import current_request_context
+
+        ctx = current_request_context()
+        session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
+        return await _execute_supersede_path(
+            turn,
+            channel=channel,
+            chat_id=chat_id,
+            text=text,
+            bus=bus,
+            live=live,
+            session_key=session_key,
         )
     return None

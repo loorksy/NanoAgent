@@ -17,7 +17,7 @@ def test_plan_turn_chart_capture_declares_visual_capture_node() -> None:
 
 
 def test_plan_turn_followup_declares_market_data_node() -> None:
-    turn = plan_turn("اعطيني توصية", active_recommendation_live=True)
+    turn = plan_turn("حالة التوصية", active_recommendation_live=True)
     assert turn.mode == "recommendation_followup"
     assert turn.nodes == ("market_data",)
 

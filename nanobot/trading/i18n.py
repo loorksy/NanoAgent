@@ -310,9 +310,19 @@ MESSAGES: dict[str, dict[str, str]] = {
         ),
         "followup.plan_levels": " Entry: {entry} — Stop: {stop}.",
         "followup.one_plan_rule": "System rule: one live recommendation per conversation.",
+        "followup.no_live_plan": "No active recommendation to supersede.",
         "followup.kernel_not_chat": (
             "This response comes from the AI trading kernel, not a static chatbot."
         ),
+        "supersede.prompt": (
+            "You have an active recommendation. Approve to close it and issue a new one, "
+            "or reject to keep the current plan."
+        ),
+        "supersede.approved": "Previous recommendation closed. Issuing a new analysis…",
+        "supersede.rejected": "Keeping the current active recommendation.",
+        "supersede.approve_btn": "Approve new recommendation",
+        "supersede.reject_btn": "Keep current plan",
+        "news.warn_unknown": "Economic calendar unavailable — verify news manually before trading.",
         "direction.buy": "buy",
         "direction.sell": "sell",
         "direction.wait": "wait",
@@ -377,9 +387,18 @@ MESSAGES: dict[str, dict[str, str]] = {
         ),
         "followup.plan_levels": " الدخول: {entry} — الوقف: {stop}.",
         "followup.one_plan_rule": "قاعدة النظام: توصية واحدة نشطة لكل محادثة.",
+        "followup.no_live_plan": "لا توجد توصية نشطة لاستبدالها.",
         "followup.kernel_not_chat": (
             "هذا رد من نواة التداول الذكية (LLM + أدلة + بوابات) وليس بوتاً ثابتاً."
         ),
+        "supersede.prompt": (
+            "لديك توصية نشطة. وافق لإغلاقها وإصدار توصية جديدة، أو ارفض للإبقاء على الخطة الحالية."
+        ),
+        "supersede.approved": "تم إغلاق التوصية السابقة. جاري إصدار تحليل جديد…",
+        "supersede.rejected": "تم الإبقاء على التوصية النشطة الحالية.",
+        "supersede.approve_btn": "موافقة — توصية جديدة",
+        "supersede.reject_btn": "رفض — الإبقاء على الحالية",
+        "news.warn_unknown": "التقويم الاقتصادي غير متوفر — تحقق من الأخبار يدوياً قبل التداول.",
         "direction.buy": "شراء",
         "direction.sell": "بيع",
         "direction.wait": "انتظار",

@@ -498,6 +498,63 @@ def handle_trading_briefing(_request: WsRequest) -> Response:
     })
 
 
+async def handle_trading_recommendation_transition(request: WsRequest) -> Response:
+    payload = getattr(request, "_nanobot_webui_mutation_payload", None)
+    if not isinstance(payload, dict):
+        params = _parse_query(request.path)
+        payload = {
+            "action": _query_first(params, "action"),
+            "session_key": _query_first(params, "session_key"),
+            "recommendation_id": _query_first(params, "recommendation_id"),
+        }
+    action = str(payload.get("action") or "").strip()
+    session_key = str(payload.get("session_key") or "").strip()
+    recommendation_id = str(payload.get("recommendation_id") or payload.get("recommendationId") or "")
+    if action not in {"approve_new", "reject_new"}:
+        return _http_error(400, "action must be approve_new or reject_new")
+    if not session_key:
+        return _http_error(400, "session_key required")
+    from nanobot.trading.recommendations.supersede import apply_supersede_transition
+
+    result = apply_supersede_transition(
+        session_key,
+        recommendation_id=recommendation_id,
+        action=action,  # type: ignore[arg-type]
+    )
+    if not result.get("ok"):
+        return _http_error(409, str(result.get("error") or "transition_failed"))
+    if action == "reject_new":
+        return _http_json_response(result)
+    from nanobot.bus.events import OUTBOUND_META_AGENT_UI
+    from nanobot.trading.fast_path import _run_analysis_fast_path
+    from nanobot.trading.intent_router import RoutedIntent
+    from nanobot.trading.turn_planner import FULL_TOOLS, TurnPlan
+
+    turn = TurnPlan(
+        "full_analysis",
+        RoutedIntent(kind="recommendation", confidence=1.0, reason="supersede_approved"),
+        emit_stages=True,
+        reason="supersede_approved",
+        tools=FULL_TOOLS,
+    )
+    parts = session_key.split(":", 1)
+    channel = parts[0] if parts else "websocket"
+    chat_id = parts[1] if len(parts) > 1 else session_key
+    outbound = await _run_analysis_fast_path(
+        turn,
+        "supersede approved new recommendation",
+        channel=channel,
+        chat_id=chat_id,
+        bus=None,
+    )
+    wire = None
+    if outbound and outbound.metadata:
+        agent_ui = outbound.metadata.get("agent_ui") or outbound.metadata.get(OUTBOUND_META_AGENT_UI)
+        if isinstance(agent_ui, dict) and agent_ui.get("kind") == "trading_result":
+            wire = agent_ui.get("data")
+    return _http_json_response({**result, "new_recommendation": wire})
+
+
 def handle_trading_paper(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     rec_id = _query_first(params, "recommendation_id") or ""
@@ -527,6 +584,8 @@ async def dispatch_trading_route(request: WsRequest, path: str) -> Response | No
         return handle_trading_performance(request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
+    if path == "/api/trading/recommendations/transition":
+        return await handle_trading_recommendation_transition(request)
     if path == "/api/trading/chart-capture":
         return handle_trading_chart_capture(request)
     if path == "/api/trading/chart-host/poll":

@@ -99,6 +99,15 @@ class TradingStagePublisher:
             content="Capturing chart evidence…",
         )
 
+    async def publish_supersede_decision(self, payload: dict[str, Any]) -> None:
+        if not self._is_web():
+            return
+        await self._agent_ui(
+            "recommendation_decision_required",
+            payload,
+            content=tr("supersede.prompt", self._locale),
+        )
+
     async def publish_outcome(self, payload: dict[str, Any]) -> None:
         if not self._is_web():
             return

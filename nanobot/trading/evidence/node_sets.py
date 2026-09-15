@@ -26,7 +26,12 @@ SYNTHESIS_REQUIRED_NODES: frozenset[str] = frozenset(
 )
 
 _SYNTHESIS_MODES = frozenset({"full_analysis", "team_swarm", "reevaluation"})
-LIGHT_PATH_MODES = frozenset({"market_data_only", "chart_capture", "recommendation_followup"})
+LIGHT_PATH_MODES = frozenset({
+    "market_data_only",
+    "chart_capture",
+    "recommendation_followup",
+    "recommendation_supersede",
+})
 GATE_REPORT_MODE = "gate_report"
 
 

@@ -169,6 +169,23 @@ def latest_live_recommendation(session_key: str | None) -> dict | None:
     }
 
 
+def close_live_recommendation(
+    rec_id: str,
+    *,
+    status: str = "superseded",
+    reason: str = "",
+) -> bool:
+    """Close an active recommendation (superseded, invalidated, etc.)."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE recommendations SET status = ? WHERE id = ? "
+            "AND status IN ('valid_now', 'awaiting_activation', 'waiting', 'in_trade')",
+            (status, rec_id),
+        )
+        conn.commit()
+    return cur.rowcount > 0
+
+
 def update_recommendation_status(rec_id: str, status: str) -> bool:
     with _conn() as conn:
         cur = conn.execute(

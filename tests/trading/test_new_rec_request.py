@@ -22,7 +22,7 @@ def test_wants_explicit_new_analysis_arabic_variants() -> None:
 
 def test_plan_turn_marks_requested_new_plan() -> None:
     turn = plan_turn("لا بدي توصية جديده", active_recommendation_live=True)
-    assert turn.mode == "recommendation_followup"
+    assert turn.mode == "recommendation_supersede"
     assert turn.requested_new_plan is True
 
 

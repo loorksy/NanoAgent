@@ -40,6 +40,8 @@ async def run_gate_chain(gates: list[GateDefinition]) -> GateChainResult:
         if status == "veto" or (status == "unavailable" and required):
             vetoed_by = verdict
             break
+        if status == "warn":
+            continue
 
     allowed = vetoed_by is None
     return GateChainResult(

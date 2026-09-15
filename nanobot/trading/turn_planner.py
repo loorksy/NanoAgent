@@ -17,6 +17,7 @@ from nanobot.trading.operator_keywords import (
 TurnMode = Literal[
     "full_analysis",
     "recommendation_followup",
+    "recommendation_supersede",
     "specialist",
     "conversation",
     "reevaluation",
@@ -121,18 +122,26 @@ def _plan_turn_core(
                 budget=DEFAULT_BUDGET,
                 run_kernel=False,
             )
-        if requested or intent.kind in _ANALYSIS_KINDS or wants_live_plan_status(message):
+        if requested:
+            return TurnPlan(
+                "recommendation_supersede",
+                intent,
+                emit_stages=False,
+                reason="explicit_new_analysis_with_live_recommendation",
+                redirected_from_analysis=True,
+                requested_new_plan=True,
+                tools=FOLLOWUP_TOOLS,
+                nodes=MARKET_DATA_NODES,
+                budget=DEFAULT_BUDGET,
+            )
+        if intent.kind in _ANALYSIS_KINDS or wants_live_plan_status(message):
             return TurnPlan(
                 "recommendation_followup",
                 intent,
                 emit_stages=False,
-                reason=(
-                    "explicit_new_analysis_with_live_recommendation"
-                    if requested
-                    else "ambiguous_with_live_recommendation"
-                ),
+                reason="ambiguous_with_live_recommendation",
                 redirected_from_analysis=True,
-                requested_new_plan=requested,
+                requested_new_plan=False,
                 tools=FOLLOWUP_TOOLS,
                 nodes=MARKET_DATA_NODES,
                 budget=DEFAULT_BUDGET,

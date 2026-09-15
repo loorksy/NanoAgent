@@ -161,6 +161,34 @@ async def try_gold_fast_path(
     locale = locale_from_text(text)
     ctx = current_request_context()
     session_key = (ctx.session_key if ctx else None) or f"{channel}:{chat_id}"
+    stripped = text.strip()
+    approve_label = tr("supersede.approve_btn", locale)
+    reject_label = tr("supersede.reject_btn", locale)
+    if stripped in {approve_label, reject_label}:
+        from nanobot.trading.recommendations.supersede import apply_supersede_transition
+
+        live_row = latest_live_recommendation(session_key)
+        if live_row:
+            action = "approve_new" if stripped == approve_label else "reject_new"
+            result = apply_supersede_transition(
+                session_key,
+                recommendation_id=str(live_row.get("id") or ""),
+                action=action,
+            )
+            if action == "reject_new" and result.get("ok"):
+                return OutboundMessage(channel=channel, chat_id=chat_id, content=tr("supersede.rejected", locale))
+            if action == "approve_new" and result.get("ok"):
+                turn = plan_turn("supersede approved", active_recommendation_live=False)
+                if turn.mode in ("full_analysis", "team_swarm"):
+                    return await _run_analysis_fast_path(
+                        turn,
+                        text,
+                        channel=channel,
+                        chat_id=chat_id,
+                        bus=bus,
+                        subagent_manager=subagent_manager,
+                    )
+                return OutboundMessage(channel=channel, chat_id=chat_id, content=tr("supersede.approved", locale))
     live = latest_live_recommendation(session_key)
     if live and wants_explicit_new_analysis(text):
         live_price: float | None = None
