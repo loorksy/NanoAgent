@@ -104,7 +104,7 @@ async def test_get_live_recommendation_returns_plan_and_price(monkeypatch) -> No
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_chart.latest_live_recommendation",
+            "nanobot.agent.tools.trading_chart.sync_session_live_plan",
             return_value=live_row,
         ):
             with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
