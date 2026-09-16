@@ -1,26 +1,26 @@
 # Gold encyclopedia coverage
 
-Grep this table by spec id (`S3.6`, `P-182`, `N-056`, `C-016`). DETERMINISTIC numbers live in `policy.live()` / gates. Skills are English; operator copy stays in `nanobot/trading/i18n.py`.
+Grep this table by capability name (`Minimum reward-to-risk`, `P-182`, `N-056`, `C-016`). DETERMINISTIC numbers live in `policy.live()` / gates. Skills are English; operator copy stays in `nanobot/trading/i18n.py`.
 
-## Spec sections 1–9
+## Capability map
 
-| Id | Kind | Skill / reference | Gate / engine |
+| Capability | Kind | Skill / reference | Gate / engine |
 | --- | --- | --- | --- |
-| S1.1–S1.7 | MIXED | `technical-analysis` / `section-1-price-action.md` | G2 G3 G4 G6 (shape); FVG/fib/RSI-MACD/CHoCH detectors feed geometry evidence |
-| S2.1–S2.4 | INTERPRETIVE | `macro-radar` / `section-2-macro.md` | FEATURE-01…05, 09, 10; G1 timestamps |
-| S3.1 | DETERMINISTIC | `risk-guardrails` | G20 |
-| S3.2 | DETERMINISTIC | `risk-guardrails` | G12 |
-| S3.3 | DETERMINISTIC | `risk-guardrails` | G9 |
-| S3.4 | DETERMINISTIC | `risk-guardrails` | G10 |
-| S3.5 | DETERMINISTIC | `risk-guardrails` | G11 |
-| S3.6 | DETERMINISTIC | `risk-guardrails` | G8 |
-| S4.1–S4.6 | MIXED | `mt5-execution` / `section-4-execution.md` | HITL; G13 G17 G19; time-stop + P-035 no-widen on modify |
-| S5.1 S5.3–S5.5 | INTERPRETIVE | `memory-review` / `section-5-memory.md` | FEATURE-06 07 08; S5.4 queries post-mortem before a new rec |
-| S5.2 | EXCLUDED | backtest / historical candle replay | FEATURE-07 is live-chart DTW only |
-| S6.1–S6.7 | INTERPRETIVE | `gold-trading` / `section-6-alerts.md` | `trading-proactive`; G13 alert |
-| S7.1–S7.5 | MIXED | `security-resilience` | kill switch; G16; ticket SQLite restore; flatten HITL; adopt candidates |
-| S8.1–S8.5 | INTERPRETIVE | `multi-tasking-scenarios` | one live card; WebUI toggles skip gates, never confirm |
-| S9.1–S9.4 | INTERPRETIVE | `gold-trading` / `section-9-behavior.md` + `SOUL.md` | — |
+| Technical and price action | MIXED | `technical-analysis` / `section-1-price-action.md` | plan alignment / structure / entry shape; FVG, Fibonacci, RSI/MACD, CHoCH detectors feed geometry evidence |
+| Macro radar | INTERPRETIVE | `macro-radar` / `section-2-macro.md` | Telegram, RSS, VIP, calendar, regex, sentiment, intermarket; news-window timestamps |
+| Automatic lot sizing | DETERMINISTIC | `risk-guardrails` | position sizing |
+| Daily drawdown breaker | DETERMINISTIC | `risk-guardrails` | daily drawdown breaker |
+| Spread guard | DETERMINISTIC | `risk-guardrails` | spread guard |
+| Cooldown lock | DETERMINISTIC | `risk-guardrails` | cooldown lock |
+| Maximum open positions | DETERMINISTIC | `risk-guardrails` | max positions |
+| Minimum reward-to-risk | DETERMINISTIC | `risk-guardrails` | reward-to-risk filter |
+| Execution and trade management | MIXED | `mt5-execution` / `section-4-execution.md` | HITL; stale quote, news operational, slippage; time-stop + no-widen on modify |
+| Similar cases, post-trade, lesson log, dual review | INTERPRETIVE | `memory-review` / `section-5-memory.md` | vector playbook, FastDTW, post-mortem queried before a new rec |
+| Quick historical replay | EXCLUDED | backtest / historical candle replay | FastDTW is live-chart only |
+| Alerts and operator interface | INTERPRETIVE | `gold-trading` / `section-6-alerts.md` | `trading-proactive`; stale-quote alert |
+| Security and resilience | MIXED | `security-resilience` | kill switch; bad-tick filter; ticket SQLite restore; flatten HITL; adopt candidates |
+| Multi-tasking and scenarios | INTERPRETIVE | `multi-tasking-scenarios` | one live card; WebUI toggles skip gates, never confirm |
+| Behavioral alignment | INTERPRETIVE | `gold-trading` / `section-9-behavior.md` + `SOUL.md` | — |
 
 ## Playbook P-001 … P-200
 
@@ -39,7 +39,7 @@ Grep this table by spec id (`S3.6`, `P-182`, `N-056`, `C-016`). DETERMINISTIC nu
 
 File: `news-volatility-protocol/references/news-100.md`
 
-DETERMINISTIC cluster: N-001…005, 010, 011, 016, 035, 056, 057, 059, 061–067, 070, 071, 073, 082, 090 (plus G1 stricter than N-001).
+DETERMINISTIC cluster: N-001…005, 010, 011, 016, 035, 056, 057, 059, 061–067, 070, 071, 073, 082, 090 (news window is stricter than the fifteen-minute freeze).
 
 ## Candles C-001 … C-100
 

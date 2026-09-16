@@ -17,7 +17,7 @@ Grep `P-NNN` (zero-padded) in `references/` rather than loading every section.
 - [references/playbook-136-160-targets.md](references/playbook-136-160-targets.md)
 - [references/playbook-161-180-candle-traps.md](references/playbook-161-180-candle-traps.md)
 - [references/playbook-181-200-discipline.md](references/playbook-181-200-discipline.md)
-- Spec 4–8 (execution, memory, alerts, security, multi-task): sibling skills `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, plus `trading-proactive`
+- Execution, memory, alerts, security, and multi-tasking: sibling skills `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, plus `trading-proactive`
 
 ## Steps
 

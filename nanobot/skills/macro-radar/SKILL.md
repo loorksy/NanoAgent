@@ -9,7 +9,7 @@ INTERPRETIVE skill. Calendar blackout minutes, news-day risk, and freeze windows
 
 ## References
 
-- Spec section 2: [references/section-2-macro.md](references/section-2-macro.md)
+- Macro radar: [references/section-2-macro.md](references/section-2-macro.md)
 - News protocols: `nanobot/skills/news-volatility-protocol/references/news-100.md` (`N-001` …)
 - Free engines: FEATURE-01…05, 09, 10 (Telegram, RSS, VIP, calendar, regex, sentiment, intermarket)
 

@@ -5,15 +5,15 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 ## Pre-print (N-001 … N-018)
 
 ### N-001 — Pre-news freeze
-- **Kind:** DETERMINISTIC — G1 blackout is stricter than this 15-minute rule (`NEWS_BLACKOUT_BEFORE_MINUTES`)
+- **Kind:** DETERMINISTIC — news and event shield blackout is stricter than this 15-minute rule (`NEWS_BLACKOUT_BEFORE_MINUTES`)
 - **Judgment:** No new recommendations inside the live freeze before CPI/NFP/FOMC.
 
 ### N-002 — Cancel pendings
-- **Kind:** DETERMINISTIC — G17 / `NEWS_SHIELD_MINUTES`
+- **Kind:** DETERMINISTIC — news operational freeze / `NEWS_SHIELD_MINUTES`
 - **Judgment:** Delete working gold pendings inside the live shield window so they cannot fill on slippage.
 
 ### N-003 — Protect open winners
-- **Kind:** DETERMINISTIC overlap with G17
+- **Kind:** DETERMINISTIC overlap with news operational freeze
 - **Judgment:** BE or harvest most size inside the shield window. Do not "ride CPI."
 
 ### N-004 — Flatten near-entry trades
@@ -45,7 +45,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** If broker ping exceeds live max, ban execution.
 
 ### N-011 — No entries on rollover-news overlap
-- **Kind:** DETERMINISTIC — G15 rollover + news
+- **Kind:** DETERMINISTIC — session and calendar lock rollover + news
 - **Judgment:** If the print lands on daily contract rollover, stay out.
 
 ### N-012 — Surprise threshold
@@ -53,7 +53,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** Tiny beats do not trend. Need a meaningful miss/beat (jobs tens of thousands, CPI in tenths) before calling a shock.
 
 ### N-013 — Chair testimony day
-- **Kind:** INTERPRETIVE (calendar still drives G1)
+- **Kind:** INTERPRETIVE (calendar still drives news and event shield)
 - **Judgment:** Stay silent through the full testimony and Q&A, not just the first minute.
 
 ### N-014 — DXY leak before the print
@@ -65,11 +65,11 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** Pre-draw daily S/R a news wick might tag. Those are later targets, not entries during the void.
 
 ### N-016 — Half risk on red-folder days
-- **Kind:** DETERMINISTIC — `RISK_PCT_NEWS_DAY` / G20
+- **Kind:** DETERMINISTIC — `RISK_PCT_NEWS_DAY` / position sizing
 - **Judgment:** Same-day entries after the window use live news-day risk, not full risk.
 
 ### N-017 — No stop-market through the print
-- **Kind:** INTERPRETIVE (slippage G19)
+- **Kind:** INTERPRETIVE (slippage slippage and latency)
 - **Judgment:** Ban buy-stop/sell-stop intended to catch the explosion. They fill at the worst tick.
 
 ### N-018 — Scheduled vs unscheduled
@@ -145,7 +145,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 ## Microstructure (N-035 … N-055)
 
 ### N-035 — 60-second void
-- **Kind:** DETERMINISTIC — `NEWS_VOID_SECONDS` / G17
+- **Kind:** DETERMINISTIC — `NEWS_VOID_SECONDS` / news operational freeze
 - **Judgment:** No entries, no "the trend is in" calls in the first live void.
 
 ### N-036 — Two-sided sweep bar
@@ -231,11 +231,11 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 ## Operational safety (N-056 … N-072)
 
 ### N-056 — Spread kill
-- **Kind:** DETERMINISTIC — G9 / `SPREAD_MAX_POINTS` / `SPREAD_STABLE_SECONDS`
+- **Kind:** DETERMINISTIC — spread guard / `SPREAD_MAX_POINTS` / `SPREAD_STABLE_SECONDS`
 - **Judgment:** Engine off above live spread cap until spread is stable for the live seconds.
 
 ### N-057 — Slippage cap
-- **Kind:** DETERMINISTIC — G19 / `SLIPPAGE_MAX_POINTS`
+- **Kind:** DETERMINISTIC — slippage and latency / `SLIPPAGE_MAX_POINTS`
 - **Judgment:** Reject marketable sends if expected slippage exceeds live cap.
 
 ### N-058 — No martingale in the storm
@@ -255,7 +255,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** If floating equity drops the live percent in one bar, flatten path.
 
 ### N-062 — Cool-down after a news stop
-- **Kind:** DETERMINISTIC — `COOLDOWN_AFTER_NEWS_STOP_MINUTES` / G10
+- **Kind:** DETERMINISTIC — `COOLDOWN_AFTER_NEWS_STOP_MINUTES` / cooldown lock
 - **Judgment:** After a news-window stop-out, sit out the live minutes.
 
 ### N-063 — Wider post-news stops
@@ -263,19 +263,19 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** After the tape calms, add the live extra stop air against leftover tails.
 
 ### N-064 — Minute 58–02 during news
-- **Kind:** DETERMINISTIC — G15 rollover minutes, only with news/high-impact nearby
+- **Kind:** DETERMINISTIC — session and calendar lock rollover minutes, only with news/high-impact nearby
 - **Judgment:** Do not send in the live rollover minute window when news is active.
 
 ### N-065 — Half-distance cancel
-- **Kind:** DETERMINISTIC — same as P-193 / G14
+- **Kind:** DETERMINISTIC — same as P-193 / pending-order validity
 - **Judgment:** If price already ran half the target before fill, delete the pending.
 
 ### N-066 — Bad tick
-- **Kind:** DETERMINISTIC — G16 / `BAD_TICK_POINTS`
+- **Kind:** DETERMINISTIC — bad-tick filter / `BAD_TICK_POINTS`
 - **Judgment:** Ignore a spike-and-snap beyond live distance.
 
 ### N-067 — ATR-adjusted lots
-- **Kind:** DETERMINISTIC — G20 / `ATR_DOUBLE_LOT_HALVE`
+- **Kind:** DETERMINISTIC — position sizing / `ATR_DOUBLE_LOT_HALVE`
 - **Judgment:** If ATR doubles, halve size.
 
 ### N-068 — No blind fade of a shock
@@ -287,7 +287,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 - **Judgment:** If the day's whole target prints in two minutes, flatten 100% and stop.
 
 ### N-070 — Margin floor
-- **Kind:** DETERMINISTIC — G18 / `MARGIN_MIN_PCT`
+- **Kind:** DETERMINISTIC — margin guard / `MARGIN_MIN_PCT`
 - **Judgment:** No new risk if margin level is under the live percent.
 
 ### N-071 — Disconnect during a print
@@ -301,7 +301,7 @@ Grep `N-0[0-9][0-9]` or `N-100`. TOC: pre-print 1–18 · reading the print 19�
 ## Post-print trend (N-073 … N-086)
 
 ### N-073 — 15-minute rule
-- **Kind:** DETERMINISTIC wait — `POST_NEWS_ENTRY_WAIT_MINUTES` / G1 after-window
+- **Kind:** DETERMINISTIC wait — `POST_NEWS_ENTRY_WAIT_MINUTES` / news and event shield after-window
 - **Judgment:** Best entries start after the live post-print wait, not in the void.
 
 ### N-074 — Retest of the shock high/low

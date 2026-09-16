@@ -90,19 +90,19 @@ Builtin skill files are **English only** (no Arabic or other scripts in `SKILL.m
 - Do **not** repeat `Open gold SELL still active` on a timer — status updates only on **real transitions** (entered trade, TP1, invalidated) or when the user asks.
 - Do **not** add standing HEARTBEAT tasks that re-summarize the same live recommendation every cycle.
 
-## Spec section 6 — alerts map (merge)
+## Alerts map
 
-Numeric disconnect/stale seconds are DETERMINISTIC (`G13` / `stale_quote`). When to speak still uses the notification gate above. Spec text: `gold-trading/references/section-6-alerts.md`.
+Numeric disconnect/stale seconds are DETERMINISTIC (stale-quote guard). When to speak still uses the notification gate above. Alert map: `gold-trading/references/section-6-alerts.md`.
 
-| Id | What |
+| Capability | What |
 | --- | --- |
-| S6.1 | One chart artifact with levels — not spam |
-| S6.2 | Human confirm before any MT5 send (HITL; not a Risk Parameters toggle) |
-| S6.3 | Optional London/NY morning brief if the operator opted in |
-| S6.4 | Daily/weekly scorecard from stores, never invented |
-| S6.5 | Natural-language gold questions answered from tools |
-| S6.6 | Tell the operator when the feed is dead; do not hallucinate ticks |
-| S6.7 | Fan-out the same update to configured channels |
+| Instant chart with levels | One chart artifact with levels — not spam |
+| Human confirm | Human confirm before any MT5 send (HITL; not a Risk Parameters toggle) |
+| London/NY morning brief | Optional London/NY morning brief if the operator opted in |
+| Daily/weekly scorecard | Daily/weekly scorecard from stores, never invented |
+| Natural-language gold questions | Natural-language gold questions answered from tools |
+| Stale feed alert | Tell the operator when the feed is dead; do not hallucinate ticks |
+| Multi-channel fan-out | Fan-out the same update to configured channels |
 
 ## Outcome alerts (when enabled)
 
