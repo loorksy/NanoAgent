@@ -6,6 +6,7 @@ import pytest
 
 from nanobot.config.loader import load_config, save_config
 from nanobot.config.schema import Config
+from nanobot.trading.risk_state import DEFAULT_TOGGLES, RiskStateStore
 from nanobot.webui.trading_risk_api import (
     TradingRiskError,
     trading_risk_action,
@@ -22,6 +23,10 @@ def _use_config(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_trading_risk_payload_lists_defaults(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _use_config(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "nanobot.webui.trading_risk_api.get_risk_store",
+        lambda: RiskStateStore(tmp_path / "risk.json"),
+    )
     payload = trading_risk_payload()
     names = {field["name"] for group in payload["groups"] for field in group["fields"]}
     assert "risk_pct_default" in names
@@ -32,6 +37,9 @@ def test_trading_risk_payload_lists_defaults(tmp_path, monkeypatch: pytest.Monke
     assert payload["values"]["daily_drawdown_pct"] == 3.0
     assert payload["values"]["min_rr"] == 2.0
     assert payload["title"] == "Risk Parameters"
+    toggle_names = {row["name"] for row in payload["toggles"]}
+    assert toggle_names == set(DEFAULT_TOGGLES)
+    assert all(row["never_skips_confirm"] for row in payload["toggles"])
 
 
 def test_trading_risk_action_persists_json_values(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -45,6 +53,20 @@ def test_trading_risk_action_persists_json_values(tmp_path, monkeypatch: pytest.
     saved = load_config()
     assert saved.trading_risk_parameters.risk_pct_default == 50.0
     assert saved.trading_risk_parameters.max_open_gold_positions == 0
+
+
+def test_trading_risk_action_updates_toggles(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _use_config(tmp_path, monkeypatch)
+    store = RiskStateStore(tmp_path / "risk.json")
+    monkeypatch.setattr("nanobot.webui.trading_risk_api.get_risk_store", lambda: store)
+    payload = trading_risk_action(
+        "update",
+        {"toggles": [json.dumps({"news_shield": False, "rr_filter": True})]},
+    )
+    assert store.snapshot().feature_toggles["news_shield"] is False
+    enabled = {row["name"]: row["enabled"] for row in payload["toggles"]}
+    assert enabled["news_shield"] is False
+    assert enabled["rr_filter"] is True
 
 
 def test_trading_risk_action_rejects_non_numeric(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:

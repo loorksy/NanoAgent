@@ -6,7 +6,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.mt5_execution import (
+    mt5_close_position,
     mt5_confirm_order,
     mt5_get_account,
     mt5_modify_order,
@@ -22,6 +24,8 @@ class RecordingTransport(NullTransport):
     def __init__(self) -> None:
         super().__init__(reason="test")
         self.sent: list[dict] = []
+        self.closed: list[dict] = []
+        self.cancelled: list[dict] = []
 
     async def account_snapshot(self) -> dict:
         return {"ok": True, "account": {"balance": 10_000, "equity": 10_000, "marginLevel": 900}}
@@ -46,8 +50,20 @@ class RecordingTransport(NullTransport):
             }
         ]
 
+    async def open_orders(self) -> list[dict]:
+        return [{"id": "pend-1", "symbol": "XAUUSD"}]
+
     async def modify_position(self, payload: dict) -> dict:
         self.sent.append({"modify": payload})
+        return {"ok": True, "result": payload}
+
+    async def close_position(self, payload: dict) -> dict:
+        self.closed.append(payload)
+        self.sent.append({"close": payload})
+        return {"ok": True, "result": payload}
+
+    async def cancel_order(self, payload: dict) -> dict:
+        self.cancelled.append(payload)
         return {"ok": True, "result": payload}
 
 
@@ -130,3 +146,46 @@ async def test_account_includes_management_snapshot(_transport: RecordingTranspo
     assert out["ok"] is True
     assert out["management"] is not None
     assert "trailing_stop" in out["management"]
+    assert out["flatten_required"] is False
+    assert out["adopt_candidates"]
+
+
+@pytest.mark.asyncio
+async def test_confirm_persists_ticket_and_clears_adopt(_transport: RecordingTransport, tmp_path):
+    proposed = await mt5_propose_order(
+        side="buy",
+        entry=2650.0,
+        stop=2640.0,
+        targets=[2670.0],
+        lot=0.1,
+    )
+    out = await mt5_confirm_order(proposal_id=proposed["proposal"]["id"], confirm=True)
+    assert out["executed"] is True
+    stored = TicketStore().get("ticket-1")
+    assert stored is not None
+    assert stored.managed is True
+    account = await mt5_get_account()
+    assert account["adopt_candidates"] == []
+    assert account["tickets"][0]["ticket_id"] == "ticket-1"
+
+
+@pytest.mark.asyncio
+async def test_flatten_all_requires_confirm(_transport: RecordingTransport):
+    denied = await mt5_close_position(position_id="ALL", flatten_all=True, confirm=False)
+    assert denied["executed"] is False
+    assert _transport.closed == []
+    out = await mt5_close_position(position_id="ALL", flatten_all=True, confirm=True)
+    assert out["flatten"] is True
+    assert out["executed"] is True
+    assert _transport.closed
+    assert _transport.cancelled
+
+
+@pytest.mark.asyncio
+async def test_adopt_manual_ticket(_transport: RecordingTransport):
+    out = await mt5_get_account(adopt_ticket="ticket-1")
+    assert out["ok"] is True
+    assert out["adopt_candidates"] == []
+    stored = TicketStore().get("ticket-1")
+    assert stored is not None
+    assert stored.adopted is True

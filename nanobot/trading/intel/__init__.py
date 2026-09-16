@@ -8,6 +8,7 @@ from nanobot.trading.intel.postmortem import PostMortemLog
 from nanobot.trading.intel.regex_emergency import scan_emergency
 from nanobot.trading.intel.rss_aggregator import fetch_rss_headlines
 from nanobot.trading.intel.telegram_scraper import TelegramHeadlineSource
+from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.intel.vector_playbook import VectorPlaybook
 from nanobot.trading.intel.vip_tracker import fetch_vip_statements
 
@@ -20,6 +21,7 @@ __all__ = [
     "VectorPlaybook",
     "match_pattern",
     "PostMortemLog",
+    "TicketStore",
     "classify_sentiment",
     "intermarket_snapshot",
 ]

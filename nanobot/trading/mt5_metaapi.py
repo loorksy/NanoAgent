@@ -12,9 +12,11 @@ class MetaApiTransport(Protocol):
     async def account_snapshot(self) -> dict[str, Any]: ...
     async def quote(self, symbol: str) -> dict[str, Any]: ...
     async def open_positions(self) -> list[dict[str, Any]]: ...
+    async def open_orders(self) -> list[dict[str, Any]]: ...
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]: ...
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]: ...
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+    async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
 @dataclass
@@ -32,6 +34,9 @@ class NullTransport:
     async def open_positions(self) -> list[dict[str, Any]]:
         return []
 
+    async def open_orders(self) -> list[dict[str, Any]]:
+        return []
+
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": self.reason, "payload": payload}
 
@@ -39,6 +44,9 @@ class NullTransport:
         return {"ok": False, "error": self.reason}
 
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": False, "error": self.reason}
+
+    async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": self.reason}
 
 
@@ -76,6 +84,14 @@ class SdkTransport:
         positions = await rpc.get_positions()
         return list(positions or [])
 
+    async def open_orders(self) -> list[dict[str, Any]]:
+        rpc = await self._conn()
+        getter = getattr(rpc, "get_orders", None)
+        if getter is None:
+            return []
+        orders = await getter()
+        return list(orders or [])
+
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         result = await rpc.create_market_buy_order(
@@ -105,6 +121,14 @@ class SdkTransport:
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         result = await rpc.close_position(payload["position_id"])
+        return {"ok": True, "result": result}
+
+    async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:
+        rpc = await self._conn()
+        fn = getattr(rpc, "cancel_order", None)
+        if fn is None:
+            return {"ok": False, "error": "cancel_order is not available on this transport"}
+        result = await fn(payload["order_id"])
         return {"ok": True, "result": result}
 
 

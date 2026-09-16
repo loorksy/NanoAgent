@@ -5,10 +5,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from nanobot.trading.gates.drawdown_breaker import flatten_required_reason
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.position_sizing import lot_from_balance
 from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gates.trade_management import management_snapshot
+from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.mt5_metaapi import get_transport
 from nanobot.trading.mt5_proposals import OrderProposal, get_proposal_store
 from nanobot.trading.policy import GOLD_POINT, MAGIC_SCALP, MAGIC_SWING
@@ -31,8 +33,20 @@ def _quote_mid(quote: dict[str, Any] | None) -> float | None:
     return (float(bid) + float(ask)) / 2
 
 
+def _position_id(row: dict[str, Any]) -> str:
+    return str(row.get("id") or row.get("positionId") or row.get("ticket") or "")
+
+
 def _position_symbol(row: dict[str, Any]) -> str:
     return str(row.get("symbol") or row.get("symbolName") or GOLD_SYMBOL)
+
+
+def _gold_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if _position_symbol(row) == GOLD_SYMBOL]
+
+
+def _order_id(row: dict[str, Any]) -> str:
+    return str(row.get("id") or row.get("orderId") or row.get("ticket") or "")
 
 
 def _plan_from_position(row: dict[str, Any]) -> EntryPlan | None:
@@ -114,19 +128,50 @@ def _risk_from_account(account: dict[str, Any], quote: dict[str, Any] | None) ->
     )
 
 
-async def mt5_get_account() -> dict[str, Any]:
+async def mt5_get_account(*, adopt_ticket: str | None = None) -> dict[str, Any]:
     transport = get_transport()
     account = await transport.account_snapshot()
     quote = await transport.quote(GOLD_SYMBOL)
     positions = await transport.open_positions()
+    gold = _gold_rows(positions)
+    tickets = TicketStore()
+    if adopt_ticket:
+        row = next((item for item in gold if _position_id(item) == str(adopt_ticket)), None)
+        if row is None:
+            return {"ok": False, "error": "Unknown gold ticket to adopt"}
+        plan = _plan_from_position(row)
+        tickets.upsert(
+            ticket_id=str(adopt_ticket),
+            side=(plan.direction if plan else "buy"),
+            entry=(plan.entry if plan else 0.0),
+            stop=(plan.stop_loss if plan else 0.0),
+            managed=True,
+            adopted=True,
+            opened_ms=_position_open_ms(row),
+        )
+    broker_ids = {_position_id(row) for row in gold}
+    restored = tickets.restore(broker_ids)
+    adopt_candidates = tickets.adopt_candidates(gold)
     management = None
     live = _quote_mid(quote)
-    gold = next((row for row in positions if _position_symbol(row) == GOLD_SYMBOL), None)
-    if gold is not None and live is not None:
-        plan = _plan_from_position(gold)
+    first = gold[0] if gold else None
+    if first is not None and live is not None:
+        plan = _plan_from_position(first)
         if plan is not None:
             management = management_snapshot(plan, live, atr=max(GOLD_POINT * 80, abs(plan.entry - plan.stop_loss)))
-    return {"ok": True, "account": account, "quote": quote, "positions": positions, "management": management}
+    risk = _risk_from_account(account, quote)
+    flatten_reason = flatten_required_reason(risk)
+    return {
+        "ok": True,
+        "account": account,
+        "quote": quote,
+        "positions": positions,
+        "management": management,
+        "tickets": [row.to_public() for row in restored],
+        "adopt_candidates": adopt_candidates,
+        "flatten_required": flatten_reason is not None,
+        "flatten_reason": flatten_reason,
+    }
 
 
 async def mt5_propose_order(
@@ -222,6 +267,17 @@ async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[
     )
     position_id = str((sent.get("result") or {}).get("positionId") or sent.get("position_id") or proposal.id)
     store.mark_executed(proposal_id, position_id)
+    TicketStore().upsert(
+        ticket_id=position_id,
+        side=proposal.side,
+        entry=proposal.entry,
+        stop=proposal.stop,
+        lot=proposal.lot,
+        magic=int((proposal.extra or {}).get("magic") or 0),
+        comment=proposal.comment,
+        managed=True,
+        opened_ms=now,
+    )
     return {"ok": True, "executed": True, "send": sent, "proposal": proposal.to_public()}
 
 
@@ -242,7 +298,7 @@ async def mt5_modify_order(
         (
             item
             for item in positions
-            if str(item.get("id") or item.get("positionId") or item.get("ticket")) == str(position_id)
+            if _position_id(item) == str(position_id)
         ),
         None,
     )
@@ -281,8 +337,36 @@ async def mt5_modify_order(
     return {"ok": True, "executed": True, "send": sent}
 
 
-async def mt5_close_position(*, position_id: str, confirm: bool = False) -> dict[str, Any]:
+async def mt5_close_position(
+    *,
+    position_id: str,
+    confirm: bool = False,
+    flatten_all: bool = False,
+) -> dict[str, Any]:
     if not confirm:
         return {"ok": False, "executed": False, "error": "Human confirmation required to close"}
-    sent = await get_transport().close_position({"position_id": position_id})
+    transport = get_transport()
+    if flatten_all or position_id in {"ALL", "*"}:
+        closed: list[dict[str, Any]] = []
+        cancelled: list[dict[str, Any]] = []
+        for row in _gold_rows(await transport.open_positions()):
+            pid = _position_id(row)
+            if not pid:
+                continue
+            closed.append(await transport.close_position({"position_id": pid}))
+            TicketStore().mark_closed(pid)
+        for order in _gold_rows(await transport.open_orders()):
+            oid = _order_id(order)
+            if not oid:
+                continue
+            cancelled.append(await transport.cancel_order({"order_id": oid}))
+        return {
+            "ok": True,
+            "executed": True,
+            "flatten": True,
+            "closed": closed,
+            "cancelled": cancelled,
+        }
+    sent = await transport.close_position({"position_id": position_id})
+    TicketStore().mark_closed(position_id)
     return {"ok": True, "executed": True, "send": sent}

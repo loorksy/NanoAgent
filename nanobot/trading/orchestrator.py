@@ -19,6 +19,7 @@ from nanobot.trading.gates.news_window import nearest_high_impact
 from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.i18n import gate_label, tr
+from nanobot.trading.intel.postmortem import refuse_repeat_error
 from nanobot.trading.intent_router import route_intent
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
@@ -219,6 +220,37 @@ async def run_unified_chart_agent(
         )
 
     rec = decision.recommendation
+    if rec.action in {"buy", "sell"}:
+        setup = "structure"
+        if structure is not None and structure.latest_structure_event is not None:
+            setup = structure.latest_structure_event.type
+        elif rec.plan_type:
+            setup = rec.plan_type
+        repeat = refuse_repeat_error(side=rec.action, setup=setup)
+        if repeat is not None:
+            loc = locale_from_text(_operator_text())
+            reason = tr("lesson.repeat", loc, reason=repeat.reason)
+            decision.decision = "wait"
+            decision.refusal_summary = reason
+            decision.summary = reason
+            decision.recommendation.action = "wait"
+            decision.execution_state = "blocked"
+            rec.execution_state = "blocked"
+            rec.action = "wait"
+            track(emit_stage("final_decision", "failed"))
+            return AgentFinalResult(
+                decision=decision,
+                structure=structure,
+                liquidity=liquidity,
+                supply_demand=supply_demand,
+                mtf=mtf,
+                news=news,
+                risk=risk,
+                market=market,
+                stages=stages,
+                team_mode=team_mode,
+            )
+
     plan = EntryPlan(
         direction=rec.action,  # type: ignore[arg-type]
         entry_type=rec.entry_type or "market",

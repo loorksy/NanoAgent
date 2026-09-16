@@ -8,10 +8,11 @@ from nanobot.trading.intel.calendar_scraper import parse_calendar_json
 from nanobot.trading.intel.dtw_matcher import match_pattern
 from nanobot.trading.intel.intermarket import divergence_matrix, intermarket_snapshot
 from nanobot.trading.intel.local_sentiment import classify_sentiment
-from nanobot.trading.intel.postmortem import LossRecord, PostMortemLog
+from nanobot.trading.intel.postmortem import LossRecord, PostMortemLog, refuse_repeat_error
 from nanobot.trading.intel.regex_emergency import scan_emergency
 from nanobot.trading.intel.rss_aggregator import parse_feed_body, reset_seen_for_tests
 from nanobot.trading.intel.telegram_scraper import TelegramHeadlineSource
+from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.intel.vector_playbook import VectorPlaybook
 from nanobot.trading.intel.vip_tracker import _impact
 from nanobot.trading.risk_state import RiskStateStore
@@ -50,6 +51,29 @@ def test_postmortem_repeat_detection(tmp_path):
     found = log.repeats_recent_error(setup="asia_sweep", dxy_state="dxy_up", side="buy")
     assert found is not None
     assert log.repeats_recent_error(setup="other", dxy_state="dxy_up", side="buy") is None
+    assert refuse_repeat_error(side="buy", setup="asia_sweep", dxy_state="dxy_up", path=tmp_path / "pm.sqlite") is not None
+
+
+def test_ticket_store_restore_and_adopt_candidates(tmp_path):
+    store = TicketStore(tmp_path / "tickets.sqlite")
+    store.upsert(ticket_id="managed-1", side="buy", entry=2650.0, stop=2640.0, lot=0.1)
+    restored = store.restore({"managed-1"})
+    assert [row.ticket_id for row in restored] == ["managed-1"]
+    store.restore(set())
+    assert store.get("managed-1") is not None
+    assert store.get("managed-1").status == "closed"
+    store.upsert(ticket_id="managed-2", side="sell", entry=2660.0, stop=2670.0)
+    candidates = store.adopt_candidates(
+        [
+            {"id": "managed-2", "symbol": "XAUUSD", "type": "sell", "openPrice": 2660.0, "stopLoss": 2670.0},
+            {"id": "manual-9", "symbol": "XAUUSD", "type": "buy", "openPrice": 2655.0, "stopLoss": 2648.0},
+        ]
+    )
+    assert [row["ticket_id"] for row in candidates] == ["manual-9"]
+    adopted = store.adopt("manual-9")
+    assert adopted is None
+    store.upsert(ticket_id="manual-9", side="buy", entry=2655.0, stop=2648.0, adopted=True)
+    assert store.get("manual-9").adopted is True
 
 
 def test_calendar_json_surprise():

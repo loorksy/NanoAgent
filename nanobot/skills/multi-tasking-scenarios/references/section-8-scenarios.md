@@ -20,4 +20,4 @@ Translate "move every gold stop to entry if we touch X" into a concrete proposal
 
 ### S8.5 — Feature toggles
 
-Operator toggles may skip named gates (news shield, cooldown, …). Confirm is never a toggle. If a protection is off, say so in user-facing language.
+Operator toggles on the Risk Parameters page may skip named gates (news shield, cooldown, …). Confirm is never a toggle. If a protection is off, say so in user-facing language.

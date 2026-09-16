@@ -482,6 +482,24 @@ MESSAGES: dict[str, dict[str, str]] = {
         "risk.field.g7_max_slippage_atr": "Live price confirmation — re-anchor slippage (ATR)",
         "risk.field.lot_dual_check_high": "Reject lot above this multiple of sized lot",
         "risk.field.lot_dual_check_low": "Reject lot below this multiple of sized lot",
+        "risk.settings.toggles_title": "Feature toggles",
+        "risk.settings.toggles_help": (
+            "Turning a protection off skips that named gate only. "
+            "Human confirmation before any MT5 send cannot be disabled."
+        ),
+        "risk.settings.confirm_stays": "Confirm stays required",
+        "risk.toggle.news_shield": "News shield",
+        "risk.toggle.early_exit": "Early-exit recommendation",
+        "risk.toggle.spread_guard": "Spread guard",
+        "risk.toggle.cooldown_lock": "Cooldown lock",
+        "risk.toggle.drawdown_breaker": "Daily drawdown breaker",
+        "risk.toggle.rr_filter": "Minimum reward-to-risk filter",
+        "risk.toggle.max_positions": "Maximum open positions",
+        "risk.toggle.session_lock": "Session lock",
+        "risk.toggle.bad_tick": "Bad-tick filter",
+        "risk.toggle.stale_quote": "Stale-quote guard",
+        "risk.toggle.holiday_lock": "Holiday lock",
+        "lesson.repeat": "Refused: this idea repeats a recent losing trade ({reason})",
     },
     "ar": {
         "price.header": "سعر الذهب (XAUUSD)",
@@ -655,6 +673,24 @@ MESSAGES: dict[str, dict[str, str]] = {
         "risk.field.g7_max_slippage_atr": "تأكيد السعر الحي — انزلاق إعادة الارتكاز (ATR)",
         "risk.field.lot_dual_check_high": "رفض العقد فوق هذا المضاعف من الحجم المحسوب",
         "risk.field.lot_dual_check_low": "رفض العقد دون هذا المضاعف من الحجم المحسوب",
+        "risk.settings.toggles_title": "مفاتيح التشغيل",
+        "risk.settings.toggles_help": (
+            "إيقاف حماية يتخطى بوابتها فقط. "
+            "لا يمكن تعطيل التأكيد البشري قبل إرسال أي أمر إلى MT5."
+        ),
+        "risk.settings.confirm_stays": "التأكيد يبقى إلزامياً",
+        "risk.toggle.news_shield": "درع الأخبار",
+        "risk.toggle.early_exit": "توصية الخروج المبكر",
+        "risk.toggle.spread_guard": "حارس السبريد",
+        "risk.toggle.cooldown_lock": "قفل التهدئة",
+        "risk.toggle.drawdown_breaker": "قاطع التراجع اليومي",
+        "risk.toggle.rr_filter": "فلتر العائد مقابل المخاطرة",
+        "risk.toggle.max_positions": "حد الصفقات المفتوحة",
+        "risk.toggle.session_lock": "قفل الجلسة",
+        "risk.toggle.bad_tick": "فلتر الأسعار الشاذة",
+        "risk.toggle.stale_quote": "حارس السعر المتقادم",
+        "risk.toggle.holiday_lock": "قفل العطل",
+        "lesson.repeat": "مرفوضة: هذه الفكرة تكرر صفقة خاسرة حديثة ({reason})",
     },
 }
 

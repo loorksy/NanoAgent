@@ -12,7 +12,7 @@ MetaAPI and broker secrets live in local env, never in chat, skills, or screensh
 
 ### S7.3 — Local ticket restore
 
-Persist tickets and management state (SQLite/local). After a crash, reload opens before any new risk.
+Persist tickets and management state in local SQLite. After a crash, reload opens before any new risk. Unmanaged broker tickets are adopt candidates — never attach stops without a yes.
 
 ### S7.4 — Bad tick filter
 

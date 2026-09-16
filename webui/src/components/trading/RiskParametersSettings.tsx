@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fetchTradingRisk, updateTradingRisk } from "@/lib/api";
-import type { TradingRiskField, TradingRiskPayload } from "@/lib/types";
+import type { TradingRiskField, TradingRiskPayload, TradingRiskToggle } from "@/lib/types";
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -9,12 +9,12 @@ export function RiskParametersSettings() {
   const { client, token } = useClient();
   const [payload, setPayload] = useState<TradingRiskPayload | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [toggleDraft, setToggleDraft] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const next = await fetchTradingRisk(token);
+  const applyPayload = useCallback((next: TradingRiskPayload) => {
     setPayload(next);
     const values: Record<string, string> = {};
     for (const group of next.groups) {
@@ -23,7 +23,17 @@ export function RiskParametersSettings() {
       }
     }
     setDraft(values);
-  }, [token]);
+    const toggles: Record<string, boolean> = {};
+    for (const toggle of next.toggles ?? []) {
+      toggles[toggle.name] = toggle.enabled;
+    }
+    setToggleDraft(toggles);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const next = await fetchTradingRisk(token);
+    applyPayload(next);
+  }, [applyPayload, token]);
 
   useEffect(() => {
     void refresh().catch((err: Error) => setError(err.message));
@@ -31,10 +41,14 @@ export function RiskParametersSettings() {
 
   const dirty = useMemo(() => {
     if (!payload) return false;
-    return payload.groups.some((group) =>
+    const fieldsDirty = payload.groups.some((group) =>
       group.fields.some((field) => draft[field.name] !== String(field.value)),
     );
-  }, [draft, payload]);
+    const togglesDirty = (payload.toggles ?? []).some(
+      (toggle) => toggleDraft[toggle.name] !== toggle.enabled,
+    );
+    return fieldsDirty || togglesDirty;
+  }, [draft, payload, toggleDraft]);
 
   const save = useCallback(async () => {
     if (!payload) return;
@@ -54,22 +68,15 @@ export function RiskParametersSettings() {
     setError(null);
     setStatus(null);
     try {
-      const next = await updateTradingRisk(client, values);
-      setPayload(next);
-      const nextDraft: Record<string, string> = {};
-      for (const group of next.groups) {
-        for (const field of group.fields) {
-          nextDraft[field.name] = String(field.value);
-        }
-      }
-      setDraft(nextDraft);
+      const next = await updateTradingRisk(client, values, toggleDraft);
+      applyPayload(next);
       setStatus(next.last_action?.message ?? "Saved.");
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
-  }, [client, draft, payload]);
+  }, [applyPayload, client, draft, payload, toggleDraft]);
 
   if (!payload) {
     return (
@@ -95,6 +102,27 @@ export function RiskParametersSettings() {
       </div>
       {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
       {status ? <p className="mb-4 text-sm text-emerald-600 dark:text-emerald-400">{status}</p> : null}
+      {(payload.toggles ?? []).length > 0 ? (
+        <div className="mb-6">
+          <h3 className="mb-1 text-sm font-medium">{payload.toggles_title ?? "Feature toggles"}</h3>
+          <p className="mb-3 max-w-3xl text-xs text-muted-foreground">
+            {payload.toggles_help}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {(payload.toggles ?? []).map((toggle) => (
+              <ToggleInput
+                key={toggle.name}
+                toggle={toggle}
+                enabled={toggleDraft[toggle.name] ?? toggle.enabled}
+                onChange={(next) => {
+                  setToggleDraft((prev) => ({ ...prev, [toggle.name]: next }));
+                  setStatus(null);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="grid gap-6">
         {payload.groups.map((group) => (
           <div key={group.id}>
@@ -119,6 +147,35 @@ export function RiskParametersSettings() {
         {busy ? "Saving…" : payload.save_label}
       </Button>
     </section>
+  );
+}
+
+function ToggleInput({
+  toggle,
+  enabled,
+  onChange,
+}: {
+  toggle: TradingRiskToggle;
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex items-start gap-2 rounded-lg border px-3 py-2 text-sm">
+      <input
+        type="checkbox"
+        className="mt-1"
+        checked={enabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span>
+        <span className="leading-5 text-foreground">{toggle.label}</span>
+        {toggle.never_skips_confirm ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {toggle.confirm_note}
+          </span>
+        ) : null}
+      </span>
+    </label>
   );
 }
 
