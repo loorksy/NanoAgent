@@ -9,14 +9,14 @@ Analysis tools never send orders. Execution tools only propose; the operator mus
 
 ## References
 
-- Spec section 4: [references/section-4-execution.md](references/section-4-execution.md)
+- Execution and trade management: [references/section-4-execution.md](references/section-4-execution.md)
 - Playbook management/discipline: `P-136` … `P-160`, `P-181` … `P-200`
 
 ## Steps
 
 1. Build the recommendation first. If rec gates fail, do not propose.
 2. Propose a bracket (entry, SL, TPs) with TTL from `live().PROPOSAL_TTL_SECONDS`. If TTL lapses, re-propose — do not silently send.
-3. On confirm, re-check live fill RR (`MIN_RR_LIVE_FILL`), spread, slippage, stale quote, and session locks.
+3. On confirm, re-check live fill reward-to-risk (`MIN_RR_LIVE_FILL`), spread, slippage, stale quote, and session locks.
 4. Management (trail, BE, partials, news shield, early exit) is INTERPRETIVE around DETERMINISTIC buffers. Recommend or, after confirm, request a modify — never hidden auto-trade.
 
 ## Output

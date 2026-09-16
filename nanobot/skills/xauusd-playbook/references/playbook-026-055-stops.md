@@ -51,8 +51,8 @@ Grep `P-0(2[6-9]|3[0-9]|4[0-9]|5[0-5])`.
 - **Judgment:** Rest stops beyond equal lows/highs with air. Those doubles are wick magnets.
 
 ### P-038 — Breakeven rule
-- **Kind:** DETERMINISTIC RR — `live().BREAKEVEN_RR`; timing is INTERPRETIVE
-- **Judgment:** Move to entry only after price travels the live 1R **and** a new M15 swing exists. Early BE is P-046.
+- **Kind:** DETERMINISTIC reward-to-risk — `live().BREAKEVEN_RR`; timing is INTERPRETIVE
+- **Judgment:** Move to entry only after price travels one times risk **and** a new M15 swing exists. Early BE is P-046.
 
 ### P-039 — Lock profits when most of the target is in
 - **Kind:** DETERMINISTIC fractions — `PROFIT_LOCK_AT_TARGET_FRACTION` / `PROFIT_LOCK_KEEP_FRACTION`
@@ -63,7 +63,7 @@ Grep `P-0(2[6-9]|3[0-9]|4[0-9]|5[0-5])`.
 - **Judgment:** Stop goes beyond the far side of the institutional block, not on its edge.
 
 ### P-041 — Shorts must include spread in the stop
-- **Kind:** INTERPRETIVE (spread cap is G9)
+- **Kind:** INTERPRETIVE (spread cap is spread guard)
 - **Judgment:** For sells, add current spread into stop air so a wide ask does not fake-stop you.
 
 ### P-042 — Chandelier-style trail
@@ -87,7 +87,7 @@ Grep `P-0(2[6-9]|3[0-9]|4[0-9]|5[0-5])`.
 - **Judgment:** BE before a minor high/low is taken often dies on a noise wick, then the real move starts.
 
 ### P-047 — Stop distance maps to portfolio percent via lot
-- **Kind:** DETERMINISTIC — G20 / `RISK_PCT_*`
+- **Kind:** DETERMINISTIC — position sizing / `RISK_PCT_*`
 - **Judgment:** Distance is structural; lot makes that distance equal live risk percent. Do not shrink the stop to "fit" a fantasy lot.
 
 ### P-048 — Close-based stop option
@@ -95,12 +95,12 @@ Grep `P-0(2[6-9]|3[0-9]|4[0-9]|5[0-5])`.
 - **Judgment:** Some ideas die only on an H1 close beyond the level, not on a wick. State that rule in the plan before entry.
 
 ### P-049 — Pre-news stop hygiene
-- **Kind:** INTERPRETIVE (shield minutes are DETERMINISTIC G17)
+- **Kind:** INTERPRETIVE (shield minutes are DETERMINISTIC news operational freeze)
 - **Judgment:** Before red news, the stop should not sit in open gaps. Prefer flatten/BE per news shield rather than a heroic hold.
 
 ### P-050 — Split stops on split size
 - **Kind:** INTERPRETIVE
-- **Judgment:** Two tickets may use a tight stop and a structural stop. Combined risk still respects G20.
+- **Judgment:** Two tickets may use a tight stop and a structural stop. Combined risk still respects position sizing.
 
 ### P-051 — Channel median as early stop
 - **Kind:** INTERPRETIVE

@@ -48,10 +48,10 @@ Grep `P-1(0[6-9]|1[0-9]|2[0-9]|3[0-5])`.
 
 ### P-117 — London PM fixing window
 - **Kind:** INTERPRETIVE
-- **Judgment:** Around the London PM gold fix, expect sudden inventory flattening. Not a G15 lock unless it overlaps live session rules.
+- **Judgment:** Around the London PM gold fix, expect sudden inventory flattening. Not a session and calendar lock lock unless it overlaps live session rules.
 
 ### P-118 — Midnight spread trap
-- **Kind:** DETERMINISTIC — G15 / `MIDNIGHT_SPREAD_*`
+- **Kind:** DETERMINISTIC — session and calendar lock / `MIDNIGHT_SPREAD_*`
 - **Judgment:** Rollover minutes: no new risk, no tight stops. Obey the live clock.
 
 ### P-119 — True support break becomes a vertical dump
@@ -87,7 +87,7 @@ Grep `P-1(0[6-9]|1[0-9]|2[0-9]|3[0-5])`.
 - **Judgment:** If silver breaks its high and gold lags, gold usually catches up fast.
 
 ### P-127 — US bank holidays are dead
-- **Kind:** DETERMINISTIC overlap with G15 holidays
+- **Kind:** DETERMINISTIC overlap with session and calendar lock holidays
 - **Judgment:** US holiday sessions are spread-burn. Prefer the holiday lock over "just a scalp."
 
 ### P-128 — Late New York fade

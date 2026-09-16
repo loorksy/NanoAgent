@@ -7,13 +7,13 @@ description: Gold multi-task doctrine — manage an open idea while scanning, mu
 
 ## References
 
-- Spec section 8: [references/section-8-scenarios.md](references/section-8-scenarios.md)
+- Multi-tasking and scenarios: [references/section-8-scenarios.md](references/section-8-scenarios.md)
 - One live recommendation per conversation remains the constitution (`gold-trading`)
 
 ## Steps
 
 1. One published live recommendation per conversation. A second scenario stays conditional and unpublished until the first is archived or the operator confirms `force_new_plan`.
-2. Break-or-fail pairs: only the confirmed scenario activates; the other is cancelled (8.2). Do not run both.
+2. Break-or-fail pairs: only the confirmed scenario activates; the other is cancelled. Do not run both.
 3. Scalp vs swing: separate magic numbers and stops (P-185). Do not trail a swing with a scalp stop.
 4. Natural-language orders ("move every gold stop to entry if we touch X") become an explicit proposal, then HITL confirm.
 5. Toggles skip some gates; they never skip confirm. Say which protection is off, in user-facing language.

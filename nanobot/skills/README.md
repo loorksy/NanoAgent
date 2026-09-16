@@ -27,15 +27,15 @@ Built-in directories are auto-discovered from this folder (`SKILL.md` required).
 | Skill | Description |
 |-------|-------------|
 | `gold-trading` | Lonora constitution (gold-only, recs vs HITL, tools) |
-| `technical-analysis` | Spec §1 price action (FVG, MTF, sweeps, BOS/CHoCH) |
-| `macro-radar` | Spec §2 calendar, DXY, tone, geopolitics |
-| `risk-guardrails` | Spec §3 capital gates around `policy.live()` |
-| `mt5-execution` | Spec §4 MetaAPI propose/confirm (HITL mandatory) |
-| `memory-review` | Spec §5 similar cases, post-mortem, dual review |
+| `technical-analysis` | Technical and price action (FVG, MTF, sweeps, BOS/CHoCH) |
+| `macro-radar` | Macro radar (calendar, DXY, tone, geopolitics) |
+| `risk-guardrails` | Risk guardrails around `policy.live()` |
+| `mt5-execution` | Execution and trade management (MetaAPI propose/confirm; HITL mandatory) |
+| `memory-review` | Memory and review (similar cases, post-mortem, dual review) |
 | `news-volatility-protocol` | 100 news rules + 100 news-candle rules |
 | `xauusd-playbook` | 200 operational field rules |
-| `security-resilience` | Spec §7 kill switch, bad ticks, restore |
-| `multi-tasking-scenarios` | Spec §8 dual scenarios, scalp vs swing, toggles |
+| `security-resilience` | Security and resilience (kill switch, bad ticks, restore) |
+| `multi-tasking-scenarios` | Multi-tasking and scenarios (dual scenarios, scalp vs swing, toggles) |
 | `trading-proactive` | When to notify; silence in a dead market |
 | `memory` | Search `history.jsonl` |
 | `cron` | Scheduled tasks |

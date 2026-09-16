@@ -87,7 +87,7 @@ Grep `P-1(3[6-9]|4[0-9]|5[0-9]|60)`.
 - **Judgment:** Corrective bounces often die at the 50-day average.
 
 ### P-157 — Do not weekend-hold scalps
-- **Kind:** INTERPRETIVE (holiday/weekend locks may be G15)
+- **Kind:** INTERPRETIVE (holiday/weekend locks may be session and calendar lock)
 - **Judgment:** Avoid Saturday/Sunday gap risk. Flatten tactical books on Friday.
 
 ### P-158 — Liquidation-run target

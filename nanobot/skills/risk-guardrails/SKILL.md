@@ -1,6 +1,6 @@
 ---
 name: risk-guardrails
-description: Gold risk judgment around live capital gates — lot size, daily drawdown, spread, cooldown, max positions, minimum R:R, and operator-owned WebUI thresholds. Use when sizing, when a plan is blocked, after losses, or when the operator asks to loosen risk. English skill; reply in the operator's language.
+description: Gold risk judgment around live capital gates — lot size, daily drawdown, spread, cooldown, max positions, minimum reward-to-risk, and operator-owned WebUI thresholds. Use when sizing, when a plan is blocked, after losses, or when the operator asks to loosen risk. English skill; reply in the operator's language.
 ---
 
 # Risk guardrails (gold)
@@ -9,7 +9,7 @@ DETERMINISTIC numbers are owned by `Config.trading_risk_parameters` and `policy.
 
 ## References
 
-- Spec section 3: [references/section-3-risk.md](references/section-3-risk.md)
+- Risk guardrails: [references/section-3-risk.md](references/section-3-risk.md)
 - Playbook stops / discipline: `nanobot/skills/xauusd-playbook/references/` (`P-026` … `P-055`, `P-181` … `P-200`)
 
 ## Steps
@@ -22,7 +22,7 @@ DETERMINISTIC numbers are owned by `Config.trading_risk_parameters` and `policy.
 ## Output
 
 - Whether capital gates allow a plan.
-- Which user-facing check refused (from `i18n.gate_label`), not G8/G12 ids.
+- Which user-facing check refused (from `i18n.gate_label`), never a raw gate wire id.
 - What the operator can change in Risk Parameters if they own the threshold.
 
 ## Example

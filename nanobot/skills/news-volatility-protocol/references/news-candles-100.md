@@ -43,7 +43,7 @@ A candle is a **news candle** when several families agree. C-016, C-031, and C-0
 - **Judgment:** Last-Friday-of-month wildness is inventory, still treat as a shock candle for risk.
 
 ### C-010 — API sync < 60s
-- **Kind:** INTERPRETIVE (G1 uses calendar timestamps)
+- **Kind:** INTERPRETIVE (news and event shield uses calendar timestamps)
 - **Judgment:** If the bar's open is within a minute of a high-impact timestamp, label it news.
 
 ### C-011 — EIA / oil 10:30 ET Wednesday
@@ -89,8 +89,8 @@ A candle is a **news candle** when several families agree. C-016, C-031, and C-0
 - **Judgment:** If this bar's range ≈ sum of the prior ten, the driver is external.
 
 ### C-021 — Hidden gap inside the bar
-- **Kind:** INTERPRETIVE (bad tick G16)
-- **Judgment:** Tick-to-tick holes inside the bar are news or a bad tick. If it snaps back, G16; if it holds, news.
+- **Kind:** INTERPRETIVE (bad tick bad-tick filter)
+- **Judgment:** Tick-to-tick holes inside the bar are news or a bad tick. If it snaps back, bad-tick filter; if it holds, news.
 
 ### C-022 — >3.5σ Bollinger close
 - **Kind:** INTERPRETIVE
@@ -193,7 +193,7 @@ A candle is a **news candle** when several families agree. C-016, C-031, and C-0
 ## Spread (C-046 … C-060)
 
 ### C-046 — Spread > 3× normal
-- **Kind:** DETERMINISTIC overlap with G9 / pre-news multiplier
+- **Kind:** DETERMINISTIC overlap with spread guard / pre-news multiplier
 - **Judgment:** Instant 3× (or live cap) bid/ask is a news fingerprint.
 
 ### C-047 — Pumping spread
@@ -234,7 +234,7 @@ A candle is a **news candle** when several families agree. C-016, C-031, and C-0
 
 ### C-056 — Spread stays wide 3+ minutes
 - **Kind:** DETERMINISTIC overlap with `SPREAD_STABLE_SECONDS`
-- **Judgment:** If spread never calms, the panic is still on. G9 stays veto.
+- **Judgment:** If spread never calms, the panic is still on. spread guard stays veto.
 
 ### C-057 — Gold spread vs EURUSD
 - **Kind:** INTERPRETIVE

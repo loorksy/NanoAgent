@@ -7,8 +7,8 @@ description: Gold runtime safety — kill switch, credential hygiene, local tick
 
 ## References
 
-- Spec section 7: [references/section-7-security.md](references/section-7-security.md)
-- DETERMINISTIC: bad-tick points, disconnect alert seconds (`policy.live()`, G13, G16)
+- Security and resilience: [references/section-7-security.md](references/section-7-security.md)
+- DETERMINISTIC: bad-tick points, disconnect alert seconds (`policy.live()`, live quote freshness, bad-tick filter)
 
 ## Steps
 

@@ -9,7 +9,7 @@ INTERPRETIVE skill. Numeric thresholds live in `nanobot.trading.policy.live()` a
 
 Read the matching reference with `grep` (`output_mode="count"` first) before loading a whole file:
 
-- Spec section 1: [references/section-1-price-action.md](references/section-1-price-action.md)
+- Technical and price action: [references/section-1-price-action.md](references/section-1-price-action.md)
 - Playbook entry, retest, trendlines, candles: `nanobot/skills/xauusd-playbook/references/` (`P-001` …)
 
 ## Steps
@@ -32,6 +32,6 @@ You: "Buy because H4 is still making higher lows, M15 swept equal lows and close
 
 ## Do not
 
-- Restate live risk numbers (spread caps, RR floors, freeze windows).
+- Restate live risk numbers (spread caps, reward-to-risk floors, freeze windows).
 - Require a classic horizontal S/R touch when a trendline or mid-range FVG is the real reaction (playbook 1).
 - Describe a timeframe that was not shown.

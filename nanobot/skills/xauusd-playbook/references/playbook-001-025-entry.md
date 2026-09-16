@@ -11,7 +11,7 @@ Grep `P-0(0[1-9]|1[0-9]|2[0-5])`.
 - **Judgment:** If buy/sell conditions and the liquidity sweep are already done, prefer a now-valid marketable plan. Waiting for an extra dip can miss the move. Rec path still does not auto-send; execution stays HITL.
 
 ### P-003 — Distance vs target paradox
-- **Kind:** INTERPRETIVE (RR floor is DETERMINISTIC G8)
+- **Kind:** INTERPRETIVE (reward-to-risk floor is DETERMINISTIC)
 - **Judgment:** If the wait-for-pullback is as large as the whole target, the idea is incoherent. Prefer momentum continuation or stand aside.
 
 ### P-004 — Front-run explosive closes
@@ -47,7 +47,7 @@ Grep `P-0(0[1-9]|1[0-9]|2[0-5])`.
 - **Judgment:** When gold accelerates, enter off the steepest inner line, not the sleepy outer line.
 
 ### P-012 — Cancel stale conditional entries
-- **Kind:** DETERMINISTIC — `live().IDEA_STALE_HOURS` / pending TTL (G14 uses the stricter pending TTL)
+- **Kind:** DETERMINISTIC — `live().IDEA_STALE_HOURS` / pending TTL (pending-order validity uses the stricter pending TTL)
 - **Judgment:** If price has not reached the conditional zone within the live stale window, cancel. Probability has flipped toward a break rather than a bounce.
 
 ### P-013 — News-candle tail as support
@@ -84,7 +84,7 @@ Grep `P-0(0[1-9]|1[0-9]|2[0-5])`.
 
 ### P-021 — Hourly close timing
 - **Kind:** INTERPRETIVE
-- **Judgment:** If the H1 is a decisive break, prefer the decision near the close of that hour rather than the first minute of the next (spread/slippage). Not a session lock; G15 owns clock bans.
+- **Judgment:** If the H1 is a decisive break, prefer the decision near the close of that hour rather than the first minute of the next (spread/slippage). Not a session lock; session and calendar lock owns clock bans.
 
 ### P-022 — Fast EMA as dynamic entry in trends
 - **Kind:** INTERPRETIVE
@@ -96,7 +96,7 @@ Grep `P-0(0[1-9]|1[0-9]|2[0-5])`.
 
 ### P-024 — Split entries
 - **Kind:** INTERPRETIVE
-- **Judgment:** Two-slice entry (now + a pending a small offset) beats all-or-nothing. Size still sums to G20 risk.
+- **Judgment:** Two-slice entry (now + a pending a small offset) beats all-or-nothing. Size still sums to position sizing risk.
 
 ### P-025 — Broken high that flips to support
 - **Kind:** INTERPRETIVE
