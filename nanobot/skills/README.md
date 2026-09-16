@@ -22,11 +22,28 @@ The skill format and metadata structure follow OpenClaw's conventions to maintai
 
 ## Available Skills
 
+Built-in directories are auto-discovered from this folder (`SKILL.md` required). Large gold encyclopedias live in each skill's `references/` — grep by id (`P-056`, `N-035`, `C-016`) rather than loading whole files. Operator-facing strings stay in `nanobot/trading/i18n.py`.
+
 | Skill | Description |
 |-------|-------------|
+| `gold-trading` | Lonora constitution (gold-only, recs vs HITL, tools) |
+| `technical-analysis` | Spec §1 price action (FVG, MTF, sweeps, BOS/CHoCH) |
+| `macro-radar` | Spec §2 calendar, DXY, tone, geopolitics |
+| `risk-guardrails` | Spec §3 capital gates around `policy.live()` |
+| `mt5-execution` | Spec §4 MetaAPI propose/confirm (HITL mandatory) |
+| `memory-review` | Spec §5 similar cases, post-mortem, dual review |
+| `news-volatility-protocol` | 100 news rules + 100 news-candle rules |
+| `xauusd-playbook` | 200 operational field rules |
+| `security-resilience` | Spec §7 kill switch, bad ticks, restore |
+| `multi-tasking-scenarios` | Spec §8 dual scenarios, scalp vs swing, toggles |
+| `trading-proactive` | When to notify; silence in a dead market |
+| `memory` | Search `history.jsonl` |
+| `cron` | Scheduled tasks |
 | `github` | Interact with GitHub using the `gh` CLI |
 | `weather` | Get weather info using wttr.in and Open-Meteo |
 | `summarize` | Summarize URLs, files, and YouTube videos |
 | `tmux` | Remote-control tmux sessions |
 | `clawhub` | Search and install skills from ClawHub registry |
-| `skill-creator` | Create new skills |
+| `skill-creator` | Create new skills (packaged upstream; may be absent in this tree) |
+
+Coverage table: `gold-trading/references/coverage.md`.
