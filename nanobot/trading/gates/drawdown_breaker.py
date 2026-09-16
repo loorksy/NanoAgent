@@ -28,3 +28,17 @@ def evaluate_drawdown_breaker(risk: RiskSnapshot | None) -> GateCheck:
             limit=p.EQUITY_SPIKE_PCT,
         )
     return passed(daily_drawdown_pct=dd)
+
+
+def flatten_required_reason(risk: RiskSnapshot | None) -> str | None:
+    """S3.2 / S7.1 — when flatten is required. Execution itself stays HITL."""
+    p = live()
+    if risk is None:
+        return None
+    if risk.kill_switch:
+        return "kill_switch"
+    if risk.emergency_lock:
+        return "emergency_lock"
+    if float(risk.daily_drawdown_pct or 0.0) >= p.DAILY_DRAWDOWN_PCT:
+        return "daily_drawdown"
+    return None

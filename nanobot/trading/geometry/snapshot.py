@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from nanobot.trading.types import StructureResult
+from nanobot.trading.geometry.detectors import (
+    detect_divergence,
+    detect_fair_value_gaps,
+    fibonacci_retracement,
+)
+from nanobot.trading.types import Candle, StructureResult
 
 
-def build_geometry_snapshot(structure: StructureResult) -> dict[str, Any]:
+def build_geometry_snapshot(
+    structure: StructureResult,
+    candles: list[Candle] | None = None,
+) -> dict[str, Any]:
     highs = [s for s in structure.swings if s.type == "high"][-3:]
     lows = [s for s in structure.swings if s.type == "low"][-3:]
     trendlines: list[dict[str, Any]] = []
@@ -29,9 +37,13 @@ def build_geometry_snapshot(structure: StructureResult) -> dict[str, Any]:
                 "state": "rising" if lows[-1].price > lows[-2].price else "falling",
             }
         )
+    bars = candles or []
     return {
         "trendlines": trendlines,
         "channels": [],
         "patterns": [],
+        "fvg": detect_fair_value_gaps(bars),
+        "fibonacci": fibonacci_retracement(structure.swings),
+        "divergence": detect_divergence(bars, structure.swings),
         "source": "deterministic_swings",
     }

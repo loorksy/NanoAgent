@@ -11,6 +11,8 @@ from nanobot.trading.evidence import (
     stage_sequence_from_graph,
 )
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_LAYERS
+
+
 def test_default_graph_matches_legacy_layer_order():
     assert DEFAULT_ANALYSIS_LAYERS == (
         ("market_data",),
@@ -117,3 +119,39 @@ async def test_orchestrator_uses_evidence_graph(monkeypatch):
     assert "market_data" in stage_names
     assert "structure" in stage_names
     assert "research" in stage_names
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
+    from nanobot.trading.intel.postmortem import LossRecord
+    from nanobot.trading.orchestrator import run_unified_chart_agent
+    from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
+    from tests.trading.evidence_stubs import install_evidence_stubs
+
+    install_evidence_stubs(monkeypatch)
+
+    async def _buy(*_a, **_k):
+        rec = AgentRecommendation(
+            action="buy",
+            plan_type="immediate",
+            entry=2400,
+            stop_loss=2385,
+            targets=[2420],
+        )
+        return FinalDecisionResult(
+            decision="buy",
+            confidence=0.7,
+            summary="buy",
+            key_reasons=[],
+            risk_warnings=[],
+            recommendation=rec,
+        )
+
+    monkeypatch.setattr("nanobot.trading.orchestrator.run_final_decision_synthesizer", _buy)
+    monkeypatch.setattr(
+        "nanobot.trading.orchestrator.refuse_repeat_error",
+        lambda **_k: LossRecord(2400, 2385, 1, "unknown", "structure", 10.0, "early_entry", "buy"),
+    )
+    result = await run_unified_chart_agent(store=False)
+    assert result.decision.decision == "wait"
+    assert "losing" in (result.decision.summary or "").lower()

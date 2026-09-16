@@ -733,11 +733,15 @@ export async function fetchTradingRisk(
 export async function updateTradingRisk(
   transport: WebUIMutationTransport,
   values: Record<string, number>,
+  toggles?: Record<string, boolean>,
 ): Promise<TradingRiskPayload> {
   return mutation<TradingRiskPayload>(
     transport,
     "settings.trading_risk.update",
-    { values: JSON.stringify(values) },
+    {
+      values: JSON.stringify(values),
+      ...(toggles ? { toggles: JSON.stringify(toggles) } : {}),
+    },
   );
 }
 

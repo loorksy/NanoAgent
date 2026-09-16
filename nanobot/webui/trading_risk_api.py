@@ -19,6 +19,7 @@ from nanobot.config.loader import load_config, save_config
 from nanobot.config.schema import TradingRiskParameters
 from nanobot.trading.i18n import tr
 from nanobot.trading.policy import invalidate_live_cache
+from nanobot.trading.risk_state import DEFAULT_TOGGLES, get_risk_store
 
 QueryParams = dict[str, list[str]]
 
@@ -139,6 +140,22 @@ _GROUP_ORDER = (
 )
 
 
+def _toggle_payload() -> list[dict[str, Any]]:
+    snap = get_risk_store().snapshot()
+    rows: list[dict[str, Any]] = []
+    for name, default in DEFAULT_TOGGLES.items():
+        rows.append(
+            {
+                "name": name,
+                "label": tr(f"risk.toggle.{name}"),
+                "enabled": bool(snap.feature_toggles.get(name, default)),
+                "never_skips_confirm": True,
+                "confirm_note": tr("risk.settings.confirm_stays"),
+            }
+        )
+    return rows
+
+
 def _query_first(query: QueryParams, key: str) -> str | None:
     values = query.get(key)
     return values[0] if values else None
@@ -204,8 +221,11 @@ def trading_risk_payload(
         "description": tr("risk.settings.description"),
         "operator_warning": tr("risk.operator_warning"),
         "save_label": tr("risk.settings.save"),
+        "toggles_title": tr("risk.settings.toggles_title"),
+        "toggles_help": tr("risk.settings.toggles_help"),
         "groups": groups,
         "values": params.model_dump(mode="json"),
+        "toggles": _toggle_payload(),
     }
     if last_action is not None:
         payload["last_action"] = last_action
@@ -221,7 +241,7 @@ def _parse_json_value(raw: str | None, *, fallback: Any) -> Any:
         raise TradingRiskError(f"invalid JSON: {exc.msg}") from exc
 
 
-def _parse_updates(query: QueryParams) -> dict[str, Any]:
+def _parse_updates(query: QueryParams, *, allow_empty: bool = False) -> dict[str, Any]:
     known = {spec.name for spec in RISK_FIELD_SPECS}
     integer_names = {spec.name for spec in RISK_FIELD_SPECS if spec.integer}
     updates: dict[str, Any] = {}
@@ -242,10 +262,29 @@ def _parse_updates(query: QueryParams) -> dict[str, Any]:
         except ValueError as exc:
             raise TradingRiskError(f"{spec.name} must be a number") from exc
     if not updates:
+        if allow_empty:
+            return {}
         raise TradingRiskError("no risk parameters to update")
     unknown = set(updates) - known
     if unknown:
         raise TradingRiskError(f"unknown risk parameter: {sorted(unknown)[0]}")
+    return updates
+
+
+def _parse_toggle_updates(query: QueryParams) -> dict[str, bool]:
+    raw_values = _query_first(query, "toggles")
+    parsed = _parse_json_value(raw_values, fallback=None)
+    if parsed is None:
+        return {}
+    if not isinstance(parsed, dict):
+        raise TradingRiskError("toggles must be a JSON object")
+    known = set(DEFAULT_TOGGLES)
+    updates: dict[str, bool] = {}
+    for key, value in parsed.items():
+        name = str(key)
+        if name not in known:
+            raise TradingRiskError(f"unknown feature toggle: {name}")
+        updates[name] = bool(value)
     return updates
 
 
@@ -259,23 +298,27 @@ def trading_risk_action(
         raise TradingRiskError(f"unknown trading risk action '{action}'", status=404)
 
     config = load_config(config_path) if config_path is not None else load_config()
-    updates = _parse_updates(query)
-    merged = config.trading_risk_parameters.model_dump()
-    merged.update(updates)
-    try:
-        config.trading_risk_parameters = TradingRiskParameters.model_validate(merged)
-    except ValidationError as exc:
-        issue = exc.errors()[0] if exc.errors() else None
-        loc = ".".join(str(part) for part in issue["loc"]) if issue else "value"
-        msg = issue["msg"] if issue else "invalid value"
-        raise TradingRiskError(f"{loc}: {msg}") from exc
-    save_config(config, config_path)
-    invalidate_live_cache()
+    toggle_updates = _parse_toggle_updates(query)
+    updates = _parse_updates(query, allow_empty=bool(toggle_updates))
+    if updates:
+        merged = config.trading_risk_parameters.model_dump()
+        merged.update(updates)
+        try:
+            config.trading_risk_parameters = TradingRiskParameters.model_validate(merged)
+        except ValidationError as exc:
+            issue = exc.errors()[0] if exc.errors() else None
+            loc = ".".join(str(part) for part in issue["loc"]) if issue else "value"
+            msg = issue["msg"] if issue else "invalid value"
+            raise TradingRiskError(f"{loc}: {msg}") from exc
+        save_config(config, config_path)
+        invalidate_live_cache()
+    if toggle_updates:
+        get_risk_store().update(feature_toggles=toggle_updates)
     payload = trading_risk_payload(
         last_action={
             "ok": True,
             "message": tr("risk.settings.saved"),
-            "updated": sorted(updates),
+            "updated": sorted(list(updates) + list(toggle_updates)),
         },
         config_path=config_path,
     )

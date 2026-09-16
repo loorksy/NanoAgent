@@ -94,11 +94,12 @@ class NewsNode(EvidenceNode):
 class GeometryNode(EvidenceNode):
     id = "geometry"
     stage = None
-    depends_on = ("structure",)
+    depends_on = ("structure", "market_data")
 
     async def execute(self, ctx: PipelineContext) -> None:
         assert ctx.structure is not None
-        ctx.geometry = build_geometry_snapshot(ctx.structure)
+        candles = ctx.market.candles if ctx.market is not None else None
+        ctx.geometry = build_geometry_snapshot(ctx.structure, candles)
 
 
 class RiskNode(EvidenceNode):

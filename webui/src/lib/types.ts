@@ -1220,13 +1220,24 @@ export interface TradingRiskGroup {
   fields: TradingRiskField[];
 }
 
+export interface TradingRiskToggle {
+  name: string;
+  label: string;
+  enabled: boolean;
+  never_skips_confirm: boolean;
+  confirm_note?: string;
+}
+
 export interface TradingRiskPayload {
   title: string;
   description: string;
   operator_warning: string;
   save_label: string;
+  toggles_title?: string;
+  toggles_help?: string;
   groups: TradingRiskGroup[];
   values: Record<string, number>;
+  toggles?: TradingRiskToggle[];
   last_action?: {
     ok: boolean;
     message: string;

@@ -103,6 +103,23 @@ class PostMortemLog:
         return None
 
 
+def refuse_repeat_error(
+    *,
+    side: str,
+    setup: str,
+    dxy_state: str = "unknown",
+    n: int = 3,
+    path: Path | None = None,
+) -> LossRecord | None:
+    """FEATURE-08 / S5.4 — refuse a new idea that clones recent losing conditions."""
+    return PostMortemLog(path).repeats_recent_error(
+        setup=setup,
+        dxy_state=dxy_state,
+        side=side,
+        n=n,
+    )
+
+
 def record_stop_hit(
     *,
     entry: float,

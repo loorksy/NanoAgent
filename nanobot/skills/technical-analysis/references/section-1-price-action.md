@@ -2,7 +2,7 @@
 
 Table of contents: `S1.1` FVG · `S1.2` MTF · `S1.3` Sweeps · `S1.4` BOS/CHoCH · `S1.5` Fibonacci · `S1.6` Volume/ATR · `S1.7` Divergence
 
-All seven items are **INTERPRETIVE**. Stops, RR, and news clocks are not decided here.
+All seven items feed **geometry evidence**. Trading judgment stays INTERPRETIVE. Stops, RR, and news clocks are not decided here.
 
 ### S1.1 — Supply, demand, and FVG
 

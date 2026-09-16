@@ -11,7 +11,10 @@ from nanobot.trading.gates.bad_tick import evaluate_bad_tick
 from nanobot.trading.gates.build_gates import GateInputs, build_gates
 from nanobot.trading.gates.chain import run_gate_chain
 from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
-from nanobot.trading.gates.drawdown_breaker import evaluate_drawdown_breaker
+from nanobot.trading.gates.drawdown_breaker import (
+    evaluate_drawdown_breaker,
+    flatten_required_reason,
+)
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.margin_guard import evaluate_margin_guard
 from nanobot.trading.gates.max_positions import evaluate_max_positions, evaluate_no_martingale
@@ -132,6 +135,10 @@ def test_drawdown_breaker_and_kill_switch():
     assert evaluate_drawdown_breaker(RiskSnapshot(daily_drawdown_pct=limit)).status == "veto"
     assert evaluate_drawdown_breaker(RiskSnapshot(kill_switch=True)).status == "veto"
     assert evaluate_drawdown_breaker(RiskSnapshot(daily_drawdown_pct=0.01)).status == "pass"
+    assert flatten_required_reason(RiskSnapshot(kill_switch=True)) == "kill_switch"
+    assert flatten_required_reason(RiskSnapshot(emergency_lock=True)) == "emergency_lock"
+    assert flatten_required_reason(RiskSnapshot(daily_drawdown_pct=limit)) == "daily_drawdown"
+    assert flatten_required_reason(RiskSnapshot(daily_drawdown_pct=0.01)) is None
 
 
 def test_equity_spike_breaker():

@@ -32,19 +32,22 @@ class Mt5GetAccountTool(Tool):
 
     @property
     def description(self) -> str:
-        return "Read MT5 account balance, quote, and open gold positions via MetaAPI (read-only)."
+        return "Read MT5 account, gold tickets, adopt candidates, and whether flatten is required. Pass adopt_ticket after the operator agrees to manage a manual position."
 
     @property
     def parameters(self) -> dict[str, Any]:
-        return tool_parameters_schema(required=[])
+        return tool_parameters_schema(
+            adopt_ticket=StringSchema("Broker ticket to adopt after the operator says yes"),
+            required=[],
+        )
 
     @property
     def read_only(self) -> bool:
         return True
 
-    async def execute(self, **kwargs: Any) -> Any:
+    async def execute(self, adopt_ticket: str = "", **kwargs: Any) -> Any:
         del kwargs
-        return _json(await mt5_get_account())
+        return _json(await mt5_get_account(adopt_ticket=adopt_ticket or None))
 
 
 class Mt5ProposeOrderTool(Tool):
@@ -173,16 +176,32 @@ class Mt5ClosePositionTool(Tool):
 
     @property
     def description(self) -> str:
-        return "Close an open MT5 gold position. Requires confirm=true for this ticket."
+        return (
+            "Close an open MT5 gold position. Requires confirm=true. "
+            "Set flatten_all=true after operator confirm to close every gold position and cancel gold pendings (kill switch / daily drawdown)."
+        )
 
     @property
     def parameters(self) -> dict[str, Any]:
         return tool_parameters_schema(
-            position_id=StringSchema("Broker position ticket"),
+            position_id=StringSchema("Broker position ticket, or ALL when flatten_all is true"),
             confirm=BooleanSchema(description="Must be true"),
+            flatten_all=BooleanSchema(description="Close all gold positions and cancel gold pendings"),
             required=["position_id", "confirm"],
         )
 
-    async def execute(self, position_id: str, confirm: bool = False, **kwargs: Any) -> Any:
+    async def execute(
+        self,
+        position_id: str,
+        confirm: bool = False,
+        flatten_all: bool = False,
+        **kwargs: Any,
+    ) -> Any:
         del kwargs
-        return _json(await mt5_close_position(position_id=position_id, confirm=bool(confirm)))
+        return _json(
+            await mt5_close_position(
+                position_id=position_id,
+                confirm=bool(confirm),
+                flatten_all=bool(flatten_all),
+            )
+        )
