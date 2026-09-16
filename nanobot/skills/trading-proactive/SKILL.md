@@ -90,6 +90,20 @@ Builtin skill files are **English only** (no Arabic or other scripts in `SKILL.m
 - Do **not** repeat `Open gold SELL still active` on a timer — status updates only on **real transitions** (entered trade, TP1, invalidated) or when the user asks.
 - Do **not** add standing HEARTBEAT tasks that re-summarize the same live recommendation every cycle.
 
+## Spec section 6 — alerts map (merge)
+
+Numeric disconnect/stale seconds are DETERMINISTIC (`G13` / `stale_quote`). When to speak still uses the notification gate above. Spec text: `gold-trading/references/section-6-alerts.md`.
+
+| Id | What |
+| --- | --- |
+| S6.1 | One chart artifact with levels — not spam |
+| S6.2 | Human confirm before any MT5 send (HITL; not a Risk Parameters toggle) |
+| S6.3 | Optional London/NY morning brief if the operator opted in |
+| S6.4 | Daily/weekly scorecard from stores, never invented |
+| S6.5 | Natural-language gold questions answered from tools |
+| S6.6 | Tell the operator when the feed is dead; do not hallucinate ticks |
+| S6.7 | Fan-out the same update to configured channels |
+
 ## Outcome alerts (when enabled)
 
 Legitimate proactive alerts for open recommendations:
@@ -123,7 +137,7 @@ When the operator chats on **WebUI** but asks you to notify them on **Telegram**
 1. Call the **`message`** tool with `channel="telegram"` (or `whatsapp`).
 2. **Never** pass the WebUI/WebSocket session UUID as `chat_id` — Telegram requires a **numeric** chat id.
 3. If you do not know the numeric id, omit `chat_id` and let the server resolve the approved Telegram operator from pairing — or use **`list_sessions`** / **`send_session_message`** to reach their Telegram session by `@handle`.
-4. **Only claim delivery after the tool succeeds.** If the tool returns an error, tell the operator honestly and do not say "تم الإرسال".
+4. **Only claim delivery after the tool succeeds.** If the tool returns an error, tell the operator honestly and do not say the message was sent.
 
 ## Quick checklist
 

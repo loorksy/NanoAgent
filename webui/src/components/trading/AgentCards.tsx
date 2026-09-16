@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cardKindTitle, cardStrings } from "@/lib/trading/cardLocale";
-import { gateLabel } from "@/lib/trading/gate-labels";
+import { displayGateName } from "@/lib/trading/gate-labels";
 
 export interface AgentCard {
   kind: string;
@@ -33,12 +33,12 @@ function GateChecklistCard({ card, locale }: { card: AgentCard; locale?: string 
           if (!row || typeof row !== "object") return null;
           const item = row as Record<string, unknown>;
           const id = String(item.id ?? "");
-          const label = gateLabel(id, locale) || String(item.name ?? id);
+          const label = displayGateName(item, locale);
           const status = String(item.status ?? "");
           const reason = String(item.reason ?? "");
           return (
-            <li key={id} className="flex flex-wrap items-baseline gap-x-2">
-              <span className="font-medium">{label}</span>
+            <li key={id || label} className="flex flex-wrap items-baseline gap-x-2">
+              {label ? <span className="font-medium">{label}</span> : null}
               <span>{gateStatusLabel(status, locale)}</span>
               {reason ? <span className="text-muted-foreground">— {reason}</span> : null}
             </li>

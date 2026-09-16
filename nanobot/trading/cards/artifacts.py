@@ -211,6 +211,11 @@ def _build_artifact_pool(
                     for v in d.gate_chain.verdicts
                 ],
                 "vetoedBy": d.gate_chain.vetoed_by.id if d.gate_chain.vetoed_by else None,
+                "vetoedByName": (
+                    gate_label(d.gate_chain.vetoed_by.id, loc)
+                    if d.gate_chain.vetoed_by
+                    else None
+                ),
             },
         }
 

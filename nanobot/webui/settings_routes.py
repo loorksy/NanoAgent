@@ -68,6 +68,7 @@ from nanobot.webui.settings_contracts import (
 )
 from nanobot.webui.settings_runtime import runtime_config_payload
 from nanobot.webui.settings_services import WebUISettingsServices
+from nanobot.webui.trading_risk_api import trading_risk_settings_action
 from nanobot.webui.version_check import check_for_update
 
 _WEBUI_MUTATION_PAYLOAD_ATTR = "_nanobot_webui_mutation_payload"
@@ -103,6 +104,10 @@ _MCP_PRESET_ACTIONS_BY_PATH = {
     "/api/settings/mcp-presets/import": "import",
     "/api/settings/mcp-presets/import-cursor": "import-cursor",
     "/api/settings/mcp-presets/tools": "tools",
+}
+
+_TRADING_RISK_ACTIONS_BY_PATH = {
+    "/api/settings/trading-risk/update": "update",
 }
 
 _MODEL_ROUTES = {
@@ -149,10 +154,15 @@ _SYSTEM_ROUTES = {
     "/api/settings/pairing/approve": "pairing-approve",
     "/api/settings/pairing/deny": "pairing-deny",
     "/api/settings/mcp-presets": "mcp-list",
+    "/api/settings/trading-risk": "trading-risk-list",
     "/api/settings/version-check": "version-check",
     **{
         path: f"mcp-{action}"
         for path, action in _MCP_PRESET_ACTIONS_BY_PATH.items()
+    },
+    **{
+        path: f"trading-risk-{action}"
+        for path, action in _TRADING_RISK_ACTIONS_BY_PATH.items()
     },
 }
 
@@ -192,6 +202,7 @@ _SETTINGS_MUTATION_PATHS = frozenset({
     "/api/settings/mcp-oauth/complete",
     "/api/settings/mcp-oauth/cancel",
     *_MCP_PRESET_ACTIONS_BY_PATH,
+    *_TRADING_RISK_ACTIONS_BY_PATH,
 })
 
 
@@ -530,6 +541,7 @@ class WebUISettingsRouter:
             approve_code=approve_code,
             deny_code=deny_code,
             mcp_presets_action=mcp_presets_settings_action,
+            trading_risk_action=trading_risk_settings_action,
             reload_mcp=self._reload_mcp_runtime,
             mcp_runtime_status=self._mcp_runtime_status,
             check_for_update=check_for_update,

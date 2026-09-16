@@ -4,13 +4,13 @@ import json
 
 import pytest
 
+from nanobot.bus.events import OUTBOUND_META_AGENT_UI
 from nanobot.trading.evidence import ANALYSIS_WITHOUT_VISUAL_NODES, FULL_ANALYSIS_NODES
 from nanobot.trading.policy_guard import validate_turn_plan
 from nanobot.trading.recommendations.gate_report import (
     build_gate_report_artifact,
     build_gate_report_result,
 )
-from nanobot.bus.events import OUTBOUND_META_AGENT_UI
 from nanobot.trading.turn_executor import execute_gate_report_path
 from nanobot.trading.turn_planner import plan_turn
 
@@ -58,6 +58,7 @@ def test_build_gate_report_artifact_from_stored_row() -> None:
     assert artifact["type"] == "gate_report"
     assert artifact["payload"]["allowed"] is False
     assert artifact["payload"]["vetoedBy"] == "G3"
+    assert artifact["payload"]["vetoedByName"] == "Supply & demand zones"
     assert len(artifact["payload"]["verdicts"]) == 2
 
 

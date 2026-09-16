@@ -57,6 +57,7 @@ class SystemSettingsOperations:
     approve_code: SettingsOperation
     deny_code: SettingsOperation
     mcp_presets_action: SettingsOperation
+    trading_risk_action: SettingsOperation
     reload_mcp: SettingsOperation
     mcp_runtime_status: Callable[[], Mapping[str, str]] | None
     check_for_update: SettingsOperation
@@ -472,6 +473,14 @@ class SystemSettingsHandler:
             return await self._mcp_presets(
                 request,
                 action.removeprefix("mcp-"),
+                operations,
+            )
+        if action == "trading-risk-list":
+            return await self._trading_risk(request, None, operations)
+        if action.startswith("trading-risk-"):
+            return await self._trading_risk(
+                request,
+                action.removeprefix("trading-risk-"),
                 operations,
             )
         if action == "version-check":
@@ -1011,6 +1020,29 @@ class SystemSettingsHandler:
             decorate_restart=action is not None,
             restart_section="runtime" if action is not None else None,
         )
+
+    async def _trading_risk(
+        self,
+        request: SettingsRequest,
+        action: str | None,
+        operations: SystemSettingsOperations,
+    ) -> SettingsRouteResult:
+        try:
+            payload = await operations.trading_risk_action(
+                action,
+                request.query,
+                config=self.settings.config,
+            )
+        except Exception as exc:
+            status = getattr(exc, "status", 500)
+            message = getattr(exc, "message", str(exc))
+            if status >= 500:
+                self.logger.exception(
+                    "Trading risk action '{}' failed",
+                    action or "list",
+                )
+            return SettingsRouteResult.failure(status, message)
+        return SettingsRouteResult.success(payload)
 
     async def _version_check(
         self,
