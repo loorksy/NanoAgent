@@ -36,7 +36,7 @@ async def fetch_rss_headlines(
     timeout: float = 8.0,
 ) -> list[RssHeadline]:
     try:
-        import feedparser
+        import feedparser  # noqa: F401
     except ImportError:
         return []
 
@@ -64,27 +64,37 @@ async def fetch_rss_headlines(
                     continue
 
     for url, body in body_by_url.items():
-        parsed = feedparser.parse(body)
-        for entry in parsed.entries:
-            mapping = {
-                "id": str(getattr(entry, "id", "") or ""),
-                "guid": str(getattr(entry, "guid", "") or ""),
-                "link": str(getattr(entry, "link", "") or ""),
-                "title": str(getattr(entry, "title", "") or ""),
-            }
-            gid = _guid(mapping, url)
-            if gid in _SEEN:
-                continue
-            _SEEN.add(gid)
-            items.append(
-                RssHeadline(
-                    feed=url,
-                    title=mapping["title"],
-                    summary=str(getattr(entry, "summary", "") or ""),
-                    guid=gid,
-                    link=mapping["link"],
-                )
+        items.extend(parse_feed_body(url, body))
+    return items
+
+
+def parse_feed_body(url: str, body: str) -> list[RssHeadline]:
+    try:
+        import feedparser
+    except ImportError:
+        return []
+    items: list[RssHeadline] = []
+    parsed = feedparser.parse(body)
+    for entry in parsed.entries:
+        mapping = {
+            "id": str(getattr(entry, "id", "") or ""),
+            "guid": str(getattr(entry, "guid", "") or ""),
+            "link": str(getattr(entry, "link", "") or ""),
+            "title": str(getattr(entry, "title", "") or ""),
+        }
+        gid = _guid(mapping, url)
+        if gid in _SEEN:
+            continue
+        _SEEN.add(gid)
+        items.append(
+            RssHeadline(
+                feed=url,
+                title=mapping["title"],
+                summary=str(getattr(entry, "summary", "") or ""),
+                guid=gid,
+                link=mapping["link"],
             )
+        )
     return items
 
 

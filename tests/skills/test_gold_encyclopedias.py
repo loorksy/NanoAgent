@@ -70,6 +70,23 @@ def test_encyclopedia_skill_bodies_and_references_are_english() -> None:
         for path in [skill_dir / "SKILL.md", *sorted((skill_dir / "references").rglob("*.md"))]:
             text = path.read_text(encoding="utf-8")
             assert _ARABIC.search(text) is None, f"Arabic in {path}"
+    gold = SKILLS_ROOT / "gold-trading" / "SKILL.md"
+    proactive = SKILLS_ROOT / "trading-proactive" / "SKILL.md"
+    assert _ARABIC.search(gold.read_text(encoding="utf-8")) is None
+    assert _ARABIC.search(proactive.read_text(encoding="utf-8")) is None
+
+
+def test_section_5_2_backtest_is_excluded() -> None:
+    text = (SKILLS_ROOT / "memory-review" / "references" / "section-5-memory.md").read_text(
+        encoding="utf-8"
+    )
+    assert "S5.2" in text
+    assert "EXCLUDED" in text
+    coverage = (SKILLS_ROOT / "gold-trading" / "references" / "coverage.md").read_text(
+        encoding="utf-8"
+    )
+    assert "S5.2" in coverage
+    assert "backtest" in coverage.lower()
 
 
 def test_coverage_table_mentions_hitl_exclusion() -> None:

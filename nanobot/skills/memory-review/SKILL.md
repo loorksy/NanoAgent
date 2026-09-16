@@ -1,6 +1,6 @@
 ---
 name: memory-review
-description: Gold self-review — similar historical cases, quick replay of recent candles, post-mortem after a loss, lesson log, and dual technical-plus-risk review before a proposal. Use after a stop-out, before repeating a setup, or when the operator asks "have we seen this?". English skill; reply in the operator's language.
+description: Gold self-review — similar historical cases, post-mortem after a loss, lesson log, and dual technical-plus-risk review before a proposal. Spec 5.2 backtest replay is excluded. Use after a stop-out, before repeating a setup, or when the operator asks "have we seen this?". English skill; reply in the operator's language.
 ---
 
 # Memory and review (gold)
@@ -8,7 +8,8 @@ description: Gold self-review — similar historical cases, quick replay of rece
 ## References
 
 - Spec section 5: [references/section-5-memory.md](references/section-5-memory.md)
-- Engines: FEATURE-06 vector playbook, FEATURE-07 FastDTW, FEATURE-08 SQLite post-mortem
+- Engines: FEATURE-06 vector playbook, FEATURE-07 FastDTW (live chart only — not S5.2 backtest), FEATURE-08 SQLite post-mortem
+- **S5.2 excluded:** no historical candle replay / backtest loop
 
 ## Steps
 

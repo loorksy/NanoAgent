@@ -14,6 +14,7 @@ from nanobot.trading.intel.local_sentiment import classify_sentiment
 from nanobot.trading.intel.postmortem import PostMortemLog
 from nanobot.trading.intel.regex_emergency import scan_emergency
 from nanobot.trading.intel.rss_aggregator import fetch_rss_headlines
+from nanobot.trading.intel.telegram_scraper import TelegramHeadlineSource
 from nanobot.trading.intel.vector_playbook import VectorPlaybook
 from nanobot.trading.intel.vip_tracker import fetch_vip_statements
 
@@ -58,6 +59,7 @@ class GoldIntelScanTool(Tool):
         headlines = await fetch_rss_headlines()
         vips = await fetch_vip_statements()
         calendar = await fetch_economic_calendar()
+        telegram = TelegramHeadlineSource()
         emergency = scan_emergency(text, apply_lock=bool(text))
         sentiment = await classify_sentiment(text or " ".join(h.title for h in headlines[:5]))
         playbook = VectorPlaybook().query(context or text or "gold london sweep")
@@ -67,6 +69,14 @@ class GoldIntelScanTool(Tool):
         market = intermarket_snapshot()
         return _json(
             {
+                "telegram": {
+                    "available": telegram.available(),
+                    "configured": telegram.configured(),
+                    "note": (
+                        "FEATURE-01 listens via Telethon when TELEGRAM_API_ID/HASH are set; "
+                        "this scan reports readiness only (listen is long-running)."
+                    ),
+                },
                 "rss": [h.title for h in headlines[:8]],
                 "vip": [v.text for v in vips[:8]],
                 "calendar": [c.title for c in calendar[:8]],

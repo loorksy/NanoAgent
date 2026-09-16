@@ -14,8 +14,9 @@ Grep this table by spec id (`S3.6`, `P-182`, `N-056`, `C-016`). DETERMINISTIC nu
 | S3.4 | DETERMINISTIC | `risk-guardrails` | G10 |
 | S3.5 | DETERMINISTIC | `risk-guardrails` | G11 |
 | S3.6 | DETERMINISTIC | `risk-guardrails` | G8 |
-| S4.1–S4.6 | MIXED | `mt5-execution` / `section-4-execution.md` | HITL; G13 G17 G19 |
-| S5.1–S5.5 | INTERPRETIVE | `memory-review` / `section-5-memory.md` | FEATURE-06 07 08 |
+| S4.1–S4.6 | MIXED | `mt5-execution` / `section-4-execution.md` | HITL; G13 G17 G19; time-stop + P-035 no-widen on modify |
+| S5.1 S5.3–S5.5 | INTERPRETIVE | `memory-review` / `section-5-memory.md` | FEATURE-06 07 08 |
+| S5.2 | EXCLUDED | backtest / historical candle replay | FEATURE-07 is live-chart DTW only |
 | S6.1–S6.7 | INTERPRETIVE | `gold-trading` / `section-6-alerts.md` | `trading-proactive`; G13 alert |
 | S7.1–S7.5 | MIXED | `security-resilience` | kill switch; G16 |
 | S8.1–S8.5 | INTERPRETIVE | `multi-tasking-scenarios` | one live card; toggles skip gates, never confirm |
@@ -50,7 +51,7 @@ DETERMINISTIC cluster: C-016, C-017, C-018, C-031, C-046/C-050/C-056 overlap, C-
 
 | Id | Module |
 | --- | --- |
-| 01 Telegram | `nanobot/trading/intel/telegram_scraper.py` |
+| 01 Telegram | `telegram_scraper.py` + `gold_intel_scan` readiness probe |
 | 02 RSS | `rss_aggregator.py` |
 | 03 VIP/Nitter | `vip_tracker.py` |
 | 04 Calendar | `calendar_scraper.py` |

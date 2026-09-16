@@ -20,6 +20,8 @@ from nanobot.trading.gates.session_lock import evaluate_session_lock
 from nanobot.trading.gates.slippage_guard import evaluate_slippage_guard
 from nanobot.trading.gates.spread_guard import evaluate_spread_guard
 from nanobot.trading.gates.stale_quote import evaluate_stale_quote
+from nanobot.trading.gates.time_stop import evaluate_time_stop
+from nanobot.trading.gates.trade_management import stop_would_widen
 from nanobot.trading.types import EntryPlan
 
 
@@ -37,6 +39,10 @@ def collect_execution_checks(
     gap_points: float | None = None,
     candle_range: float | None = None,
     operator_confirmed: bool = False,
+    position_open_ms: int | None = None,
+    favorable_progress: bool = False,
+    current_stop: float | None = None,
+    requested_stop: float | None = None,
 ) -> list[tuple[str, GateCheck]]:
     checks: list[tuple[str, GateCheck]] = [
         ("rr", evaluate_rr_filter(plan, live_entry=live_price)),
@@ -71,6 +77,29 @@ def collect_execution_checks(
         checks.append(
             ("confirm_slippage", evaluate_confirm_slippage(proposed_price=proposed_price, live_price=live_price))
         )
+    if position_open_ms is not None:
+        checks.append(
+            (
+                "time_stop",
+                evaluate_time_stop(
+                    open_ms=position_open_ms,
+                    now_ms=now_ms,
+                    favorable_progress=favorable_progress,
+                ),
+            )
+        )
+    if current_stop is not None and requested_stop is not None:
+        if stop_would_widen(plan, current_stop=current_stop, requested_stop=requested_stop):
+            checks.append(
+                (
+                    "no_widen",
+                    GateCheck(
+                        "veto",
+                        "Never widen a live stop (P-035)",
+                        evidence={"current_stop": current_stop, "requested_stop": requested_stop},
+                    ),
+                )
+            )
     if not operator_confirmed:
         checks.append(
             (
@@ -98,6 +127,8 @@ def first_blocker(checks: list[tuple[str, GateCheck]]) -> tuple[str, GateCheck] 
             "news_ops",
             "hitl",
             "proposal_ttl",
+            "time_stop",
+            "no_widen",
         }:
             return name, check
     return None

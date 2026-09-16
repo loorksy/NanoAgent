@@ -10,7 +10,10 @@ from nanobot.trading.intel.intermarket import divergence_matrix, intermarket_sna
 from nanobot.trading.intel.local_sentiment import classify_sentiment
 from nanobot.trading.intel.postmortem import LossRecord, PostMortemLog
 from nanobot.trading.intel.regex_emergency import scan_emergency
+from nanobot.trading.intel.rss_aggregator import parse_feed_body, reset_seen_for_tests
+from nanobot.trading.intel.telegram_scraper import TelegramHeadlineSource
 from nanobot.trading.intel.vector_playbook import VectorPlaybook
+from nanobot.trading.intel.vip_tracker import _impact
 from nanobot.trading.risk_state import RiskStateStore
 
 
@@ -68,3 +71,26 @@ async def test_sentiment_fallback_hawkish():
     result = await classify_sentiment("The Fed remains restrictive with another hike likely.")
     assert result.bias == "BEARISH_GOLD"
     assert result.source in {"fallback", "ollama"}
+
+
+def test_telegram_probe_without_credentials():
+    src = TelegramHeadlineSource(api_id=0, api_hash="")
+    assert src.configured() is False
+    assert src.available() is False
+
+
+def test_rss_parse_feed_body_without_network():
+    pytest.importorskip("feedparser")
+    reset_seen_for_tests()
+    xml = """<?xml version="1.0"?><rss version="2.0"><channel>
+    <title>Fed</title>
+    <item><title>FOMC holds rates</title><guid>g-1</guid><link>https://example.test/1</link></item>
+    </channel></rss>"""
+    rows = parse_feed_body("https://example.test/feed", xml)
+    assert rows
+    assert "FOMC" in rows[0].title
+
+
+def test_vip_impact_marks_fed_high():
+    assert _impact("federalreserve") == "high"
+    assert _impact("randomhandle") == "medium"

@@ -8,6 +8,7 @@ from typing import Any
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.position_sizing import lot_from_balance
 from nanobot.trading.gates.risk_snapshot import RiskSnapshot
+from nanobot.trading.gates.trade_management import management_snapshot
 from nanobot.trading.mt5_metaapi import get_transport
 from nanobot.trading.mt5_proposals import OrderProposal, get_proposal_store
 from nanobot.trading.policy import GOLD_POINT, MAGIC_SCALP, MAGIC_SWING
@@ -16,6 +17,50 @@ from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.types import EntryPlan
 
 GOLD_SYMBOL = "XAUUSD"
+
+
+def _quote_mid(quote: dict[str, Any] | None) -> float | None:
+    if not quote:
+        return None
+    q = quote.get("quote") if isinstance(quote.get("quote"), dict) else quote
+    if not isinstance(q, dict):
+        return None
+    bid, ask = q.get("bid"), q.get("ask")
+    if bid is None or ask is None:
+        return None
+    return (float(bid) + float(ask)) / 2
+
+
+def _position_symbol(row: dict[str, Any]) -> str:
+    return str(row.get("symbol") or row.get("symbolName") or GOLD_SYMBOL)
+
+
+def _plan_from_position(row: dict[str, Any]) -> EntryPlan | None:
+    entry = row.get("openPrice") or row.get("open_price") or row.get("entry")
+    stop = row.get("stopLoss") or row.get("stop_loss") or row.get("stop")
+    if entry is None or stop is None:
+        return None
+    side = str(row.get("type") or row.get("side") or "buy").lower()
+    direction = "sell" if "sell" in side or side in {"1", "position_type_sell"} else "buy"
+    tp = row.get("takeProfit") or row.get("take_profit")
+    targets = [float(tp)] if tp is not None else []
+    return EntryPlan(
+        direction=direction,
+        entry_type="market",
+        entry=float(entry),
+        stop_loss=float(stop),
+        targets=targets,
+    )
+
+
+def _position_open_ms(row: dict[str, Any]) -> int | None:
+    raw = row.get("time") or row.get("openTime") or row.get("open_time")
+    if raw is None:
+        return None
+    value = float(raw)
+    if value < 10_000_000_000:
+        value *= 1000
+    return int(value)
 
 
 def _plan_from_proposal(p: OrderProposal) -> EntryPlan:
@@ -74,7 +119,14 @@ async def mt5_get_account() -> dict[str, Any]:
     account = await transport.account_snapshot()
     quote = await transport.quote(GOLD_SYMBOL)
     positions = await transport.open_positions()
-    return {"ok": True, "account": account, "quote": quote, "positions": positions}
+    management = None
+    live = _quote_mid(quote)
+    gold = next((row for row in positions if _position_symbol(row) == GOLD_SYMBOL), None)
+    if gold is not None and live is not None:
+        plan = _plan_from_position(gold)
+        if plan is not None:
+            management = management_snapshot(plan, live, atr=max(GOLD_POINT * 80, abs(plan.entry - plan.stop_loss)))
+    return {"ok": True, "account": account, "quote": quote, "positions": positions, "management": management}
 
 
 async def mt5_propose_order(
@@ -184,7 +236,46 @@ async def mt5_modify_order(
         return {"ok": False, "executed": False, "error": "Human confirmation required to modify"}
     if get_runtime_store().snapshot().kill_switch:
         return {"ok": False, "error": "Kill switch is engaged"}
-    sent = await get_transport().modify_position(
+    transport = get_transport()
+    positions = await transport.open_positions()
+    row = next(
+        (
+            item
+            for item in positions
+            if str(item.get("id") or item.get("positionId") or item.get("ticket")) == str(position_id)
+        ),
+        None,
+    )
+    plan = _plan_from_position(row) if row else None
+    if plan is not None and stop is not None:
+        quote = await transport.quote(GOLD_SYMBOL)
+        account = await transport.account_snapshot()
+        risk = _risk_from_account(account, quote)
+        live = risk.current_mid or plan.entry
+        now = int(time.time() * 1000)
+        current_stop = float(row.get("stopLoss") or row.get("stop_loss") or plan.stop_loss)
+        favorable = abs(live - plan.entry) >= abs(plan.entry - plan.stop_loss) * 0.3
+        checks = collect_execution_checks(
+            plan,
+            risk,
+            now_ms=now,
+            live_price=live,
+            operator_confirmed=True,
+            position_open_ms=_position_open_ms(row),
+            favorable_progress=favorable,
+            current_stop=current_stop,
+            requested_stop=stop,
+        )
+        blocker = first_blocker(checks)
+        if blocker is not None:
+            name, check = blocker
+            return {
+                "ok": False,
+                "executed": False,
+                "blocked_by": name,
+                "reason": check.reason,
+            }
+    sent = await transport.modify_position(
         {"position_id": position_id, "stop": stop, "take_profit": take_profit}
     )
     return {"ok": True, "executed": True, "send": sent}

@@ -80,3 +80,22 @@ def overnight_stop(plan: EntryPlan) -> float:
     if plan.direction == "buy":
         return plan.stop_loss - buf
     return plan.stop_loss + buf
+
+
+def stop_would_widen(plan: EntryPlan, *, current_stop: float, requested_stop: float) -> bool:
+    """P-035 — never move a live stop farther from price (more risk)."""
+    if plan.direction == "buy":
+        return requested_stop < current_stop
+    return requested_stop > current_stop
+
+
+def management_snapshot(plan: EntryPlan, live_px: float, atr: float) -> dict[str, float | bool | None]:
+    """Forward-only management numbers used by MT5 modify / account read."""
+    return {
+        "move_to_breakeven": should_move_to_breakeven(plan, live_px),
+        "trailing_stop": trailing_stop(plan, live_px, atr),
+        "partial_close_fraction": partial_close_fraction(plan, live_px),
+        "staged_close_fraction": staged_close_fraction(plan, live_px),
+        "profit_lock_stop": profit_lock_stop(plan, live_px),
+        "overnight_stop": overnight_stop(plan),
+    }

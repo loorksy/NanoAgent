@@ -6,9 +6,9 @@ Table of contents: `S5.1` Similar cases · `S5.2` Quick replay · `S5.3` Post-tr
 
 Compare current structure and volatility to stored successful gold cases (FEATURE-06). Return similarity and how price behaved then. Supporting evidence only — does not pick BUY vs SELL.
 
-### S5.2 — Quick replay on recent candles
+### S5.2 — Quick replay / historical backtest — EXCLUDED
 
-Optional FastDTW (FEATURE-07) on the last ~100–200 bars against named shapes (accumulation, distribution, turtle soup). Low match confidence is a reason to wait, not to force a trade.
+**Excluded.** Spec 5.2 is a candle-replay / backtest loop over stored history. Paid APIs and backtest surfaces are out of scope for this agent. Live, forward-only pattern similarity on the *current* chart uses FEATURE-07 FastDTW (`match_pattern`) as supporting evidence — it does not replay past trades or score historical PnL.
 
 ### S5.3 — Post-trade debrief
 

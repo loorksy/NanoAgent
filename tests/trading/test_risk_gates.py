@@ -287,6 +287,38 @@ def test_hitl_passes_when_operator_confirmed_and_clean():
     assert first_blocker(checks) is None
 
 
+def test_time_stop_is_invoked_from_execution_path():
+    plan = _plan()
+    now = _noon_ms()
+    stale_open = now - int(4 * 3_600_000)
+    checks = collect_execution_checks(
+        plan,
+        RiskSnapshot(spread_points=20, quote_age_seconds=1, margin_level_pct=800),
+        now_ms=now,
+        operator_confirmed=True,
+        position_open_ms=stale_open,
+        favorable_progress=False,
+    )
+    blocker = first_blocker(checks)
+    assert blocker is not None
+    assert blocker[0] == "time_stop"
+
+
+def test_widen_stop_is_blocked_from_execution_path():
+    plan = _plan()
+    checks = collect_execution_checks(
+        plan,
+        RiskSnapshot(spread_points=20, quote_age_seconds=1, margin_level_pct=800),
+        now_ms=_noon_ms(),
+        operator_confirmed=True,
+        current_stop=plan.stop_loss,
+        requested_stop=plan.stop_loss - 5,
+    )
+    blocker = first_blocker(checks)
+    assert blocker is not None
+    assert blocker[0] == "no_widen"
+
+
 @pytest.mark.asyncio
 async def test_build_gates_includes_new_ids_and_rr_vetoes():
     weak = EntryPlan(
