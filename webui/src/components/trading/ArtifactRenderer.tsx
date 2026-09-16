@@ -1,5 +1,5 @@
 import { cardStrings } from "@/lib/trading/cardLocale";
-import { gateLabel } from "@/lib/trading/gate-labels";
+import { displayGateName } from "@/lib/trading/gate-labels";
 import type { TradingArtifact } from "@/lib/trading/types";
 import { useTranslation } from "react-i18next";
 
@@ -81,13 +81,15 @@ function GateReportArtifact({
           if (!row || typeof row !== "object") return null;
           const item = row as Record<string, unknown>;
           const id = String(item.id ?? "");
-          const label = gateLabel(id, locale) || String(item.name ?? id);
+          const label = displayGateName(item, locale);
           const status = String(item.status ?? "");
+          const statusLabel =
+            status === "pass" ? t.pass : status === "veto" ? t.veto : t.unavailable;
           return (
-            <li key={id}>
-              <span className="font-medium">{label}</span>
+            <li key={id || label}>
+              {label ? <span className="font-medium">{label}</span> : null}
               {" — "}
-              {status}
+              {statusLabel}
               {item.reason ? ` — ${String(item.reason)}` : null}
             </li>
           );

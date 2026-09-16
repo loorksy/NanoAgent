@@ -29,6 +29,8 @@ _SKIP_MODULES = frozenset({
 _GOLD_AGENT_MODULES = frozenset({
     "trading_chart",
     "trading_team",
+    "trading_intel",
+    "mt5_execution",
     "web",
     "message",
     "spawn",

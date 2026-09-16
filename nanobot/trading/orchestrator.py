@@ -8,26 +8,36 @@ from typing import Any
 
 from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
-from nanobot.trading.config import load_trading_config
-from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
-from nanobot.trading.observability import log_gate_observability, log_planner_observability
-from nanobot.trading.policy_guard import ValidatedPlan, log_planner_shadow, validate_turn_plan
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
-from nanobot.trading.intent_router import route_intent
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.config import load_trading_config
 from nanobot.trading.drawings.plan import build_drawing_plan
+from nanobot.trading.evidence import DEFAULT_ANALYSIS_GRAPH, PipelineContext, run_evidence_graph
 from nanobot.trading.gates.build_gates import GateInputs, build_gates
 from nanobot.trading.gates.chain import run_gate_chain
+from nanobot.trading.gates.news_window import nearest_high_impact
+from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gold import DATA_SYMBOL
+from nanobot.trading.i18n import gate_label, tr
+from nanobot.trading.intent_router import route_intent
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
+from nanobot.trading.observability import log_gate_observability, log_planner_observability
+from nanobot.trading.policy import GOLD_POINT
+from nanobot.trading.policy_guard import ValidatedPlan, log_planner_shadow, validate_turn_plan
 from nanobot.trading.recommendations.followup import grade_live_recommendation
 from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
+from nanobot.trading.risk_state import get_risk_store
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.stage_events import StageEvent, emit_stage
 from nanobot.trading.turn_planner import TurnPlan
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, EntryPlan, FinalDecisionResult
+from nanobot.trading.types import (
+    AgentFinalResult,
+    AgentRecommendation,
+    EntryPlan,
+    FinalDecisionResult,
+)
 
 StageEmitter = Callable[[StageEvent], None]
 
@@ -222,9 +232,45 @@ async def run_unified_chart_agent(
         q = fetch_quote(symbol)
         return q.mid if q else None
 
+    now_ms = int(time.time() * 1000)
+    quote = fetch_quote(symbol)
+    stored = get_risk_store().snapshot()
+    spread = None
+    if quote is not None and quote.bid is not None and quote.ask is not None:
+        spread = abs(quote.ask - quote.bid) / GOLD_POINT
+    minutes_to = minutes_since = None
+    if news is not None:
+        minutes_to, minutes_since = nearest_high_impact(news.upcoming_events, now_ms)
+    risk = RiskSnapshot(
+        spread_points=spread,
+        quote_age_seconds=0.0 if quote is not None else None,
+        bid=quote.bid if quote else None,
+        ask=quote.ask if quote else None,
+        last_mid=stored.last_mid or None,
+        current_mid=(quote.mid if quote and quote.mid else market.last_close),
+        open_positions=stored.open_positions,
+        open_buy_losing=stored.open_buy_losing,
+        open_sell_losing=stored.open_sell_losing,
+        daily_drawdown_pct=max(0.0, -float(stored.daily_pnl_pct or 0.0)),
+        consecutive_losses=stored.consecutive_losses,
+        cooldown_until_ms=stored.cooldown_until_ms,
+        cooldown_reason=stored.cooldown_reason,
+        kill_switch=runtime.kill_switch,
+        emergency_lock=stored.emergency_lock,
+        holiday=stored.holiday,
+        news_day=stored.news_day or (news is not None and news.news_risk == "high"),
+        atr=market.atr,
+        atr_baseline=stored.atr_baseline or None,
+        pending_created_ms=None,
+        minutes_to_high_impact=minutes_to,
+        minutes_since_high_impact=minutes_since,
+        seconds_since_high_impact=None if minutes_since is None else minutes_since * 60,
+        feature_toggles=dict(stored.feature_toggles),
+    )
+
     gates = build_gates(
         GateInputs(
-            now_ms=int(time.time() * 1000),
+            now_ms=now_ms,
             news=news,
             structure=structure,
             liquidity=liquidity,
@@ -234,6 +280,7 @@ async def run_unified_chart_agent(
             atr=market.atr,
             visual=visual,
             fetch_live_price=fetch_live,
+            risk=risk,
         )
     )
     gate_chain = await run_gate_chain(gates)
@@ -247,9 +294,14 @@ async def run_unified_chart_agent(
 
     if not gate_chain.allowed:
         veto = gate_chain.vetoed_by
+        loc = locale_from_text(_operator_text())
+        reason = (veto.reason_ar or veto.reason) if veto else tr("synth.operational_blocker", loc)
+        check = gate_label(veto.id, loc) if veto else ""
         decision.decision = "wait"
-        decision.refusal_summary = (veto.reason_ar or veto.reason) if veto else "Gate veto"
-        decision.summary = f"Recommendation blocked: {decision.refusal_summary}"
+        decision.refusal_summary = reason
+        decision.summary = (
+            tr("gate.blocked", loc, check=check, reason=reason) if check else reason
+        )
         decision.recommendation.action = "wait"
         decision.execution_state = "blocked"
         rec.execution_state = "blocked"

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
+from nanobot.trading.policy import live
 from nanobot.trading.types import EntryPlan
-
-DEFAULT_MAX_ATR_DISTANCE = 0.3
-MAX_TARGET_ATR_DISTANCE = 25
 
 
 def validate_entry_coherence(plan: EntryPlan, atr: float) -> tuple[bool, list[str]]:
@@ -18,7 +16,8 @@ def validate_entry_coherence(plan: EntryPlan, atr: float) -> tuple[bool, list[st
     if plan.direction == "sell" and plan.stop_loss <= plan.entry:
         reasons.append("Sell stop must be above entry")
     for target in plan.targets:
+        limit = live().TARGET_MAX_ATR_DISTANCE
         dist = abs(target - plan.entry) / max(atr, 0.01)
-        if dist > MAX_TARGET_ATR_DISTANCE:
-            reasons.append(f"Target {target} exceeds {MAX_TARGET_ATR_DISTANCE} ATR")
+        if dist > limit:
+            reasons.append(f"Target {target} exceeds {limit} ATR")
     return len(reasons) == 0, reasons

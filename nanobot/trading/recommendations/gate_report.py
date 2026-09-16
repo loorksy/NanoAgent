@@ -55,6 +55,7 @@ def build_gate_report_artifact(
             "allowed": allowed,
             "verdicts": wire_verdicts,
             "vetoedBy": veto_id,
+            "vetoedByName": gate_label(veto_id, loc) if veto_id else None,
             "recommendationId": row.get("id"),
             "direction": row.get("direction"),
         },

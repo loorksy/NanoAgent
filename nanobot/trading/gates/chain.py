@@ -1,12 +1,11 @@
-"""Run gate chain G1→G4, G6→G7 with short-circuit."""
+"""Run the quality-check chain with short-circuit on a blocking veto."""
 
 from __future__ import annotations
 
-import asyncio
 import time
 
 from nanobot.trading.gates.build_gates import GATE_REQUIRED, GateDefinition
-from nanobot.trading.types import GateChainResult, GateId, GateVerdict, GateStatus
+from nanobot.trading.types import GateChainResult, GateStatus, GateVerdict
 
 
 async def run_gate_chain(gates: list[GateDefinition]) -> GateChainResult:

@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from nanobot.trading.i18n import tr
+from nanobot.trading.policy import live
 from nanobot.trading.types import EntryPlan, LiquidityResult, SupplyDemandResult
-
-LIQUIDITY_PROXIMITY_ATR = 0.3
 
 
 def evaluate_liquidity_alignment(
@@ -16,7 +15,7 @@ def evaluate_liquidity_alignment(
     locale: str = "en",
 ) -> tuple[str, str]:
     """Return gate status and localized reason (pass or veto)."""
-    proximity = max(atr * LIQUIDITY_PROXIMITY_ATR, 0.01)
+    proximity = max(atr * live().LIQUIDITY_PROXIMITY_ATR, 0.01)
     entry = plan.entry
 
     if plan.direction == "buy":

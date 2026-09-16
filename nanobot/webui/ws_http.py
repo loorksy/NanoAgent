@@ -198,6 +198,7 @@ _WEBUI_MUTATION_PATHS = {
     "settings.mcp.oauth_start": "/api/settings/mcp-oauth/start",
     "settings.mcp.oauth_complete": "/api/settings/mcp-oauth/complete",
     "settings.mcp.oauth_cancel": "/api/settings/mcp-oauth/cancel",
+    "settings.trading_risk.update": "/api/settings/trading-risk/update",
 }
 
 _WEBUI_CHANNEL_CONNECT_ACTIONS = {

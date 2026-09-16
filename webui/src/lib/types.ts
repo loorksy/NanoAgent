@@ -1201,6 +1201,39 @@ export interface McpPresetsPayload {
   };
 }
 
+export interface TradingRiskField {
+  name: string;
+  label: string;
+  group: string;
+  group_label: string;
+  unit: string;
+  value: number;
+  type: "integer" | "number";
+  step: number;
+  min?: number;
+  max?: number;
+}
+
+export interface TradingRiskGroup {
+  id: string;
+  label: string;
+  fields: TradingRiskField[];
+}
+
+export interface TradingRiskPayload {
+  title: string;
+  description: string;
+  operator_warning: string;
+  save_label: string;
+  groups: TradingRiskGroup[];
+  values: Record<string, number>;
+  last_action?: {
+    ok: boolean;
+    message: string;
+    updated?: string[];
+  };
+}
+
 type ChannelConnectStatus = "pending" | "succeeded" | "expired" | "cancelled" | "failed";
 
 export interface ChannelConnectPayload {

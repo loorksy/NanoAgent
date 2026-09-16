@@ -349,6 +349,106 @@ class TradingCronConfig(Base):
     enabled: bool = False
 
 
+class TradingMetaApiConfig(Base):
+    """MetaAPI Cloud credentials for MT5 (same env-var pattern as OANDA)."""
+
+    token: str = Field(default="", repr=False)
+    account_id: str = Field(default="", validation_alias=AliasChoices("accountId", "account_id"))
+    region: str = "new-york"
+
+
+class TradingRiskParameters(Base):
+    """Operator-editable gold risk / execution thresholds.
+
+    Percent fields are stored as 0–100 (1.0 = 1%). Gates convert to fractions
+    at evaluation time. Bounds exist only to keep types valid — they do not
+    block aggressive operator choices.
+    """
+
+    # Section 3 — Risk guardrails (operator-facing percents)
+    risk_pct_default: float = Field(default=1.0, ge=0, le=100)  # 3.1 / playbook 47
+    risk_pct_max: float = Field(default=2.0, ge=0, le=100)  # 3.1 / playbook 47
+    risk_pct_news_day: float = Field(default=0.5, ge=0, le=100)  # news 16
+    daily_drawdown_pct: float = Field(default=3.0, ge=0, le=100)  # 3.2 / playbook 191
+    equity_spike_pct: float = Field(default=2.0, ge=0, le=100)  # news 61
+    spread_max_points: float = Field(default=60.0, ge=0)  # 3.3 / news 56
+    spread_stable_seconds: float = Field(default=180.0, ge=0)  # news 56
+    spread_multiplier_pre_news: float = Field(default=3.0, ge=0)  # news 5
+    spread_pre_news_minutes: float = Field(default=2.0, ge=0)  # news 5
+    cooldown_consecutive_losses: int = Field(default=2, ge=0)  # 3.4
+    cooldown_after_two_losses_minutes: float = Field(default=180.0, ge=0)  # 3.4
+    cooldown_after_two_losses_session_minutes: float = Field(default=60.0, ge=0)  # playbook 187
+    cooldown_after_news_stop_minutes: float = Field(default=45.0, ge=0)  # news 62
+    max_open_gold_positions: int = Field(default=2, ge=0)  # 3.5; 0 = no cap
+    min_rr: float = Field(default=2.0, ge=0)  # 3.6
+    min_rr_live_fill: float = Field(default=1.5, ge=0)  # playbook 196
+
+    # Section 4 / playbook time stops and management
+    idea_stale_hours: float = Field(default=4.0, ge=0)  # playbook 12
+    pending_ttl_hours: float = Field(default=3.0, ge=0)  # playbook 183
+    time_stop_hours: float = Field(default=3.0, ge=0)  # playbook 36
+    half_distance_pct: float = Field(default=50.0, ge=0, le=100)  # playbook 193 / news 65
+    news_shield_minutes: float = Field(default=10.0, ge=0)  # 4.5 / news 2–3
+    flat_near_entry_points: float = Field(default=30.0, ge=0)  # news 4
+    partial_tp1_pct: float = Field(default=50.0, ge=0, le=100)  # 4.4 / playbook 137
+    partial_tp2_pct: float = Field(default=25.0, ge=0, le=100)  # 4.4
+    partial_tp_split_1_pct: float = Field(default=40.0, ge=0, le=100)  # playbook 153
+    partial_tp_split_2_pct: float = Field(default=30.0, ge=0, le=100)  # playbook 153
+    partial_tp_split_3_pct: float = Field(default=30.0, ge=0, le=100)  # playbook 153
+    breakeven_rr: float = Field(default=1.0, ge=0)  # 4.3 / playbook 38
+    profit_lock_at_target_pct: float = Field(default=70.0, ge=0, le=100)  # playbook 39
+    profit_lock_keep_pct: float = Field(default=50.0, ge=0, le=100)  # playbook 39
+    overnight_sl_buffer_points: float = Field(default=20.0, ge=0)  # playbook 52
+    post_news_sl_buffer_points: float = Field(default=30.0, ge=0)  # news 63
+    trail_atr_mult: float = Field(default=1.5, ge=0)  # 4.2 / playbook 29
+
+    # Quote / connection / execution quality
+    stale_quote_seconds: float = Field(default=5.0, ge=0)  # playbook 189
+    disconnect_alert_seconds: float = Field(default=10.0, ge=0)  # 6.6 / news 71
+    ping_max_ms: float = Field(default=50.0, ge=0)  # news 10
+    exec_latency_max_ms: float = Field(default=1000.0, ge=0)  # news 59
+    slippage_max_points: float = Field(default=25.0, ge=0)  # news 57
+    slippage_probe_points: float = Field(default=20.0, ge=0)  # candle-enc 50
+    bad_tick_points: float = Field(default=80.0, ge=0)  # 7.4 / news 66
+    margin_min_pct: float = Field(default=500.0, ge=0)  # news 70 (margin level, not 0–100)
+    proposal_ttl_seconds: float = Field(default=120.0, ge=0)  # HITL proposal expiry
+    max_confirm_slippage_points: float = Field(default=25.0, ge=0)  # news 57 on confirm
+
+    # Session / calendar locks
+    midnight_spread_start_hour: int = Field(default=23, ge=0, le=23)  # playbook 118
+    midnight_spread_start_minute: int = Field(default=55, ge=0, le=59)
+    midnight_spread_end_hour: int = Field(default=0, ge=0, le=23)
+    midnight_spread_end_minute: int = Field(default=15, ge=0, le=59)
+    daily_close_lock_minutes: float = Field(default=15.0, ge=0)  # playbook 195
+    daily_close_hour_utc: int = Field(default=21, ge=0, le=23)
+    rollover_minute_start: int = Field(default=58, ge=0, le=59)  # news 64
+    rollover_minute_end: int = Field(default=2, ge=0, le=59)  # news 64
+    rollover_news_minutes: float = Field(default=60.0, ge=0)
+    post_news_entry_wait_minutes: float = Field(default=15.0, ge=0)  # news 73
+    pre_news_freeze_minutes: float = Field(default=15.0, ge=0)  # news 1
+    news_blackout_before_minutes: float = Field(default=30.0, ge=0)  # G1
+    news_blackout_after_minutes: float = Field(default=15.0, ge=0)  # G1
+    news_void_seconds: float = Field(default=60.0, ge=0)  # news 35
+    first_minute_dead: float = Field(default=60.0, ge=0)  # news 35
+
+    # Volatility / ADR / gap
+    adr_chase_multiple: float = Field(default=2.0, ge=0)  # news 82 — 200% of ADR
+    gap_no_chase_points: float = Field(default=150.0, ge=0)  # news 90
+    news_candle_atr_mult: float = Field(default=3.0, ge=0)  # candle-enc 16 / 100
+    news_candle_m1_points: float = Field(default=60.0, ge=0)  # candle-enc 17
+    news_candle_m5_adr_pct: float = Field(default=40.0, ge=0, le=100)  # candle-enc 18
+    news_candle_volume_z: float = Field(default=3.5, ge=0)
+    atr_double_lot_halve: float = Field(default=2.0, ge=0)  # news 67
+    emergency_move_points_per_minute: float = Field(default=80.0, ge=0)  # playbook 186
+    max_reprice_rounds: int = Field(default=2, ge=0)  # G7
+    liquidity_proximity_atr: float = Field(default=0.3, ge=0)  # G2
+    entry_max_atr_distance: float = Field(default=0.3, ge=0)  # G6
+    target_max_atr_distance: float = Field(default=25.0, ge=0)  # G6
+    g7_max_slippage_atr: float = Field(default=0.5, ge=0)  # G7
+    lot_dual_check_high: float = Field(default=2.0, ge=0)  # playbook 188
+    lot_dual_check_low: float = Field(default=0.5, ge=0)  # playbook 188
+
+
 class ApiConfig(Base):
     """OpenAI-compatible API server configuration."""
 
@@ -450,6 +550,14 @@ class Config(BaseSettings):
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
+    trading_metaapi: TradingMetaApiConfig = Field(
+        default_factory=TradingMetaApiConfig,
+        validation_alias=AliasChoices("tradingMetaapi", "trading_metaapi"),
+    )
+    trading_risk_parameters: TradingRiskParameters = Field(
+        default_factory=TradingRiskParameters,
+        validation_alias=AliasChoices("tradingRiskParameters", "trading_risk_parameters"),
+    )
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     model_presets: dict[str, ModelPresetConfig] = Field(
         default_factory=dict,

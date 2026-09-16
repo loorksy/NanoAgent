@@ -39,6 +39,7 @@ import type {
   SlashCommand,
   SlashCommandLifecycle,
   TranscriptionSettingsUpdate,
+  TradingRiskPayload,
   WebSearchSettingsUpdate,
   WorkspacesPayload,
   WebuiThreadPersistedPayload,
@@ -714,6 +715,29 @@ export async function fetchMcpPresets(
     token,
     undefined,
     API_READ_TIMEOUT_MS,
+  );
+}
+
+export async function fetchTradingRisk(
+  token: string,
+  base: string = "",
+): Promise<TradingRiskPayload> {
+  return request<TradingRiskPayload>(
+    `${base}/api/settings/trading-risk`,
+    token,
+    undefined,
+    API_READ_TIMEOUT_MS,
+  );
+}
+
+export async function updateTradingRisk(
+  transport: WebUIMutationTransport,
+  values: Record<string, number>,
+): Promise<TradingRiskPayload> {
+  return mutation<TradingRiskPayload>(
+    transport,
+    "settings.trading_risk.update",
+    { values: JSON.stringify(values) },
   );
 }
 

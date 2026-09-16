@@ -1,4 +1,5 @@
 import { ChannelQrConnectFlow } from "@/components/settings/channels/ChannelQrConnectFlow";
+import { RiskParametersSettings } from "@/components/trading/RiskParametersSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -139,6 +140,10 @@ export function TradingConnect() {
             <p className="text-sm text-muted-foreground">{t("trading.connect.loadingWhatsapp")}</p>
           )}
         </section>
+      </div>
+
+      <div className="mt-8">
+        <RiskParametersSettings />
       </div>
     </div>
   );

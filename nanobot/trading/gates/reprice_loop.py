@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from nanobot.trading.gates.build_gates import GateDefinition
 from nanobot.trading.gates.chain import run_gate_chain
+from nanobot.trading.policy import live
 from nanobot.trading.types import AgentRecommendation, EntryPlan, GateChainResult, GateVerdict
-
 
 MAX_REPRICE_ROUNDS = 2
 
@@ -39,7 +39,7 @@ async def apply_g7_reprice_loop(
     if g6 is None or g7 is None:
         return current, plan, recommendation
 
-    for _ in range(MAX_REPRICE_ROUNDS):
+    for _ in range(live().MAX_REPRICE_ROUNDS):
         g7_verdict = next((v for v in current.verdicts if v.id == "G7"), None)
         evidence = g7_verdict.evidence if g7_verdict else None
         if not isinstance(evidence, dict):
@@ -58,7 +58,11 @@ async def apply_g7_reprice_loop(
         recommendation.activation_rule = None
         recommendation.activation_condition = None
         recommendation.execution_state = "valid_now"
-        follow_up = await run_gate_chain([g6, g7])
+        follow_ids = [g6, g7]
+        g8 = gate_by_id.get("G8")
+        if g8 is not None:
+            follow_ids.append(g8)
+        follow_up = await run_gate_chain(follow_ids)
         current = _merge_gate_chains(current, follow_up)
         if not current.allowed:
             break
