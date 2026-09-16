@@ -54,7 +54,6 @@ def prepare_responses_input(
     instructions, fallback_items = convert_messages(
         messages,
         preserve_reasoning=preserve_reasoning,
-        include_item_ids=False,
     )
     if state is None or not responses_state_matches(
         state,
@@ -70,18 +69,13 @@ def prepare_responses_input(
     _, delta_items = convert_messages(
         state.pending_messages,
         preserve_reasoning=preserve_reasoning,
-        include_item_ids=False,
     )
     logger.debug(
         "Replaying Responses state: prior_items={} pending_messages={}",
         len(prior_items),
         len(state.pending_messages),
     )
-    replayed_items = deepcopy(prior_items)
-    for item in replayed_items:
-        if item.get("type") == "reasoning":
-            item.pop("status", None)
-    return instructions, [*replayed_items, *delta_items], True
+    return instructions, [*deepcopy(prior_items), *delta_items], True
 
 
 def build_responses_state(

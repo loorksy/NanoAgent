@@ -73,8 +73,6 @@ type PendingStreamEvent =
   | { kind: "reasoning"; text: string; turn: UIMessageTurnFields };
 
 const BACKGROUND_STREAM_FLUSH_INTERVAL_MS = 1_000;
-// Markdown and layout work must leave room for input between visible updates.
-const VISIBLE_STREAM_FLUSH_INTERVAL_MS = 50;
 
 /**
  * Append a reasoning chunk to the last open reasoning stream in ``prev``.
@@ -315,7 +313,6 @@ export function useNanobotStream(
   const pendingStreamEventsRef = useRef<PendingStreamEvent[]>([]);
   const streamFrameRef = useRef<number | null>(null);
   const streamTimerRef = useRef<number | null>(null);
-  const lastStreamFlushRef = useRef(0);
   const suppressStreamUntilTurnEndRef = useRef(false);
   const sideChannelTurnIdsRef = useRef<Set<string>>(new Set());
 
@@ -341,7 +338,6 @@ export function useNanobotStream(
       streamTimerRef.current = null;
     }
     pendingStreamEventsRef.current = [];
-    lastStreamFlushRef.current = 0;
   }, []);
 
   const isSideChannelEvent = useCallback((ev: InboundEvent) => {
@@ -594,7 +590,6 @@ export function useNanobotStream(
     turn?: UIMessageTurnFields;
     source?: UIMessage["source"];
   }) => {
-    lastStreamFlushRef.current = 0;
     if (streamFrameRef.current !== null) {
       window.cancelAnimationFrame(streamFrameRef.current);
       streamFrameRef.current = null;
@@ -674,7 +669,7 @@ export function useNanobotStream(
     });
   }, [applyPendingStreamEvents, closeActiveAssistantStream, resolveActiveAssistantIndex]);
 
-  const schedulePendingStreamFlush = useCallback(function schedule() {
+  const schedulePendingStreamFlush = useCallback(() => {
     if (streamFrameRef.current !== null || streamTimerRef.current !== null) return;
     if (document.visibilityState === "hidden" || !threadVisibleRef.current) {
       streamTimerRef.current = window.setTimeout(() => {
@@ -686,21 +681,11 @@ export function useNanobotStream(
       }, BACKGROUND_STREAM_FLUSH_INTERVAL_MS);
       return;
     }
-    const delay = VISIBLE_STREAM_FLUSH_INTERVAL_MS
-      - (performance.now() - lastStreamFlushRef.current);
-    if (delay > 0) {
-      streamTimerRef.current = window.setTimeout(() => {
-        streamTimerRef.current = null;
-        schedule();
-      }, delay);
-      return;
-    }
     streamFrameRef.current = window.requestAnimationFrame(() => {
       streamFrameRef.current = null;
       const events = pendingStreamEventsRef.current;
       if (events.length === 0) return;
       pendingStreamEventsRef.current = [];
-      lastStreamFlushRef.current = performance.now();
       setMessages((prev) => applyPendingStreamEvents(prev, events));
     });
   }, [applyPendingStreamEvents]);
@@ -708,31 +693,22 @@ export function useNanobotStream(
   useEffect(() => {
     if (threadVisible) {
       flushPendingStreamEvents();
-    } else if (streamFrameRef.current !== null || streamTimerRef.current !== null) {
-      if (streamFrameRef.current !== null) window.cancelAnimationFrame(streamFrameRef.current);
+    } else if (streamFrameRef.current !== null) {
+      window.cancelAnimationFrame(streamFrameRef.current);
       streamFrameRef.current = null;
-      if (streamTimerRef.current !== null) window.clearTimeout(streamTimerRef.current);
-      streamTimerRef.current = null;
       schedulePendingStreamFlush();
     }
   }, [threadVisible, flushPendingStreamEvents, schedulePendingStreamFlush]);
 
   useEffect(() => {
-    const onVisibilityChange = () => {
+    const flushOnReturn = () => {
+      if (document.visibilityState !== "visible" || !threadVisibleRef.current) return;
       if (pendingStreamEventsRef.current.length === 0) return;
-      if (document.visibilityState === "visible" && threadVisibleRef.current) {
-        flushPendingStreamEvents();
-      } else {
-        if (streamFrameRef.current !== null) window.cancelAnimationFrame(streamFrameRef.current);
-        streamFrameRef.current = null;
-        if (streamTimerRef.current !== null) window.clearTimeout(streamTimerRef.current);
-        streamTimerRef.current = null;
-        schedulePendingStreamFlush();
-      }
+      flushPendingStreamEvents();
     };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [flushPendingStreamEvents, schedulePendingStreamFlush]);
+    document.addEventListener("visibilitychange", flushOnReturn);
+    return () => document.removeEventListener("visibilitychange", flushOnReturn);
+  }, [flushPendingStreamEvents]);
 
   useEffect(() => {
     if (!chatId) return;
