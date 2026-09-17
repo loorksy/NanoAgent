@@ -1251,6 +1251,69 @@ export interface TradingRiskPayload {
   };
 }
 
+export interface TradingMetaApiRegion {
+  id: string;
+  label: string;
+}
+
+export interface TradingMetaApiAccount {
+  login?: string;
+  name?: string;
+  server?: string;
+  broker?: string;
+  company?: string;
+  currency?: string;
+  balance?: number;
+  equity?: number;
+  margin?: number;
+  leverage?: number;
+  summary?: string[];
+}
+
+export interface TradingMetaApiPayload {
+  title: string;
+  description: string;
+  hitl_note: string;
+  token_label: string;
+  token_help: string;
+  token_placeholder: string;
+  token_configured_placeholder: string;
+  account_id_label: string;
+  account_id_help: string;
+  region_label: string;
+  login_label: string;
+  password_label: string;
+  server_label: string;
+  server_placeholder: string;
+  connect_label: string;
+  test_label: string;
+  disconnect_label: string;
+  saving_label: string;
+  testing_label: string;
+  not_connected_label: string;
+  connected_label: string;
+  env_override_warning: string;
+  sdk_missing_label: string;
+  steps: string[];
+  regions: TradingMetaApiRegion[];
+  configured: boolean;
+  token_set: boolean;
+  token_hint: string | null;
+  account_id: string;
+  region: string;
+  sdk_available: boolean;
+  env_override: boolean;
+  source: "env" | "config" | "none";
+  stored_account_id?: string;
+  account?: TradingMetaApiAccount | null;
+  last_action?: {
+    ok: boolean;
+    message: string;
+    live_ok?: boolean;
+    live_error?: string;
+  };
+}
+
 type ChannelConnectStatus = "pending" | "succeeded" | "expired" | "cancelled" | "failed";
 
 export interface ChannelConnectPayload {

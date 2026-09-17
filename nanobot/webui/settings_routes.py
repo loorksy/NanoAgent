@@ -68,6 +68,7 @@ from nanobot.webui.settings_contracts import (
 )
 from nanobot.webui.settings_runtime import runtime_config_payload
 from nanobot.webui.settings_services import WebUISettingsServices
+from nanobot.webui.trading_metaapi_api import trading_metaapi_settings_action
 from nanobot.webui.trading_risk_api import trading_risk_settings_action
 from nanobot.webui.version_check import check_for_update
 
@@ -108,6 +109,12 @@ _MCP_PRESET_ACTIONS_BY_PATH = {
 
 _TRADING_RISK_ACTIONS_BY_PATH = {
     "/api/settings/trading-risk/update": "update",
+}
+
+_TRADING_METAAPI_ACTIONS_BY_PATH = {
+    "/api/settings/trading-metaapi/update": "update",
+    "/api/settings/trading-metaapi/test": "test",
+    "/api/settings/trading-metaapi/disconnect": "disconnect",
 }
 
 _MODEL_ROUTES = {
@@ -155,6 +162,7 @@ _SYSTEM_ROUTES = {
     "/api/settings/pairing/deny": "pairing-deny",
     "/api/settings/mcp-presets": "mcp-list",
     "/api/settings/trading-risk": "trading-risk-list",
+    "/api/settings/trading-metaapi": "trading-metaapi-list",
     "/api/settings/version-check": "version-check",
     **{
         path: f"mcp-{action}"
@@ -163,6 +171,10 @@ _SYSTEM_ROUTES = {
     **{
         path: f"trading-risk-{action}"
         for path, action in _TRADING_RISK_ACTIONS_BY_PATH.items()
+    },
+    **{
+        path: f"trading-metaapi-{action}"
+        for path, action in _TRADING_METAAPI_ACTIONS_BY_PATH.items()
     },
 }
 
@@ -203,6 +215,7 @@ _SETTINGS_MUTATION_PATHS = frozenset({
     "/api/settings/mcp-oauth/cancel",
     *_MCP_PRESET_ACTIONS_BY_PATH,
     *_TRADING_RISK_ACTIONS_BY_PATH,
+    *_TRADING_METAAPI_ACTIONS_BY_PATH,
 })
 
 
@@ -542,6 +555,7 @@ class WebUISettingsRouter:
             deny_code=deny_code,
             mcp_presets_action=mcp_presets_settings_action,
             trading_risk_action=trading_risk_settings_action,
+            trading_metaapi_action=trading_metaapi_settings_action,
             reload_mcp=self._reload_mcp_runtime,
             mcp_runtime_status=self._mcp_runtime_status,
             check_for_update=check_for_update,
