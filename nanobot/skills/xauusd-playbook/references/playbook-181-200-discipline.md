@@ -2,7 +2,7 @@
 
 | Original rule range | This file | Deterministic destinations | Interpretive headings |
 | --- | --- | --- | --- |
-| P-181 … P-200 | `playbook-181-200-discipline.md` | P-183 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-184 → `nanobot/trading/gates/max_positions.py::evaluate_no_martingale`<br>P-185 → `nanobot/trading/mt5_execution.py::mt5_propose_order`<br>P-186 → `nanobot/trading/intel/regex_emergency.py::scan_emergency`<br>P-187 → `nanobot/trading/gates/cooldown_lock.py::evaluate_cooldown_lock`<br>P-188 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing`<br>P-189 → `nanobot/trading/gates/stale_quote.py::evaluate_stale_quote`<br>P-191 → `nanobot/trading/gates/drawdown_breaker.py::evaluate_drawdown_breaker`<br>P-193 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-195 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-196 → `nanobot/trading/gates/rr_filter.py::evaluate_rr_filter`<br>P-197 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-199 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing` | P-181, P-190, P-192, P-194, P-198, P-200 |
+| P-181 … P-200 | `playbook-181-200-discipline.md` | P-183 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-184 → `nanobot/trading/gates/max_positions.py::evaluate_max_positions`<br>P-185 → `nanobot/trading/mt5_execution.py::mt5_propose_order`<br>P-186 → `nanobot/trading/intel/regex_emergency.py::scan_emergency`<br>P-187 → `nanobot/trading/gates/cooldown_lock.py::evaluate_cooldown_lock`<br>P-188 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing`<br>P-189 → `nanobot/trading/gates/stale_quote.py::evaluate_stale_quote`<br>P-191 → `nanobot/trading/gates/drawdown_breaker.py::evaluate_drawdown_breaker`<br>P-193 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-195 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-196 → `nanobot/trading/gates/rr_filter.py::evaluate_rr_filter`<br>P-197 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-199 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing` | P-181, P-190, P-192, P-194, P-198, P-200 |
 
 ## Contents
 
@@ -44,7 +44,7 @@ Grep `P-1(8[1-9]|9[0-9]|200)`.
 - **Judgment:** Unfilled limits/stops expire with the live TTL. Context died.
 
 ### P-184 — No add to a same-side loser
-- **Kind:** DETERMINISTIC — max positions losing-side check / `evaluate_no_martingale`
+- **Kind:** DETERMINISTIC — max positions losing-side check
 - **Judgment:** Ban a new gold long while an existing long is still red. That is stacking losses.
 
 ### P-185 — Scalp vs swing isolation
