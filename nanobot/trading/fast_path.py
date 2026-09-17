@@ -4,26 +4,25 @@ from __future__ import annotations
 
 from typing import Any
 
+from nanobot.agent.tools.context import current_request_context
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.queue import MessageBus
+from nanobot.trading.capabilities.preflight import run_capability_preflight
+from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.evidence import is_light_path_mode
+from nanobot.trading.explain import build_trading_explain
+from nanobot.trading.i18n import tr
 from nanobot.trading.intent_router import resolve_team_preset
-from nanobot.agent.tools.context import current_request_context
-from nanobot.trading.capabilities.preflight import run_capability_preflight
-from nanobot.trading.chart_capture import resolve_visual_capture
+from nanobot.trading.locale import locale_from_text
+from nanobot.trading.operator_keywords import wants_explicit_new_analysis, wants_trading_explain
 from nanobot.trading.orchestrator import run_unified_chart_agent
-from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.operator_keywords import wants_explicit_new_analysis
 from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
-from nanobot.trading.i18n import tr
-from nanobot.trading.locale import locale_from_text
 from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.explain import build_trading_explain
-from nanobot.trading.operator_keywords import wants_trading_explain
+from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.turn_executor import execute_gate_report_path, execute_light_path
 from nanobot.trading.turn_planner import TurnPlan, plan_turn
 

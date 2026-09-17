@@ -15,12 +15,12 @@ from nanobot.agent.tools.context import (
 )
 from nanobot.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
 from nanobot.trading.cards.artifacts import build_price_quote_artifacts
+from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.config import load_trading_config
-from nanobot.trading.locale import locale_from_text
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.recommendations.lifecycle import (

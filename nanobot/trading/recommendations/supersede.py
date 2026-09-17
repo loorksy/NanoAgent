@@ -38,7 +38,6 @@ def apply_supersede_transition(
     recommendation_id: str,
     action: SupersedeAction,
 ) -> dict[str, Any]:
-    pending = _PENDING.get(session_key)
     live = latest_live_recommendation(session_key)
     if live is None:
         clear_supersede_pending(session_key)

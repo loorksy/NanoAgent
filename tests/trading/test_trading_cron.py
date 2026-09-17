@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock
 
 from nanobot.cron.types import CronJob, CronPayload, CronSchedule
 from nanobot.trading.cron import (

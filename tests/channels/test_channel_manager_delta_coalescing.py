@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+from nanobot.channels.mattermost.runtime import MattermostChannel
 
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.outbound_events import (
@@ -16,7 +17,6 @@ from nanobot.bus.outbound_events import (
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.base import BaseChannel
 from nanobot.channels.manager import ChannelManager
-from nanobot.channels.mattermost.runtime import MattermostChannel
 from nanobot.config.schema import Config
 
 

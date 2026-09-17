@@ -4,7 +4,6 @@ import asyncio
 
 import pytest
 
-from nanobot.trading.config import load_trading_config
 from nanobot.trading.policy_guard import validate_turn_plan
 from nanobot.trading.turn_executor import execute_light_path
 from nanobot.trading.turn_planner import plan_turn

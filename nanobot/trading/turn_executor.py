@@ -7,7 +7,6 @@ from typing import Any
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.trading.cards.artifacts import apply_result_artifacts, build_price_quote_artifacts
-from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.evidence import PipelineContext, is_light_path_mode, run_evidence_graph
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
@@ -15,12 +14,12 @@ from nanobot.trading.i18n import label_map, tr
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import log_planner_shadow, validate_turn_plan
 from nanobot.trading.recommendations.followup import grade_live_recommendation
+from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
 from nanobot.trading.recommendations.supersede import mark_supersede_pending
-from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.types import AgentFinalResult
 from nanobot.trading.turn_planner import TurnPlan
+from nanobot.trading.types import AgentFinalResult
 
 _PRICE_CONFIDENCE_MIN = 0.70
 _CHART_CONFIDENCE_MIN = 0.75

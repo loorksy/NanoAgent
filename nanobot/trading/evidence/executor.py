@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import Any
 
 from nanobot.trading.evidence.context import PipelineContext
-from nanobot.trading.observability import track_node_timing
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH, EvidenceGraph
 from nanobot.trading.evidence.nodes import NODE_REGISTRY, get_node
+from nanobot.trading.observability import track_node_timing
 from nanobot.trading.stage_events import StageEvent, emit_stage
 
 StageTracker = Callable[[StageEvent], None]

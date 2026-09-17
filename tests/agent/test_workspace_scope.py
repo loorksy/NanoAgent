@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from nanobot.agent.tools.search import GrepTool
 
 from nanobot.agent.context import ContextBuilder
 from nanobot.agent.tools.cli_apps import CliAppsTool
@@ -14,7 +15,6 @@ from nanobot.agent.tools.context import RequestContext, ToolContext, request_con
 from nanobot.agent.tools.filesystem import ReadFileTool, WriteFileTool
 from nanobot.agent.tools.image_generation import ImageGenerationError, ImageGenerationTool
 from nanobot.agent.tools.message import MessageTool
-from nanobot.agent.tools.search import GrepTool
 from nanobot.agent.tools.shell import ExecTool
 from nanobot.agent.tools.spawn import SpawnTool
 from nanobot.apps.cli.service import CliAppManager, CliAppsRuntimeConfig

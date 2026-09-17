@@ -9,8 +9,8 @@ import pytest
 
 from nanobot.agent.tools.context import RequestContext, request_context
 from nanobot.agent.tools.trading_chart import AnalyzeGoldTool, GetGoldQuoteTool
-from nanobot.trading.stage_events import emit_stage
 from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.stage_events import emit_stage
 
 
 @pytest.mark.asyncio

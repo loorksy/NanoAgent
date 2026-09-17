@@ -6,7 +6,10 @@ from typing import Any, Literal
 
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.recommendations.followup import finalize_live_plan_if_closed, grade_outcome_status
+from nanobot.trading.recommendations.followup import (
+    finalize_live_plan_if_closed,
+    grade_outcome_status,
+)
 from nanobot.trading.recommendations.state_machine import (
     CLOSED_OUTCOME_STATUSES,
     classify_archive_category,

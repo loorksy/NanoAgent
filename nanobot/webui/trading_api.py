@@ -13,19 +13,19 @@ from websockets.http11 import Response
 
 from nanobot.agent.tools.context import RequestContext, current_request_context, request_context
 from nanobot.providers.factory import load_provider_snapshot
-from nanobot.trading.config import load_trading_config
-from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
-from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
-from nanobot.trading.crew.debate import run_debate_crew
-from nanobot.trading.orchestrator import run_unified_chart_agent
-from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
-from nanobot.trading.paper import record_paper_action
-from nanobot.trading.chart_capture import ChartCaptureError, submit_chart_capture, validate_chart_frames
+from nanobot.trading.chart_capture import (
+    ChartCaptureError,
+    submit_chart_capture,
+    validate_chart_frames,
+)
 from nanobot.trading.chart_host_bridge import get_chart_host_bridge
 from nanobot.trading.chart_host_token import verify_chart_host_page_token
-from nanobot.webui.http_utils import bearer_token as _bearer_token
+from nanobot.trading.config import load_trading_config
+from nanobot.trading.crew.debate import run_debate_crew
+from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
+from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
@@ -34,7 +34,11 @@ from nanobot.trading.recommendations.followup import (
 from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.runtime_state import get_runtime_store
+from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.teams.runtime import run_swarm
+from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.utils.llm_runtime import runtime_from_provider_snapshot
+from nanobot.webui.http_utils import bearer_token as _bearer_token
 from nanobot.webui.http_utils import http_error as _http_error
 from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
@@ -299,8 +303,8 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
 
 def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
-    from nanobot.trading.memory.decisions import list_recent_decisions
     from nanobot.trading.gold import DATA_SYMBOL
+    from nanobot.trading.memory.decisions import list_recent_decisions
     from nanobot.trading.oanda import fetch_quote
     from nanobot.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
