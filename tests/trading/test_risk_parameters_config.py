@@ -64,8 +64,8 @@ def test_trading_risk_api_update_is_reflected_by_the_gate(
 def test_spread_guard_uses_saved_config(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp_path / "config.json"
     monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
-    from nanobot.trading.gates.spread_guard import evaluate_spread_guard
     from nanobot.trading.gates.risk_snapshot import RiskSnapshot
+    from nanobot.trading.gates.spread_guard import evaluate_spread_guard
 
     save_config(Config(), config_path)
     invalidate_live_cache()

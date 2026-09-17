@@ -114,7 +114,7 @@ def _coverage_rows() -> list[str]:
     return [
         line
         for line in spec.splitlines()
-        if re.match(r"\| (?:P|N|C)-\d{3} \|", line)
+        if re.match(r"\| (?:P|N|C)-\d{3} \| (?:DETERMINISTIC|INTERPRETIVE|EXCLUDED) \|", line)
     ]
 
 

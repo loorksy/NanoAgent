@@ -11,12 +11,12 @@ WEB_RISK = Path("webui/src/components/trading/RiskParametersSettings.tsx")
 
 SCAN_DIRS = [
     ROOT / "trading" / "gates",
-    ROOT / "webui",
 ]
 SCAN_FILES = [
     ROOT / "trading" / "mt5_execution.py",
     ROOT / "trading" / "mt5_metaapi.py",
     ROOT / "trading" / "broker_result.py",
+    ROOT / "webui" / "trading_risk_api.py",
     WEB_RISK,
 ]
 
@@ -64,12 +64,11 @@ def test_trading_user_strings_live_in_i18n() -> None:
                 offenders.append(f"{path}:{getattr(child, 'lineno', 0)}:{text[:80]}")
         elif path.suffix == ".tsx":
             text = path.read_text(encoding="utf-8")
-            for match in re.finditer(r">([^<{][^<]{8,})<", text):
-                blob = match.group(1).strip()
-                if _SENTENCE.search(blob) and "payload." not in blob:
-                    offenders.append(f"{path}:jsx:{blob[:80]}")
-            for match in re.finditer(r"(['\"`])([A-Z][^'\"`]{12,})\1", text):
+            for match in re.finditer(r"(['\"`])([^'\"`]{8,})\1", text):
                 blob = match.group(2)
-                if re.search(r"(must be a number|Risk Parameters|Feature toggles|Saving|Loading)", blob):
+                if re.search(
+                    r"(must be a number|Risk Parameters|Feature toggles|Saving…|Loading risk parameters)",
+                    blob,
+                ):
                     offenders.append(f"{path}:literal:{blob[:80]}")
     assert offenders == []

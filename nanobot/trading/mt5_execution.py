@@ -5,7 +5,11 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from nanobot.trading.broker_result import broker_error_message, broker_send_succeeded, position_ticket
+from nanobot.trading.broker_result import (
+    broker_error_message,
+    broker_send_succeeded,
+    position_ticket,
+)
 from nanobot.trading.gates.drawdown_breaker import flatten_required_reason
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.position_sizing import lot_from_balance

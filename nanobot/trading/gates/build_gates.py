@@ -8,6 +8,7 @@ from typing import Any
 
 from nanobot.trading.agents.news_macro import news_provider_configured
 from nanobot.trading.gates.bad_tick import evaluate_bad_tick
+from nanobot.trading.gates.check import disabled_by_operator
 from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
 from nanobot.trading.gates.drawdown_breaker import evaluate_drawdown_breaker
 from nanobot.trading.gates.entry_semantics import validate_entry_coherence
@@ -29,7 +30,6 @@ from nanobot.trading.gates.session_lock import evaluate_session_lock
 from nanobot.trading.gates.slippage_guard import evaluate_slippage_guard
 from nanobot.trading.gates.spread_guard import evaluate_spread_guard
 from nanobot.trading.gates.stale_quote import evaluate_stale_quote
-from nanobot.trading.gates.check import disabled_by_operator
 from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.types import (
     EntryPlan,

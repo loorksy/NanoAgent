@@ -6,7 +6,7 @@ unless the transport returned a successful broker result.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from nanobot.trading.i18n import tr
 
@@ -17,7 +17,7 @@ _SUCCESS_RETCODES = {10008, 10009, 10010}
 
 def _as_dict(value: Any) -> dict[str, Any] | None:
     if isinstance(value, dict):
-        return value
+        return cast(dict[str, Any], value)
     return None
 
 
