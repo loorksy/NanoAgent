@@ -36,7 +36,7 @@ def evaluate_rr_filter(
     planned = farthest_rr(plan)
     if planned < min_rr:
         return veto(
-            f"Reward-to-risk {planned:.2f} is below the {min_rr:.1f} minimum",
+            "gate.rr.below_min",
             rr=planned,
             min_rr=min_rr,
         )
@@ -44,7 +44,7 @@ def evaluate_rr_filter(
         live_rr = farthest_rr(plan, entry=live_entry)
         if live_rr < live_min_rr:
             return veto(
-                f"Live fill degraded R:R to {live_rr:.2f} (minimum {live_min_rr:.1f})",
+                "gate.rr.live_fill",
                 rr=live_rr,
                 min_rr=live_min_rr,
                 planned_rr=planned,

@@ -1,5 +1,10 @@
 # Risk guardrails
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-3-risk | `section-3-risk.md` | — | section narrative |
+
+
 Table of contents: Automatic lot sizing · Daily drawdown breaker · Spread guard · Cooldown lock · Maximum open positions · Minimum reward-to-risk
 
 Every numeric cap below is **DETERMINISTIC**. Quote `policy.live()` / the matching gate. Do not paste default percents into operator chat as if they were eternal.

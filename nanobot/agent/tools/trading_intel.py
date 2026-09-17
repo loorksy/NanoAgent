@@ -60,11 +60,13 @@ class GoldIntelScanTool(Tool):
         vips = await fetch_vip_statements()
         calendar = await fetch_economic_calendar()
         telegram = TelegramHeadlineSource()
+        telegram_rows = await telegram.fetch_recent()
         emergency = scan_emergency(text, apply_lock=bool(text))
         sentiment = await classify_sentiment(text or " ".join(h.title for h in headlines[:5]))
-        playbook = VectorPlaybook().query(context or text or "gold london sweep")
+        book = VectorPlaybook()
+        playbook = book.query(context or text or "gold london sweep")
         series = [float(x) for x in closes.split(",") if x.strip()] if closes else []
-        pattern = match_pattern(series).name if series else "skipped"
+        pattern = match_pattern(series) if series else None
         losses = PostMortemLog().recent_losses(3)
         market = intermarket_snapshot()
         return _json(
@@ -72,10 +74,9 @@ class GoldIntelScanTool(Tool):
                 "telegram": {
                     "available": telegram.available(),
                     "configured": telegram.configured(),
-                    "note": (
-                        "FEATURE-01 listens via Telethon when TELEGRAM_API_ID/HASH are set; "
-                        "this scan reports readiness only (listen is long-running)."
-                    ),
+                    "backend": telegram.backend(),
+                    "headlines": [row.text for row in telegram_rows],
+                    "active": telegram.available(),
                 },
                 "rss": [h.title for h in headlines[:8]],
                 "vip": [v.text for v in vips[:8]],
@@ -90,9 +91,24 @@ class GoldIntelScanTool(Tool):
                     "confidence": sentiment.confidence,
                     "source": sentiment.source,
                 },
-                "playbook": [{"scenario": m.scenario, "score": m.score} for m in playbook],
-                "pattern": pattern,
+                "playbook": {
+                    "backend": book.backend,
+                    "matches": [{"scenario": m.scenario, "score": m.score} for m in playbook],
+                },
+                "pattern": (
+                    None
+                    if pattern is None
+                    else {
+                        "name": pattern.name,
+                        "confidence": pattern.confidence,
+                        "backend": pattern.backend,
+                    }
+                ),
                 "recent_losses": len(losses),
-                "intermarket": market.prices,
+                "intermarket": {
+                    "prices": market.prices,
+                    "source": market.source,
+                    "active": bool(market.prices) and market.source not in {"none", "unavailable"},
+                },
             }
         )

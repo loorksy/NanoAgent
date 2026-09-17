@@ -1,5 +1,33 @@
 # Playbook P-181 … P-200 — Execution discipline
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-181 … P-200 | `playbook-181-200-discipline.md` | P-183 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-184 → `nanobot/trading/gates/max_positions.py::evaluate_no_martingale`<br>P-185 → `nanobot/trading/mt5_execution.py::mt5_propose_order`<br>P-186 → `nanobot/trading/intel/regex_emergency.py::scan_emergency`<br>P-187 → `nanobot/trading/gates/cooldown_lock.py::evaluate_cooldown_lock`<br>P-188 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing`<br>P-189 → `nanobot/trading/gates/stale_quote.py::evaluate_stale_quote`<br>P-191 → `nanobot/trading/gates/drawdown_breaker.py::evaluate_drawdown_breaker`<br>P-193 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-195 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-196 → `nanobot/trading/gates/rr_filter.py::evaluate_rr_filter`<br>P-197 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-199 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing` | P-181, P-190, P-192, P-194, P-198, P-200 |
+
+## Contents
+
+- [P-181 — Standing aside is a trade](#p-181-standing-aside-is-a-trade)
+- [P-182 — Zero-hesitation auto-send — EXCLUDED](#p-182-zero-hesitation-auto-send--excluded)
+- [P-183 — Pending TTL](#p-183-pending-ttl)
+- [P-184 — No add to a same-side loser](#p-184-no-add-to-a-same-side-loser)
+- [P-185 — Scalp vs swing isolation](#p-185-scalp-vs-swing-isolation)
+- [P-186 — Unscheduled 1-minute explosion](#p-186-unscheduled-1-minute-explosion)
+- [P-187 — Revenge freeze](#p-187-revenge-freeze)
+- [P-188 — Dual lot check](#p-188-dual-lot-check)
+- [P-189 — Fresh tick before send](#p-189-fresh-tick-before-send)
+- [P-190 — Drop the bias when structure dies](#p-190-drop-the-bias-when-structure-dies)
+- [P-191 — Daily max loss](#p-191-daily-max-loss)
+- [P-192 — Marketable orders when the break is real](#p-192-marketable-orders-when-the-break-is-real)
+- [P-193 — Half-distance pending cancel](#p-193-half-distance-pending-cancel)
+- [P-194 — Comment the why on the ticket](#p-194-comment-the-why-on-the-ticket)
+- [P-195 — No new risk into the daily close](#p-195-no-new-risk-into-the-daily-close)
+- [P-196 — Live fill reward-to-risk](#p-196-live-fill-reward-to-risk)
+- [P-197 — Official holidays off](#p-197-official-holidays-off)
+- [P-198 — TF contradiction lock](#p-198-tf-contradiction-lock)
+- [P-199 — Lot growth from balance](#p-199-lot-growth-from-balance)
+- [P-200 — The market is right](#p-200-the-market-is-right)
+
+
 Grep `P-1(8[1-9]|9[0-9]|200)`.
 
 ### P-181 — Standing aside is a trade
@@ -16,7 +44,7 @@ Grep `P-1(8[1-9]|9[0-9]|200)`.
 - **Judgment:** Unfilled limits/stops expire with the live TTL. Context died.
 
 ### P-184 — No add to a same-side loser
-- **Kind:** INTERPRETIVE (max positions is open-position cap)
+- **Kind:** DETERMINISTIC — max positions losing-side check / `evaluate_no_martingale`
 - **Judgment:** Ban a new gold long while an existing long is still red. That is stacking losses.
 
 ### P-185 — Scalp vs swing isolation

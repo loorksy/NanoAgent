@@ -1,5 +1,10 @@
 # Alerts and operator interface
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-6-alerts | `section-6-alerts.md` | — | section narrative |
+
+
 Table of contents: Instant chart with levels · Human confirm · London/NY morning brief · Daily/weekly scorecard · Natural-language gold questions · Stale feed alert · Multi-channel fan-out
 
 Follow `trading-proactive` for when to speak. This file is the alerts map only.

@@ -10,11 +10,11 @@ from nanobot.trading.policy import GOLD_POINT, live
 def evaluate_bad_tick(risk: RiskSnapshot | None) -> GateCheck:
     p = live()
     if risk is None or risk.last_mid is None or risk.current_mid is None:
-        return unavailable("Tick pair unavailable")
+        return unavailable("gate.tick.pair_unavailable")
     jump = abs(risk.current_mid - risk.last_mid) / GOLD_POINT
     if jump >= p.BAD_TICK_POINTS:
         return veto(
-            f"Bad tick: {jump:.0f}-point spike vs prior tick (limit {p.BAD_TICK_POINTS:.0f})",
+            "gate.tick.spike",
             jump_points=jump,
             limit=p.BAD_TICK_POINTS,
         )

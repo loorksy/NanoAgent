@@ -61,6 +61,20 @@ def test_trading_risk_api_update_is_reflected_by_the_gate(
     assert evaluate_rr_filter(_plan(0.5)).status == "pass"
 
 
+def test_spread_guard_uses_saved_config(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "config.json"
+    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    from nanobot.trading.gates.spread_guard import evaluate_spread_guard
+    from nanobot.trading.gates.risk_snapshot import RiskSnapshot
+
+    save_config(Config(), config_path)
+    invalidate_live_cache()
+    risk = RiskSnapshot(spread_points=80)
+    assert evaluate_spread_guard(risk).status == "veto"
+    trading_risk_action("update", {"spread_max_points": ["200"]})
+    assert evaluate_spread_guard(risk).status == "pass"
+
+
 def test_schema_allows_aggressive_risk_percent() -> None:
     params = TradingRiskParameters(risk_pct_default=50.0, max_open_gold_positions=0)
     assert params.risk_pct_default == 50.0

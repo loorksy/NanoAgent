@@ -5,6 +5,14 @@ import type { TradingRiskField, TradingRiskPayload, TradingRiskToggle } from "@/
 import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    out = out.replaceAll(`{${key}}`, value);
+  }
+  return out;
+}
+
 export function RiskParametersSettings() {
   const { client, token } = useClient();
   const [payload, setPayload] = useState<TradingRiskPayload | null>(null);
@@ -58,7 +66,7 @@ export function RiskParametersSettings() {
         const raw = (draft[field.name] ?? "").trim();
         const parsed = field.type === "integer" ? Number.parseInt(raw, 10) : Number.parseFloat(raw);
         if (!Number.isFinite(parsed)) {
-          setError(`${field.label} must be a number`);
+          setError(formatTemplate(payload.number_required ?? "{field}", { field: field.label }));
           return;
         }
         values[field.name] = parsed;
@@ -70,7 +78,7 @@ export function RiskParametersSettings() {
     try {
       const next = await updateTradingRisk(client, values, toggleDraft);
       applyPayload(next);
-      setStatus(next.last_action?.message ?? "Saved.");
+      setStatus(next.last_action?.message ?? next.save_label);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -80,10 +88,8 @@ export function RiskParametersSettings() {
 
   if (!payload) {
     return (
-      <section className="rounded-xl border bg-card p-5">
-        <h2 className="font-semibold">Risk Parameters</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Loading risk parameters…</p>
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      <section className="rounded-xl border bg-card p-5" aria-busy="true">
+        {error ? <p className="text-sm text-destructive">{error}</p> : <div className="h-6 w-40 animate-pulse rounded bg-muted" />}
       </section>
     );
   }
@@ -104,7 +110,7 @@ export function RiskParametersSettings() {
       {status ? <p className="mb-4 text-sm text-emerald-600 dark:text-emerald-400">{status}</p> : null}
       {(payload.toggles ?? []).length > 0 ? (
         <div className="mb-6">
-          <h3 className="mb-1 text-sm font-medium">{payload.toggles_title ?? "Feature toggles"}</h3>
+          <h3 className="mb-1 text-sm font-medium">{payload.toggles_title}</h3>
           <p className="mb-3 max-w-3xl text-xs text-muted-foreground">
             {payload.toggles_help}
           </p>
@@ -133,6 +139,8 @@ export function RiskParametersSettings() {
                   key={field.name}
                   field={field}
                   value={draft[field.name] ?? ""}
+                  minLabel={payload.min_label}
+                  maxLabel={payload.max_label}
                   onChange={(next) => {
                     setDraft((prev) => ({ ...prev, [field.name]: next }));
                     setStatus(null);
@@ -144,7 +152,7 @@ export function RiskParametersSettings() {
         ))}
       </div>
       <Button className="mt-5" onClick={() => void save()} disabled={busy || !dirty}>
-        {busy ? "Saving…" : payload.save_label}
+        {busy ? payload.saving_label : payload.save_label}
       </Button>
     </section>
   );
@@ -183,14 +191,22 @@ function RiskFieldInput({
   field,
   value,
   onChange,
+  minLabel,
+  maxLabel,
 }: {
   field: TradingRiskField;
   value: string;
   onChange: (value: string) => void;
+  minLabel?: string;
+  maxLabel?: string;
 }) {
   const bounds = [
-    field.min !== undefined ? `min ${field.min}` : null,
-    field.max !== undefined ? `max ${field.max}` : null,
+    field.min !== undefined
+      ? formatTemplate(minLabel ?? "{value}", { value: String(field.min) })
+      : null,
+    field.max !== undefined
+      ? formatTemplate(maxLabel ?? "{value}", { value: String(field.max) })
+      : null,
     field.unit,
   ]
     .filter(Boolean)

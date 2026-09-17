@@ -1,5 +1,10 @@
 # Behavioral alignment
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-9-behavior | `section-9-behavior.md` | — | section narrative |
+
+
 Table of contents: Adaptive tone · Admit the error · Silence in an unsellable range · End-of-day question
 
 Also mirrored in bundled `SOUL.md` under "Lonora gold agent".

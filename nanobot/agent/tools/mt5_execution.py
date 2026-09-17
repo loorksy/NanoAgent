@@ -13,6 +13,7 @@ from nanobot.agent.tools.schema import (
     tool_parameters_schema,
 )
 from nanobot.trading.mt5_execution import (
+    mt5_cancel_order,
     mt5_close_position,
     mt5_confirm_order,
     mt5_get_account,
@@ -205,3 +206,25 @@ class Mt5ClosePositionTool(Tool):
                 flatten_all=bool(flatten_all),
             )
         )
+
+
+class Mt5CancelOrderTool(Tool):
+    @property
+    def name(self) -> str:
+        return "mt5_cancel_order"
+
+    @property
+    def description(self) -> str:
+        return "Cancel a pending MT5 gold order. Requires confirm=true for this order id."
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return tool_parameters_schema(
+            order_id=StringSchema("Broker pending-order ticket"),
+            confirm=BooleanSchema(description="Must be true"),
+            required=["order_id", "confirm"],
+        )
+
+    async def execute(self, order_id: str, confirm: bool = False, **kwargs: Any) -> Any:
+        del kwargs
+        return _json(await mt5_cancel_order(order_id=order_id, confirm=bool(confirm)))

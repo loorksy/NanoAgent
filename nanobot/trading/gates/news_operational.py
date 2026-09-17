@@ -18,20 +18,23 @@ def evaluate_news_operational(
     minutes_to = risk.minutes_to_high_impact
     if minutes_to is not None and minutes_to <= p.PRE_NEWS_FREEZE_MINUTES:
         return veto(
-            f"Pre-news freeze — no new entries {p.PRE_NEWS_FREEZE_MINUTES:.0f}m before high-impact data",
+            "gate.news.pre_freeze",
             minutes_to_news=minutes_to,
+            freeze_minutes=p.PRE_NEWS_FREEZE_MINUTES,
         )
     since_s = risk.seconds_since_high_impact
     if since_s is not None and since_s < p.NEWS_VOID_SECONDS:
         return veto(
-            f"First {p.FIRST_MINUTE_DEAD:.0f}s after high-impact data are a dead void",
+            "gate.news.void",
             seconds_since_news=since_s,
+            void_seconds=p.FIRST_MINUTE_DEAD,
         )
     since_m = risk.minutes_since_high_impact
     if since_m is not None and since_m < p.POST_NEWS_ENTRY_WAIT_MINUTES:
         return veto(
-            f"Wait {p.POST_NEWS_ENTRY_WAIT_MINUTES:.0f}m after high-impact data before new entries",
+            "gate.news.post_wait",
             minutes_since_news=since_m,
+            wait_minutes=p.POST_NEWS_ENTRY_WAIT_MINUTES,
         )
     live_px = risk.current_mid
     if (
@@ -41,7 +44,8 @@ def evaluate_news_operational(
         and abs(live_px - plan.entry) / GOLD_POINT <= p.FLAT_NEAR_ENTRY_POINTS
     ):
         return veto(
-            f"Position is still within {p.FLAT_NEAR_ENTRY_POINTS:.0f} points of entry ahead of news — flatten",
+            "gate.news.flat_near_entry",
             distance_points=abs(live_px - plan.entry) / GOLD_POINT,
+            limit_points=p.FLAT_NEAR_ENTRY_POINTS,
         )
     return passed()

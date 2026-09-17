@@ -206,7 +206,7 @@ def _build_artifact_pool(
                         "id": v.id,
                         "name": gate_label(v.id, loc),
                         "status": v.status,
-                        "reason": v.reason_ar if loc == "ar" else v.reason_ar,
+                        "reason": v.reason_ar if loc == "ar" else (v.reason or v.reason_ar),
                     }
                     for v in d.gate_chain.verdicts
                 ],

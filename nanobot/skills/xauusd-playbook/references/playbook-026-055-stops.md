@@ -1,5 +1,43 @@
 # Playbook P-026 … P-055 — Stop philosophy
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-026 … P-055 | `playbook-026-055-stops.md` | P-029 → `nanobot/trading/gates/trade_management.py::trailing_stop`<br>P-036 → `nanobot/trading/gates/time_stop.py::evaluate_time_stop`<br>P-038 → `nanobot/trading/gates/trade_management.py::should_move_to_breakeven`<br>P-039 → `nanobot/trading/gates/trade_management.py::management_snapshot`<br>P-047 → `nanobot/trading/gates/position_sizing.py::evaluate_position_sizing`<br>P-052 → `nanobot/trading/gates/trade_management.py::overnight_stop` | P-026, P-027, P-028, P-030, P-031, P-032, P-033, P-034, P-035, P-037, P-040, P-041, P-042, P-043, P-044, P-045, P-046, P-048, P-049, P-050, P-051, P-053, P-054, P-055 |
+
+## Contents
+
+- [P-026 — The stop is not the support line](#p-026-the-stop-is-not-the-support-line)
+- [P-027 — Stop-out wick as a new entry](#p-027-stop-out-wick-as-a-new-entry)
+- [P-028 — Mandatory buffer beyond the swing](#p-028-mandatory-buffer-beyond-the-swing)
+- [P-029 — ATR-based stop distance](#p-029-atr-based-stop-distance)
+- [P-030 — Stop above the impulse bar (shorts)](#p-030-stop-above-the-impulse-bar-shorts)
+- [P-031 — Structural stop, not a round pip count](#p-031-structural-stop-not-a-round-pip-count)
+- [P-032 — Avoid round-number stops](#p-032-avoid-round-number-stops)
+- [P-033 — Dynamic trendline as stop](#p-033-dynamic-trendline-as-stop)
+- [P-034 — Tighten after a confirmation bar](#p-034-tighten-after-a-confirmation-bar)
+- [P-035 — Never widen a live stop](#p-035-never-widen-a-live-stop)
+- [P-036 — Time stop](#p-036-time-stop)
+- [P-037 — Behind equal lows / liquidity pools](#p-037-behind-equal-lows--liquidity-pools)
+- [P-038 — Breakeven rule](#p-038-breakeven-rule)
+- [P-039 — Lock profits when most of the target is in](#p-039-lock-profits-when-most-of-the-target-is-in)
+- [P-040 — Order-block buffer](#p-040-order-block-buffer)
+- [P-041 — Shorts must include spread in the stop](#p-041-shorts-must-include-spread-in-the-stop)
+- [P-042 — Chandelier-style trail](#p-042-chandelier-style-trail)
+- [P-043 — Stop above the Asia sweep high (shorts)](#p-043-stop-above-the-asia-sweep-high-shorts)
+- [P-044 — Never stop inside an open FVG](#p-044-never-stop-inside-an-open-fvg)
+- [P-045 — Momentum-break exit](#p-045-momentum-break-exit)
+- [P-046 — Do not BE too early](#p-046-do-not-be-too-early)
+- [P-047 — Stop distance maps to portfolio percent via lot](#p-047-stop-distance-maps-to-portfolio-percent-via-lot)
+- [P-048 — Close-based stop option](#p-048-close-based-stop-option)
+- [P-049 — Pre-news stop hygiene](#p-049-pre-news-stop-hygiene)
+- [P-050 — Split stops on split size](#p-050-split-stops-on-split-size)
+- [P-051 — Channel median as early stop](#p-051-channel-median-as-early-stop)
+- [P-052 — Overnight extra air](#p-052-overnight-extra-air)
+- [P-053 — Shooting-star short stop](#p-053-shooting-star-short-stop)
+- [P-054 — Demand-zone full-wipe stop (longs)](#p-054-demand-zone-full-wipe-stop-longs)
+- [P-055 — Manual kill on a clear opposite H1 pattern](#p-055-manual-kill-on-a-clear-opposite-h1-pattern)
+
+
 Grep `P-0(2[6-9]|3[0-9]|4[0-9]|5[0-5])`.
 
 ### P-026 — The stop is not the support line

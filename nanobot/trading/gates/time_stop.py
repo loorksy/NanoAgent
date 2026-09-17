@@ -11,7 +11,7 @@ def evaluate_time_stop(*, open_ms: int, now_ms: int, favorable_progress: bool) -
     age_h = (now_ms - open_ms) / 3_600_000
     if age_h >= p.TIME_STOP_HOURS and not favorable_progress:
         return veto(
-            f"Time stop — position idle {age_h:.1f}h without launch",
+            "gate.time_stop.idle",
             age_hours=age_h,
             limit_hours=p.TIME_STOP_HOURS,
         )

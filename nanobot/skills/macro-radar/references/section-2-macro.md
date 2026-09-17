@@ -1,5 +1,10 @@
 # Macro radar
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-2-macro | `section-2-macro.md` | — | section narrative |
+
+
 Table of contents: Live economic calendar · Dollar index confluence · Central-bank tone · Geopolitical safe-haven radar
 
 ### Live economic calendar

@@ -1,5 +1,10 @@
 # Execution and trade management
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-4-execution | `section-4-execution.md` | — | section narrative |
+
+
 Table of contents: Direct MetaTrader 5 · Trailing stop · Auto breakeven · Partial take profit · News shield · Early exit
 
 HITL propose→confirm wraps every send/modify/close. Playbook 182 is excluded.

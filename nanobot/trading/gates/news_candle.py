@@ -63,13 +63,13 @@ def evaluate_news_candle_shield(
     )
     if points_last_minute is not None and points_last_minute >= p.EMERGENCY_MOVE_POINTS_PER_MINUTE:
         return veto(
-            f"Emergency {p.EMERGENCY_MOVE_POINTS_PER_MINUTE:.0f}-point burst in one minute — flatten / no new risk",
+            "gate.news_candle.burst",
             points_last_minute=points_last_minute,
             news_candle=detected,
         )
     if detected:
         return veto(
-            "News-candle fingerprint (range/ATR/spread) — news shield engaged",
+            "gate.news_candle.fingerprint",
             candle_range=candle_range,
             atr=atr,
         )

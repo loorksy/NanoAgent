@@ -1,5 +1,10 @@
 # Technical and price action
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-1-price-action | `section-1-price-action.md` | — | section narrative |
+
+
 Table of contents: Supply, demand, and fair-value gaps · Multi-timeframe path · Sweeps and fakeouts · Break of structure and change of character · Fibonacci and dynamic levels · Tick volume and ATR · RSI / MACD divergence
 
 All seven items feed **geometry evidence**. Trading judgment stays INTERPRETIVE. Stops, reward-to-risk, and news clocks are not decided here.

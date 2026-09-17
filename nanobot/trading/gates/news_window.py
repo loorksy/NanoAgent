@@ -8,10 +8,6 @@ from datetime import datetime
 from nanobot.trading.policy import live
 from nanobot.trading.types import EconomicEvent
 
-# Stricter than news-encyclopedia rule 1 (15m pre-news): keep 30m / 15m.
-BLACKOUT_BEFORE_MS = 30 * 60 * 1000
-BLACKOUT_AFTER_MS = 15 * 60 * 1000
-
 
 def _blackout_ms() -> tuple[int, int]:
     p = live()

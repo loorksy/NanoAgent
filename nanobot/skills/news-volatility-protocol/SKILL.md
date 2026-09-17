@@ -5,7 +5,7 @@ description: Gold news and shock protocol — pre-print freeze, reading the prin
 
 # News and volatility protocol (gold)
 
-Two encyclopedias live here. Grep by id (`N-014`, `C-016`) before loading a whole file.
+Two encyclopedias live here. Grep/`rg` by id (`N-014`, `C-016`) before loading a whole file.
 
 ## References
 

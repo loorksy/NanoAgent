@@ -19,7 +19,7 @@ from nanobot.config.loader import load_config, save_config
 from nanobot.config.schema import TradingRiskParameters
 from nanobot.trading.i18n import tr
 from nanobot.trading.policy import invalidate_live_cache
-from nanobot.trading.risk_state import DEFAULT_TOGGLES, get_risk_store
+from nanobot.trading.risk_state import DEFAULT_TOGGLES, LOCKED_INTEGRITY_TOGGLES, get_risk_store
 
 QueryParams = dict[str, list[str]]
 
@@ -221,15 +221,24 @@ def trading_risk_payload(
         "description": tr("risk.settings.description"),
         "operator_warning": tr("risk.operator_warning"),
         "save_label": tr("risk.settings.save"),
+        "loading_label": tr("risk.settings.loading"),
+        "saving_label": tr("risk.settings.saving"),
+        "number_required": tr("risk.settings.number_required", field="{field}"),
+        "min_label": tr("risk.settings.min_label", value="{value}"),
+        "max_label": tr("risk.settings.max_label", value="{value}"),
         "toggles_title": tr("risk.settings.toggles_title"),
         "toggles_help": tr("risk.settings.toggles_help"),
         "groups": groups,
         "values": params.model_dump(mode="json"),
         "toggles": _toggle_payload(),
+        "locked_toggles": sorted(LOCKED_INTEGRITY),
     }
     if last_action is not None:
         payload["last_action"] = last_action
     return payload
+
+
+LOCKED_INTEGRITY = frozenset(LOCKED_INTEGRITY_TOGGLES)
 
 
 def _parse_json_value(raw: str | None, *, fallback: Any) -> Any:
@@ -238,7 +247,7 @@ def _parse_json_value(raw: str | None, *, fallback: Any) -> Any:
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise TradingRiskError(f"invalid JSON: {exc.msg}") from exc
+        raise TradingRiskError(tr("risk.api.invalid_json", detail=exc.msg)) from exc
 
 
 def _parse_updates(query: QueryParams, *, allow_empty: bool = False) -> dict[str, Any]:
@@ -249,7 +258,7 @@ def _parse_updates(query: QueryParams, *, allow_empty: bool = False) -> dict[str
     parsed = _parse_json_value(raw_values, fallback=None)
     if parsed is not None:
         if not isinstance(parsed, dict):
-            raise TradingRiskError("values must be a JSON object")
+            raise TradingRiskError(tr("risk.api.values_object"))
         for key, value in parsed.items():
             if key in known:
                 updates[key] = value
@@ -260,14 +269,14 @@ def _parse_updates(query: QueryParams, *, allow_empty: bool = False) -> dict[str
         try:
             updates[spec.name] = int(raw) if spec.name in integer_names else float(raw)
         except ValueError as exc:
-            raise TradingRiskError(f"{spec.name} must be a number") from exc
+            raise TradingRiskError(tr("risk.api.number_required", name=spec.name)) from exc
     if not updates:
         if allow_empty:
             return {}
-        raise TradingRiskError("no risk parameters to update")
+        raise TradingRiskError(tr("risk.api.no_updates"))
     unknown = set(updates) - known
     if unknown:
-        raise TradingRiskError(f"unknown risk parameter: {sorted(unknown)[0]}")
+        raise TradingRiskError(tr("risk.api.unknown_parameter", name=sorted(unknown)[0]))
     return updates
 
 
@@ -277,13 +286,15 @@ def _parse_toggle_updates(query: QueryParams) -> dict[str, bool]:
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
-        raise TradingRiskError("toggles must be a JSON object")
+        raise TradingRiskError(tr("risk.api.toggles_object"))
     known = set(DEFAULT_TOGGLES)
     updates: dict[str, bool] = {}
     for key, value in parsed.items():
         name = str(key)
+        if name in LOCKED_INTEGRITY:
+            raise TradingRiskError(tr("risk.api.locked_toggle", name=name))
         if name not in known:
-            raise TradingRiskError(f"unknown feature toggle: {name}")
+            raise TradingRiskError(tr("risk.api.unknown_toggle", name=name))
         updates[name] = bool(value)
     return updates
 
@@ -295,7 +306,7 @@ def trading_risk_action(
     config_path: Path | None = None,
 ) -> dict[str, Any]:
     if action != "update":
-        raise TradingRiskError(f"unknown trading risk action '{action}'", status=404)
+        raise TradingRiskError(tr("risk.api.unknown_action", action=action), status=404)
 
     config = load_config(config_path) if config_path is not None else load_config()
     toggle_updates = _parse_toggle_updates(query)
@@ -308,8 +319,8 @@ def trading_risk_action(
         except ValidationError as exc:
             issue = exc.errors()[0] if exc.errors() else None
             loc = ".".join(str(part) for part in issue["loc"]) if issue else "value"
-            msg = issue["msg"] if issue else "invalid value"
-            raise TradingRiskError(f"{loc}: {msg}") from exc
+            msg = issue["msg"] if issue else tr("risk.api.invalid_value", loc="value", msg="")
+            raise TradingRiskError(tr("risk.api.invalid_value", loc=loc, msg=msg)) from exc
         save_config(config, config_path)
         invalidate_live_cache()
     if toggle_updates:
@@ -336,7 +347,7 @@ async def trading_risk_settings_action(
     if action is None:
         return trading_risk_payload(config_path=config_path)
     if action not in _UPDATE_ACTIONS:
-        raise TradingRiskError(f"unknown trading risk action '{action}'", status=404)
+        raise TradingRiskError(tr("risk.api.unknown_action", action=action), status=404)
     if config is not None:
         return await asyncio.to_thread(
             config.run_serialized,

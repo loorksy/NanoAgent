@@ -20,19 +20,19 @@ def evaluate_max_positions(
     open_n = 0 if risk is None else int(risk.open_positions)
     if max_open > 0 and open_n >= max_open:
         return veto(
-            f"Already {open_n} open gold positions (max {max_open})",
+            "gate.positions.cap",
             open_positions=open_n,
             max_open=max_open,
         )
     if risk is not None:
         if plan.direction == "buy" and risk.open_buy_losing:
             return veto(
-                "A losing gold buy is already open — no doubling the same side",
+                "gate.positions.losing_buy",
                 open_buy_losing=True,
             )
         if plan.direction == "sell" and risk.open_sell_losing:
             return veto(
-                "A losing gold sell is already open — no doubling the same side",
+                "gate.positions.losing_sell",
                 open_sell_losing=True,
             )
     return passed(open_positions=open_n, max_open=max_open)
@@ -40,5 +40,5 @@ def evaluate_max_positions(
 
 def evaluate_no_martingale(*, adding_to_loser: bool) -> GateCheck:
     if adding_to_loser:
-        return veto("Martingale / add-to-loser is blocked under volatility")
+        return veto("gate.positions.martingale")
     return passed()

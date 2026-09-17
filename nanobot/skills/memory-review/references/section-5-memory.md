@@ -1,5 +1,10 @@
 # Memory and review
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-5-memory | `section-5-memory.md` | — | section narrative |
+
+
 Table of contents: Similar historical cases · Quick replay (excluded) · Post-trade debrief · Recurring-error lesson file · Dual review
 
 ### Similar historical gold cases

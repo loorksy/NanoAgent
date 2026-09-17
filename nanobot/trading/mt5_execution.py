@@ -5,11 +5,13 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from nanobot.trading.broker_result import broker_error_message, broker_send_succeeded, position_ticket
 from nanobot.trading.gates.drawdown_breaker import flatten_required_reason
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.position_sizing import lot_from_balance
 from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gates.trade_management import management_snapshot
+from nanobot.trading.i18n import tr
 from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.mt5_metaapi import get_transport
 from nanobot.trading.mt5_proposals import OrderProposal, get_proposal_store
@@ -19,6 +21,17 @@ from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.types import EntryPlan
 
 GOLD_SYMBOL = "XAUUSD"
+
+
+def _fail(*, key: str, executed: bool = False, **extra: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ok": False,
+        "executed": executed,
+        "error": tr(key),
+        "reason_key": key,
+    }
+    payload.update(extra)
+    return payload
 
 
 def _quote_mid(quote: dict[str, Any] | None) -> float | None:
@@ -138,7 +151,7 @@ async def mt5_get_account(*, adopt_ticket: str | None = None) -> dict[str, Any]:
     if adopt_ticket:
         row = next((item for item in gold if _position_id(item) == str(adopt_ticket)), None)
         if row is None:
-            return {"ok": False, "error": "Unknown gold ticket to adopt"}
+            return _fail(key="mt5.unknown_adopt_ticket")
         plan = _plan_from_position(row)
         tickets.upsert(
             ticket_id=str(adopt_ticket),
@@ -223,11 +236,25 @@ async def mt5_propose_order(
     }
 
 
+def _blocked(name: str, check: Any, proposal: OrderProposal | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ok": False,
+        "executed": False,
+        "blocked_by": name,
+        "reason": check.reason,
+        "reason_key": check.reason_key,
+        "reason_params": check.reason_params,
+    }
+    if proposal is not None:
+        payload["proposal"] = proposal.to_public()
+    return payload
+
+
 async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[str, Any]:
     store = get_proposal_store()
     proposal = store.get(proposal_id)
     if proposal is None:
-        return {"ok": False, "error": "Unknown proposal id"}
+        return _fail(key="mt5.unknown_proposal")
     now = int(time.time() * 1000)
     transport = get_transport()
     account = await transport.account_snapshot()
@@ -246,13 +273,7 @@ async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[
     blocker = first_blocker(checks)
     if blocker is not None:
         name, check = blocker
-        return {
-            "ok": False,
-            "executed": False,
-            "blocked_by": name,
-            "reason": check.reason,
-            "proposal": proposal.to_public(),
-        }
+        return _blocked(name, check, proposal)
     store.mark_confirmed(proposal_id)
     tp = proposal.targets[0] if proposal.targets else None
     sent = await transport.send_market(
@@ -265,10 +286,30 @@ async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[
             "comment": proposal.comment,
         }
     )
-    position_id = str((sent.get("result") or {}).get("positionId") or sent.get("position_id") or proposal.id)
-    store.mark_executed(proposal_id, position_id)
+    if not broker_send_succeeded(sent, require_ticket=True):
+        refreshed = store.get(proposal_id)
+        return {
+            "ok": False,
+            "executed": False,
+            "reason_key": "mt5.broker_send_failed",
+            "error": tr("mt5.broker_send_failed", detail=broker_error_message(sent)),
+            "send": sent,
+            "proposal": (refreshed or proposal).to_public(),
+        }
+    ticket = position_ticket(sent)
+    if ticket is None:
+        refreshed = store.get(proposal_id)
+        return {
+            "ok": False,
+            "executed": False,
+            "reason_key": "mt5.broker_send_failed",
+            "error": tr("mt5.broker_send_failed", detail=tr("mt5.missing_ticket")),
+            "send": sent,
+            "proposal": (refreshed or proposal).to_public(),
+        }
+    store.mark_executed(proposal_id, ticket)
     TicketStore().upsert(
-        ticket_id=position_id,
+        ticket_id=ticket,
         side=proposal.side,
         entry=proposal.entry,
         stop=proposal.stop,
@@ -278,7 +319,13 @@ async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[
         managed=True,
         opened_ms=now,
     )
-    return {"ok": True, "executed": True, "send": sent, "proposal": proposal.to_public()}
+    refreshed = store.get(proposal_id)
+    return {
+        "ok": True,
+        "executed": True,
+        "send": sent,
+        "proposal": (refreshed or proposal).to_public(),
+    }
 
 
 async def mt5_modify_order(
@@ -289,9 +336,9 @@ async def mt5_modify_order(
     confirm: bool = False,
 ) -> dict[str, Any]:
     if not confirm:
-        return {"ok": False, "executed": False, "error": "Human confirmation required to modify"}
+        return _fail(key="mt5.confirm_required_modify")
     if get_runtime_store().snapshot().kill_switch:
-        return {"ok": False, "error": "Kill switch is engaged"}
+        return _fail(key="mt5.kill_switch")
     transport = get_transport()
     positions = await transport.open_positions()
     row = next(
@@ -325,15 +372,33 @@ async def mt5_modify_order(
         blocker = first_blocker(checks)
         if blocker is not None:
             name, check = blocker
-            return {
-                "ok": False,
-                "executed": False,
-                "blocked_by": name,
-                "reason": check.reason,
-            }
+            return _blocked(name, check)
     sent = await transport.modify_position(
         {"position_id": position_id, "stop": stop, "take_profit": take_profit}
     )
+    if not broker_send_succeeded(sent):
+        return {
+            "ok": False,
+            "executed": False,
+            "reason_key": "mt5.broker_modify_failed",
+            "error": tr("mt5.broker_modify_failed", detail=broker_error_message(sent)),
+            "send": sent,
+        }
+    return {"ok": True, "executed": True, "send": sent}
+
+
+async def mt5_cancel_order(*, order_id: str, confirm: bool = False) -> dict[str, Any]:
+    if not confirm:
+        return _fail(key="mt5.confirm_required_cancel")
+    sent = await get_transport().cancel_order({"order_id": order_id})
+    if not broker_send_succeeded(sent):
+        return {
+            "ok": False,
+            "executed": False,
+            "reason_key": "mt5.broker_cancel_failed",
+            "error": tr("mt5.broker_cancel_failed", detail=broker_error_message(sent)),
+            "send": sent,
+        }
     return {"ok": True, "executed": True, "send": sent}
 
 
@@ -344,22 +409,41 @@ async def mt5_close_position(
     flatten_all: bool = False,
 ) -> dict[str, Any]:
     if not confirm:
-        return {"ok": False, "executed": False, "error": "Human confirmation required to close"}
+        return _fail(key="mt5.confirm_required_close")
     transport = get_transport()
     if flatten_all or position_id in {"ALL", "*"}:
         closed: list[dict[str, Any]] = []
         cancelled: list[dict[str, Any]] = []
+        failures: list[dict[str, Any]] = []
         for row in _gold_rows(await transport.open_positions()):
             pid = _position_id(row)
             if not pid:
                 continue
-            closed.append(await transport.close_position({"position_id": pid}))
-            TicketStore().mark_closed(pid)
+            sent = await transport.close_position({"position_id": pid})
+            closed.append(sent)
+            if broker_send_succeeded(sent):
+                TicketStore().mark_closed(pid)
+            else:
+                failures.append({"action": "close", "id": pid, "send": sent})
         for order in _gold_rows(await transport.open_orders()):
             oid = _order_id(order)
             if not oid:
                 continue
-            cancelled.append(await transport.cancel_order({"order_id": oid}))
+            sent = await transport.cancel_order({"order_id": oid})
+            cancelled.append(sent)
+            if not broker_send_succeeded(sent):
+                failures.append({"action": "cancel", "id": oid, "send": sent})
+        if failures:
+            return {
+                "ok": False,
+                "executed": False,
+                "flatten": True,
+                "reason_key": "mt5.broker_flatten_failed",
+                "error": tr("mt5.broker_flatten_failed"),
+                "closed": closed,
+                "cancelled": cancelled,
+                "failures": failures,
+            }
         return {
             "ok": True,
             "executed": True,
@@ -368,5 +452,13 @@ async def mt5_close_position(
             "cancelled": cancelled,
         }
     sent = await transport.close_position({"position_id": position_id})
+    if not broker_send_succeeded(sent):
+        return {
+            "ok": False,
+            "executed": False,
+            "reason_key": "mt5.broker_close_failed",
+            "error": tr("mt5.broker_close_failed", detail=broker_error_message(sent)),
+            "send": sent,
+        }
     TicketStore().mark_closed(position_id)
     return {"ok": True, "executed": True, "send": sent}

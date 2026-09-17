@@ -1,6 +1,10 @@
 # Gold encyclopedia coverage
 
-Grep this table by capability name (`Minimum reward-to-risk`, `P-182`, `N-056`, `C-016`). DETERMINISTIC numbers live in `policy.live()` / gates. Skills are English; operator copy stays in `nanobot/trading/i18n.py`.
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-001 … P-200 / N-001 … N-100 / C-001 … C-100 / FEATURE-01 … 10 | `coverage.md` | per-rule rows in `spec-coverage.md` | per-rule rows in `spec-coverage.md` |
+
+Grep this table by capability name (`Minimum reward-to-risk`, `P-182`, `N-056`, `C-016`). DETERMINISTIC numbers live in `policy.live()` / gates. Skills are English; operator copy stays in `nanobot/trading/i18n.py`. Full per-rule destinations: [spec-coverage.md](spec-coverage.md).
 
 ## Capability map
 

@@ -10,14 +10,14 @@ from nanobot.trading.policy import live
 def evaluate_spread_guard(risk: RiskSnapshot | None) -> GateCheck:
     p = live()
     if risk is None or risk.spread_points is None:
-        return unavailable("Spread unavailable")
+        return unavailable("gate.spread.unavailable")
     spread = risk.spread_points
     if spread > p.SPREAD_MAX_POINTS:
         stable = risk.spread_stable_seconds
         if stable is not None and stable >= p.SPREAD_STABLE_SECONDS:
             return passed(spread_points=spread, recovered=True)
         return veto(
-            f"Spread {spread:.1f} points exceeds {p.SPREAD_MAX_POINTS:.0f}",
+            "gate.spread.wide",
             spread_points=spread,
             max_points=p.SPREAD_MAX_POINTS,
         )
@@ -31,8 +31,9 @@ def evaluate_spread_guard(risk: RiskSnapshot | None) -> GateCheck:
         and spread > normal * p.SPREAD_MULTIPLIER_PRE_NEWS
     ):
         return veto(
-            f"Spread {spread:.1f} is more than {p.SPREAD_MULTIPLIER_PRE_NEWS:.0f}x normal before news",
+            "gate.spread.pre_news",
             spread_points=spread,
+            multiplier=p.SPREAD_MULTIPLIER_PRE_NEWS,
             normal_spread_points=normal,
         )
     return passed(spread_points=spread)

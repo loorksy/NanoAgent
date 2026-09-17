@@ -1,5 +1,43 @@
 # Playbook P-106 … P-135 — Gold liquidity behaviour
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-106 … P-135 | `playbook-106-135-gold-liquidity.md` | P-118 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-127 → `nanobot/trading/gates/session_lock.py::evaluate_session_lock`<br>P-134 → `nanobot/trading/policy.py::GOLD_POINT` | P-106, P-107, P-108, P-109, P-110, P-111, P-112, P-113, P-114, P-115, P-116, P-117, P-119, P-120, P-121, P-122, P-123, P-124, P-125, P-126, P-128, P-129, P-130, P-131, P-132, P-133, P-135 |
+
+## Contents
+
+- [P-106 — Asia range sweep](#p-106-asia-range-sweep)
+- [P-107 — Gold does not forgive a late stop](#p-107-gold-does-not-forgive-a-late-stop)
+- [P-108 — Big-figure traps](#p-108-big-figure-traps)
+- [P-109 — New York open candle](#p-109-new-york-open-candle)
+- [P-110 — Fear rally overrides charts](#p-110-fear-rally-overrides-charts)
+- [P-111 — Temporary DXY decoupling](#p-111-temporary-dxy-decoupling)
+- [P-112 — Normal gold day range](#p-112-normal-gold-day-range)
+- [P-113 — First news wick is a trap](#p-113-first-news-wick-is-a-trap)
+- [P-114 — Equal highs and lows will be taken](#p-114-equal-highs-and-lows-will-be-taken)
+- [P-115 — Liquidity voids fill later](#p-115-liquidity-voids-fill-later)
+- [P-116 — Gold loves deep 0.786](#p-116-gold-loves-deep-0786)
+- [P-117 — London PM fixing window](#p-117-london-pm-fixing-window)
+- [P-118 — Midnight spread trap](#p-118-midnight-spread-trap)
+- [P-119 — True support break becomes a vertical dump](#p-119-true-support-break-becomes-a-vertical-dump)
+- [P-120 — Do not chase a vertical green](#p-120-do-not-chase-a-vertical-green)
+- [P-121 — Real yields cap gold on higher TFs](#p-121-real-yields-cap-gold-on-higher-tfs)
+- [P-122 — Friday flattening](#p-122-friday-flattening)
+- [P-123 — Monday first hour](#p-123-monday-first-hour)
+- [P-124 — Oscillators die in a tight box](#p-124-oscillators-die-in-a-tight-box)
+- [P-125 — Safe-haven dip buy](#p-125-safe-haven-dip-buy)
+- [P-126 — Silver leads](#p-126-silver-leads)
+- [P-127 — US bank holidays are dead](#p-127-us-bank-holidays-are-dead)
+- [P-128 — Late New York fade](#p-128-late-new-york-fade)
+- [P-129 — Prior day close is a magnet](#p-129-prior-day-close-is-a-magnet)
+- [P-130 — H4 200 EMA regime](#p-130-h4-200-ema-regime)
+- [P-131 — NFP eve stagnation](#p-131-nfp-eve-stagnation)
+- [P-132 — Miners as a lead](#p-132-miners-as-a-lead)
+- [P-133 — Bollinger walk then snap](#p-133-bollinger-walk-then-snap)
+- [P-134 — Point math](#p-134-point-math)
+- [P-135 — Slow grind up, violent down](#p-135-slow-grind-up-violent-down)
+
+
 Grep `P-1(0[6-9]|1[0-9]|2[0-9]|3[0-5])`.
 
 ### P-106 — Asia range sweep

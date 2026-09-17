@@ -11,7 +11,7 @@ def evaluate_proposal_ttl(*, created_ms: int, now_ms: int) -> GateCheck:
     age_s = (now_ms - created_ms) / 1000
     if age_s > p.PROPOSAL_TTL_SECONDS:
         return veto(
-            f"Proposal expired after {age_s:.0f}s (limit {p.PROPOSAL_TTL_SECONDS:.0f}s)",
+            "gate.proposal.expired",
             age_seconds=age_s,
             limit=p.PROPOSAL_TTL_SECONDS,
         )
@@ -23,7 +23,7 @@ def evaluate_confirm_slippage(*, proposed_price: float, live_price: float) -> Ga
     points = abs(live_price - proposed_price) / GOLD_POINT
     if points > p.MAX_CONFIRM_SLIPPAGE_POINTS:
         return veto(
-            f"Live price slipped {points:.1f} points from the proposed entry",
+            "gate.proposal.slippage",
             slip_points=points,
             limit=p.MAX_CONFIRM_SLIPPAGE_POINTS,
         )
