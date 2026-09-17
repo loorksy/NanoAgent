@@ -15,11 +15,33 @@ import {
 } from "@/lib/api";
 import type { TradingMetaApiPayload } from "@/lib/types";
 import { useClient } from "@/providers/ClientProvider";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 function isConnectPayload(value: TradingMetaApiPayload): boolean {
   return Array.isArray(value.steps) && Array.isArray(value.regions);
+}
+
+function Field({
+  id,
+  label,
+  help,
+  className = "flex flex-col gap-1.5 text-sm",
+  children,
+}: {
+  id: string;
+  label: string;
+  help?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <label htmlFor={id}>{label}</label>
+      {children}
+      {help ? <p className="text-xs text-muted-foreground">{help}</p> : null}
+    </div>
+  );
 }
 
 export function Mt5ConnectSettings() {
@@ -46,7 +68,7 @@ export function Mt5ConnectSettings() {
     setRegion(next.region || "new-york");
     setTokenDraft("");
     setPassword("");
-  }, {});
+  }, []);
 
   const refresh = useCallback(async () => {
     const next = await fetchTradingMetaapi(token, locale);
@@ -173,9 +195,14 @@ export function Mt5ConnectSettings() {
         <p className="mb-4 text-sm text-foreground">{payload.account.summary.join(" · ")}</p>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-          <span>{payload.token_label}</span>
+        <Field
+          id="mt5-token"
+          label={payload.token_label}
+          help={payload.token_help}
+          className="flex flex-col gap-1.5 text-sm sm:col-span-2"
+        >
           <Input
+            id="mt5-token"
             type="password"
             autoComplete="off"
             value={tokenDraft}
@@ -186,47 +213,49 @@ export function Mt5ConnectSettings() {
             }
             onChange={(event) => setTokenDraft(event.target.value)}
           />
-          <span className="text-xs text-muted-foreground">{payload.token_help}</span>
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span>{payload.login_label}</span>
+        </Field>
+        <Field id="mt5-login" label={payload.login_label}>
           <Input
+            id="mt5-login"
             autoComplete="off"
             value={login}
             onChange={(event) => setLogin(event.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span>{payload.password_label}</span>
+        </Field>
+        <Field id="mt5-password" label={payload.password_label}>
           <Input
+            id="mt5-password"
             type="password"
             autoComplete="off"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-          <span>{payload.server_label}</span>
+        </Field>
+        <Field
+          id="mt5-server"
+          label={payload.server_label}
+          className="flex flex-col gap-1.5 text-sm sm:col-span-2"
+        >
           <Input
+            id="mt5-server"
             autoComplete="off"
             value={server}
             placeholder={payload.server_placeholder}
             onChange={(event) => setServer(event.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span>{payload.account_id_label}</span>
+        </Field>
+        <Field id="mt5-account-id" label={payload.account_id_label} help={payload.account_id_help}>
           <Input
+            id="mt5-account-id"
             autoComplete="off"
             value={accountId}
             onChange={(event) => setAccountId(event.target.value)}
           />
-          <span className="text-xs text-muted-foreground">{payload.account_id_help}</span>
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span>{payload.region_label}</span>
+        </Field>
+        <div className="flex flex-col gap-1.5 text-sm">
+          <label htmlFor="mt5-region">{payload.region_label}</label>
           <Select value={region} onValueChange={setRegion}>
-            <SelectTrigger>
+            <SelectTrigger id="mt5-region">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,7 +266,7 @@ export function Mt5ConnectSettings() {
               ))}
             </SelectContent>
           </Select>
-        </label>
+        </div>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <Button onClick={() => void connect()} disabled={busy !== null}>
