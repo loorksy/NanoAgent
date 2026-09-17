@@ -10,11 +10,11 @@ from nanobot.trading.policy import live
 def evaluate_margin_guard(risk: RiskSnapshot | None) -> GateCheck:
     p = live()
     if risk is None or risk.margin_level_pct is None:
-        return unavailable("Margin level unavailable")
+        return unavailable("gate.margin.unavailable")
     level = float(risk.margin_level_pct)
     if level < p.MARGIN_MIN_PCT:
         return veto(
-            f"Margin level {level:.0f}% is below {p.MARGIN_MIN_PCT:.0f}%",
+            "gate.margin.low",
             margin_level_pct=level,
             limit=p.MARGIN_MIN_PCT,
         )

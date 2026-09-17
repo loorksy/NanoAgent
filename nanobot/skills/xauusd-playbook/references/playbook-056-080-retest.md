@@ -1,5 +1,38 @@
 # Playbook P-056 … P-080 — Retest philosophy
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-056 … P-080 | `playbook-056-080-retest.md` | — | P-056, P-057, P-058, P-059, P-060, P-061, P-062, P-063, P-064, P-065, P-066, P-067, P-068, P-069, P-070, P-071, P-072, P-073, P-074, P-075, P-076, P-077, P-078, P-079, P-080 |
+
+## Contents
+
+- [P-056 — A retest is not mandatory](#p-056-a-retest-is-not-mandatory)
+- [P-057 — Slow retest can be a failed break](#p-057-slow-retest-can-be-a-failed-break)
+- [P-058 — Deep retest](#p-058-deep-retest)
+- [P-059 — Retest bar quality](#p-059-retest-bar-quality)
+- [P-060 — Retest the trendline, not the horizontal](#p-060-retest-the-trendline-not-the-horizontal)
+- [P-061 — Fake retest to fill resting orders](#p-061-fake-retest-to-fill-resting-orders)
+- [P-062 — Failed retest becomes the opposite trade](#p-062-failed-retest-becomes-the-opposite-trade)
+- [P-063 — Lower-timeframe retest inside an H1 "straight" break](#p-063-lower-timeframe-retest-inside-an-h1-straight-break)
+- [P-064 — Low-volume retests are safer](#p-064-low-volume-retests-are-safer)
+- [P-065 — Fibonacci retest vs the break price](#p-065-fibonacci-retest-vs-the-break-price)
+- [P-066 — Head-and-shoulders right shoulder](#p-066-head-and-shoulders-right-shoulder)
+- [P-067 — Many retests weaken the level](#p-067-many-retests-weaken-the-level)
+- [P-068 — Time contrast](#p-068-time-contrast)
+- [P-069 — Zones, not lines](#p-069-zones-not-lines)
+- [P-070 — Weekly opening gap as a later magnet](#p-070-weekly-opening-gap-as-a-later-magnet)
+- [P-071 — Runaway break when DXY confirms](#p-071-runaway-break-when-dxy-confirms)
+- [P-072 — Confirm a retest with a rejection bar](#p-072-confirm-a-retest-with-a-rejection-bar)
+- [P-073 — Broken Asia low, bounce-to-fail](#p-073-broken-asia-low-bounce-to-fail)
+- [P-074 — Mid-air retest](#p-074-mid-air-retest)
+- [P-075 — Parallel channel outside](#p-075-parallel-channel-outside)
+- [P-076 — Psychological figures as retests](#p-076-psychological-figures-as-retests)
+- [P-077 — Post-news quiet retest](#p-077-post-news-quiet-retest)
+- [P-078 — All-time-high retest is often a sideways box](#p-078-all-time-high-retest-is-often-a-sideways-box)
+- [P-079 — Oversold H4 + broken resistance](#p-079-oversold-h4--broken-resistance)
+- [P-080 — Cancel the retest if the pullback is too deep](#p-080-cancel-the-retest-if-the-pullback-is-too-deep)
+
+
 Grep `P-0(5[6-9]|6[0-9]|7[0-9]|80)`.
 
 ### P-056 — A retest is not mandatory

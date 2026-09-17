@@ -356,6 +356,15 @@ class TradingMetaApiConfig(Base):
     account_id: str = Field(default="", validation_alias=AliasChoices("accountId", "account_id"))
     region: str = "new-york"
 
+    def public_view(self) -> dict[str, str | bool]:
+        """Operator-safe snapshot — never includes the token."""
+        return {
+            "account_id": self.account_id,
+            "region": self.region,
+            "token_set": bool(self.token),
+            "configured": bool(self.token and self.account_id),
+        }
+
 
 class TradingRiskParameters(Base):
     """Operator-editable gold risk / execution thresholds.

@@ -5,7 +5,7 @@ description: Lonora 200-rule XAUUSD field playbook — flexible entries, stop ph
 
 # XAUUSD playbook (200 rules)
 
-Grep `P-NNN` (zero-padded) in `references/` rather than loading every section.
+Grep `P-NNN` (zero-padded) in `references/` rather than loading every section. Prefer `grep`/`rg` for a single id or heading, then open only that file.
 
 ## References
 

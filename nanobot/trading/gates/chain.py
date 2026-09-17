@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from nanobot.trading.gates.build_gates import GATE_REQUIRED, GateDefinition
+from nanobot.trading.i18n import tr
 from nanobot.trading.types import GateChainResult, GateStatus, GateVerdict
 
 
@@ -18,7 +19,13 @@ async def run_gate_chain(gates: list[GateDefinition]) -> GateChainResult:
         try:
             raw = await gate.run()
         except Exception as exc:
-            raw = {"status": "unavailable", "reason_ar": str(exc)}
+            raw = {
+                "status": "unavailable",
+                "reason_key": "gate.internal_error",
+                "reason": tr("gate.internal_error"),
+                "reason_ar": tr("gate.internal_error", "ar"),
+                "evidence": {"error_type": type(exc).__name__},
+            }
         finished = int(time.time() * 1000)
         status: GateStatus = raw.get("status", "unavailable")
         delta = int(raw.get("confidence_delta", 0) or 0)
@@ -26,7 +33,8 @@ async def run_gate_chain(gates: list[GateDefinition]) -> GateChainResult:
             id=gate.id,  # type: ignore[arg-type]
             name=gate.name,
             status=status,
-            reason_ar=raw.get("reason_ar", ""),
+            reason=str(raw.get("reason") or raw.get("reason_ar") or ""),
+            reason_ar=str(raw.get("reason_ar") or ""),
             evidence=raw.get("evidence"),
             confidence_delta=delta,
             started_at=started,

@@ -10,22 +10,22 @@ from nanobot.trading.policy import live
 def evaluate_drawdown_breaker(risk: RiskSnapshot | None) -> GateCheck:
     p = live()
     if risk is not None and risk.kill_switch:
-        return veto("Kill switch is engaged — all new risk is blocked", kill_switch=True)
+        return veto("gate.drawdown.kill_switch", kill_switch=True)
     if risk is not None and risk.emergency_lock:
-        return veto("Emergency news lock is engaged", emergency_lock=True)
+        return veto("gate.drawdown.emergency_lock", emergency_lock=True)
     dd = 0.0 if risk is None else float(risk.daily_drawdown_pct or 0.0)
     if dd >= p.DAILY_DRAWDOWN_PCT:
         return veto(
-            f"Daily drawdown {dd:.2%} reached the {p.DAILY_DRAWDOWN_PCT:.0%} breaker",
-            daily_drawdown_pct=dd,
-            limit=p.DAILY_DRAWDOWN_PCT,
+            "gate.drawdown.daily",
+            daily_drawdown_pct=dd * 100,
+            limit=p.DAILY_DRAWDOWN_PCT * 100,
         )
     spike = 0.0 if risk is None else float(risk.equity_spike_pct or 0.0)
     if spike >= p.EQUITY_SPIKE_PCT:
         return veto(
-            f"Floating equity dropped {spike:.2%} in one candle (limit {p.EQUITY_SPIKE_PCT:.0%})",
-            equity_spike_pct=spike,
-            limit=p.EQUITY_SPIKE_PCT,
+            "gate.drawdown.equity_spike",
+            equity_spike_pct=spike * 100,
+            limit=p.EQUITY_SPIKE_PCT * 100,
         )
     return passed(daily_drawdown_pct=dd)
 

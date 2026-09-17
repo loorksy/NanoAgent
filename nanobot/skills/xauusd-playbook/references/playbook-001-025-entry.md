@@ -1,5 +1,38 @@
 # Playbook P-001 … P-025 — Flexible entries and timing
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-001 … P-025 | `playbook-001-025-entry.md` | P-012 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl` | P-001, P-002, P-003, P-004, P-005, P-006, P-007, P-008, P-009, P-010, P-011, P-013, P-014, P-015, P-016, P-017, P-018, P-019, P-020, P-021, P-022, P-023, P-024, P-025 |
+
+## Contents
+
+- [P-001 — Beyond classic support and resistance](#p-001-beyond-classic-support-and-resistance)
+- [P-002 — Immediate entry when the story is complete](#p-002-immediate-entry-when-the-story-is-complete)
+- [P-003 — Distance vs target paradox](#p-003-distance-vs-target-paradox)
+- [P-004 — Front-run explosive closes](#p-004-front-run-explosive-closes)
+- [P-005 — Incomplete bounce (front-running the level)](#p-005-incomplete-bounce-front-running-the-level)
+- [P-006 — Enter from FVG, not the broken high](#p-006-enter-from-fvg-not-the-broken-high)
+- [P-007 — Counter engulfing as enough](#p-007-counter-engulfing-as-enough)
+- [P-008 — Session-open range break](#p-008-session-open-range-break)
+- [P-009 — Equilibrium entries](#p-009-equilibrium-entries)
+- [P-010 — Two-timeframe timing](#p-010-two-timeframe-timing)
+- [P-011 — Trendline fan, steepest first](#p-011-trendline-fan-steepest-first)
+- [P-012 — Cancel stale conditional entries](#p-012-cancel-stale-conditional-entries)
+- [P-013 — News-candle tail as support](#p-013-news-candle-tail-as-support)
+- [P-014 — Absorption as entry](#p-014-absorption-as-entry)
+- [P-015 — Break of the small counter-trendline](#p-015-break-of-the-small-counter-trendline)
+- [P-016 — Do not wait for a deep pullback in a steep trend](#p-016-do-not-wait-for-a-deep-pullback-in-a-steep-trend)
+- [P-017 — Round-number reactions](#p-017-round-number-reactions)
+- [P-018 — Failed bear pattern becomes a long](#p-018-failed-bear-pattern-becomes-a-long)
+- [P-019 — Three white soldiers after a box](#p-019-three-white-soldiers-after-a-box)
+- [P-020 — Range reclaim](#p-020-range-reclaim)
+- [P-021 — Hourly close timing](#p-021-hourly-close-timing)
+- [P-022 — Fast EMA as dynamic entry in trends](#p-022-fast-ema-as-dynamic-entry-in-trends)
+- [P-023 — Fade an exhausted ADR day](#p-023-fade-an-exhausted-adr-day)
+- [P-024 — Split entries](#p-024-split-entries)
+- [P-025 — Broken high that flips to support](#p-025-broken-high-that-flips-to-support)
+
+
 Grep `P-0(0[1-9]|1[0-9]|2[0-5])`.
 
 ### P-001 — Beyond classic support and resistance

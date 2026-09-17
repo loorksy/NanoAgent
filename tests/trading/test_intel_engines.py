@@ -33,6 +33,7 @@ def test_vector_playbook_ranks_similar_context():
     matches = book.query("asian high false break M15 structure weak dollar")
     assert matches
     assert matches[0].score >= matches[-1].score
+    assert book.backend in {"bag_of_words", "chromadb"}
 
 
 def test_dtw_picks_a_template():
@@ -40,6 +41,7 @@ def test_dtw_picks_a_template():
     match = match_pattern(series)
     assert match.name in {"accumulation", "distribution", "turtle_soup", "v_reversal"}
     assert 0.0 <= match.confidence <= 1.0
+    assert match.backend in {"fastdtw", "builtin_dp"}
 
 
 def test_postmortem_repeat_detection(tmp_path):
@@ -101,6 +103,7 @@ def test_telegram_probe_without_credentials():
     src = TelegramHeadlineSource(api_id=0, api_hash="")
     assert src.configured() is False
     assert src.available() is False
+    assert src.backend() in {"unavailable_sdk", "unavailable_credentials"}
 
 
 def test_rss_parse_feed_body_without_network():

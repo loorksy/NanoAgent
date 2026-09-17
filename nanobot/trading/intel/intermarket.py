@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from nanobot.trading.intel.optional_deps import module_available
+
 SYMBOLS = {
     "dxy": ("DX-Y.NYB", "USDX", "DXY"),
     "xag": ("XAGUSD=X", "XAGUSD"),
@@ -22,52 +24,55 @@ class IntermarketSnapshot:
 
 
 def _yfinance_last(ticker: str) -> float | None:
-    try:
-        import yfinance as yf
-    except ImportError:
+    if not module_available("yfinance"):
         return None
+    import yfinance as yf
+
     try:
         hist = yf.Ticker(ticker).history(period="2d", interval="5m")
-        if hist is None or hist.empty:
-            return None
-        close = hist["Close"].iloc[-1]
-        return float(close)
     except Exception:
         return None
+    if hist is None or hist.empty:
+        return None
+    close = hist["Close"].iloc[-1]
+    return float(close)
 
 
 def _mt5_last(symbol: str) -> float | None:
-    try:
-        import MetaTrader5 as mt5  # noqa: N813
-    except ImportError:
+    if not module_available("MetaTrader5"):
         return None
+    import MetaTrader5 as mt5  # noqa: N813
+
     try:
         if not mt5.initialize():
             return None
         info = mt5.symbol_info_tick(symbol)
-        if info is None:
-            return None
-        bid = float(getattr(info, "bid", 0) or 0)
-        ask = float(getattr(info, "ask", 0) or 0)
-        if bid and ask:
-            return (bid + ask) / 2
-        return bid or ask or None
     except Exception:
         return None
+    if info is None:
+        return None
+    bid = float(getattr(info, "bid", 0) or 0)
+    ask = float(getattr(info, "ask", 0) or 0)
+    if bid and ask:
+        return (bid + ask) / 2
+    return bid or ask or None
 
 
 def intermarket_snapshot(overrides: dict[str, float] | None = None) -> IntermarketSnapshot:
     prices: dict[str, float] = dict(overrides or {})
     source = "override" if overrides else "none"
     if not prices:
+        yf_ok = module_available("yfinance")
+        mt5_ok = module_available("MetaTrader5")
         for key, candidates in SYMBOLS.items():
             value = None
-            for cand in candidates:
-                value = _yfinance_last(cand)
-                if value is not None:
-                    source = "yfinance"
-                    break
-            if value is None:
+            if yf_ok:
+                for cand in candidates:
+                    value = _yfinance_last(cand)
+                    if value is not None:
+                        source = "yfinance"
+                        break
+            if value is None and mt5_ok:
                 for cand in candidates:
                     value = _mt5_last(cand)
                     if value is not None:
@@ -75,6 +80,13 @@ def intermarket_snapshot(overrides: dict[str, float] | None = None) -> Intermark
                         break
             if value is not None:
                 prices[key] = value
+        if not prices:
+            if yf_ok:
+                source = "yfinance_empty"
+            elif mt5_ok:
+                source = "mt5_empty"
+            else:
+                source = "unavailable"
 
     notes: list[str] = []
     dxy = prices.get("dxy")

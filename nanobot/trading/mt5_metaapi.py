@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import importlib.util
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from nanobot.trading.broker_result import wrap_sdk_result
 from nanobot.trading.config import TradingConfig, load_trading_config
+from nanobot.trading.i18n import tr
 
 
 class MetaApiTransport(Protocol):
@@ -19,17 +22,30 @@ class MetaApiTransport(Protocol):
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
+def _sdk_available() -> bool:
+    return importlib.util.find_spec("metaapi_cloud_sdk") is not None
+
+
 @dataclass
 class NullTransport:
-    """Used when the SDK extra is missing — never sends live orders."""
+    """Used when the SDK extra or credentials are missing — never sends live orders."""
 
-    reason: str = "metaapi-cloud-sdk is not installed"
+    reason_key: str = "mt5.sdk_missing"
+
+    @property
+    def reason(self) -> str:
+        return tr(self.reason_key)
 
     async def account_snapshot(self) -> dict[str, Any]:
-        return {"ok": False, "error": self.reason}
+        return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
     async def quote(self, symbol: str) -> dict[str, Any]:
-        return {"ok": False, "symbol": symbol, "error": self.reason}
+        return {
+            "ok": False,
+            "symbol": symbol,
+            "error": self.reason,
+            "reason_key": self.reason_key,
+        }
 
     async def open_positions(self) -> list[dict[str, Any]]:
         return []
@@ -38,16 +54,21 @@ class NullTransport:
         return []
 
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return {"ok": False, "error": self.reason, "payload": payload}
+        return {
+            "ok": False,
+            "error": self.reason,
+            "reason_key": self.reason_key,
+            "payload": payload,
+        }
 
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return {"ok": False, "error": self.reason}
+        return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return {"ok": False, "error": self.reason}
+        return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return {"ok": False, "error": self.reason}
+        return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
 
 class SdkTransport:
@@ -61,7 +82,13 @@ class SdkTransport:
             return self._account
         from metaapi_cloud_sdk import MetaApi
 
-        self._api = MetaApi(self.config.metaapi_token)
+        # Region selects the MetaAPI endpoint (new-york, london, singapore, …).
+        opts: dict[str, Any] = {}
+        if self.config.metaapi_region:
+            opts["region"] = self.config.metaapi_region
+        self._api = MetaApi(self.config.metaapi_token, **opts) if opts else MetaApi(
+            self.config.metaapi_token
+        )
         acc = await self._api.metatrader_account_api.get_account(self.config.metaapi_account_id)
         rpc = acc.get_rpc_connection()
         await rpc.connect()
@@ -94,20 +121,24 @@ class SdkTransport:
 
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
-        result = await rpc.create_market_buy_order(
-            payload["symbol"],
-            payload["lot"],
-            payload.get("stop"),
-            payload.get("take_profit"),
-            {"comment": payload.get("comment") or ""},
-        ) if payload["side"] == "buy" else await rpc.create_market_sell_order(
-            payload["symbol"],
-            payload["lot"],
-            payload.get("stop"),
-            payload.get("take_profit"),
-            {"comment": payload.get("comment") or ""},
-        )
-        return {"ok": True, "result": result}
+        options = {"comment": payload.get("comment") or ""}
+        if payload["side"] == "buy":
+            result = await rpc.create_market_buy_order(
+                payload["symbol"],
+                payload["lot"],
+                payload.get("stop"),
+                payload.get("take_profit"),
+                options,
+            )
+        else:
+            result = await rpc.create_market_sell_order(
+                payload["symbol"],
+                payload["lot"],
+                payload.get("stop"),
+                payload.get("take_profit"),
+                options,
+            )
+        return wrap_sdk_result(result)
 
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
@@ -116,30 +147,32 @@ class SdkTransport:
             payload.get("stop"),
             payload.get("take_profit"),
         )
-        return {"ok": True, "result": result}
+        return wrap_sdk_result(result)
 
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         result = await rpc.close_position(payload["position_id"])
-        return {"ok": True, "result": result}
+        return wrap_sdk_result(result)
 
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         fn = getattr(rpc, "cancel_order", None)
         if fn is None:
-            return {"ok": False, "error": "cancel_order is not available on this transport"}
+            return {
+                "ok": False,
+                "error": tr("mt5.cancel_unsupported"),
+                "reason_key": "mt5.cancel_unsupported",
+            }
         result = await fn(payload["order_id"])
-        return {"ok": True, "result": result}
+        return wrap_sdk_result(result)
 
 
 def build_transport(config: TradingConfig | None = None) -> MetaApiTransport:
     config = config or load_trading_config()
     if not config.metaapi_configured:
-        return NullTransport("METAAPI_TOKEN / METAAPI_ACCOUNT_ID are not set")
-    try:
-        import metaapi_cloud_sdk  # noqa: F401
-    except ImportError:
-        return NullTransport("metaapi-cloud-sdk is not installed")
+        return NullTransport("mt5.credentials_missing")
+    if not _sdk_available():
+        return NullTransport("mt5.sdk_missing")
     return SdkTransport(config)
 
 
@@ -156,3 +189,9 @@ def get_transport() -> MetaApiTransport:
 def set_transport_for_tests(transport: MetaApiTransport | None) -> None:
     global _TRANSPORT
     _TRANSPORT = transport
+
+
+def reset_transport() -> None:
+    """Drop the cached transport so the next get_transport() rebuilds from Config."""
+    global _TRANSPORT
+    _TRANSPORT = None

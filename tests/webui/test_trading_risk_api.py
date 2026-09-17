@@ -40,6 +40,11 @@ def test_trading_risk_payload_lists_defaults(tmp_path, monkeypatch: pytest.Monke
     toggle_names = {row["name"] for row in payload["toggles"]}
     assert toggle_names == set(DEFAULT_TOGGLES)
     assert all(row["never_skips_confirm"] for row in payload["toggles"])
+    assert "hitl" in payload["locked_toggles"]
+    assert "stale_quote" in payload["locked_toggles"]
+    assert "broker_success" in payload["locked_toggles"]
+    assert "hitl" not in toggle_names
+    assert "stale_quote" not in toggle_names
 
 
 def test_trading_risk_action_persists_json_values(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -67,6 +72,16 @@ def test_trading_risk_action_updates_toggles(tmp_path, monkeypatch: pytest.Monke
     enabled = {row["name"]: row["enabled"] for row in payload["toggles"]}
     assert enabled["news_shield"] is False
     assert enabled["rr_filter"] is True
+
+
+def test_trading_risk_action_rejects_locked_integrity_toggle(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+    with pytest.raises(TradingRiskError, match="cannot be disabled"):
+        trading_risk_action("update", {"toggles": [json.dumps({"hitl": False})]})
+    with pytest.raises(TradingRiskError, match="cannot be disabled"):
+        trading_risk_action("update", {"toggles": [json.dumps({"stale_quote": False})]})
 
 
 def test_trading_risk_action_rejects_non_numeric(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:

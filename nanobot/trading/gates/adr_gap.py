@@ -12,7 +12,7 @@ def evaluate_adr_chase(*, session_range: float, adr: float) -> GateCheck:
         return passed()
     if session_range >= adr * p.ADR_CHASE_PCT:
         return veto(
-            f"Session range {session_range:.2f} is {session_range / adr:.0%} of ADR — no chase",
+            "gate.adr.chase",
             session_range=session_range,
             adr=adr,
         )
@@ -23,8 +23,9 @@ def evaluate_gap_chase(*, gap_points: float) -> GateCheck:
     p = live()
     if gap_points >= p.GAP_NO_CHASE_POINTS:
         return veto(
-            f"Opening gap {gap_points:.0f} points exceeds {p.GAP_NO_CHASE_POINTS:.0f} — do not chase",
+            "gate.gap.chase",
             gap_points=gap_points,
+            limit=p.GAP_NO_CHASE_POINTS,
         )
     return passed(gap_points=gap_points)
 

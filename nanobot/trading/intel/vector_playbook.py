@@ -6,6 +6,8 @@ import math
 import re
 from dataclasses import dataclass
 
+from nanobot.trading.intel.optional_deps import module_available
+
 _TOKEN = re.compile(r"[a-z0-9]+")
 
 SEED_SCENARIOS = [
@@ -52,16 +54,25 @@ class VectorPlaybook:
         self.scenarios = list(scenarios or SEED_SCENARIOS)
         self._vectors = [_bow(s) for s in self.scenarios]
         self._chroma = None
-        try:
+        self.backend = "bag_of_words"
+        if module_available("chromadb"):
             import chromadb
 
-            client = chromadb.Client()
-            col = client.get_or_create_collection("gold-playbook")
-            if col.count() == 0:
-                col.add(ids=[str(i) for i in range(len(self.scenarios))], documents=self.scenarios)
-            self._chroma = col
-        except Exception:
-            self._chroma = None
+            try:
+                client = chromadb.Client()
+                col = client.get_or_create_collection("gold-playbook")
+                if col.count() == 0:
+                    col.add(
+                        ids=[str(i) for i in range(len(self.scenarios))],
+                        documents=self.scenarios,
+                    )
+                self._chroma = col
+                self.backend = "chromadb"
+            except Exception:
+                self._chroma = None
+                self.backend = "bag_of_words"
+        elif module_available("lancedb"):
+            self.backend = "lancedb_unavailable_adapter"
 
     def add(self, scenario: str) -> None:
         self.scenarios.append(scenario)
@@ -69,17 +80,15 @@ class VectorPlaybook:
 
     def query(self, context: str, *, k: int = 3) -> list[PlaybookMatch]:
         if self._chroma is not None:
-            try:
-                result = self._chroma.query(query_texts=[context], n_results=k)
-                docs = (result.get("documents") or [[]])[0]
-                dists = (result.get("distances") or [[]])[0]
-                out: list[PlaybookMatch] = []
-                for doc, dist in zip(docs, dists, strict=False):
-                    score = max(0.0, 1.0 - float(dist))
-                    out.append(PlaybookMatch(str(doc), score))
+            result = self._chroma.query(query_texts=[context], n_results=k)
+            docs = (result.get("documents") or [[]])[0]
+            dists = (result.get("distances") or [[]])[0]
+            out: list[PlaybookMatch] = []
+            for doc, dist in zip(docs, dists, strict=False):
+                score = max(0.0, 1.0 - float(dist))
+                out.append(PlaybookMatch(str(doc), score))
+            if out:
                 return out
-            except Exception:
-                pass
         q = _bow(context)
         ranked = sorted(
             (PlaybookMatch(s, _cosine(q, v)) for s, v in zip(self.scenarios, self._vectors, strict=True)),

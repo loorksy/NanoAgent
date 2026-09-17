@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
+from nanobot.trading.intel.optional_deps import module_available
+
 DEFAULT_FEEDS = (
     "https://www.federalreserve.gov/feeds/press_all.xml",
     "https://feeds.reuters.com/reuters/businessNews",
@@ -23,6 +25,14 @@ class RssHeadline:
     link: str = ""
 
 
+def rss_backend() -> str:
+    if not module_available("feedparser"):
+        return "unavailable"
+    if module_available("aiohttp"):
+        return "aiohttp_feedparser"
+    return "httpx_feedparser"
+
+
 def _guid(entry: dict[str, str], feed: str) -> str:
     raw = entry.get("id") or entry.get("guid") or entry.get("link") or entry.get("title") or ""
     if raw:
@@ -30,19 +40,9 @@ def _guid(entry: dict[str, str], feed: str) -> str:
     return hashlib.sha1(f"{feed}|{entry.get('title', '')}".encode()).hexdigest()
 
 
-async def fetch_rss_headlines(
-    feeds: tuple[str, ...] | list[str] = DEFAULT_FEEDS,
-    *,
-    timeout: float = 8.0,
-) -> list[RssHeadline]:
-    try:
-        import feedparser  # noqa: F401
-    except ImportError:
-        return []
-
-    items: list[RssHeadline] = []
+async def _fetch_bodies(feeds: tuple[str, ...] | list[str], timeout: float) -> dict[str, str]:
     body_by_url: dict[str, str] = {}
-    try:
+    if module_available("aiohttp"):
         import aiohttp
 
         async with aiohttp.ClientSession() as session:
@@ -52,27 +52,38 @@ async def fetch_rss_headlines(
                         body_by_url[url] = await resp.text()
                 except Exception:
                     continue
-    except ImportError:
-        import httpx
+        return body_by_url
+    import httpx
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            for url in feeds:
-                try:
-                    resp = await client.get(url)
-                    body_by_url[url] = resp.text
-                except Exception:
-                    continue
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for url in feeds:
+            try:
+                resp = await client.get(url)
+                body_by_url[url] = resp.text
+            except Exception:
+                continue
+    return body_by_url
 
+
+async def fetch_rss_headlines(
+    feeds: tuple[str, ...] | list[str] = DEFAULT_FEEDS,
+    *,
+    timeout: float = 8.0,
+) -> list[RssHeadline]:
+    if not module_available("feedparser"):
+        return []
+    items: list[RssHeadline] = []
+    body_by_url = await _fetch_bodies(feeds, timeout)
     for url, body in body_by_url.items():
         items.extend(parse_feed_body(url, body))
     return items
 
 
 def parse_feed_body(url: str, body: str) -> list[RssHeadline]:
-    try:
-        import feedparser
-    except ImportError:
+    if not module_available("feedparser"):
         return []
+    import feedparser
+
     items: list[RssHeadline] = []
     parsed = feedparser.parse(body)
     for entry in parsed.entries:

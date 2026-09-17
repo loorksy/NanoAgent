@@ -1,4 +1,4 @@
-"""G19 — slippage and broker execution latency (news 57 / 59)."""
+"""G19 — slippage and broker execution latency (news 57 / 59 / candle 50)."""
 
 from __future__ import annotations
 
@@ -12,16 +12,17 @@ def evaluate_slippage_guard(risk: RiskSnapshot | None) -> GateCheck:
     if risk is None:
         return passed()
     slip = risk.expected_slippage_points
-    if slip is not None and slip > p.SLIPPAGE_MAX_POINTS:
+    limit = min(p.SLIPPAGE_MAX_POINTS, p.SLIPPAGE_PROBE_POINTS)
+    if slip is not None and slip > limit:
         return veto(
-            f"Expected slippage {slip:.1f} points exceeds {p.SLIPPAGE_MAX_POINTS:.0f}",
+            "gate.slippage.expected",
             expected_slippage_points=slip,
-            limit=p.SLIPPAGE_MAX_POINTS,
+            limit=limit,
         )
     latency = risk.exec_latency_ms
     if latency is not None and latency > p.EXEC_LATENCY_MAX_MS:
         return veto(
-            f"Broker execution latency {latency:.0f}ms exceeds {p.EXEC_LATENCY_MAX_MS:.0f}ms",
+            "gate.slippage.latency",
             exec_latency_ms=latency,
             limit=p.EXEC_LATENCY_MAX_MS,
         )

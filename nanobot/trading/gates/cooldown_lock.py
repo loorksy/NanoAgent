@@ -13,7 +13,7 @@ def evaluate_cooldown_lock(risk: RiskSnapshot | None, *, now_ms: int) -> GateChe
     if until > now_ms:
         remaining = max(0, int((until - now_ms) / 60000))
         return veto(
-            f"Cooldown lock active ({remaining}m remaining)",
+            "gate.cooldown.active",
             remaining_minutes=remaining,
             cooldown_reason=risk.cooldown_reason,
         )

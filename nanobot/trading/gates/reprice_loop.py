@@ -7,8 +7,6 @@ from nanobot.trading.gates.chain import run_gate_chain
 from nanobot.trading.policy import live
 from nanobot.trading.types import AgentRecommendation, EntryPlan, GateChainResult, GateVerdict
 
-MAX_REPRICE_ROUNDS = 2
-
 
 def _merge_gate_chains(first: GateChainResult, second: GateChainResult) -> GateChainResult:
     replaced: dict[str, GateVerdict] = {v.id: v for v in first.verdicts}
@@ -31,7 +29,10 @@ async def apply_g7_reprice_loop(
     plan: EntryPlan,
     recommendation: AgentRecommendation,
 ) -> tuple[GateChainResult, EntryPlan, AgentRecommendation]:
-    """When G7 re-anchors entry to live price, re-run G6→G7 up to N times."""
+    """When live-price confirmation re-anchors entry, re-run risk geometry and live
+    confirmation up to live().MAX_REPRICE_ROUNDS (operator-editable). This is a
+    loop bound, not a leftover unused constant.
+    """
     current = chain
     gate_by_id = {gate.id: gate for gate in gates}
     g6 = gate_by_id.get("G6")

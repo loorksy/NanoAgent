@@ -294,6 +294,44 @@ def test_hitl_passes_when_operator_confirmed_and_clean():
     assert first_blocker(checks) is None
 
 
+def test_operator_toggle_is_disabled_by_operator_not_silent_pass():
+    plan = _plan(1.0)
+    risk = RiskSnapshot(feature_toggles={"rr_filter": False})
+    checks = collect_execution_checks(plan, risk, now_ms=_noon_ms(), operator_confirmed=True)
+    rr = dict(checks)["rr"]
+    assert rr.status == "pass"
+    assert rr.evidence.get("disabled_by_operator") is True
+    assert rr.reason_key == "gate.disabled_by_operator"
+
+
+def test_stale_quote_toggle_cannot_bypass_integrity():
+    risk = RiskSnapshot(
+        quote_age_seconds=STALE_QUOTE_SECONDS + 5,
+        feature_toggles={"stale_quote": False},
+    )
+    checks = collect_execution_checks(
+        _plan(),
+        risk,
+        now_ms=_noon_ms(),
+        operator_confirmed=True,
+    )
+    stale = dict(checks)["stale_quote"]
+    assert stale.status == "veto"
+    assert stale.evidence.get("disabled_by_operator") is not True
+
+
+def test_hitl_toggle_cannot_bypass_confirm():
+    checks = collect_execution_checks(
+        _plan(),
+        RiskSnapshot(feature_toggles={"hitl": False}),
+        now_ms=_noon_ms(),
+        operator_confirmed=False,
+    )
+    blocker = first_blocker(checks)
+    assert blocker is not None
+    assert blocker[0] == "hitl"
+
+
 def test_time_stop_is_invoked_from_execution_path():
     plan = _plan()
     now = _noon_ms()

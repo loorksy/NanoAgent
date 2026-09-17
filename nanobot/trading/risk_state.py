@@ -12,7 +12,9 @@ from typing import Any
 from nanobot.config.paths import get_data_dir
 from nanobot.trading.policy import live
 
-DEFAULT_TOGGLES: dict[str, bool] = {
+# Spec 8.5 allows the operator to turn named capabilities off. These skips never
+# cover HITL, proposal expiry, broker-success, or technical quote integrity.
+OPERATOR_TOGGLES: dict[str, bool] = {
     "news_shield": True,
     "early_exit": True,
     "spread_guard": True,
@@ -21,10 +23,33 @@ DEFAULT_TOGGLES: dict[str, bool] = {
     "rr_filter": True,
     "max_positions": True,
     "session_lock": True,
-    "bad_tick": True,
-    "stale_quote": True,
     "holiday_lock": True,
 }
+
+DEFAULT_TOGGLES: dict[str, bool] = dict(OPERATOR_TOGGLES)
+
+EXEC_CHECK_TOGGLE: dict[str, str] = {
+    "rr": "rr_filter",
+    "spread": "spread_guard",
+    "cooldown": "cooldown_lock",
+    "max_positions": "max_positions",
+    "drawdown": "drawdown_breaker",
+    "session": "session_lock",
+    "news_ops": "news_shield",
+    "news_candle": "news_shield",
+}
+
+# Technical / HITL / broker integrity — not present in OPERATOR_TOGGLES and
+# ignored if a client tries to send them as a feature toggle.
+LOCKED_INTEGRITY_TOGGLES: frozenset[str] = frozenset(
+    {
+        "hitl",
+        "proposal_ttl",
+        "stale_quote",
+        "bad_tick",
+        "broker_success",
+    }
+)
 
 
 @dataclass
@@ -70,7 +95,13 @@ class RiskStateStore:
             for key, value in changes.items():
                 if key == "feature_toggles" and isinstance(value, dict):
                     merged = dict(self._state.feature_toggles)
-                    merged.update({str(k): bool(v) for k, v in value.items()})
+                    for name, enabled in value.items():
+                        key_name = str(name)
+                        if key_name in LOCKED_INTEGRITY_TOGGLES:
+                            continue
+                        if key_name not in OPERATOR_TOGGLES:
+                            continue
+                        merged[key_name] = bool(enabled)
                     self._state.feature_toggles = merged
                     continue
                 if not hasattr(self._state, key):
@@ -125,7 +156,11 @@ class RiskStateStore:
             toggles = dict(DEFAULT_TOGGLES)
             extra = raw.get("feature_toggles")
             if isinstance(extra, dict):
-                toggles.update({str(k): bool(v) for k, v in extra.items()})
+                for name, enabled in extra.items():
+                    key_name = str(name)
+                    if key_name in LOCKED_INTEGRITY_TOGGLES or key_name not in OPERATOR_TOGGLES:
+                        continue
+                    toggles[key_name] = bool(enabled)
             raw = {**raw, "feature_toggles": toggles}
             known = {f.name for f in RiskState.__dataclass_fields__.values()}  # type: ignore[attr-defined]
             kwargs = {k: v for k, v in raw.items() if k in known}

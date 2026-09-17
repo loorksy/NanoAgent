@@ -1,5 +1,10 @@
 # Multi-tasking and scenarios
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-8-scenarios | `section-8-scenarios.md` | — | section narrative |
+
+
 Table of contents: Scan while managing · Dual scenarios · Scalp vs swing · Natural-language orders · Feature toggles
 
 ### Scan while an idea is live

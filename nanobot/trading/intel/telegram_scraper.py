@@ -7,6 +7,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from nanobot.trading.intel.optional_deps import module_available
+
 HeadlineHandler = Callable[[str, str], Awaitable[None] | None]
 
 
@@ -40,12 +42,53 @@ class TelegramHeadlineSource:
     def configured(self) -> bool:
         return bool(self.api_id and self.api_hash)
 
+    def sdk_installed(self) -> bool:
+        return module_available("telethon")
+
     def available(self) -> bool:
+        return self.sdk_installed() and self.configured()
+
+    def backend(self) -> str:
+        if self.available():
+            return "telethon"
+        if not self.sdk_installed():
+            return "unavailable_sdk"
+        return "unavailable_credentials"
+
+    async def fetch_recent(self, *, limit: int = 8) -> list[TelegramHeadline]:
+        """Pull recent channel messages when Telethon + credentials are present.
+
+        This is a finite fetch for intel scans. Live listen() remains long-running
+        and is not started from the scan tool.
+        """
+        if not self.available():
+            return []
+        from telethon import TelegramClient
+
+        client = TelegramClient(self.session, self.api_id, self.api_hash)
+        await client.start()
+        rows: list[TelegramHeadline] = []
         try:
-            import telethon  # noqa: F401
-        except ImportError:
-            return False
-        return self.configured()
+            for channel in self.channels:
+                entity = await client.get_entity(channel)
+                async for message in client.iter_messages(entity, limit=max(1, limit)):
+                    text = str(getattr(message, "message", "") or "")
+                    if not text.strip():
+                        continue
+                    rows.append(
+                        TelegramHeadline(
+                            channel=channel,
+                            text=text,
+                            message_id=int(getattr(message, "id", 0) or 0),
+                        )
+                    )
+                    if len(rows) >= limit:
+                        break
+                if len(rows) >= limit:
+                    break
+        finally:
+            await client.disconnect()
+        return rows[:limit]
 
     async def listen(self, handler: HeadlineHandler) -> None:
         if not self.available():

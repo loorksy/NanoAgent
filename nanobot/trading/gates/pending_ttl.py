@@ -22,15 +22,16 @@ def evaluate_pending_ttl(
         limit = min(p.PENDING_TTL_HOURS, p.IDEA_STALE_HOURS)
         if age_h >= limit:
             return veto(
-                f"Pending context expired after {age_h:.1f}h (limit {limit:.0f}h)",
+                "gate.pending.expired",
                 age_hours=age_h,
                 limit_hours=limit,
             )
     minutes = None if risk is None else risk.minutes_to_high_impact
     if minutes is not None and minutes <= p.NEWS_SHIELD_MINUTES:
         return veto(
-            f"Pending orders must be cancelled {p.NEWS_SHIELD_MINUTES:.0f}m before high-impact news",
+            "gate.pending.news_cancel",
             minutes_to_news=minutes,
+            shield_minutes=p.NEWS_SHIELD_MINUTES,
         )
     price = live_price if live_price is not None else (None if risk is None else risk.current_mid)
     if price is not None and plan.targets:
@@ -44,7 +45,7 @@ def evaluate_pending_ttl(
             )
             if favorable and moved >= toward * p.HALF_DISTANCE_FRACTION:
                 return veto(
-                    "Price already ran half the distance to target — pending entry cancelled",
+                    "gate.pending.half_distance",
                     moved=moved,
                     target_distance=toward,
                     stop_distance=risk_dist,

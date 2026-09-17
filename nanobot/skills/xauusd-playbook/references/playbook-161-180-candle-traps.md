@@ -1,5 +1,33 @@
 # Playbook P-161 … P-180 — Candle psychology and traps
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-161 … P-180 | `playbook-161-180-candle-traps.md` | — | P-161, P-162, P-163, P-164, P-165, P-166, P-167, P-168, P-169, P-170, P-171, P-172, P-173, P-174, P-175, P-176, P-177, P-178, P-179, P-180 |
+
+## Contents
+
+- [P-161 — Hammer in the middle of nowhere](#p-161-hammer-in-the-middle-of-nowhere)
+- [P-162 — Quiet break is not a break](#p-162-quiet-break-is-not-a-break)
+- [P-163 — Doji is pause, not reversal](#p-163-doji-is-pause-not-reversal)
+- [P-164 — Failed engulfing](#p-164-failed-engulfing)
+- [P-165 — Shooting star at ATH](#p-165-shooting-star-at-ath)
+- [P-166 — Shrinking bodies = seller exhaustion](#p-166-shrinking-bodies--seller-exhaustion)
+- [P-167 — Micro new highs with long wicks](#p-167-micro-new-highs-with-long-wicks)
+- [P-168 — Inside-bar coil](#p-168-inside-bar-coil)
+- [P-169 — First London M15 trap](#p-169-first-london-m15-trap)
+- [P-170 — Close in the top quarter](#p-170-close-in-the-top-quarter)
+- [P-171 — Five greens in a row on M15](#p-171-five-greens-in-a-row-on-m15)
+- [P-172 — Double rejection wicks](#p-172-double-rejection-wicks)
+- [P-173 — Absorption bar](#p-173-absorption-bar)
+- [P-174 — Prior-day low wick reclaim](#p-174-prior-day-low-wick-reclaim)
+- [P-175 — Strong trends lack noisy wicks](#p-175-strong-trends-lack-noisy-wicks)
+- [P-176 — Range-box fake-then-opposite](#p-176-range-box-fake-then-opposite)
+- [P-177 — Selling climax](#p-177-selling-climax)
+- [P-178 — Bodies tell the truth, wicks hunt](#p-178-bodies-tell-the-truth-wicks-hunt)
+- [P-179 — Not every gap must fill now](#p-179-not-every-gap-must-fill-now)
+- [P-180 — Spinning tops on support](#p-180-spinning-tops-on-support)
+
+
 Grep `P-1(6[1-9]|7[0-9]|80)`.
 
 ### P-161 — Hammer in the middle of nowhere

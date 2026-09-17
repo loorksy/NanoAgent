@@ -1233,11 +1233,17 @@ export interface TradingRiskPayload {
   description: string;
   operator_warning: string;
   save_label: string;
+  loading_label?: string;
+  saving_label?: string;
+  number_required?: string;
+  min_label?: string;
+  max_label?: string;
   toggles_title?: string;
   toggles_help?: string;
   groups: TradingRiskGroup[];
   values: Record<string, number>;
   toggles?: TradingRiskToggle[];
+  locked_toggles?: string[];
   last_action?: {
     ok: boolean;
     message: string;

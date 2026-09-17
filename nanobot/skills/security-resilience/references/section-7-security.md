@@ -1,5 +1,10 @@
 # Security and resilience
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| section-7-security | `section-7-security.md` | — | section narrative |
+
+
 Table of contents: Master kill switch · Encrypted local credentials · Local ticket restore · Bad tick filter · Adopt manual positions
 
 ### Master kill switch

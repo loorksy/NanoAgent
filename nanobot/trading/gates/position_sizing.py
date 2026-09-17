@@ -36,7 +36,7 @@ def lot_from_balance(
 
 def evaluate_position_sizing(plan: EntryPlan, risk: RiskSnapshot | None) -> GateCheck:
     if risk is None or risk.account_balance is None:
-        return unavailable("Account balance unavailable for lot sizing")
+        return unavailable("gate.sizing.balance_unavailable")
     # Playbook 199: size from balance, never floating equity.
     balance = float(risk.account_balance)
     pct = risk_percent(risk)
@@ -53,11 +53,11 @@ def evaluate_position_sizing(plan: EntryPlan, risk: RiskSnapshot | None) -> Gate
         return passed(**evidence)
     # Playbook 188: dual check — reject decimal disasters (>2x or <0.5x expected).
     if expected <= 0:
-        return veto("Computed lot is zero — stop distance or balance invalid", **evidence)
+        return veto("gate.sizing.zero_lot", **evidence)
     ratio = proposed / expected
     if ratio > p.LOT_DUAL_CHECK_HIGH or ratio < p.LOT_DUAL_CHECK_LOW:
         return veto(
-            f"Proposed lot {proposed} fails dual-check against sized lot {expected:.4f}",
+            "gate.sizing.dual_check",
             proposed_lot=proposed,
             **evidence,
         )

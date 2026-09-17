@@ -38,11 +38,12 @@ def _in_rollover_minutes(minute: int) -> bool:
 def evaluate_session_lock(risk: RiskSnapshot | None, *, now_ms: int) -> GateCheck:
     p = live()
     dt = datetime.fromtimestamp(now_ms / 1000, tz=UTC)
-    if (risk is not None and risk.holiday) or (dt.month, dt.day) in FIXED_HOLIDAYS:
-        return veto("Holiday lock — no new gold orders", holiday=True)
+    holiday_on = True if risk is None else risk.toggle("holiday_lock")
+    if holiday_on and ((risk is not None and risk.holiday) or (dt.month, dt.day) in FIXED_HOLIDAYS):
+        return veto("gate.session.holiday", holiday=True)
     if _in_midnight_spread_window(dt.hour, dt.minute):
         return veto(
-            "Midnight spread trap window — no new orders or tight stops",
+            "gate.session.midnight_spread",
             hour=dt.hour,
             minute=dt.minute,
         )
@@ -59,13 +60,14 @@ def evaluate_session_lock(risk: RiskSnapshot | None, *, now_ms: int) -> GateChec
         )
         if news_context:
             return veto(
-                "Rollover minute window during news — no new orders",
+                "gate.session.rollover_news",
                 minute=dt.minute,
             )
     minutes_to_close = (p.DAILY_CLOSE_HOUR_UTC * 60) - (dt.hour * 60 + dt.minute)
     if 0 <= minutes_to_close <= p.DAILY_CLOSE_LOCK_MINUTES:
         return veto(
-            f"No new positions in the last {p.DAILY_CLOSE_LOCK_MINUTES:.0f}m before daily close",
+            "gate.session.daily_close",
             minutes_to_close=minutes_to_close,
+            lock_minutes=p.DAILY_CLOSE_LOCK_MINUTES,
         )
     return passed(hour=dt.hour, minute=dt.minute)

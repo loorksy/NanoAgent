@@ -8,6 +8,7 @@ from typing import Any
 
 from nanobot.trading.agents.news_macro import news_provider_configured
 from nanobot.trading.gates.bad_tick import evaluate_bad_tick
+from nanobot.trading.gates.check import disabled_by_operator
 from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
 from nanobot.trading.gates.drawdown_breaker import evaluate_drawdown_breaker
 from nanobot.trading.gates.entry_semantics import validate_entry_coherence
@@ -29,7 +30,7 @@ from nanobot.trading.gates.session_lock import evaluate_session_lock
 from nanobot.trading.gates.slippage_guard import evaluate_slippage_guard
 from nanobot.trading.gates.spread_guard import evaluate_spread_guard
 from nanobot.trading.gates.stale_quote import evaluate_stale_quote
-from nanobot.trading.i18n import gate_label
+from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.types import (
     EntryPlan,
     LiquidityResult,
@@ -62,6 +63,8 @@ GATE_REQUIRED = {
     "G20": False,
 }
 
+# Operator-disableable protections only. Stale quote and bad-tick are technical
+# integrity checks and are not in this map (they always run).
 _TOGGLE_FOR_GATE = {
     "G1": "news_shield",
     "G8": "rr_filter",
@@ -69,9 +72,7 @@ _TOGGLE_FOR_GATE = {
     "G10": "cooldown_lock",
     "G11": "max_positions",
     "G12": "drawdown_breaker",
-    "G13": "stale_quote",
     "G15": "session_lock",
-    "G16": "bad_tick",
     "G17": "news_shield",
 }
 
@@ -99,7 +100,7 @@ class GateInputs:
 
 
 def _skipped(toggle: str) -> dict[str, Any]:
-    return {"status": "pass", "evidence": {toggle: "off"}}
+    return disabled_by_operator(toggle).as_raw()
 
 
 def build_gates(inp: GateInputs) -> list[GateDefinition]:
@@ -116,27 +117,37 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         if mode == "off":
             return {"status": "pass", "confidence_delta": 0, "evidence": {"news_risk": "skipped"}}
 
-        def _warn_unconfigured(reason_ar: str) -> dict[str, Any]:
+        def _warn_unconfigured(key: str, **params: Any) -> dict[str, Any]:
+            payload = {
+                "reason_key": key,
+                "reason_params": params,
+                "reason": tr(key, **params),
+                "reason_ar": tr(key, "ar", **params),
+            }
             if mode == "strict":
-                return {"status": "unavailable", "reason_ar": reason_ar}
+                return {"status": "unavailable", **payload}
             return {
                 "status": "warn",
-                "reason_ar": reason_ar,
+                **payload,
                 "confidence_delta": -8,
                 "evidence": {"news_risk": "unknown", "policy": mode},
             }
 
         if not news_provider_configured():
-            return _warn_unconfigured("News calendar not configured")
+            return _warn_unconfigured("gate.news.calendar_unconfigured")
         if inp.news is None:
-            return _warn_unconfigured("News data unavailable")
+            return _warn_unconfigured("gate.news.data_unavailable")
         if inp.news.news_risk == "unknown":
-            return _warn_unconfigured(inp.news.reason or "News risk unknown")
+            return _warn_unconfigured("gate.news.risk_unknown")
         verdict = evaluate_news_window(inp.news.upcoming_events, inp.now_ms)
         if verdict.blocked:
+            mins = verdict.minutes_until_clear
             return {
                 "status": "veto",
-                "reason_ar": f"High-impact news window ({verdict.minutes_until_clear}m)",
+                "reason_key": "gate.news.window",
+                "reason_params": {"minutes": mins},
+                "reason": tr("gate.news.window", minutes=mins),
+                "reason_ar": tr("gate.news.window", "ar", minutes=mins),
                 "evidence": {"event": verdict.event.title if verdict.event else None},
             }
         return {
@@ -147,23 +158,38 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
 
     async def g2() -> dict[str, Any]:
         if inp.liquidity is None:
-            return {"status": "unavailable", "reason_ar": "Liquidity map missing"}
+            return {
+                "status": "unavailable",
+                "reason_key": "gate.liquidity.missing",
+                "reason": tr("gate.liquidity.missing"),
+                "reason_ar": tr("gate.liquidity.missing", "ar"),
+            }
         status, reason = evaluate_liquidity_alignment(inp.plan, inp.liquidity, inp.atr)
         if status == "veto":
-            return {"status": "veto", "reason_ar": reason}
+            return {"status": "veto", "reason": reason, "reason_ar": reason}
         return {"status": "pass"}
 
     async def g3() -> dict[str, Any]:
         if inp.supply_demand is None:
-            return {"status": "unavailable", "reason_ar": "Supply/demand missing"}
+            return {
+                "status": "unavailable",
+                "reason_key": "gate.zones.missing",
+                "reason": tr("gate.zones.missing"),
+                "reason_ar": tr("gate.zones.missing", "ar"),
+            }
         status, reason = evaluate_supply_demand_alignment(inp.plan, inp.supply_demand)
         if status == "veto":
-            return {"status": "veto", "reason_ar": reason}
+            return {"status": "veto", "reason": reason, "reason_ar": reason}
         return {"status": "pass"}
 
     async def g4() -> dict[str, Any]:
         if inp.structure is None:
-            return {"status": "unavailable", "reason_ar": "Structure missing"}
+            return {
+                "status": "unavailable",
+                "reason_key": "gate.structure.missing",
+                "reason": tr("gate.structure.missing"),
+                "reason_ar": tr("gate.structure.missing", "ar"),
+            }
         delta = 0
         if inp.mtf and inp.mtf.conflict:
             delta -= 10
@@ -177,16 +203,27 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
     async def g6() -> dict[str, Any]:
         ok, reasons = validate_entry_coherence(inp.plan, inp.atr)
         if not ok:
-            return {"status": "veto", "reason_ar": "; ".join(reasons)}
+            joined = "; ".join(reasons)
+            return {"status": "veto", "reason": joined, "reason_ar": joined}
         return {"status": "pass"}
 
     async def g7() -> dict[str, Any]:
         live = inp.fetch_live_price()
         result = revalidate_plan(inp.plan, live, inp.atr)
         if result.status == "unavailable":
-            return {"status": "unavailable", "reason_ar": result.reason}
+            return {
+                "status": "unavailable",
+                "reason_key": result.reason_key,
+                "reason": result.reason,
+                "reason_ar": tr(result.reason_key, "ar") if result.reason_key else result.reason,
+            }
         if result.status in ("invalidated", "targets_passed"):
-            return {"status": "veto", "reason_ar": result.reason}
+            return {
+                "status": "veto",
+                "reason_key": result.reason_key,
+                "reason": result.reason,
+                "reason_ar": tr(result.reason_key, "ar") if result.reason_key else result.reason,
+            }
         if result.status == "reanchored":
             return {
                 "status": "pass",
@@ -221,8 +258,6 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         return evaluate_drawdown_breaker(inp.risk).as_raw()
 
     async def g13() -> dict[str, Any]:
-        if not _enabled("G13"):
-            return _skipped("stale_quote")
         return evaluate_stale_quote(inp.risk).as_raw()
 
     async def g14() -> dict[str, Any]:
@@ -237,8 +272,6 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         return evaluate_session_lock(inp.risk, now_ms=inp.now_ms).as_raw()
 
     async def g16() -> dict[str, Any]:
-        if not _enabled("G16"):
-            return _skipped("bad_tick")
         return evaluate_bad_tick(inp.risk).as_raw()
 
     async def g17() -> dict[str, Any]:

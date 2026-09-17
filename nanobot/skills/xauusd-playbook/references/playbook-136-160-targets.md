@@ -1,5 +1,38 @@
 # Playbook P-136 … P-160 — Targets and harvesting
 
+| Original rule range | This file | Deterministic destinations | Interpretive headings |
+| --- | --- | --- | --- |
+| P-136 … P-160 | `playbook-136-160-targets.md` | P-137 → `nanobot/trading/gates/trade_management.py::should_move_to_breakeven`<br>P-149 → `nanobot/trading/gates/pending_ttl.py::evaluate_pending_ttl`<br>P-153 → `nanobot/trading/gates/trade_management.py::partial_close_fraction` | P-136, P-138, P-139, P-140, P-141, P-142, P-143, P-144, P-145, P-146, P-147, P-148, P-150, P-151, P-152, P-154, P-155, P-156, P-157, P-158, P-159, P-160 |
+
+## Contents
+
+- [P-136 — Target is not always a flat S/R](#p-136-target-is-not-always-a-flat-sr)
+- [P-137 — Forced partial at 1R](#p-137-forced-partial-at-1r)
+- [P-138 — Open targets at ATH](#p-138-open-targets-at-ath)
+- [P-139 — Exit before the round figure](#p-139-exit-before-the-round-figure)
+- [P-140 — Time exit before NY close (scalps)](#p-140-time-exit-before-ny-close-scalps)
+- [P-141 — Prior day high/low as the honest daily targets](#p-141-prior-day-highlow-as-the-honest-daily-targets)
+- [P-142 — Do not flatten a marubozu at TP1](#p-142-do-not-flatten-a-marubozu-at-tp1)
+- [P-143 — Extreme H1 RSI can be an exit](#p-143-extreme-h1-rsi-can-be-an-exit)
+- [P-144 — Speed death](#p-144-speed-death)
+- [P-145 — First opposing FVG is a target](#p-145-first-opposing-fvg-is-a-target)
+- [P-146 — Leave the last stretch](#p-146-leave-the-last-stretch)
+- [P-147 — After TP2, lock behind TP1](#p-147-after-tp2-lock-behind-tp1)
+- [P-148 — Channel long targets the roof only](#p-148-channel-long-targets-the-roof-only)
+- [P-149 — Collapse targets before red news](#p-149-collapse-targets-before-red-news)
+- [P-150 — External liquidity as the real target](#p-150-external-liquidity-as-the-real-target)
+- [P-151 — Add spread into long TP math](#p-151-add-spread-into-long-tp-math)
+- [P-152 — Head-and-shoulders measured move](#p-152-head-and-shoulders-measured-move)
+- [P-153 — Three-slice harvest](#p-153-three-slice-harvest)
+- [P-154 — Lower-TF opposite pattern kills the higher-TF hold](#p-154-lower-tf-opposite-pattern-kills-the-higher-tf-hold)
+- [P-155 — Promote a scalp to a swing only from a weekly-quality low](#p-155-promote-a-scalp-to-a-swing-only-from-a-weekly-quality-low)
+- [P-156 — SMA50 as a correction target](#p-156-sma50-as-a-correction-target)
+- [P-157 — Do not weekend-hold scalps](#p-157-do-not-weekend-hold-scalps)
+- [P-158 — Liquidation-run target](#p-158-liquidation-run-target)
+- [P-159 — Elliott third-wave minimum](#p-159-elliott-third-wave-minimum)
+- [P-160 — Structure change beats leftover TP](#p-160-structure-change-beats-leftover-tp)
+
+
 Grep `P-1(3[6-9]|4[0-9]|5[0-9]|60)`.
 
 ### P-136 — Target is not always a flat S/R
