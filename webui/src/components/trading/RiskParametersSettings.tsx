@@ -23,6 +23,9 @@ export function RiskParametersSettings() {
   const [busy, setBusy] = useState(false);
 
   const applyPayload = useCallback((next: TradingRiskPayload) => {
+    if (!Array.isArray(next.groups)) {
+      throw new Error("Invalid trading risk payload");
+    }
     setPayload(next);
     const values: Record<string, string> = {};
     for (const group of next.groups) {
@@ -130,7 +133,7 @@ export function RiskParametersSettings() {
         </div>
       ) : null}
       <div className="grid gap-6">
-        {payload.groups.map((group) => (
+        {(payload.groups ?? []).map((group) => (
           <div key={group.id}>
             <h3 className="mb-3 text-sm font-medium">{group.label}</h3>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

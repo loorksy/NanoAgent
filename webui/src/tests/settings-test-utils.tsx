@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, vi } from "vitest";
 import { SettingsView } from "@/components/settings/SettingsView";
 import { ClientProvider } from "@/providers/ClientProvider";
-import type { SettingsPayload } from "@/lib/types";
+import type { SettingsPayload, TradingMetaApiPayload } from "@/lib/types";
 
 export const requestMutationMock = vi.fn();
 
@@ -13,6 +13,47 @@ export function jsonResponse(body: unknown): Response {
     status: 200,
     json: async () => body,
   } as Response;
+}
+
+export function tradingMetaApiPayload(
+  overrides: Partial<TradingMetaApiPayload> = {},
+): TradingMetaApiPayload {
+  return {
+    title: "Connect MT5 account",
+    description: "Link a MetaAPI token and MT5 account from this page.",
+    hitl_note: "Orders still require confirm after the account is saved.",
+    token_label: "MetaAPI token",
+    token_help: "Create a token at app.metaapi.cloud.",
+    token_placeholder: "Paste token",
+    token_configured_placeholder: "Token saved — paste a new one to replace it",
+    account_id_label: "Account ID",
+    account_id_help: "Leave empty to provision from login, password, and server.",
+    region_label: "Region",
+    login_label: "MT5 login",
+    password_label: "MT5 password",
+    server_label: "Broker server",
+    server_placeholder: "Broker-Demo",
+    connect_label: "Connect MT5",
+    test_label: "Test connection",
+    disconnect_label: "Disconnect",
+    saving_label: "Saving…",
+    testing_label: "Testing…",
+    not_connected_label: "Not connected",
+    connected_label: "Connected",
+    env_override_warning: "Environment variables override this form.",
+    sdk_missing_label: "MetaAPI SDK is not installed.",
+    steps: ["Create a MetaAPI token", "Enter MT5 login details", "Connect and test"],
+    regions: [{ id: "new-york", label: "new-york" }],
+    configured: false,
+    token_set: false,
+    token_hint: null,
+    account_id: "",
+    region: "new-york",
+    sdk_available: true,
+    env_override: false,
+    source: "none",
+    ...overrides,
+  };
 }
 
 export function settingsPayload(): SettingsPayload {

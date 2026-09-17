@@ -18,6 +18,10 @@ import { useClient } from "@/providers/ClientProvider";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+function isConnectPayload(value: TradingMetaApiPayload): boolean {
+  return Array.isArray(value.steps) && Array.isArray(value.regions);
+}
+
 export function Mt5ConnectSettings() {
   const { i18n } = useTranslation();
   const { client, token } = useClient();
@@ -34,12 +38,15 @@ export function Mt5ConnectSettings() {
   const [busy, setBusy] = useState<"save" | "test" | "disconnect" | null>(null);
 
   const applyPayload = useCallback((next: TradingMetaApiPayload) => {
+    if (!isConnectPayload(next)) {
+      throw new Error("Invalid MT5 connect payload");
+    }
     setPayload(next);
-    setAccountId(next.account_id);
+    setAccountId(next.account_id ?? "");
     setRegion(next.region || "new-york");
     setTokenDraft("");
     setPassword("");
-  }, []);
+  }, {});
 
   const refresh = useCallback(async () => {
     const next = await fetchTradingMetaapi(token, locale);
@@ -156,7 +163,7 @@ export function Mt5ConnectSettings() {
         <p className="mb-4 text-sm text-muted-foreground">{payload.sdk_missing_label}</p>
       ) : null}
       <ol className="mb-5 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-        {payload.steps.map((step) => (
+        {(payload.steps ?? []).map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
@@ -223,7 +230,7 @@ export function Mt5ConnectSettings() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {payload.regions.map((row) => (
+              {(payload.regions ?? []).map((row) => (
                 <SelectItem key={row.id} value={row.id}>
                   {row.label}
                 </SelectItem>
