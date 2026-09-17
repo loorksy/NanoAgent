@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from nanobot.trading.geometry.detectors import build_supply_demand_zones
-from nanobot.trading.types import AgentMarketContext, SupplyDemandResult, SupplyDemandZone
+from nanobot.trading.types import AgentMarketContext, SupplyDemandResult
 
 
 def run_supply_demand_agent(market: AgentMarketContext) -> SupplyDemandResult:

@@ -340,7 +340,6 @@ def apply_model_decision(
                 "targets": [float(t) for t in (fallback.get("targets") or [])],
                 "entryType": fallback.get("entryType") or "market",
             }
-            selected_id = fallback.get("id")
             source = "candidate_fallback"
 
     if levels:

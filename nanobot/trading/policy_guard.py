@@ -6,18 +6,18 @@ from dataclasses import dataclass, replace
 
 from loguru import logger
 
+from nanobot.trading.capabilities.catalog import CARD_REGISTRY, get_card
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH, EvidenceGraph, graph_for_nodes
 from nanobot.trading.evidence.node_sets import (
     FULL_ANALYSIS_NODES,
     SYNTHESIS_REQUIRED_NODES,
     mode_requires_synthesis,
 )
-from nanobot.trading.capabilities.catalog import CARD_REGISTRY, get_card
 from nanobot.trading.evidence.nodes import NODE_REGISTRY
 from nanobot.trading.turn_planner import TurnBudget, TurnPlan
 
 
-class PolicyViolation(Exception):
+class PolicyViolation(Exception):  # noqa: N818 — public Hard Law API name
     """Turn plan cannot be executed under Hard Law."""
 
     def __init__(self, reason: str, plan: TurnPlan) -> None:

@@ -31,12 +31,12 @@ from telegram.request import BaseRequest, HTTPXRequest
 
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
+from nanobot.bus.queue import MessageBus
+from nanobot.channels.base import BaseChannel
 from nanobot.channels.telegram.trading_progress import (
     TRADING_CARD_SENT_META,
     TRADING_PROGRESS_META,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.channels.base import BaseChannel
 from nanobot.command.builtin import build_help_text
 from nanobot.config.paths import get_media_dir
 from nanobot.config.schema import Base

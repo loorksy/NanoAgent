@@ -22,6 +22,7 @@ from nanobot.trading.recommendations.store import (
 )
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
 
+
 def finalize_live_plan_if_closed(
     row: dict[str, Any] | None,
     *,

@@ -12,10 +12,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from nanobot.agent.tools.search import FindFilesTool, GrepTool
 
 from nanobot.agent.loop import AgentLoop
 from nanobot.agent.subagent import SubagentManager, SubagentStatus
-from nanobot.agent.tools.search import FindFilesTool, GrepTool
 from nanobot.agent.tools.web import WebSearchTool
 from nanobot.bus.queue import MessageBus
 from nanobot.config.schema import WebSearchConfig

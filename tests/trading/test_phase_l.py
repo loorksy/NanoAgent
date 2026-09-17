@@ -6,7 +6,6 @@ from nanobot.trading.capabilities import (
     CARD_REGISTRY,
     apply_capability_plan,
     get_card,
-    select_capability_cards,
 )
 from nanobot.trading.policy_guard import validate_turn_plan
 from nanobot.trading.turn_planner import TurnPlan, plan_turn

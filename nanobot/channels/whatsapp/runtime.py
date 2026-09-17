@@ -21,11 +21,11 @@ from pydantic import Field
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
 from nanobot.bus.queue import MessageBus
+from nanobot.channels.base import BaseChannel
 from nanobot.channels.telegram.trading_progress import (
     TRADING_CARD_SENT_META,
     TRADING_PROGRESS_META,
 )
-from nanobot.channels.base import BaseChannel
 from nanobot.config.paths import get_media_dir, get_runtime_subdir
 from nanobot.config.schema import Base
 from nanobot.security.network import PinnedDNSAsyncTransport
