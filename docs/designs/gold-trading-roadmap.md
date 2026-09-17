@@ -145,6 +145,7 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 ## References
 
 - Design spec: `docs/designs/gold-trading-agent.md`
+- Turn architecture (proposed unified loop; supersedes the 2026-09-13 hybrid-runtime planner claim): `docs/designs/lonora-hybrid-runtime.md`
 - Implementation audit: `docs/implementation/gold-agent-system-plan.md`
 - Card derivation (current): `nanobot/trading/cards/derive.py`
 - Artifact storage: `nanobot/utils/artifacts.py`
