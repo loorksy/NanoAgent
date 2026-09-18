@@ -1,0 +1,8 @@
+{
+  "name": "price",
+  "legacy": {"kernel": false, "decision": null, "nodes": ["market_data"]},
+  "unified_script": [
+    {"tool": "fetch_evidence", "args": {"nodes": ["market_data"]}}
+  ],
+  "expect": {"kernel": false, "tools": ["fetch_evidence"]}
+}

@@ -1,0 +1,8 @@
+{
+  "name": "live_rec_lock",
+  "legacy": {"kernel": false, "decision": null, "nodes": []},
+  "unified_script": [
+    {"tool": "get_live_recommendation", "args": {}}
+  ],
+  "expect": {"kernel": false, "tools": ["get_live_recommendation"]}
+}

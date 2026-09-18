@@ -1,0 +1,9 @@
+{
+  "name": "full_analysis",
+  "legacy": {"kernel": true, "decision": "buy", "nodes": ["market_data", "structure", "risk"]},
+  "unified_script": [
+    {"tool": "fetch_evidence", "args": {"nodes": ["market_data", "structure", "risk"]}},
+    {"tool": "run_trading_kernel", "args": {"gather_missing": true}, "decision": "buy"}
+  ],
+  "expect": {"kernel": true, "tools": ["fetch_evidence", "run_trading_kernel"]}
+}
