@@ -532,6 +532,64 @@ MESSAGES: dict[str, dict[str, str]] = {
         "mt5.empty_broker_result": "Empty broker result.",
         "mt5.invalid_broker_result": "Invalid broker result.",
         "mt5.broker_rejected": "Broker rejected the request.",
+        "mt5.connect.title": "Connect MT5 account",
+        "mt5.connect.description": (
+            "Link your MetaTrader 5 account through MetaAPI Cloud. Connecting "
+            "does not place orders — every send still needs your confirm."
+        ),
+        "mt5.connect.hitl_note": (
+            "Human confirmation stays required after the account is linked."
+        ),
+        "mt5.connect.token_label": "MetaAPI token",
+        "mt5.connect.token_help": (
+            "From app.metaapi.cloud → API access. Leave blank to keep the saved token."
+        ),
+        "mt5.connect.token_placeholder": "MetaAPI token",
+        "mt5.connect.token_configured_placeholder": "Saved token — paste a new one to replace it",
+        "mt5.connect.account_id_label": "MetaAPI account ID",
+        "mt5.connect.account_id_help": (
+            "UUID from MetaAPI if the MT5 account is already provisioned. "
+            "Skip this when you enter login, password, and server below."
+        ),
+        "mt5.connect.region_label": "Region",
+        "mt5.connect.login_label": "MT5 login",
+        "mt5.connect.password_label": "MT5 password",
+        "mt5.connect.server_label": "Broker server",
+        "mt5.connect.server_placeholder": "Broker server name from MT5 (File → Open an Account)",
+        "mt5.connect.connect_label": "Connect MT5",
+        "mt5.connect.test_label": "Test connection",
+        "mt5.connect.disconnect_label": "Disconnect",
+        "mt5.connect.saving_label": "Connecting…",
+        "mt5.connect.testing_label": "Testing…",
+        "mt5.connect.not_connected": "No MT5 account linked",
+        "mt5.connect.connected": "MT5 account linked",
+        "mt5.connect.saved": "MT5 account saved.",
+        "mt5.connect.disconnected": "MT5 account disconnected.",
+        "mt5.connect.tested": "MT5 connection succeeded.",
+        "mt5.connect.token_required": "MetaAPI token is required to connect.",
+        "mt5.connect.account_or_login_required": (
+            "Enter a MetaAPI account ID, or MT5 login, password, and broker server."
+        ),
+        "mt5.connect.login_incomplete": (
+            "MT5 login, password, and broker server are all required to provision."
+        ),
+        "mt5.connect.region_invalid": "Unknown MetaAPI region: {region}",
+        "mt5.connect.env_override": (
+            "METAAPI_* environment variables override the saved account. "
+            "Clear them on the server to use this form."
+        ),
+        "mt5.connect.env_disconnect_blocked": (
+            "Cannot disconnect while METAAPI_* environment variables are set."
+        ),
+        "mt5.connect.provision_failed": "MetaAPI could not provision the MT5 account: {detail}",
+        "mt5.connect.test_failed": "MT5 connection test failed: {detail}",
+        "mt5.connect.api.unknown_action": "unknown MT5 connect action '{action}'",
+        "mt5.connect.step_token": "Create a MetaAPI token at app.metaapi.cloud",
+        "mt5.connect.step_login": "Enter your MT5 login, trading password, and broker server",
+        "mt5.connect.step_connect": "Connect, then test. Orders still need confirm after that.",
+        "mt5.connect.balance": "Balance {balance} {currency}",
+        "mt5.connect.login_value": "Login {login}",
+        "mt5.connect.server_value": "Server {server}",
         "gate.disabled_by_operator": "Operator disabled {toggle}",
         "gate.hitl_required": "Human confirmation is required before any MT5 send.",
         "gate.no_widen": "Stop widening is forbidden (current {current_stop}, requested {requested_stop}).",
@@ -821,6 +879,62 @@ MESSAGES: dict[str, dict[str, str]] = {
         "mt5.empty_broker_result": "نتيجة الوسيط فارغة.",
         "mt5.invalid_broker_result": "نتيجة الوسيط غير صالحة.",
         "mt5.broker_rejected": "رفض الوسيط الطلب.",
+        "mt5.connect.title": "ربط حساب MT5",
+        "mt5.connect.description": (
+            "اربط حساب MetaTrader 5 عبر MetaAPI Cloud. الربط لا يرسل أوامر — "
+            "كل إرسال ما زال يحتاج تأكيدك."
+        ),
+        "mt5.connect.hitl_note": "يبقى التأكيد البشري إلزامياً بعد ربط الحساب.",
+        "mt5.connect.token_label": "رمز MetaAPI",
+        "mt5.connect.token_help": (
+            "من app.metaapi.cloud ← وصول API. اتركه فارغاً للإبقاء على الرمز المحفوظ."
+        ),
+        "mt5.connect.token_placeholder": "رمز MetaAPI",
+        "mt5.connect.token_configured_placeholder": "رمز محفوظ — الصق رمزاً جديداً لاستبداله",
+        "mt5.connect.account_id_label": "معرّف حساب MetaAPI",
+        "mt5.connect.account_id_help": (
+            "معرّف UUID من MetaAPI إذا كان الحساب مُجهّزاً مسبقاً. "
+            "تجاوزه عندما تدخل رقم الدخول وكلمة المرور والسيرفر أدناه."
+        ),
+        "mt5.connect.region_label": "المنطقة",
+        "mt5.connect.login_label": "رقم دخول MT5",
+        "mt5.connect.password_label": "كلمة مرور MT5",
+        "mt5.connect.server_label": "سيرفر الوسيط",
+        "mt5.connect.server_placeholder": "اسم السيرفر من MT5 (ملف ← فتح حساب)",
+        "mt5.connect.connect_label": "ربط MT5",
+        "mt5.connect.test_label": "اختبار الاتصال",
+        "mt5.connect.disconnect_label": "قطع الربط",
+        "mt5.connect.saving_label": "جارٍ الربط…",
+        "mt5.connect.testing_label": "جارٍ الاختبار…",
+        "mt5.connect.not_connected": "لا يوجد حساب MT5 مربوط",
+        "mt5.connect.connected": "حساب MT5 مربوط",
+        "mt5.connect.saved": "تم حفظ حساب MT5.",
+        "mt5.connect.disconnected": "تم قطع ربط حساب MT5.",
+        "mt5.connect.tested": "نجح اتصال MT5.",
+        "mt5.connect.token_required": "رمز MetaAPI مطلوب للربط.",
+        "mt5.connect.account_or_login_required": (
+            "أدخل معرّف حساب MetaAPI، أو رقم دخول MT5 وكلمة المرور وسيرفر الوسيط."
+        ),
+        "mt5.connect.login_incomplete": (
+            "رقم الدخول وكلمة المرور وسيرفر الوسيط مطلوبة كلها لتجهيز الحساب."
+        ),
+        "mt5.connect.region_invalid": "منطقة MetaAPI غير معروفة: {region}",
+        "mt5.connect.env_override": (
+            "متغيرات البيئة METAAPI_* تتجاوز الحساب المحفوظ. "
+            "امسحها على الخادم لاستخدام هذا النموذج."
+        ),
+        "mt5.connect.env_disconnect_blocked": (
+            "لا يمكن قطع الربط بينما متغيرات البيئة METAAPI_* معيّنة."
+        ),
+        "mt5.connect.provision_failed": "تعذّر على MetaAPI تجهيز حساب MT5: {detail}",
+        "mt5.connect.test_failed": "فشل اختبار اتصال MT5: {detail}",
+        "mt5.connect.api.unknown_action": "إجراء ربط MT5 غير معروف '{action}'",
+        "mt5.connect.step_token": "أنشئ رمز MetaAPI من app.metaapi.cloud",
+        "mt5.connect.step_login": "أدخل رقم دخول MT5 وكلمة مرور التداول وسيرفر الوسيط",
+        "mt5.connect.step_connect": "اربط ثم اختبر. الأوامر ما زالت تحتاج تأكيداً بعد ذلك.",
+        "mt5.connect.balance": "الرصيد {balance} {currency}",
+        "mt5.connect.login_value": "الدخول {login}",
+        "mt5.connect.server_value": "السيرفر {server}",
         "gate.disabled_by_operator": "عطّل المشغّل {toggle}",
         "gate.hitl_required": "التأكيد البشري إلزامي قبل أي إرسال إلى MT5.",
         "gate.no_widen": "منع توسيع وقف الخسارة (الحالي {current_stop}، المطلوب {requested_stop}).",

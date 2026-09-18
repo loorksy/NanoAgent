@@ -39,6 +39,7 @@ import type {
   SlashCommand,
   SlashCommandLifecycle,
   TranscriptionSettingsUpdate,
+  TradingMetaApiPayload,
   TradingRiskPayload,
   WebSearchSettingsUpdate,
   WorkspacesPayload,
@@ -742,6 +743,71 @@ export async function updateTradingRisk(
       values: JSON.stringify(values),
       ...(toggles ? { toggles: JSON.stringify(toggles) } : {}),
     },
+  );
+}
+
+export async function fetchTradingMetaapi(
+  token: string,
+  locale: string = "",
+  base: string = "",
+): Promise<TradingMetaApiPayload> {
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+  return request<TradingMetaApiPayload>(
+    `${base}/api/settings/trading-metaapi${query}`,
+    token,
+    undefined,
+    API_READ_TIMEOUT_MS,
+  );
+}
+
+export async function updateTradingMetaapi(
+  transport: WebUIMutationTransport,
+  values: {
+    token?: string;
+    accountId?: string;
+    region?: string;
+    login?: string;
+    password?: string;
+    server?: string;
+    locale?: string;
+  },
+): Promise<TradingMetaApiPayload> {
+  return mutation<TradingMetaApiPayload>(
+    transport,
+    "settings.trading_metaapi.update",
+    {
+      ...(values.token ? { token: values.token } : {}),
+      ...(values.accountId ? { account_id: values.accountId } : {}),
+      ...(values.region ? { region: values.region } : {}),
+      ...(values.login ? { login: values.login } : {}),
+      ...(values.password ? { password: values.password } : {}),
+      ...(values.server ? { server: values.server } : {}),
+      ...(values.locale ? { locale: values.locale } : {}),
+    },
+    PACKAGE_MUTATION_TIMEOUT_MS,
+  );
+}
+
+export async function testTradingMetaapi(
+  transport: WebUIMutationTransport,
+  locale: string = "",
+): Promise<TradingMetaApiPayload> {
+  return mutation<TradingMetaApiPayload>(
+    transport,
+    "settings.trading_metaapi.test",
+    locale ? { locale } : {},
+    30_000,
+  );
+}
+
+export async function disconnectTradingMetaapi(
+  transport: WebUIMutationTransport,
+  locale: string = "",
+): Promise<TradingMetaApiPayload> {
+  return mutation<TradingMetaApiPayload>(
+    transport,
+    "settings.trading_metaapi.disconnect",
+    locale ? { locale } : {},
   );
 }
 

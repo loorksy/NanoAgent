@@ -62,11 +62,10 @@ OVERRIDES: dict[str, str] = {
     "trading.chart.analyzing": "جارٍ التحليل…",
     "trading.chart.liveMarket": "سوق حي",
     "trading.chart.marketUnavailable": "بيانات السوق غير متاحة",
-    "trading.connect.title": "ربط Telegram و WhatsApp",
+    "trading.connect.title": "ربط MT5 و Telegram و WhatsApp",
     "trading.connect.whatsappQr.connected": "WhatsApp متصل.",
     "trading.connect.subtitle": (
-        "الصق رمز بوت Telegram من @BotFather، أو امسح رمز QR لـ WhatsApp. "
-        "هذه شاشة الإعداد الوحيدة — بدون خطوات تثبيت إضافية."
+        "اربط حساب MT5، أو الصق رمز بوت Telegram من @BotFather، أو امسح رمز QR لـ WhatsApp."
     ),
     "trading.connect.whatsappQr.scanDescription": (
         "في WhatsApp، افتح الأجهزة المرتبطة، اختر ربط جهاز، ثم امسح هذا الرمز."
