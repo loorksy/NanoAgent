@@ -218,6 +218,42 @@ async def _run_trading_analyze(
         manager = create_trading_subagent_manager()
         publisher = TradingStagePublisher(None, channel="webui", chat_id="trading-analyze")
         visual_capture = resolve_visual_capture(publisher)
+        from nanobot.trading.config import unified_loop_serving
+
+        if unified_loop_serving():
+            from nanobot.trading.kernel import run_trading_kernel
+            from nanobot.trading.turn_session import turn_session_scope
+
+            briefing = None
+            resolved_mode = "core"
+            if team_mode == "debate":
+                debate = await run_debate_crew(
+                    subagent_manager=manager,
+                    publisher=publisher,
+                    interval=interval,
+                    visual_capture=visual_capture,
+                )
+                briefing = debate.briefing
+                resolved_mode = "debate"
+            elif team_mode == "swarm":
+                swarm = await run_swarm(
+                    preset or "gold_analysis_committee",
+                    subagent_manager=manager,
+                    publisher=publisher,
+                    interval=interval,
+                    visual_capture=visual_capture,
+                )
+                briefing = swarm.get("team_briefing")
+                resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
+            with turn_session_scope():
+                return await run_trading_kernel(
+                    interval=interval,
+                    team_mode=resolved_mode,
+                    gather_missing=True,
+                    team_briefing=briefing,
+                    visual_capture=visual_capture,
+                    present_ui=True,
+                )
         if team_mode == "debate":
             debate = await run_debate_crew(
                 subagent_manager=manager,
@@ -526,6 +562,25 @@ async def handle_trading_recommendation_transition(request: WsRequest) -> Respon
     if action == "reject_new":
         return _http_json_response(result)
     from nanobot.bus.events import OUTBOUND_META_AGENT_UI
+    from nanobot.trading.config import unified_loop_serving
+
+    if unified_loop_serving():
+        from nanobot.agent.tools.context import request_context
+        from nanobot.trading.kernel import run_trading_kernel
+        from nanobot.trading.result_wire import result_to_wire
+        from nanobot.trading.turn_session import turn_session_scope
+
+        with request_context(analyze_request_context()):
+            with turn_session_scope():
+                kernel_result = await run_trading_kernel(
+                    interval="15m",
+                    gather_missing=True,
+                    session_key=session_key,
+                    present_ui=True,
+                )
+        wire = result_to_wire(kernel_result)
+        return _http_json_response({**result, "new_recommendation": wire})
+
     from nanobot.trading.fast_path import _run_analysis_fast_path
     from nanobot.trading.intent_router import RoutedIntent
     from nanobot.trading.turn_planner import FULL_TOOLS, TurnPlan
