@@ -1,4 +1,8 @@
-"""Policy Guard — validate TurnPlan against Lonora Hard Law (Phase I)."""
+"""Policy Guard — validate TurnPlan against Lonora Hard Law (G1–G20).
+
+Unified-loop enforcement is tool scope + these interceptors, not TurnPlan.
+Spawn budget cap remains 4. TurnPlan validation stays for the off-path planner.
+"""
 
 from __future__ import annotations
 
@@ -6,21 +10,21 @@ from dataclasses import dataclass, replace
 
 from loguru import logger
 
+from nanobot.trading.capabilities.catalog import CARD_REGISTRY, get_card
 from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_GRAPH, EvidenceGraph, graph_for_nodes
 from nanobot.trading.evidence.node_sets import (
     FULL_ANALYSIS_NODES,
     SYNTHESIS_REQUIRED_NODES,
     mode_requires_synthesis,
 )
-from nanobot.trading.capabilities.catalog import CARD_REGISTRY, get_card
 from nanobot.trading.evidence.nodes import NODE_REGISTRY
 from nanobot.trading.turn_planner import TurnBudget, TurnPlan
 
 
-class PolicyViolation(Exception):
-    """Turn plan cannot be executed under Hard Law."""
+class PolicyViolation(Exception):  # noqa: N818
+    """Turn plan or unified-loop tool call cannot be executed under Hard Law."""
 
-    def __init__(self, reason: str, plan: TurnPlan) -> None:
+    def __init__(self, reason: str, plan: TurnPlan | None = None) -> None:
         super().__init__(reason)
         self.reason = reason
         self.plan = plan
@@ -140,3 +144,135 @@ def log_planner_shadow(validated: ValidatedPlan) -> None:
         executed,
         list(validated.adjustments),
     )
+
+
+KERNEL_TOOL_NAMES = frozenset({"run_trading_kernel", "analyze_gold"})
+SPAWN_TOOL_NAMES = frozenset({"spawn"})
+MT5_EXECUTION_TOOLS = frozenset(
+    {
+        "mt5_propose_order",
+        "mt5_confirm_order",
+        "mt5_modify_order",
+        "mt5_cancel_order",
+        "mt5_close_position",
+    }
+)
+EVIDENCE_TOOL_NAMES = frozenset({"fetch_evidence", "get_gold_quote"})
+SUBAGENT_FORBIDDEN_TOOLS = (
+    KERNEL_TOOL_NAMES
+    | SPAWN_TOOL_NAMES
+    | MT5_EXECUTION_TOOLS
+    | frozenset(
+        {
+            "manage_trading_plan",
+            "run_trading_team",
+            "get_gate_report",
+            "mt5_get_account",
+        }
+    )
+)
+
+# Structural split: analysis tools are never the HITL execution surface.
+assert KERNEL_TOOL_NAMES.isdisjoint(MT5_EXECUTION_TOOLS)
+assert EVIDENCE_TOOL_NAMES.isdisjoint(MT5_EXECUTION_TOOLS)
+
+
+@dataclass(frozen=True)
+class ToolCallPermit:
+    tool_name: str
+    args: dict
+    adjustments: tuple[str, ...] = ()
+
+
+def validate_turn_input(
+    message: str,
+    *,
+    session_key: str | None,
+    interval: str = "15m",
+    is_subagent: bool = False,
+    turn_id: str | None = None,
+):
+    """Bind gold-only turn state. Called only when unified loop is not off."""
+    from nanobot.trading.gold import DATA_SYMBOL, require_gold
+    from nanobot.trading.turn_session import TurnSession
+
+    require_gold(DATA_SYMBOL)
+    return TurnSession(
+        turn_id=turn_id,
+        session_key=session_key,
+        interval=interval,
+        is_subagent=is_subagent,
+    )
+
+
+def validate_tool_call(
+    tool_name: str,
+    args: dict,
+    *,
+    is_subagent: bool | None = None,
+) -> ToolCallPermit:
+    """Hard Law interceptor for unified-loop tool calls."""
+    from nanobot.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
+    from nanobot.trading.evidence.nodes import NODE_REGISTRY
+    from nanobot.trading.gold import DATA_SYMBOL, require_gold
+    from nanobot.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    subagent = is_subagent if is_subagent is not None else bool(turn and turn.is_subagent)
+    adjustments: list[str] = []
+    params = dict(args or {})
+
+    if subagent and tool_name in SUBAGENT_FORBIDDEN_TOOLS:
+        raise PolicyViolation(
+            f"Subagents cannot call {tool_name}",
+            plan=None,
+        )
+
+    if tool_name in EVIDENCE_TOOL_NAMES or tool_name == "fetch_evidence":
+        symbol = params.get("symbol") or DATA_SYMBOL
+        try:
+            require_gold(symbol)
+        except Exception as exc:
+            from nanobot.trading.gold import GoldOnlyError
+
+            if isinstance(exc, GoldOnlyError):
+                raise PolicyViolation(str(exc), plan=None) from exc
+            raise
+        params["symbol"] = DATA_SYMBOL
+        nodes = params.get("nodes")
+        if nodes:
+            unknown = sorted(set(nodes) - set(NODE_REGISTRY))
+            if unknown:
+                raise PolicyViolation(
+                    f"Unknown evidence nodes: {', '.join(unknown)}",
+                    plan=None,
+                )
+
+    if tool_name in KERNEL_TOOL_NAMES:
+        gather = params.get("gather_missing")
+        if gather is None:
+            gather = True
+        if turn is not None and not gather:
+            missing = sorted(SYNTHESIS_REQUIRED_NODES - turn.present_nodes())
+            if missing:
+                raise PolicyViolation(
+                    "Missing synthesis evidence nodes: " + ", ".join(missing),
+                    plan=None,
+                )
+
+    if turn is not None:
+        turn.record_tool(tool_name)
+        turn.adjustments.extend(adjustments)
+
+    return ToolCallPermit(tool_name=tool_name, args=params, adjustments=tuple(adjustments))
+
+
+def validate_turn_output(
+    assistant_text: str,
+    *,
+    mutate: bool = True,
+) -> str:
+    """Strip unauthorized BUY/SELL and unverified prices. Always returns a reply."""
+    from nanobot.trading.output_policy import apply_output_policy
+
+    return apply_output_policy(assistant_text, mutate=mutate)

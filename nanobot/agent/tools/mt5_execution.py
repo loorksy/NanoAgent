@@ -27,6 +27,7 @@ def _json(payload: dict[str, Any]) -> str:
 
 
 class Mt5GetAccountTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_get_account"
@@ -52,6 +53,7 @@ class Mt5GetAccountTool(Tool):
 
 
 class Mt5ProposeOrderTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_propose_order"
@@ -106,6 +108,7 @@ class Mt5ProposeOrderTool(Tool):
 
 
 class Mt5ConfirmOrderTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_confirm_order"
@@ -133,6 +136,7 @@ class Mt5ConfirmOrderTool(Tool):
 
 
 class Mt5ModifyOrderTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_modify_order"
@@ -171,6 +175,7 @@ class Mt5ModifyOrderTool(Tool):
 
 
 class Mt5ClosePositionTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_close_position"
@@ -209,6 +214,7 @@ class Mt5ClosePositionTool(Tool):
 
 
 class Mt5CancelOrderTool(Tool):
+    _scopes = {"core"}
     @property
     def name(self) -> str:
         return "mt5_cancel_order"

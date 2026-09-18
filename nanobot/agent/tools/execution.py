@@ -145,6 +145,13 @@ async def _execute_tool_call(
 
     await hook.before_execute_tool(context, tool_call, tool, params)
     try:
+        from nanobot.trading.config import peek_unified_loop_env, unified_loop_serving
+
+        if peek_unified_loop_env() is not None and unified_loop_serving():
+            from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
+
+            permit = validate_tool_call(tool_call.name, dict(params or {}))
+            params = permit.args
         if tool is not None:
             result = await tool.execute(**params)
         else:
@@ -152,6 +159,17 @@ async def _execute_tool_call(
     except asyncio.CancelledError:
         raise
     except Exception as exc:
+        from nanobot.trading.policy_guard import PolicyViolation
+
+        if isinstance(exc, PolicyViolation):
+            from nanobot.agent.tools.base import ToolResult
+
+            event = {
+                "name": tool_call.name,
+                "status": "error",
+                "detail": exc.reason[:120],
+            }
+            return ToolResult.error(exc.reason), event
         await hook.on_execute_tool_error(context, tool_call, tool, params, exc)
         event = {
             "name": tool_call.name,
