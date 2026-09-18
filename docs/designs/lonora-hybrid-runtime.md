@@ -10,7 +10,7 @@
 ## Problem Statement
 
 Nanobot gold mode today is a **structured recommendation system**: a fixed pipeline
-(`market_data → specialists → synthesizer → G1–G7 → store`) with optional YAML swarm
+(`market_data → specialists → synthesizer → G1–G20 → store`) with optional YAML swarm
 teams. It is honest and governable, but **inflexible** compared to Cursor / Claude Code
 orchestrators that dynamically choose depth, tools, and deliverables per turn.
 
@@ -44,7 +44,7 @@ Evidence Graph       — structured node outputs (Phase H)
     ↓
 Synthesizer          — sole BUY/SELL authority (unchanged)
     ↓
-Gates G1–G7          — block / confidence delta, never flip side (unchanged)
+Gates G1–G20         — block / confidence delta, never flip side (unchanged)
     ↓
 Recommendation Store — one live rec per conversation (unchanged)
     ↓
@@ -60,12 +60,12 @@ Artifacts + Response — agent-chosen deliverables (Phase G done)
 | **Symbol** | XAUUSD only |
 | **Execution** | Recommendations only — no broker orders |
 | **Decision authority** | `run_final_decision_synthesizer` alone issues BUY/SELL |
-| **Gates** | G1–G7 may veto or adjust confidence; they **never flip** direction |
+| **Gates** | G1–G20 may veto or adjust confidence; they **never flip** direction |
 | **Live recommendation** | One per conversation unless operator explicitly requests new analysis |
 | **Price integrity** | No fabricated prices — frozen evidence JSON only |
 | **Spawn depth** | `max_depth = 1` — subagents cannot call `spawn` |
 | **Spawn budget** | `agents.defaults.max_concurrent_subagents` (default 4) |
-| **User-facing opacity** | Hide internal ids (G1–G7, OANDA, node wire names) |
+| **User-facing opacity** | Hide internal ids (G1–G20, OANDA, node wire names) |
 
 ---
 

@@ -39,7 +39,7 @@ flowchart TB
   ROUTE -->|on-demand| SWARM[Vibe-Trading-style Swarm]
   ROUTE -->|background| BOTS[Autonomous Bot Team]
 
-  CORE --> GATES[G1-G7 + Recommendation]
+  CORE --> GATES[G1-G20 + Recommendation]
   CREW --> GATES
   SWARM --> GATES
   BOTS --> ALERTS[Alerts + optional analysis trigger]
@@ -76,7 +76,7 @@ RiskManagerAgent → validate + send_recommendation
 | `run_agent_turn()` per role | `spawn(wait=True)` with role-specific system prompts |
 | SSE `agent_debate_message` | WebUI `TradingTeamPanel.tsx` + Telegram Arabic stage |
 
-**Integration with core pipeline:** Debate crew **replaces** the single `runFinalDecisionSynthesizer` call when `team_mode=debate`. Bull/Bear briefs feed into RiskManager, whose output becomes the plan that enters **G1–G7** (gates stay mandatory).
+**Integration with core pipeline:** Debate crew **replaces** the single `runFinalDecisionSynthesizer` call when `team_mode=debate`. Bull/Bear briefs feed into RiskManager, whose output becomes the plan that enters **G1–G20** (gates stay mandatory).
 
 ### Layer 3 — Swarm Teams (Vibe-Trading pattern)
 
@@ -137,12 +137,12 @@ Bots run on **cron/heartbeat**, scan XAUUSD, emit alerts via `message` tool to T
 |----------|-------------|
 | "What's gold price?" | Core fleet step 7 only (market data) |
 | "Analyze gold now" | Core fleet full pipeline |
-| "Give me a recommendation with debate" | Debate crew → G1–G7 |
-| "Run the gold committee" | Swarm preset → G1–G7 |
+| "Give me a recommendation with debate" | Debate crew → G1–G20 |
+| "Run the gold committee" | Swarm preset → G1–G20 |
 | Background monitoring | Bot team → alert → optional full pipeline |
 | User spawns custom agent | `spawn` tool (existing nanobot, any task) |
 
-**G1–G7 gates always run** regardless of which team layer produced the plan. No team can bypass gates.
+**G1–G20 gates always run** regardless of which team layer produced the plan. No team can bypass gates.
 
 ### UI surfaces
 
@@ -279,7 +279,7 @@ Web UI shows English labels; Telegram shows Arabic for these stages only.
 | **19** | **`collectVisualEvidence`** (chart PNGs) | `visualEvidence.ts` | React capture service OR defer with `visionDecisionV1=off` |
 | **20** | **`runFinalDecisionSynthesizer`** | `agents/finalDecisionSynthesizer.ts` | `trading/agents/synthesizer.py` |
 | **21** | `prepareDecision` (closed market forcing) | orchestrator | `trading/closed_market.py` |
-| **22** | **`evaluatePlanGates` G1→G7** | `gates/buildGates.ts` + `chain.ts` | `trading/gates/` |
+| **22** | **`evaluatePlanGates` G1→G20** | `gates/buildGates.ts` + `chain.ts` | `trading/gates/` |
 | **23** | G7 reprice loop | `gates/repriceLoop.ts` | `trading/gates/reprice_loop.py` |
 | **24** | If gates veto → `wait` + refusal, **no storage** | orchestrator | same |
 | **25** | `buildDrawingPlan` | `drawings/buildDrawingPlan.ts` | `trading/drawings/plan.py` |
@@ -290,7 +290,7 @@ Web UI shows English labels; Telegram shows Arabic for these stages only.
 | **30** | Return `AgentFinalResult` | orchestrator | `trading/types.py` |
 | **31** | **`deriveCards`** (UI layer) | `cards/deriveCards.ts` | Python derive + React `AgentCards.tsx` |
 
-### Gate chain G1–G7 (from `buildGates.ts`)
+### Gate chain G1–G20 (from `buildGates.ts`)
 
 Executed **after** synthesizer produces buy/sell plan. Short-circuit on first veto.
 
@@ -339,7 +339,7 @@ flowchart TD
   GEO --> RISK[runRiskAgent]
   RISK --> EVID[evidence bundle]
   EVID --> SYNTH[runFinalDecisionSynthesizer]
-  SYNTH --> GATES[G1-G7 runGateChain]
+  SYNTH --> GATES[G1-G20 runGateChain]
   GATES -->|veto| WAIT[wait + refusal]
   GATES -->|G7 stale| REPRICE[repriceStaleScenario]
   REPRICE --> GATES
@@ -429,7 +429,7 @@ flowchart TD
 | `trading/agents/news_macro.py` | `NewsMacroResult` |
 | `trading/agents/risk.py` | `TradeCandidate[]` |
 | `trading/agents/synthesizer.py` | `FinalDecisionResult` |
-| `trading/gates/` G1–G7 | `buildGates` + `runGateChain` port |
+| `trading/gates/` G1–G20 | `buildGates` + `runGateChain` port |
 | `trading/gates/reprice_loop.py` | G7 stale retry |
 | `stage_checkpoint.py` | resume fleet on unchanged candle hash |
 | `trading/orchestrator.py` | wires steps 7–24 |
@@ -491,7 +491,7 @@ nanobot/trading/
     synthesizer.py
     drawing.py
   gates/
-    build_gates.py           # G1-G7
+    build_gates.py           # G1-G20
     chain.py
     revalidation.py          # G7
     reprice_loop.py
