@@ -1,113 +1,121 @@
-# 05 — تطبيق الجوال (Android APK) بنمط ChatGPT
+# 05 — تطبيق الجوال (React Native — iOS و Android) بنمط ChatGPT
 
 > جزء من خطة NanoAgent v2 — انظر [`00-master-plan.md`](./00-master-plan.md)
+> قرار المالك (الرسالة 2): `Agent Gateway → REST · SSE · WebSocket · Push → React Native App`؛ الويب و iOS و Android يتحدثون إلى **نفس الوكيل** عبر نفس البوابة ([07](./07-agent-gateway.md)).
 
 ---
 
 ## 1. المطلوب
 
-- تطبيق Android (APK قابل للتحميل من المنصة، ولاحقاً Play) يشبه تطبيق ChatGPT: محادثة، تدفق نصي، صور/شارت، صوت.
+- تطبيق React Native لـ **Android (APK/AAB) و iOS** يشبه تطبيق ChatGPT: محادثة، تدفق نصي، صور/شارت، صوت.
 - **اتجاهان:** المستخدم يراسل الوكيل، **والوكيل يراسل المستخدم** (توصية، تنبيه أخبار، ضرب وقف، انقطاع تدفق، اقتراح تنفيذ ينتظر التأكيد) حتى والتطبيق مغلق → إشعارات Push.
-- أزرار تأكيد/إلغاء (HITL) من داخل الإشعار ومن الكارت.
+- أزرار تأكيد/إلغاء (HITL) من داخل الإشعار ومن الكارت، وفق صلاحيات MT5 ([08](./08-mt5-permissions.md)).
 - Kill Switch متاح دائماً.
+- حالة الوكيل (Working / Waiting / Completed)، Timeline، المهام الطويلة والمجدولة، النتائج المنظّمة — كلها من البوابة بلا منطق خاص بالجوال.
 
 ## 2. ما هو موجود اليوم ويمكن الاعتماد عليه
 
 | المكوّن | الحالة | المسار |
 |---|---|---|
-| قناة WebSocket عامة بإصدار توكن لأي عميل | موجودة (`token_issue_path` / `token_issue_secret`) | `nanobot/channels/websocket/runtime.py` 180–247 |
-| عميل بروتوكول TS كامل (attach, message, delta, stream_end, trading_stream, goal_state, webui_response …) | موجود | `webui/src/lib/nanobot-client.ts`, `webui/src/lib/types.ts`, `packages/client-events/notifications.ts` |
-| REST بتوكن Bearer لكل `/api/*` | موجود | `nanobot/webui/gateway_tokens.py`, `ws_http.py` |
+| قناة WebSocket عامة بإصدار توكن لأي عميل | موجودة، تُستبدل بـ `/ws/v2` و SSE من البوابة | `nanobot/channels/websocket/runtime.py` 180–247 |
+| عميل بروتوكول TS كامل | موجود؛ يُستبدل بـ `packages/nanoagent-sdk/` المولَّد من عقد البوابة | `webui/src/lib/nanobot-client.ts`, `packages/client-events/` |
+| REST بتوكن Bearer | موجود (`gateway_tokens.py`)؛ يُعاد استخدامه في `gateway/auth.py` | `nanobot/webui/gateway_tokens.py` |
 | نسخ صوتي (`transcribe_audio`) | موجود | `nanobot/webui/transcription_ws.py` |
-| PWA أساسية | `manifest.json` + `sw.js` بدون push | `webui/public/` |
-| غلاف Android WebView + فحص تحديث + APK ذاتي الاستضافة | موجود في AiChart | `/tmp/aichart/admin_android/` (`MainActivity.kt`, `UpdateChecker.kt`, `infra/build-admin-android.sh`) |
-| Push (FCM/APNs/Web Push) | **غير موجود** في NanoAgent ولا في AiChart/foxagent | — |
+| غلاف Android WebView + فحص تحديث + APK ذاتي الاستضافة | موجود في AiChart؛ يُنقل منه `UpdateChecker` + سكربت البناء (R18) | `/tmp/aichart/admin_android/` |
+| Push (FCM/APNs) | **غير موجود** في أي مشروع → `nanobot/gateway/push/` (07 §7) | — |
 
-## 3. المعمارية المقترحة
+## 3. المعمارية
 
 ```
-┌──────────────────────┐   WSS (nanobot protocol)   ┌────────────────────────────┐
-│  Android app         │ ◄────────────────────────► │ nanobot gateway            │
-│  (Expo / React Native│   REST Bearer /api/*        │  channels/websocket        │
-│   + shared TS client)│ ◄────────────────────────► │  channels/mobile  (جديد)   │
-│                      │                             │   ├ device registry        │
-│  FCM SDK             │ ◄── push (FCM HTTP v1) ───  │   ├ push sender (FCM v1)   │
-└──────────────────────┘                             │   └ action endpoints       │
-                                                     └────────────────────────────┘
+┌─────────────────────────────┐                    ┌──────────────────────────────┐
+│ React Native app (Expo)     │  REST /api/v2/*    │ nanobot gateway (07)          │
+│  iOS + Android              │ ◄────────────────► │  nanobot/gateway/            │
+│  packages/nanoagent-sdk     │  SSE /sessions/…   │   ├ sessions / events / state │
+│  (نفس SDK يستعمله Open WebUI│ ◄────────────────  │   ├ approvals (08)            │
+│   Pipe عبر Python نظيره)    │  WS /ws/v2         │   ├ jobs (cron + goals)       │
+│                             │ ◄────────────────► │   ├ push/ (FCM v1 + APNs)     │
+│  expo-notifications         │ ◄── push ────────  │   └ devices / pairing         │
+└─────────────────────────────┘                    └──────────────┬───────────────┘
+                                                                  │  Same Agent
+                                                          ┌───────▼────────┐
+                                                          │ AgentLoop      │
+                                                          │ nanobot/trading│
+                                                          └────────────────┘
 ```
 
-### 3.1 الخلفية: قناة `mobile` جديدة (`nanobot/channels/mobile/`)
+لا قناة `mobile` منفصلة في `nanobot/channels/`: تسجيل الأجهزة، الإقران، Push والإجراءات كلها في البوابة (`gateway/routes/devices.py`, `gateway/push/`, `gateway/approvals.py`) كي لا يتكرر المنطق بين الويب والجوال. أداة `message` و`trading/delivery.broadcast` (T-6.7) تنشر إلى البوابة، والبوابة تقرر WS فوري أم Push.
 
-تُبنى كحزمة قناة قياسية (auto-discovery عبر `pkgutil` كبقية القنوات) — لا تغيير في `agent/loop.py`.
+### 3.1 حزمة SDK مشتركة — `packages/nanoagent-sdk/`
 
-| الملف | الدور |
+- TypeScript، تُولَّد أنواعها من `nanobot/gateway/schemas/*.json` (07 §5) وعقد الأحداث (07 §4) بـ `json-schema-to-typescript`؛ اختبار CI يفشل إذا اختلف المولَّد عن الملتزم.
+- تحوي: `GatewayClient` (REST + SSE مع `Last-Event-ID` + WS اختياري)، `useSession()`, `useAgentState()`, `useTimeline()`, `useJobs()`, `useApprovals()`؛ مخزن أحداث محلي لإعادة الاتصال.
+- تُستهلك من التطبيق ومن أي جزء React/Svelte مستقبلي؛ لا تعتمد على RN (`fetch` + `EventSource` polyfill).
+
+### 3.2 التطبيق — Expo (React Native)
+
+| الجانب | القرار |
 |---|---|
-| `manifest.py` | تعريف القناة `mobile`، الإعدادات: `fcm_service_account_path`, `pairing_ttl_seconds`, `max_devices` |
-| `runtime.py` | يستقبل `OutboundMessage` الموجهة للقناة `mobile` → إن كان الجهاز متصلاً بالـ WS يُسلَّم فوراً؛ وإلا Push |
-| `devices.py` | SQLite `mobile_devices` (device_id, fcm_token, platform, label, paired_at, last_seen, revoked) — `TypedDict` عند الحد |
-| `pairing.py` | إقران بـ QR: الويب يولّد `pairing_code` (TTL 5 دقائق) → التطبيق يمسحه → `POST /api/mobile/pair` يعيد `device_token` طويل الأجل + عنوان WS + `token_issue_path` |
-| `push.py` | إرسال FCM HTTP v1 (حساب خدمة) — عبر `security/network.py` guards؛ payload: `{kind, title, body, session_key, artifact_id?, proposal_id?, actions[]}` |
-| `actions.py` | `POST /api/mobile/actions/{proposal_id}/confirm|cancel` و`/api/mobile/kill-switch` — تُعيد استخدام `mt5_confirm_order` / `runtime_state` بنفس فحوص HITL |
+| التوجيه | `expo-router` بخمس تبويبات تطابق الويب: Agent, Tasks, Recommendations, Connect, Log |
+| الحالة | `zustand` فوق SDK؛ لا منطق تداول في العميل |
+| Push | `expo-notifications`: FCM (Android) + APNs (iOS)؛ فئات إشعار بأزرار (`confirm`, `cancel`, `open`) |
+| الأمان | `expo-secure-store` لتوكن الجهاز؛ `expo-local-authentication` قبل أي `approve` أو ترقية صلاحية |
+| الصوت | `expo-av` تسجيل → `POST /sessions/{id}/messages` بملف صوتي → `transcribe_audio` في الخادم |
+| الشارت | صورة `artifact` من الخادم (TradingView فقط، `.agent/design.md`)؛ لا مكتبة شارت محلية |
+| النتائج المنظّمة | مكوّن لكل `type` (market, analysis, scenarios, risk, decision, approval, plan_status, scorecard) يقرأ `payload` مباشرة؛ التسميات من `GET /labels?locale=` |
+| الخلفية | `expo-background-fetch` لتحديث حالة الجلسات المعلّقة عند الاستيقاظ (`GET /sessions/{id}/state`) |
+| التوزيع | EAS Build: APK/AAB موقّع + IPA؛ Android يُستضاف على `/mobile/nanoagent.apk` + `version.json` (R18) ثم Play internal؛ iOS عبر TestFlight |
+| العرض | RTL كامل للعربية (`I18nManager`)، نفس كتالوج التسميات |
 
-كيف يراسل الوكيل المستخدم: أداة `message` الحالية تدعم `channel=` ؛ `trading/delivery.py::broadcast` (T-6.7) تُرسل إلى كل القنوات المفعّلة بما فيها `mobile`. الإشعارات الاستباقية تمرّ عبر بوابة الصمت (T-9.3) قبل الإرسال.
+### 3.3 الشاشات (MVP)
 
-### 3.2 التطبيق: Expo (React Native) — **الموصى به**
-
-| السبب | التفصيل |
-|---|---|
-| مشاركة الكود | `packages/client-events` و`nanobot-client.ts` TypeScript؛ يُنقلان إلى `packages/nanobot-protocol/` ويُستهلكان من الويب والجوال معاً — بروتوكول واحد، أنواع واحدة |
-| نفس فريق React | مكونات الكارت/الـ artifacts تُعاد كتابتها بـ RN مع نفس البنية |
-| Push | `expo-notifications` + FCM (Android) وAPNs لاحقاً (iOS بدون كود إضافي في الخادم سوى مزوّد) |
-| توزيع | EAS Build يُنتج APK/AAB موقّعاً؛ الملف يُستضاف على `/mobile/nanoagent.apk` + `version.json` (نفس نمط `UpdateChecker.kt` في AiChart) |
-
-**البديل السريع (مرحلة 0):** غلاف WebView مثل `admin_android` يحمّل `https://nanoagent.lork.cloud/#/agent` + FCM للإشعارات فقط. يُنجز خلال جلسة عمل واحدة تقريباً ويُستبدل بالتطبيق الأصلي لاحقاً؛ عيبه: لا عمل بدون شبكة، وتجربة التمرير/لوحة المفاتيح أضعف.
-
-### 3.3 شاشات التطبيق (MVP)
-
-| الشاشة | المحتوى |
-|---|---|
-| Pairing | مسح QR من Settings → Channels → Mobile؛ أو إدخال رابط + رمز |
-| Agent (رئيسية) | قائمة محادثات (drawer)، محادثة بتدفق، كارت التوصية، صورة الشارت، زر صوت (يرسل `transcribe_audio`)، شريط حالة السعر/التدفق |
-| Recommendations | الخطة الحية + الأرشيف (نفس API الويب) |
-| Tasks | قراءة + إيقاف/تشغيل |
-| Connect (مختصر) | Kill Switch، وضع التشغيل، ملف المخاطرة (المنزلقات السبعة) |
-| Notifications inbox | آخر الإشعارات مع أزرار الإجراء |
+| الشاشة | المحتوى | مصدر البيانات |
+|---|---|---|
+| Pairing | مسح QR من Settings → Channels → Devices؛ أو رابط + رمز | `POST /devices/pair` |
+| Agent | قائمة جلسات (drawer)، محادثة بتدفق، شارة الحالة Working/Waiting/Completed، Timeline قابل للطي (أدوات، subagents)، كروت النتائج، زر إيقاف أثناء التنفيذ، زر صوت | SSE `/sessions/{id}/events`, `POST /cancel` |
+| Tasks | المهام الطويلة والمجدولة: تقدّم، `next_run_at`، إيقاف/متابعة/إلغاء؛ صندوق الموافقات المعلّقة | `GET /jobs`, `GET /approvals?status=pending` |
+| Recommendations | الخطة الحية + الأرشيف (كرت `plan_status`) | `GET /recommendations/*` |
+| Connect | Kill Switch، إيقاف مؤقت، ملف المخاطرة (المنزلقات السبعة)، بطاقة صلاحيات MT5 المختصرة | `GET /connect`, `PUT /connect/*` |
+| Log | القرارات، التنفيذ، البوابات، تغييرات الصلاحيات | `GET /log` |
+| Notifications inbox | آخر الإشعارات مع أزرار الإجراء | مخزن محلي + `GET /approvals` |
 
 ### 3.4 الإشعارات (أنواع + إجراءات)
 
-| النوع | المصدر | الإجراءات في الإشعار |
+| النوع (`kind`) | المصدر | الإجراءات في الإشعار |
 |---|---|---|
-| `recommendation_ready` | `run_trading_kernel` | فتح، تجاهل |
-| `proposal_pending` | `mt5_propose_order` | **تأكيد**، إلغاء (تنفّذ عبر `actions.py` مع نفس بوابات HITL؛ التأكيد يطلب بصمة/قفل الجهاز) |
-| `plan_transition` | `state_machine` (in_trade/tp1/invalidated) | فتح |
-| `news_shield` | T-4.5 | فتح |
-| `feed_disconnected` | T-6.6 | فتح Connect |
-| `morning_briefing` / `scorecard` | T-6.3 / T-6.4 | فتح Log |
+| `approval` | `mt5_propose_order` عند مستوى `propose` (08) | **تأكيد** (بصمة) · إلغاء → `POST /approvals/{id}` |
+| `decision` | المُركِّب عند مستوى `execute` (نُفِّذ) أو توصية جاهزة | فتح |
+| `plan_status` | `state_machine` (in_trade/tp1/invalidated) | فتح |
+| `notification(level=warn)` | هبوط صلاحية تلقائي (08 §4)، `news_shield` (T-4.5)، `feed_disconnected` (T-6.6) | فتح Connect |
+| `job(finished|failed)` | cron / goal | فتح Tasks |
+| `scorecard` / إحاطة صباحية | T-6.4 / T-6.3 | فتح Log |
 | `agent_message` | الوكيل عبر `message` | رد سريع (يفتح المحادثة) |
+
+الحمولة لا تحوي أسعاراً ولا مستويات (07 §7)؛ التطبيق يجلب التفاصيل بعد الفتح.
 
 ## 4. الأمان
 
-- توكن الجهاز طويل الأجل يُخزَّن في Android Keystore (`expo-secure-store`)؛ قابل للإلغاء من Settings → Channels → Mobile.
-- التأكيد على الاقتراحات من الإشعار يتطلب مصادقة بيومترية محلية + التوكن؛ الخادم يفرض `proposal_ttl_seconds` والبوابات كالمعتاد.
-- Kill Switch من الجوال = نفس المسار `runtime_state.kill_switch` (لا مسار مختصر).
-- FCM payload لا يحوي أسعاراً أو مستويات حساسة إلا العنوان؛ التفاصيل تُجلب بعد الفتح عبر REST بالتوكن.
-- إرسال FCM يمرّ عبر `validate_url_target` (SSRF policy) ومهلة زمنية.
+- توكن الجهاز (نطاقات `chat, read, approve, control, push` — 07 §8) في Keystore/Keychain؛ قابل للإلغاء من Settings → Channels → Devices.
+- التأكيد على الاقتراحات ورفع مستوى صلاحيات MT5 يتطلبان بيومترياً محلياً؛ الخادم يفرض TTL والبوابات و08 كالمعتاد.
+- Kill Switch من الجوال = `POST /connect/kill-switch` (نفس المسار، لا اختصار).
+- FCM/APNs عبر `security/network.py` guards ومفاتيح في `secret_store`.
 
 ## 5. الترتيب والاعتماديات
 
-| الخطوة | يعتمد على |
-|---|---|
-| M0 غلاف WebView + FCM إشعارات فقط (اختياري للتسليم السريع) | قناة `mobile` (devices + push) |
-| M1 `packages/nanobot-protocol` مشترك | تنظيف `nanobot-client.ts` |
-| M2 قناة `mobile` كاملة (pairing, push, actions) + اختبارات | T-6.7 broadcast |
-| M3 تطبيق Expo: Pairing + Agent + إشعارات | M1, M2 |
-| M4 Recommendations + Tasks + Connect + Kill Switch | 04 (APIs المبسطة) |
-| M5 توزيع APK ذاتي (`/mobile/version.json`) ثم Play internal track | — |
+| الخطوة | المحتوى | يعتمد على |
+|---|---|---|
+| M1 | `packages/nanoagent-sdk/` مولَّد من مخططات البوابة + اختبارات | 07/G1–G3 |
+| M2 | تسجيل الأجهزة + إقران QR + Push في البوابة | 07/G6 |
+| M3 | تطبيق Expo: Pairing + Agent (تدفق، حالة، Timeline، إيقاف) + إشعارات | M1, M2 |
+| M4 | Tasks + Approvals (بصمة) + Recommendations | 07/G4–G5, 08 |
+| M5 | Connect (منزلقات، Kill Switch، صلاحيات MT5) + Log | 04 §5, 08 §6 |
+| M6 | توزيع: APK ذاتي (`/mobile/version.json`) + TestFlight ثم المتاجر | — |
 
 ## 6. معايير القبول
 
-- إقران جهاز بالـ QR خلال أقل من دقيقة؛ الجهاز يظهر في Settings → Channels → Mobile.
-- رسالة من الويب تظهر على الجوال (نفس الجلسة) وبالعكس خلال ثانية.
-- والتطبيق مغلق: إصدار توصية → إشعار FCM خلال ≤ 5 ثوانٍ؛ اقتراح تنفيذ → إشعار بأزرار؛ التأكيد من الإشعار ينفّذ عبر HITL ويظهر في Log.
+- إقران جهاز بالـ QR خلال أقل من دقيقة؛ الجهاز يظهر في Settings → Channels → Devices.
+- رسالة من الويب (Open WebUI) تظهر على الجوال في نفس الجلسة وبالعكس خلال ثانية؛ الحالة والـ Timeline متطابقان على المنصتين.
+- قطع الشبكة 30 ثانية أثناء دور طويل ثم العودة: لا أحداث مفقودة (`Last-Event-ID`).
+- زر الإيقاف يلغي أداة قيد التنفيذ ويظهر `completed/cancelled` على الويب والجوال.
+- والتطبيق مغلق: توصية → Push خلال ≤ 5 ثوانٍ (Android و iOS)؛ اقتراح → إشعار بأزرار؛ التأكيد بالبصمة ينفّذ عبر HITL ويظهر في Log.
 - Kill Switch من الجوال يوقف كل شيء ويُسجَّل.
-- اختبارات: `tests/channels/mobile/` (pairing, push payload, action HITL, revoke) + اختبارات RN للـ stores.
+- اختبارات: `tests/gateway/test_devices.py`, `test_push.py`, `test_approvals.py`؛ `packages/nanoagent-sdk` اختبارات وحدات؛ اختبارات RN للـ stores والمكوّنات المنظّمة (snapshot لكل `type`).
