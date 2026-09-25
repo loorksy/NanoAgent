@@ -11,7 +11,7 @@
 
 ## 2. مبدأ الترحيل
 
-- **نرحّل السلوك لا الكود.** Python (foxagent) يُنقل بإعادة كتابة مطابقة لمعايير المستودع (`TypedDict` عند الحد، لا `Any`، اختبار لكل وحدة). TypeScript (AiChart) في الخلفية يُترجَم إلى Python؛ في الواجهة تُنقل **المكونات كأنماط** إلى `webui/src/app/` (04).
+- **نرحّل السلوك لا الكود.** Python (foxagent) يُنقل بإعادة كتابة مطابقة لمعايير المستودع (`TypedDict` عند الحد، لا `Any`، اختبار لكل وحدة). TypeScript (AiChart) في الخلفية يُترجَم إلى Python؛ في الواجهة تُنقل **المكونات كأنماط** إلى الـ fork من Open WebUI (`loorksy/nanoagent-webui`، مسارات Svelte مضافة) أو إلى قوالب النتائج المنظّمة في `nanobot/gateway/render/` (04, 07).
 - كل ميزة مرحّلة تُربط بقدرة في 03 أو بقسم في 04/05؛ ما لا يربط بهما يُرفض (billing، ads، support inbox، multi-tenant admin).
 - لا يُلمس `/opt/foxagent` في الإنتاج؛ المصدر هو git فقط.
 
@@ -24,7 +24,7 @@
 | R3 | **مستودع شموع الذهب + مزامنة وصحة البيانات** | `foxagent/.../gold_warehouse.py`, `gold_sync.py` | `nanobot/trading/warehouse.py` (SQLite OHLC M1→D1، فجوات، آخر مزامنة) — يغذّي R1 وT-1.2 | T-1.2, T-5.2 | M |
 | R4 | **Approval Inbox** (إشارات مُرحَّلة/ترقية إشارة بوت إلى تحليل كامل/ack) | `foxagent/.../inbox.py` + `frontend/.../inbox` | يُدمج في قسم **Tasks** (الاقتراحات المنتظرة) وقسم **التوصيات** (04) | T-6.2 | M |
 | R5 | **قاطع دائرة لكل استراتيجية + Safe Mode** | `foxagent/.../trading_bot/circuit.py` | `nanobot/trading/bots/circuit.py` + عرض في Tasks | 3.4/3.2 توسعة | S |
-| R6 | **ChatReasoning** خط زمني حي للوكلاء أثناء النقاش | `foxagent/frontend/.../ChatReasoning.tsx` | `webui/src/app/features/agent/LiveTeamTimeline.tsx` (يستهلك أحداث `trading_stream: trace`) | «وكلاء يتناقشون» مرئي | M |
+| R6 | **ChatReasoning** خط زمني حي للوكلاء أثناء النقاش | `foxagent/frontend/.../ChatReasoning.tsx` | Timeline في الـ Pipe (`<details>` من أحداث `tool`/`subagent` — 07 §4) + مكوّن RN `Timeline` (05) | «وكلاء يتناقشون» مرئي | M |
 | R7 | **Closed-market scenario** كامل (خطة عطلة نهاية الأسبوع للافتتاح) | AiChart orchestrator `resolveClosedMarketScenario` | `nanobot/trading/closed_market.py` (موجود كبطاقة فقط) + نتيجة `scenario_notice` | 9.3 / 6.3 | S |
 | R8 | **Case memory / similar-cases indexer** (بصمة + تشابه + نتيجة) | `aichart/src/lib/marketMemory/` | توسيع `intel/vector_playbook.py` + `intel/dtw_matcher.py` بفهرس حالات SQLite ونتائجها | 5.1 تعميق | M |
 | R9 | **مزوّد COT مخصص** (CFTC Socrata) | `aichart/src/lib/agent/macro/cotProvider.ts` | `nanobot/trading/intel/cot.py` (عبر `security/network.py`) | 2.x | S |
@@ -37,7 +37,7 @@
 | R16 | **Tradability calibration cron** + **event monitor** للخطط المفتوحة | `aichart/api/cron/tradability-calibration`, `economicEventMonitor.ts` | مهام نظام اختيارية في `trading/cron.py` | 4.5 / 6.x | S |
 | R17 | **Opportunity scan** | `aichart/src/lib/opportunityScan.ts` | يُدمج في `bots/coordinator.py` كمسح متعدد الإعدادات | 8.1 | S |
 | R18 | **UpdateChecker + APK ذاتي الاستضافة** | `aichart/admin_android/UpdateChecker.kt`, `public/admin-android/version.json` | `nanobot/webui/mobile_dist.py` يخدم `/mobile/version.json` + `/mobile/nanoagent.apk` | 05/M5 | XS |
-| R19 | **نمط ApiClient (Bearer + cookie) و RTL theme** | `aichart/admin_flutter/lib/api/client.dart`, `theme.dart` | مرجع فقط لتطبيق Expo (05) — لا ترحيل كود | 05 | — |
+| R19 | **نمط ApiClient (Bearer + cookie) و RTL theme** | `aichart/admin_flutter/lib/api/client.dart`, `theme.dart` | مرجع فقط لتطبيق React Native (05) — لا ترحيل كود | 05 | — |
 | R20 | **Token usage meter** | `foxagent/.../token_usage.py`, `ChatUsageMeter.tsx` | Settings → Overview (04) فوق `llm_usage/` الموجود | — | XS |
 
 ### مرفوض صراحة (خارج هدف المنتج)
@@ -54,19 +54,22 @@
 
 ## 4. ما يُرحَّل إلى الواجهة الجديدة (أنماط، لا نسخ)
 
-| من | العنصر | إلى (04) |
+الأساس الآن fork من Open WebUI (04)؛ ما يُنقل هو **السلوك** إلى: قوالب النتائج المنظّمة (`nanobot/gateway/render/templates/`، تُعرض عبر `embeds`)، مسارات Svelte المضافة (`/tasks /recommendations /connect /log`)، ومكوّنات تطبيق React Native (05).
+
+| من | العنصر | إلى |
 |---|---|---|
-| Open WebUI | تخطيط الشات، سِكّة المحادثات، إعدادات modal بتبويبات، مُنتقي الموديل | `shell/*`, `features/settings/SettingsModal` |
-| AiChart | `SmartChartWorkspace` (شات + sidecar)، كارت التوصية، stage checklist، `TvChart` | `features/agent/*`, `shell/SidecarChart` |
-| foxagent | `ChatReasoning`، `DeskLayout` RTL-first، `BotDesk/CircuitBadge/LiveSignals`، `inbox` | `features/agent/LiveTeamTimeline`, `features/tasks/*` |
-| NanoAgent الحالية | `ArtifactRenderer`, `AgentTraceDrawer`, `TradingTeamPanel`, `tvDrawingAdapter` | تُنقل بعد تنقية النصوص |
+| Open WebUI | تخطيط الشات، سِكّة المحادثات، إعدادات modal بتبويبات، مُنتقي الموديل | يبقى كما هو في الـ fork (لا ترحيل) |
+| AiChart | كارت التوصية، stage checklist، `SmartChartWorkspace` (شات + sidecar) | قوالب `decision`/`plan_status` + Artifacts panel للشارت؛ sidecar لا يُنقل (Artifacts يقوم بدوره) |
+| foxagent | `ChatReasoning`، `BotDesk/CircuitBadge/LiveSignals`، `inbox` | Timeline في الـ Pipe (`tool`/`subagent`)، مسار `/tasks` (jobs + approvals)، قالب `risk` (blockers) |
+| foxagent | `DeskLayout` RTL-first | مرجع لصفحات Svelte المضافة بالعربية |
+| NanoAgent الحالية | `ArtifactRenderer`, `AgentTraceDrawer`, `TradingTeamPanel`, `tvDrawingAdapter` | `tvDrawingAdapter` يبقى في `chart-host/`؛ البقية تُستبدل بقوالب `render/` وTimeline بعد تنقية النصوص |
 
 ## 5. ترتيب التنفيذ داخل هذه الوثيقة
 
 1. R2 (أسرار) و R18 (APK hosting) — صغيرة ومستقلة، تفتح المرحلتين 05 و 7.2.
 2. R3 (warehouse) → R1 (backtest) → أداة `fast_backtest`.
-3. R4 + R5 + R15 مع بناء قسم Tasks.
-4. R6 مع قسم Agent.
+3. R4 + R5 + R15 مع بناء مسار `/tasks` في الـ fork و`gateway/jobs.py` (07 §9).
+4. R6 مع Timeline في Pipe Function (07 §4).
 5. R7–R11 (الذاكرة/الماكرو) كدفعة واحدة على `intel/`.
 6. R12, R13, R16, R17, R20 كتحسينات لاحقة.
 7. R14 (Strategy Lab) آخر شيء.

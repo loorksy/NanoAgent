@@ -74,7 +74,7 @@
 | Agent | قائمة جلسات (drawer)، محادثة بتدفق، شارة الحالة Working/Waiting/Completed، Timeline قابل للطي (أدوات، subagents)، كروت النتائج، زر إيقاف أثناء التنفيذ، زر صوت | SSE `/sessions/{id}/events`, `POST /cancel` |
 | Tasks | المهام الطويلة والمجدولة: تقدّم، `next_run_at`، إيقاف/متابعة/إلغاء؛ صندوق الموافقات المعلّقة | `GET /jobs`, `GET /approvals?status=pending` |
 | Recommendations | الخطة الحية + الأرشيف (كرت `plan_status`) | `GET /recommendations/*` |
-| Connect | Kill Switch، إيقاف مؤقت، ملف المخاطرة (المنزلقات السبعة)، بطاقة صلاحيات MT5 المختصرة | `GET /connect`, `PUT /connect/*` |
+| Connect | Kill Switch، إيقاف مؤقت، ملف المخاطرة (المنزلقات السبعة، 04 §4.2)، بطاقة صلاحيات MT5 المختصرة | `GET /connect`, `PUT /connect/*` |
 | Log | القرارات، التنفيذ، البوابات، تغييرات الصلاحيات | `GET /log` |
 | Notifications inbox | آخر الإشعارات مع أزرار الإجراء | مخزن محلي + `GET /approvals` |
 
@@ -96,7 +96,7 @@
 
 - توكن الجهاز (نطاقات `chat, read, approve, control, push` — 07 §8) في Keystore/Keychain؛ قابل للإلغاء من Settings → Channels → Devices.
 - التأكيد على الاقتراحات ورفع مستوى صلاحيات MT5 يتطلبان بيومترياً محلياً؛ الخادم يفرض TTL والبوابات و08 كالمعتاد.
-- Kill Switch من الجوال = `POST /connect/kill-switch` (نفس المسار، لا اختصار).
+- Kill Switch من الجوال = `POST /control/kill` (نفس المسار، لا اختصار).
 - FCM/APNs عبر `security/network.py` guards ومفاتيح في `secret_store`.
 
 ## 5. الترتيب والاعتماديات
@@ -107,7 +107,7 @@
 | M2 | تسجيل الأجهزة + إقران QR + Push في البوابة | 07/G6 |
 | M3 | تطبيق Expo: Pairing + Agent (تدفق، حالة، Timeline، إيقاف) + إشعارات | M1, M2 |
 | M4 | Tasks + Approvals (بصمة) + Recommendations | 07/G4–G5, 08 |
-| M5 | Connect (منزلقات، Kill Switch، صلاحيات MT5) + Log | 04 §5, 08 §6 |
+| M5 | Connect (منزلقات، Kill Switch، صلاحيات MT5) + Log | 04 §4, 08 §6 |
 | M6 | توزيع: APK ذاتي (`/mobile/version.json`) + TestFlight ثم المتاجر | — |
 
 ## 6. معايير القبول

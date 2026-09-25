@@ -154,15 +154,15 @@ nanobot/gateway/
 | `GET /approvals?status=pending` · `POST /approvals/{id}` `{decision: confirm|cancel}` | يُنفَّذ عبر `mt5_confirm_order`/`mt5_cancel_order` بنفس بوابات HITL؛ يفحص 08 |
 | `GET /recommendations/live` · `GET /recommendations?from=&to=` | الخطة الحية والأرشيف |
 | `GET /connect` | حالة OANDA/MetaAPI/TradingView/القنوات + `runtime_state` + ملف المخاطرة + صلاحيات MT5 |
-| `PUT /connect/risk-profile` · `PUT /connect/risk/{field}` | 04 §5 |
-| `POST /connect/kill-switch` · `POST /connect/pause` | `runtime_state` (نفس المسار، لا اختصار) |
+| `PUT /connect/risk-profile` · `PUT /connect/risk/{field}` | 04 §4 |
+| `POST /control/kill` · `POST /control/pause` | `runtime_state` (نفس المسار، لا اختصار) |
 | `GET/PUT /connect/mt5/permissions` | 08 |
 | `GET /log?kinds=&from=` | القرارات، التنفيذ، البوابات، post-mortem، journal (R12) |
 | `GET/PUT /memory` | ذاكرة المستخدم (ملاحظات، تفضيلات) |
 | `GET /labels?locale=` | كتالوج التسميات |
 | `GET /results/{id}` · `GET /results/{id}/html` | §5 |
 | `POST /devices` · `DELETE /devices/{id}` · `POST /devices/pair` | Push + إقران QR (05) |
-| `GET/PUT /settings/{tab}` | التبويبات التسعة (04 §4) |
+| `GET/PUT /settings/{tab}` | التبويبات التسعة (04 §3.3) |
 
 ---
 
@@ -179,7 +179,7 @@ nanobot/gateway/
 
 | نوع التوكن | المُصدِر | العمر | النطاقات |
 |---|---|---|---|
-| `web` | `GET /api/v1/nanoagent/token` من Open WebUI (04 §4.3) | قصير (15 دقيقة، تجديد صامت) | `chat, read, approve, control` |
+| `web` | `GET /api/v1/nanoagent/token` من Open WebUI (04 §3.4) | قصير (15 دقيقة، تجديد صامت) | `chat, read, approve, control` |
 | `device` | `POST /devices/pair` (QR) | طويل، قابل للإلغاء | `chat, read, approve, control, push` |
 | `service` | إعداد يدوي | حسب الحاجة | `read` فقط (لوحات خارجية) |
 
@@ -195,7 +195,7 @@ nanobot/gateway/
 - **Goal**: هدف مستدام (`goal_state.py`) يمتد لأدوار عديدة؛ يظهر كـ `job kind=goal` مع `progress` من `GoalStateChanged`؛ `pause/resume` يعيّنان علماً يفحصه `AgentLoop` قبل كل دور تلقائي.
 - **Cron**: `nanobot/cron/service.py`؛ `job kind=cron` مع `next_run_at`؛ التنفيذ يفتح جلسة نظام ويبث أحداثها إلى Timeline الجلسة الأم.
 - **خدمة إدارة الصفقات** (T-8.1) تظهر كـ `job kind=goal` دائم اسمه `trade_management` بحالة `working` أثناء وجود صفقات مفتوحة و`waiting` خلافه.
-- كل `job` يُعرض في صفحة Tasks (04 §3) وفي تبويب Tasks في الجوال (05).
+- كل `job` يُعرض في صفحة Tasks (04 §3.2) وفي تبويب Tasks في الجوال (05).
 
 ---
 
@@ -209,7 +209,7 @@ nanobot/gateway/
 | G4 | `approvals.py` + REST + دمج 08 | 08 |
 | G5 | `jobs.py` (cron + goals + trade_management) | T-8.1 |
 | G6 | `push/` + `devices` + إقران | G2 |
-| G7 | `routes/recommendations|connect|log|settings` | 04 §3–5 |
+| G7 | `routes/recommendations|connect|log|settings` | 04 §3–4 |
 | G8 | WS `/ws/v2` (بعد استقرار SSE) | G1 |
 
 ---

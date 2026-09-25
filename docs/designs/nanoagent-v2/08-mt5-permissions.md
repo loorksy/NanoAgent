@@ -49,7 +49,7 @@
 | إغلاق جزئي | `can_partial_close: bool` | `true` | TP1 وخفض المخاطر |
 | إغلاق كلي | `can_close_all: bool` | `false` | إغلاق كل صفقات الذهب دون تأكيد |
 | أوامر معلّقة | `can_place_pending: bool` | `false` | يتطلب T-4.1 |
-| أقصى لوت لكل أمر | `max_lot_per_order: float` | يُشتق من ملف المخاطرة (04 §5.2) | يُخفَّض تلقائياً إلى القيمة المسموحة ما لم يكن `hard=true` فيُرفض |
+| أقصى لوت لكل أمر | `max_lot_per_order: float` | يُشتق من ملف المخاطرة (04 §4.1) | يُخفَّض تلقائياً إلى القيمة المسموحة ما لم يكن `hard=true` فيُرفض |
 | أقصى إجمالي لوت | `max_total_lots: float` | من `TradingRiskParameters.max_total_lots` (T-3.5) | يشمل الصفقات المفتوحة |
 | سقف خسارة يومي للتنفيذ التلقائي | `auto_daily_loss_pct: float` | 50% من `daily_drawdown_pct` | بعده يهبط المستوى إلى `propose` لبقية اليوم |
 | نوافذ الجلسة | `sessions: list[london, newyork, asia, overlap]` | `[london, newyork]` | خارجها → `propose` |
@@ -125,7 +125,7 @@ nanobot/trading/permissions/
 
 ## 6. الواجهة
 
-**الربط (`/connect`)** — بطاقة «صلاحيات MT5» تحت بطاقة اتصال MetaAPI (04 §5.4):
+**الربط (`/connect`)** — بطاقة «صلاحيات MT5» تحت بطاقة اتصال MetaAPI (04 §4.5):
 
 - محدد ثلاثي: توصيات فقط · اقتراح + تأكيد · تنفيذ ضمن الحدود.
 - عند «تنفيذ»: 4 مفاتيح (فتح، إغلاق كلي، أوامر معلّقة، توسيع الوقف) + منزلق واحد (أقصى لوت لكل أمر) + اختيار الجلسات + مدة الصلاحية (1 يوم / 7 أيام / 30 يوماً).
@@ -144,7 +144,7 @@ nanobot/trading/permissions/
 
 | الخطوة | المحتوى | يعتمد على |
 |---|---|---|
-| P1 | `permissions/model.py` + `store.py` + اختبارات الاشتقاق من ملف المخاطرة | T-7.2 secret store، 04 §5.2 `risk_profiles.py` |
+| P1 | `permissions/model.py` + `store.py` + اختبارات الاشتقاق من ملف المخاطرة | T-7.2 secret store، 04 §4.7 `risk_profiles.py` |
 | P2 | `evaluate.py` + بوابة `permission` في `gates/execution.py` + اختبارات (propose/execute/deny، هبوط تلقائي، TTL) | P1 |
 | P3 | ربط `mt5_propose_order/modify/close` + بث `approval(auto_confirmed)` | P2، 07/G4 |
 | P4 | REST `GET/PUT /connect/mt5/permissions` + audit في `/log` | 07/G7 |
