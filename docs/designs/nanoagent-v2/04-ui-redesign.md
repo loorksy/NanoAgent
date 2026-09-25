@@ -11,7 +11,7 @@
 Existing Agent (nanobot AgentLoop + tools + gates + memory)
         │
         ▼
-Agent Gateway  (nanobot/gateway/)        ← 07
+Agent Gateway  (nanobot/agent_api/)        ← 07
         ├── REST     /api/v2/*
         ├── SSE      /api/v2/sessions/{id}/events
         ├── WebSocket /ws/v2
@@ -26,7 +26,7 @@ Agent Gateway  (nanobot/gateway/)        ← 07
 ```
 
 **ما يُستبدل:** `webui/` (React SPA) بالكامل، بعد القطع.
-**ما يبقى بلا تغيير:** كل `nanobot/` عدا إضافة `nanobot/gateway/` وتعديلات صغيرة في `nanobot/webui/*` لإعادة استخدام معالجات الإعدادات/التداول من الـ Gateway.
+**ما يبقى بلا تغيير:** كل `nanobot/` عدا إضافة `nanobot/agent_api/` وتعديلات صغيرة في `nanobot/webui/*` لإعادة استخدام معالجات الإعدادات/التداول من الـ Gateway.
 
 ## 2. لماذا هذا الشكل يعمل الآن (وقيوده)
 
@@ -35,7 +35,7 @@ Agent Gateway  (nanobot/gateway/)        ← 07
 | تدفق النص | Pipe يُنتج `yield` من SSE الـ Gateway | — |
 | حالة الوكيل Working / Waiting / Completed | `__event_emitter__({"type":"status", ...})` سجل حالات لكل رسالة | نُظهر أيضاً شريط حالة دائم في الـ fork يستهلك WS |
 | Agent Timeline (أدوات، subagents، مراحل) | `status` متسلسلة + كتلة `<details>` قابلة للطي في الرسالة | Timeline كامل في صفحة `/log` (Svelte + WS) |
-| نتائج منظمة (Market / Analysis / Scenarios / Risk / Decision) | `embeds` (Rich UI HTML مستمر) + لوحة **Artifacts** يمين الشات | HTML يُولَّد في NanoAgent (`nanobot/gateway/render/`) لا في Pipe؛ iframe محكوم بـ `IFRAME_CSP` |
+| نتائج منظمة (Market / Analysis / Scenarios / Risk / Decision) | `embeds` (Rich UI HTML مستمر) + لوحة **Artifacts** يمين الشات | HTML يُولَّد في NanoAgent (`nanobot/agent_api/render/`) لا في Pipe؛ iframe محكوم بـ `IFRAME_CSP` |
 | شارت TradingView | `embeds` iframe إلى `https://<gateway>/chart-host?token=…` (المكتبة مستضافة عندنا كما اليوم) | يبقى `chart-host/` + `TvChart` الحالي كصفحة مستقلة تُضمَّن |
 | موافقات (Approvals / HITL) | `__event_call__({"type":"confirmation"})` يوقف التنفيذ حتى OK/Cancel | التأكيد يمرّ للـ Gateway `POST /approvals/{id}` — نفس بوابات HITL؛ في الجوال عبر إشعار |
 | إشعارات داخل الواجهة | `notification` toast | Push خارج المتصفح عبر قناة `mobile`/Web Push (07) |
@@ -158,11 +158,11 @@ Pipe لا يحوي منطقاً تداولياً ولا نصوصاً؛ التس�
 |---|---|
 | `nanobot/config/schema.py` | `risk_profile`, `max_total_lots` |
 | `nanobot/trading/risk_profiles.py` (جديد) | جداول الملفات + `derive_parameters()` + اختبار خصائص |
-| `nanobot/gateway/routes/risk.py` | `GET/POST /api/v2/risk/profile` يلفّ `trading_risk_api.py`؛ `RISK_FIELD_SPECS.tier: primary|advanced|hidden` |
+| `nanobot/agent_api/routes/risk.py` | `GET/POST /api/v2/risk/profile` يلفّ `trading_risk_api.py`؛ `RISK_FIELD_SPECS.tier: primary|advanced|hidden` |
 
 ## 5. النتائج المنظمة في الواجهة
 
-كل نتيجة `structured` من الـ Gateway لها قالب HTML في `nanobot/gateway/render/templates/` (Jinja2، RTL-aware، بدون JS خارجي) يُرسل كـ `embeds`. أنواع الذهب: `market`, `analysis`, `scenarios`, `risk`, `decision`, `approval`, `plan_status`, `scorecard` — المخطط في [07 §5](./07-agent-gateway.md).
+كل نتيجة `structured` من الـ Gateway لها قالب HTML في `nanobot/agent_api/render/templates/` (Jinja2، RTL-aware، بدون JS خارجي) يُرسل كـ `embeds`. أنواع الذهب: `market`, `analysis`, `scenarios`, `risk`, `decision`, `approval`, `plan_status`, `scorecard` — المخطط في [07 §5](./07-agent-gateway.md).
 
 ## 6. النصوص واللغة
 
@@ -171,7 +171,7 @@ Pipe لا يحوي منطقاً تداولياً ولا نصوصاً؛ التس�
 
 ## 7. الترحيل والقطع
 
-1. بناء `nanobot/gateway/` (07) — يعمل بالتوازي مع `webui/` الحالية.
+1. بناء `nanobot/agent_api/` (07) — يعمل بالتوازي مع `webui/` الحالية.
 2. Fork `open-webui/open-webui` → `loorksy/nanoagent-webui`؛ تثبيت Pipe؛ تشغيل الشات فقط ضد الـ Gateway (Docker بجوار nanobot).
 3. إضافة المسارات الخمسة والإعدادات؛ اختبارات Vitest/Playwright في الـ fork.
 4. تشغيل مزدوج على `nanoagent.lork.cloud` (`/` → Open WebUI، `/legacy` → React) لدورة تحقق.

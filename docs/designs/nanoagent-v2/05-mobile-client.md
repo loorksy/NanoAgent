@@ -19,17 +19,17 @@
 |---|---|---|
 | قناة WebSocket عامة بإصدار توكن لأي عميل | موجودة، تُستبدل بـ `/ws/v2` و SSE من البوابة | `nanobot/channels/websocket/runtime.py` 180–247 |
 | عميل بروتوكول TS كامل | موجود؛ يُستبدل بـ `packages/nanoagent-sdk/` المولَّد من عقد البوابة | `webui/src/lib/nanobot-client.ts`, `packages/client-events/` |
-| REST بتوكن Bearer | موجود (`gateway_tokens.py`)؛ يُعاد استخدامه في `gateway/auth.py` | `nanobot/webui/gateway_tokens.py` |
+| REST بتوكن Bearer | موجود (`gateway_tokens.py`)؛ يُعاد استخدامه في `agent_api/auth.py` | `nanobot/webui/gateway_tokens.py` |
 | نسخ صوتي (`transcribe_audio`) | موجود | `nanobot/webui/transcription_ws.py` |
 | غلاف Android WebView + فحص تحديث + APK ذاتي الاستضافة | موجود في AiChart؛ يُنقل منه `UpdateChecker` + سكربت البناء (R18) | `/tmp/aichart/admin_android/` |
-| Push (FCM/APNs) | **غير موجود** في أي مشروع → `nanobot/gateway/push/` (07 §7) | — |
+| Push (FCM/APNs) | **غير موجود** في أي مشروع → `nanobot/agent_api/push/` (07 §7) | — |
 
 ## 3. المعمارية
 
 ```
 ┌─────────────────────────────┐                    ┌──────────────────────────────┐
 │ React Native app (Expo)     │  REST /api/v2/*    │ nanobot gateway (07)          │
-│  iOS + Android              │ ◄────────────────► │  nanobot/gateway/            │
+│  iOS + Android              │ ◄────────────────► │  nanobot/agent_api/            │
 │  packages/nanoagent-sdk     │  SSE /sessions/…   │   ├ sessions / events / state │
 │  (نفس SDK يستعمله Open WebUI│ ◄────────────────  │   ├ approvals (08)            │
 │   Pipe عبر Python نظيره)    │  WS /ws/v2         │   ├ jobs (cron + goals)       │
@@ -43,11 +43,11 @@
                                                           └────────────────┘
 ```
 
-لا قناة `mobile` منفصلة في `nanobot/channels/`: تسجيل الأجهزة، الإقران، Push والإجراءات كلها في البوابة (`gateway/routes/devices.py`, `gateway/push/`, `gateway/approvals.py`) كي لا يتكرر المنطق بين الويب والجوال. أداة `message` و`trading/delivery.broadcast` (T-6.7) تنشر إلى البوابة، والبوابة تقرر WS فوري أم Push.
+لا قناة `mobile` منفصلة في `nanobot/channels/`: تسجيل الأجهزة، الإقران، Push والإجراءات كلها في البوابة (`agent_api/routes/devices.py`, `agent_api/push/`, `agent_api/approvals.py`) كي لا يتكرر المنطق بين الويب والجوال. أداة `message` و`trading/delivery.broadcast` (T-6.7) تنشر إلى البوابة، والبوابة تقرر WS فوري أم Push.
 
 ### 3.1 حزمة SDK مشتركة — `packages/nanoagent-sdk/`
 
-- TypeScript، تُولَّد أنواعها من `nanobot/gateway/schemas/*.json` (07 §5) وعقد الأحداث (07 §4) بـ `json-schema-to-typescript`؛ اختبار CI يفشل إذا اختلف المولَّد عن الملتزم.
+- TypeScript، تُولَّد أنواعها من `nanobot/agent_api/schemas/*.json` (07 §5) وعقد الأحداث (07 §4) بـ `json-schema-to-typescript`؛ اختبار CI يفشل إذا اختلف المولَّد عن الملتزم.
 - تحوي: `GatewayClient` (REST + SSE مع `Last-Event-ID` + WS اختياري)، `useSession()`, `useAgentState()`, `useTimeline()`, `useJobs()`, `useApprovals()`؛ مخزن أحداث محلي لإعادة الاتصال.
 - تُستهلك من التطبيق ومن أي جزء React/Svelte مستقبلي؛ لا تعتمد على RN (`fetch` + `EventSource` polyfill).
 
@@ -118,4 +118,4 @@
 - زر الإيقاف يلغي أداة قيد التنفيذ ويظهر `completed/cancelled` على الويب والجوال.
 - والتطبيق مغلق: توصية → Push خلال ≤ 5 ثوانٍ (Android و iOS)؛ اقتراح → إشعار بأزرار؛ التأكيد بالبصمة ينفّذ عبر HITL ويظهر في Log.
 - Kill Switch من الجوال يوقف كل شيء ويُسجَّل.
-- اختبارات: `tests/gateway/test_devices.py`, `test_push.py`, `test_approvals.py`؛ `packages/nanoagent-sdk` اختبارات وحدات؛ اختبارات RN للـ stores والمكوّنات المنظّمة (snapshot لكل `type`).
+- اختبارات: `tests/agent_api/test_devices.py`, `test_push.py`, `test_approvals.py`؛ `packages/nanoagent-sdk` اختبارات وحدات؛ اختبارات RN للـ stores والمكوّنات المنظّمة (snapshot لكل `type`).

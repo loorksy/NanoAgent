@@ -17,7 +17,7 @@
 | مهام/وظائف طويلة | كل دور = `run` بمعرّف؛ الأهداف المستدامة (`session/goal_state.py`) والمهام المجدولة (`cron`) = `jobs` بحالتها وتقدمها |
 | Agent Timeline | تدفق أحداث مرتب (`tool_started/tool_finished/subagent_*`) يُخزَّن لكل جلسة ويُعاد بالـ REST |
 | حالة الوكيل Working / Waiting / Completed | نموذج حالة واحد مشتق من `TurnRunStatusChanged` + `TurnCompleted` + انتظار الموافقة (§3) |
-| Push | مزوّد `nanobot/gateway/push/` (FCM v1 + APNs) يستهلك نفس الأحداث |
+| Push | مزوّد `nanobot/agent_api/push/` (FCM v1 + APNs) يستهلك نفس الأحداث |
 | Approvals | كائن `approval` عام يغلّف `OrderProposal` وأي طلب تأكيد آخر؛ `POST /approvals/{id}` |
 | إيقاف مهمة أثناء التنفيذ | `POST /sessions/{id}/cancel` → `AgentLoop._cancel_active_tasks(key)` (loop.py 881) + `jobs/{id}/pause|resume|cancel` |
 | أدوات وSubagents | أحداث `tool_*` و`subagent_*` ظاهرة في Timeline بأسمائها وملخص نتائجها (بدون أسرار) |
@@ -31,8 +31,11 @@
 
 ## 2. المعمارية والملفات
 
+> ملاحظة تسمية: الحزمة `nanobot/gateway/` موجودة أصلاً (إدارة خدمة النظام)، لذا تُنفَّذ البوابة تحت اسم `nanobot/agent_api/`. المسارات العامة تبقى `/api/v2` و`/ws/v2`.
+> ملاحظة نقل: HTTP الحالي يمر عبر `websockets.process_request` (لا يدعم التدفق)، لذا البوابة تطبيق aiohttp مستقل على منفذ خاص (`agent_api.port`، افتراضي 8766) داخل **نفس عملية** الـ gateway ويشارك نسخة `AgentLoop` الواحدة؛ ويستضيف أيضاً `/v1/chat/completions` و`/v1/models` (OpenAI-compatible) لربط Open WebUI المباشر.
+
 ```
-nanobot/gateway/
+nanobot/agent_api/
 ├── __init__.py
 ├── app.py                 # aiohttp sub-app يُركَّب على gateway الحالي تحت /api/v2 و /ws/v2
 ├── auth.py                # توكنات العملاء (device/web) + نطاقات (scopes)
@@ -131,7 +134,7 @@ nanobot/gateway/
 | `plan_status` | `recommendations/state_machine.py` | `plan_id, state, transitions[], pnl?` |
 | `scorecard` | T-6.4 | `period, trades, win_rate, expectancy, max_dd, notes_keys[]` |
 
-- كل نوع له JSON Schema في `nanobot/gateway/schemas/*.json` وقالب HTML في `render/templates/`؛ الاختبارات تتحقق أن كل حمولة تطابق مخططها وأن القالب لا يحوي نصاً ثابتاً غير مفاتيح تسميات.
+- كل نوع له JSON Schema في `nanobot/agent_api/schemas/*.json` وقالب HTML في `render/templates/`؛ الاختبارات تتحقق أن كل حمولة تطابق مخططها وأن القالب لا يحوي نصاً ثابتاً غير مفاتيح تسميات.
 - `GET /api/v2/results/{id}` (JSON) و`GET /api/v2/results/{id}/html?locale=` (Open WebUI embeds / WebView احتياطي).
 - الوكيل ينتج هذه الأنواع عبر أداة داخلية واحدة `emit_result(type, payload)` تُسجَّل دائماً (D5)، والمُركِّب يستدعيها بدل حشو النص.
 
@@ -220,5 +223,5 @@ nanobot/gateway/
 - `POST /sessions/{id}/cancel` يوقف أداة قيد التنفيذ وsubagent خلال ≤ 2 ثانية ويبث `state: completed/outcome: cancelled`.
 - كل نتيجة `structured` تطابق مخططها؛ `GET /results/{id}/html?locale=ar` لا يحوي نصاً ثابتاً خارج الكتالوج (اختبار `rg` على القوالب).
 - approval معلّق يجعل الحالة `waiting`؛ التأكيد من الويب أو الجوال يمر بنفس البوابات ويُسجَّل في `/log`؛ انتهاء TTL يبث `expired`.
-- لا استيراد من `nanobot/gateway/` داخل `nanobot/agent/loop.py` أو `runner.py` (اختبار بنية).
-- `tests/gateway/` تعكس بنية الحزمة؛ `basedpyright` نظيف؛ لا `Any` في `events.py`/`schemas`.
+- لا استيراد من `nanobot/agent_api/` داخل `nanobot/agent/loop.py` أو `runner.py` (اختبار بنية).
+- `tests/agent_api/` تعكس بنية الحزمة؛ `basedpyright` نظيف؛ لا `Any` في `events.py`/`schemas`.

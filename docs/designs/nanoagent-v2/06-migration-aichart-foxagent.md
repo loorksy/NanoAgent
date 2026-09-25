@@ -11,7 +11,7 @@
 
 ## 2. مبدأ الترحيل
 
-- **نرحّل السلوك لا الكود.** Python (foxagent) يُنقل بإعادة كتابة مطابقة لمعايير المستودع (`TypedDict` عند الحد، لا `Any`، اختبار لكل وحدة). TypeScript (AiChart) في الخلفية يُترجَم إلى Python؛ في الواجهة تُنقل **المكونات كأنماط** إلى الـ fork من Open WebUI (`loorksy/nanoagent-webui`، مسارات Svelte مضافة) أو إلى قوالب النتائج المنظّمة في `nanobot/gateway/render/` (04, 07).
+- **نرحّل السلوك لا الكود.** Python (foxagent) يُنقل بإعادة كتابة مطابقة لمعايير المستودع (`TypedDict` عند الحد، لا `Any`، اختبار لكل وحدة). TypeScript (AiChart) في الخلفية يُترجَم إلى Python؛ في الواجهة تُنقل **المكونات كأنماط** إلى الـ fork من Open WebUI (`loorksy/nanoagent-webui`، مسارات Svelte مضافة) أو إلى قوالب النتائج المنظّمة في `nanobot/agent_api/render/` (04, 07).
 - كل ميزة مرحّلة تُربط بقدرة في 03 أو بقسم في 04/05؛ ما لا يربط بهما يُرفض (billing، ads، support inbox، multi-tenant admin).
 - لا يُلمس `/opt/foxagent` في الإنتاج؛ المصدر هو git فقط.
 
@@ -54,7 +54,7 @@
 
 ## 4. ما يُرحَّل إلى الواجهة الجديدة (أنماط، لا نسخ)
 
-الأساس الآن fork من Open WebUI (04)؛ ما يُنقل هو **السلوك** إلى: قوالب النتائج المنظّمة (`nanobot/gateway/render/templates/`، تُعرض عبر `embeds`)، مسارات Svelte المضافة (`/tasks /recommendations /connect /log`)، ومكوّنات تطبيق React Native (05).
+الأساس الآن fork من Open WebUI (04)؛ ما يُنقل هو **السلوك** إلى: قوالب النتائج المنظّمة (`nanobot/agent_api/render/templates/`، تُعرض عبر `embeds`)، مسارات Svelte المضافة (`/tasks /recommendations /connect /log`)، ومكوّنات تطبيق React Native (05).
 
 | من | العنصر | إلى |
 |---|---|---|
@@ -68,7 +68,7 @@
 
 1. R2 (أسرار) و R18 (APK hosting) — صغيرة ومستقلة، تفتح المرحلتين 05 و 7.2.
 2. R3 (warehouse) → R1 (backtest) → أداة `fast_backtest`.
-3. R4 + R5 + R15 مع بناء مسار `/tasks` في الـ fork و`gateway/jobs.py` (07 §9).
+3. R4 + R5 + R15 مع بناء مسار `/tasks` في الـ fork و`agent_api/jobs.py` (07 §9).
 4. R6 مع Timeline في Pipe Function (07 §4).
 5. R7–R11 (الذاكرة/الماكرو) كدفعة واحدة على `intel/`.
 6. R12, R13, R16, R17, R20 كتحسينات لاحقة.
