@@ -13,19 +13,20 @@ from websockets.http11 import Response
 
 from nanobot.agent.tools.context import RequestContext, current_request_context, request_context
 from nanobot.providers.factory import load_provider_snapshot
-from nanobot.trading.config import load_trading_config
-from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
-from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
-from nanobot.trading.crew.debate import run_debate_crew
-from nanobot.trading.orchestrator import run_unified_chart_agent
-from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
-from nanobot.trading.paper import record_paper_action
-from nanobot.trading.chart_capture import ChartCaptureError, submit_chart_capture, validate_chart_frames
+from nanobot.trading.chart_capture import (
+    ChartCaptureError,
+    submit_chart_capture,
+    validate_chart_frames,
+)
 from nanobot.trading.chart_host_bridge import get_chart_host_bridge
 from nanobot.trading.chart_host_token import verify_chart_host_page_token
-from nanobot.webui.http_utils import bearer_token as _bearer_token
+from nanobot.trading.config import load_trading_config
+from nanobot.trading.crew.debate import run_debate_crew
+from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
+from nanobot.trading.i18n import tr
+from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
@@ -34,7 +35,11 @@ from nanobot.trading.recommendations.followup import (
 from nanobot.trading.recommendations.store import list_recommendations
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.runtime_state import get_runtime_store
+from nanobot.trading.stage_delivery import TradingStagePublisher
+from nanobot.trading.teams.runtime import run_swarm
+from nanobot.trading.teams.subagent_runner import create_trading_subagent_manager
 from nanobot.utils.llm_runtime import runtime_from_provider_snapshot
+from nanobot.webui.http_utils import bearer_token as _bearer_token
 from nanobot.webui.http_utils import http_error as _http_error
 from nanobot.webui.http_utils import http_json_response as _http_json_response
 from nanobot.webui.http_utils import parse_query as _parse_query
@@ -53,6 +58,10 @@ def _run_async(coro: Any) -> _T:
         return pool.submit(asyncio.run, coro).result()
 
 
+def _locale_of(params: dict[str, list[str]]) -> str | None:
+    return _query_first(params, "locale")
+
+
 def _parse_int(value: str | None) -> int | None:
     if value is None or value == "":
         return None
@@ -64,6 +73,7 @@ def _parse_int(value: str | None) -> int | None:
 
 def handle_trading_klines(request: WsRequest) -> Response:
     params = _parse_query(request.path)
+    locale = _locale_of(params)
     symbol = coerce_to_gold(_query_first(params, "symbol"))
     interval = (_query_first(params, "interval") or "1h").strip()
     limit = _parse_int(_query_first(params, "limit")) or 300
@@ -79,7 +89,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
             "source": "oanda",
             "candles": [],
             "pending": False,
-            "error": "Market data unavailable — OANDA is not configured.",
+            "error": tr("api.candles_unconfigured", locale),
         })
 
     try:
@@ -101,7 +111,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
             "source": "oanda",
             "candles": [],
             "pending": False,
-            "error": f"Failed to fetch candles: {exc}",
+            "error": tr("api.candles_failed", locale, error=exc),
         }, status=502)
 
     return _http_json_response({
@@ -116,6 +126,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
 
 def handle_trading_quote(request: WsRequest) -> Response:
     params = _parse_query(request.path)
+    locale = _locale_of(params)
     symbol = coerce_to_gold(_query_first(params, "symbol"))
 
     config = load_trading_config()
@@ -124,7 +135,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": False,
             "quote": None,
-            "error": "Market data unavailable — OANDA is not configured.",
+            "error": tr("price.feed_unconfigured", locale),
         })
 
     try:
@@ -136,7 +147,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": True,
             "quote": None,
-            "error": f"Failed to fetch quote: {exc}",
+            "error": tr("api.quote_failed", locale, error=exc),
         }, status=502)
 
     if quote is None:
@@ -144,7 +155,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": True,
             "quote": None,
-            "error": "No quote returned — check OANDA_ACCOUNT_ID.",
+            "error": tr("api.quote_missing", locale),
         })
 
     return _http_json_response({
@@ -283,16 +294,17 @@ async def handle_trading_analyze(request: WsRequest) -> Response:
     interval = (_query_first(params, "interval") or "15m").strip()
     team_mode = (_query_first(params, "team_mode") or "core").strip()
     preset = _query_first(params, "preset")
+    locale = _locale_of(params)
     if team_mode not in {"", "core", "debate", "swarm"}:
         return _http_error(400, "team_mode must be core, debate, or swarm")
 
     try:
         result = await _run_trading_analyze(interval, team_mode, preset)
         if result is None:
-            return _http_error(500, "Analysis produced no result")
+            return _http_error(500, tr("analysis.no_result", locale))
         return _http_json_response(result_to_wire(result))
     except Exception as exc:
-        return _http_error(500, f"Analysis failed: {exc}")
+        return _http_error(500, tr("analysis.failed", locale, error=exc))
 
 
 def _enrich_recommendation_rows(rows: list[dict]) -> list[dict]:
@@ -335,8 +347,8 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
 
 def handle_trading_performance(_request: WsRequest) -> Response:
     from nanobot.config.paths import get_data_dir
-    from nanobot.trading.memory.decisions import list_recent_decisions
     from nanobot.trading.gold import DATA_SYMBOL
+    from nanobot.trading.memory.decisions import list_recent_decisions
     from nanobot.trading.oanda import fetch_quote
     from nanobot.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
@@ -497,7 +509,8 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
     return _http_json_response({"ok": True})
 
 
-def handle_trading_briefing(_request: WsRequest) -> Response:
+def handle_trading_briefing(request: WsRequest) -> Response:
+    locale = _locale_of(_parse_query(request.path))
     from nanobot.trading.config import load_trading_config
     from nanobot.trading.oanda import fetch_quote
     from nanobot.trading.recommendations.followup import (
@@ -528,8 +541,9 @@ def handle_trading_briefing(_request: WsRequest) -> Response:
         "openRecommendation": latest,
         "recentRecommendations": recs,
         "summary": (
-            f"Gold {quote.mid:.2f}" if quote and quote.mid is not None
-            else "Gold — quote unavailable"
+            tr("api.gold_summary", locale, price=f"{quote.mid:.2f}")
+            if quote and quote.mid is not None
+            else tr("api.gold_quote_unavailable", locale)
         ),
     })
 

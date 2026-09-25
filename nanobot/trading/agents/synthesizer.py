@@ -179,26 +179,24 @@ async def run_final_decision_synthesizer(
     complete: LLMComplete | None = None,
 ) -> FinalDecisionResult:
     """LLM owns the side. Specialists and gates never choose buy/sell."""
+    language = _language_from_text(operator_text)
     if market is None:
         return FinalDecisionResult(
             decision="wait",
             confidence=0.0,
-            summary="Synthesizer missing market context.",
-            key_reasons=["Operational blocker"],
+            summary=tr("synth.missing_market_context", language),
+            key_reasons=[tr("synth.operational_blocker", language)],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait", symbol=symbol, interval=interval),
             execution_state="blocked",
-            refusal_summary="Market context missing",
+            refusal_summary=tr("synth.market_context_missing", language),
         )
-
-    from nanobot.trading.types import LiquidityResult as LQ
-    from nanobot.trading.types import SupplyDemandResult as SD
 
     snapshot = build_evidence_snapshot(
         market=market,
         structure=structure,
-        liquidity=liquidity or LQ([], [], None, None, [], None),
-        supply_demand=supply_demand or SD([], None, None),
+        liquidity=liquidity or LiquidityResult([], [], None, None, [], None),
+        supply_demand=supply_demand or SupplyDemandResult([], None, None),
         mtf=mtf,
         news=news,
         risk=risk,
@@ -207,7 +205,6 @@ async def run_final_decision_synthesizer(
         team_briefing=team_briefing,
         spread=spread,
     )
-    language = _language_from_text(operator_text)
     llm = complete or _runtime_complete
     try:
         parsed = await _call_model(
@@ -221,8 +218,8 @@ async def run_final_decision_synthesizer(
         return FinalDecisionResult(
             decision="wait",
             confidence=0.0,
-            summary=f"Synthesizer unavailable: {exc}",
-            key_reasons=["Operational blocker"],
+            summary=tr("synth.unavailable_detail", language, error=exc),
+            key_reasons=[tr("synth.operational_blocker", language)],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait", symbol=symbol, interval=interval),
             execution_state="blocked",

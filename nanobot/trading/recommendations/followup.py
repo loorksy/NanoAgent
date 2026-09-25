@@ -22,6 +22,7 @@ from nanobot.trading.recommendations.store import (
 )
 from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
 
+
 def finalize_live_plan_if_closed(
     row: dict[str, Any] | None,
     *,
@@ -73,7 +74,7 @@ def explain_new_rec_blocked(
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait"),
             execution_state="blocked",
-            refusal_summary="no live plan",
+            refusal_summary=tr("followup.no_live_plan_reason", locale),
         )
     direction = str(row.get("direction") or "wait")
     status = grade_outcome_status(row, live_price=live_price)
@@ -195,22 +196,23 @@ def refresh_recommendation_outcomes(
     return counts, transitions
 
 
-def explain_stored_recommendation(rec_id: str) -> str:
+def explain_stored_recommendation(rec_id: str, locale: str | None = None) -> str:
     row = get_recommendation(rec_id)
     if not row:
-        return "No stored recommendation found for that id."
+        return tr("followup.stored_not_found", locale)
     direction = str(row.get("direction", "wait")).upper()
     entry = row.get("entry")
     sl = row.get("stop_loss")
     targets = row.get("targets") or []
     summary = row.get("summary", "")
-    parts = [f"{direction} on XAUUSD — {summary}"]
+    fields = label_map("outcome_field", locale)
+    parts = [tr("followup.stored_headline", locale, direction=direction, summary=summary)]
     if entry is not None:
-        parts.append(f"Entry: {entry}")
+        parts.append(f"{fields['entry']}: {entry}")
     if sl is not None:
-        parts.append(f"Stop: {sl}")
+        parts.append(f"{fields['stop']}: {sl}")
     if targets:
-        parts.append("Targets: " + " / ".join(str(t) for t in targets))
+        parts.append(f"{fields['targets']}: " + " / ".join(str(t) for t in targets))
     return "\n".join(parts)
 
 
@@ -226,11 +228,11 @@ def grade_live_recommendation(
             decision="wait",
             confidence=0.0,
             summary=tr("followup.no_live_plan", locale),
-            key_reasons=["no live plan"],
+            key_reasons=[tr("followup.no_live_plan_reason", locale)],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait"),
             execution_state="blocked",
-            refusal_summary="no live plan",
+            refusal_summary=tr("followup.no_live_plan_reason", locale),
         )
     direction = str(row.get("direction") or "wait")
     entry = row.get("entry")
@@ -270,7 +272,7 @@ def grade_live_recommendation(
         confidence=float(row.get("confidence") or 0.5),
         summary=summary,
         key_reasons=notes or [str(row.get("summary") or "")],
-        risk_warnings=["Follow-up only — synthesizer not called"],
+        risk_warnings=[tr("followup.synth_not_called", locale)],
         recommendation=rec,
         plan_type=None,
         execution_state=rec.execution_state,

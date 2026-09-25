@@ -20,6 +20,8 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
+from nanobot.trading.i18n import tr
+from nanobot.trading.intel import lexicon
 from nanobot.trading.news.forex_factory import fetch_upcoming_events
 
 SearchFn = Callable[[str], Awaitable[str]]
@@ -44,19 +46,10 @@ TTL_SECONDS: dict[str, int] = {
     DRIVER_SEASONAL: 24 * 60 * 60,
 }
 
-CALENDAR_KEYWORDS: dict[str, tuple[str, ...]] = {
-    DRIVER_US_REAL_YIELDS_FOMC: ("fomc", "fed", "federal reserve", "interest rate", "dot plot", "tips"),
-    DRIVER_DXY: ("usd", "dollar", "dxy", "fomc", "cpi"),
-    DRIVER_US_MACRO_DATA: (
-        "nfp",
-        "nonfarm",
-        "unemployment",
-        "cpi",
-        "pce",
-        "ppi",
-        "retail sales",
-        "payroll",
-    ),
+CALENDAR_KEYWORDS: dict[str, frozenset[str]] = {
+    DRIVER_US_REAL_YIELDS_FOMC: lexicon.load("calendar_us_real_yields_fomc"),
+    DRIVER_DXY: lexicon.load("calendar_dxy"),
+    DRIVER_US_MACRO_DATA: lexicon.load("calendar_us_macro_data"),
 }
 
 SEARCH_QUERIES: dict[str, str] = {
@@ -70,30 +63,8 @@ SEARCH_QUERIES: dict[str, str] = {
     DRIVER_SEASONAL: "India China gold festival demand Diwali Akshaya Tritiya imports",
 }
 
-_BULLISH = (
-    "bullish",
-    "rises",
-    "rising",
-    "higher",
-    "buying",
-    "inflow",
-    "safe haven bid",
-    "weaker dollar",
-    "dovish",
-    "surprise beat",
-)
-_BEARISH = (
-    "bearish",
-    "falls",
-    "falling",
-    "lower",
-    "selling",
-    "outflow",
-    "stronger dollar",
-    "hawkish",
-    "miss",
-    "risk-on",
-)
+_BULLISH = lexicon.load("macro_bullish")
+_BEARISH = lexicon.load("macro_bearish")
 
 _CACHE: dict[str, tuple[float, "MacroVerdict"]] = {}
 
@@ -131,7 +102,7 @@ def _bias_from_text(text: str) -> tuple[str, int]:
     return "bearish", _clamp_strength(45 + 10 * (bear - bull))
 
 
-def _event_matches(event: dict[str, Any], keywords: tuple[str, ...]) -> bool:
+def _event_matches(event: dict[str, Any], keywords: frozenset[str]) -> bool:
     blob = " ".join(
         str(event.get(key) or "") for key in ("title", "event", "currency", "country")
     ).lower()
@@ -342,7 +313,7 @@ def _verdict_from_snippets(driver: str, snippets: str, reason: str) -> MacroVerd
             driver=driver,
             bias="neutral",
             strength=0,
-            one_line_rationale="No usable non-social search hits.",
+            one_line_rationale=tr("macro.no_usable_hits"),
             source="web_search",
             ran=True,
             reason=f"{reason}:no_usable_snippets",
@@ -355,7 +326,7 @@ def _verdict_from_snippets(driver: str, snippets: str, reason: str) -> MacroVerd
     sentence = re.sub(r"\s+", " ", sentence)
     rationale = f"{outlet}: {sentence}".strip(": ").strip()[:220] if outlet else sentence[:220]
     if not rationale:
-        rationale = "No usable snippets."
+        rationale = tr("macro.no_usable_snippets")
     # Chart-widget leftovers and equal-token ties stay weak.
     if bias == "neutral" and strength >= 50:
         strength = 25
@@ -403,7 +374,7 @@ async def run_macro_drivers(
                 driver=name,
                 bias="neutral",
                 strength=0,
-                one_line_rationale=f"web_search failed: {exc}",
+                one_line_rationale=tr("macro.search_failed", error=exc),
                 source="web_search",
                 ran=True,
                 reason=f"{why}:search_error",

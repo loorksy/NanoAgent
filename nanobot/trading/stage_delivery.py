@@ -96,7 +96,7 @@ class TradingStagePublisher:
                 "sessionKey": session_key,
                 "timeframes": timeframes,
             },
-            content="Capturing chart evidence…",
+            content=tr("stage.capturing_chart", self._locale),
         )
 
     async def publish_supersede_decision(self, payload: dict[str, Any]) -> None:
@@ -114,7 +114,7 @@ class TradingStagePublisher:
         await self._agent_ui(
             "trading_outcome",
             payload,
-            content=str(payload.get("summary") or "Recommendation outcome updated"),
+            content=str(payload.get("summary") or tr("outcome.updated", self._locale)),
         )
 
     async def publish_artifacts(self, artifacts: list[dict[str, Any]], *, locale: str | None = None) -> None:
@@ -124,7 +124,7 @@ class TradingStagePublisher:
         await self._agent_ui(
             "trading_artifacts",
             {"artifacts": artifacts, "locale": loc},
-            content=str(artifacts[0].get("title") or "Trading artifacts"),
+            content=str(artifacts[0].get("title") or tr("artifact.default_title", loc)),
         )
 
     async def publish_result(self, payload: dict[str, Any], *, include_card: bool = True) -> None:

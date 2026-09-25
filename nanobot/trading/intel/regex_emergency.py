@@ -2,23 +2,14 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
+from nanobot.trading.intel import lexicon
 from nanobot.trading.risk_state import get_risk_store
 
-WAR = re.compile(
-    r"\b(missile|airstrike|war declared|explosion|invaded|ceasefire|invasion|strike on)\b",
-    re.IGNORECASE,
-)
-MONETARY = re.compile(
-    r"\b(emergency rate cut|surprise hike|bank failure|default|bank run|deposit freeze)\b",
-    re.IGNORECASE,
-)
-SANCTIONS = re.compile(
-    r"\b(sanctions|tariff|embargo|export ban|nuclear)\b",
-    re.IGNORECASE,
-)
+WAR = lexicon.alternation("emergency_war")
+MONETARY = lexicon.alternation("emergency_monetary")
+SANCTIONS = lexicon.alternation("emergency_sanctions")
 
 
 @dataclass(frozen=True)

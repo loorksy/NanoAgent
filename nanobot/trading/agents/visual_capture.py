@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from nanobot.trading.i18n import tr
 from nanobot.trading.types import VisualReview
 
 LEAD_FRAMES: dict[str, list[str]] = {
@@ -28,6 +29,7 @@ async def capture_visual_evidence(
     lead: str = "15m",
     *,
     capture: CaptureFn | None = None,
+    locale: str | None = None,
 ) -> tuple[VisualReview, list[dict[str, Any]]]:
     requested = visual_timeframes(lead)
     if capture is None:
@@ -37,7 +39,7 @@ async def capture_visual_evidence(
                 requested=requested,
                 captured=[],
                 missing=list(requested),
-                notes="No chart snapshot was available. Analysis proceeds on numbers alone.",
+                notes=tr("visual.no_snapshot", locale),
             ),
             [],
         )
@@ -50,7 +52,7 @@ async def capture_visual_evidence(
                 requested=requested,
                 captured=[],
                 missing=list(requested),
-                notes=f"Chart capture failed ({exc}). Numbers-only read.",
+                notes=tr("visual.capture_failed", locale, error=exc),
             ),
             [],
         )
@@ -68,13 +70,13 @@ async def capture_visual_evidence(
     missing = [tf for tf in requested if tf not in captured]
     if not captured:
         state = "not_checked"
-        notes = "No chart snapshot was available. Analysis proceeds on numbers alone."
+        notes = tr("visual.no_snapshot", locale)
     elif missing:
         state = "partial"
-        notes = f"Shown: {', '.join(captured)}. Not shown: {', '.join(missing)}."
+        notes = tr("visual.partial", locale, shown=", ".join(captured), missing=", ".join(missing))
     else:
         state = "checked"
-        notes = f"Read charts for {', '.join(captured)}."
+        notes = tr("visual.read_charts", locale, shown=", ".join(captured))
     return (
         VisualReview(
             state=state,
