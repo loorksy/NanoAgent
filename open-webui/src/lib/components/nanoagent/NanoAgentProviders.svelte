@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { onDestroy, onMount, getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
 	import ProviderMark from './ProviderMark.svelte';
+	import ProviderModels from './ProviderModels.svelte';
 
 	const i18n = getContext<{ language?: string }>('i18n');
 
@@ -19,6 +20,8 @@
 		cli_oauth_hint?: string | null;
 		oauth_account?: string | null;
 		oauth_login_supported?: boolean;
+		selected_models?: string[];
+		primary_model?: string | null;
 	};
 
 	type Flow = {
@@ -26,10 +29,13 @@
 		provider?: string;
 		flow_id?: string;
 		authorization_url?: string;
+		user_code?: string;
 		completion_input?: string;
+		providers?: Provider[];
 	};
 
 	const LOCAL = ['vllm', 'ollama', 'lm_studio', 'atomic_chat', 'ovms'];
+	const FLOW_KEY = 'nanoagent-oauth-flow';
 
 	let providers: Provider[] = [];
 	let failed = false;
@@ -46,6 +52,9 @@
 	let reveal = false;
 	let editing = false;
 	let flow: Flow | null = null;
+	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let polling = false;
+	let dialogTab: 'models' | 'connection' = 'models';
 
 	function text(key: string, vars: Record<string, string> = {}): string {
 		let value = nanoagentText($i18n?.language, key);
@@ -80,6 +89,21 @@
 		return provider.label || provider.name;
 	}
 
+	function chosenModel(provider: Provider): string {
+		return provider.primary_model || provider.selected_models?.[0] || '';
+	}
+
+	function rememberModels(event: CustomEvent<{ selected: string[]; primary: string }>) {
+		if (!selected) return;
+		const next: Provider = {
+			...selected,
+			selected_models: event.detail.selected,
+			primary_model: event.detail.primary || null
+		};
+		selected = next;
+		providers = providers.map((item) => (item.name === next.name ? { ...item, ...next } : item));
+	}
+
 	function liftToBody(node: HTMLElement) {
 		document.body.appendChild(node);
 		return {
@@ -89,7 +113,13 @@
 		};
 	}
 
+	function stopPoll() {
+		polling = false;
+		clearTimeout(pollTimer);
+	}
+
 	function close() {
+		stopPoll();
 		selected = null;
 		creating = false;
 		flow = null;
@@ -100,10 +130,49 @@
 		editing = false;
 	}
 
-	function openProvider(provider: Provider) {
+	function rememberFlow(providerName: string, started: Flow) {
+		if (!started.flow_id || !started.authorization_url) return;
+		try {
+			sessionStorage.setItem(
+				FLOW_KEY,
+				JSON.stringify({
+					provider: providerName,
+					flow_id: started.flow_id,
+					authorization_url: started.authorization_url,
+					completion_input: started.completion_input,
+					user_code: started.user_code
+				})
+			);
+		} catch {
+			/* Private browsing can reject session storage. The open dialog still works. */
+		}
+	}
+
+	function recallFlow(providerName: string): Flow | null {
+		try {
+			const raw = sessionStorage.getItem(FLOW_KEY);
+			if (!raw) return null;
+			const saved = JSON.parse(raw) as Flow;
+			if (saved.provider !== providerName || !saved.flow_id || !saved.authorization_url) return null;
+			return saved;
+		} catch {
+			return null;
+		}
+	}
+
+	function forgetFlow() {
+		try {
+			sessionStorage.removeItem(FLOW_KEY);
+		} catch {
+			/* Ignore storage failures. */
+		}
+	}
+
+	function openProvider(provider: Provider, tab: 'models' | 'connection' = 'connection') {
 		creating = false;
 		adding = false;
 		selected = provider;
+		dialogTab = provider.configured ? tab : 'connection';
 		apiKey = '';
 		apiBase = provider.api_base || '';
 		displayName = provider.label || '';
@@ -111,7 +180,7 @@
 		authCode = '';
 		reveal = false;
 		editing = !provider.configured;
-		flow = null;
+		flow = recallFlow(provider.name);
 		notice = '';
 	}
 
@@ -291,10 +360,11 @@
 				method: 'POST',
 				body: JSON.stringify({ action: 'login' })
 			})) as Flow;
-			if (started.authorization_url) {
+			if (started.authorization_url && selected) {
 				flow = started;
-				window.open(started.authorization_url, '_blank', 'noopener,noreferrer');
+				rememberFlow(selected.name, started);
 			} else {
+				forgetFlow();
 				apply(started as { providers?: Provider[] });
 				notice = text('provider_saved');
 			}
@@ -303,6 +373,46 @@
 		} finally {
 			busy = false;
 		}
+	}
+
+	async function pollDevice() {
+		if (!selected || flow?.completion_input !== 'device_code' || !flow.flow_id) {
+			polling = false;
+			return;
+		}
+		const providerName = selected.name;
+		const flowId = flow.flow_id;
+		try {
+			const result = (await gateway(`settings/providers/${encodeURIComponent(providerName)}/oauth`, {
+				method: 'POST',
+				body: JSON.stringify({ action: 'complete', flow_id: flowId })
+			})) as Flow;
+			if (!selected || flow?.flow_id !== flowId) {
+				polling = false;
+				return;
+			}
+			if (result.status === 'pending' || result.status === 'authorization_required') {
+				pollTimer = setTimeout(() => void pollDevice(), 4000);
+				return;
+			}
+			if (Array.isArray(result.providers)) {
+				apply(result);
+				forgetFlow();
+				close();
+				notice = text('provider_saved');
+				return;
+			}
+			pollTimer = setTimeout(() => void pollDevice(), 4000);
+		} catch (err) {
+			polling = false;
+			notice = noteFrom(err);
+		}
+	}
+
+	function ensurePoll() {
+		if (polling || flow?.completion_input !== 'device_code' || !flow.flow_id || !selected) return;
+		polling = true;
+		void pollDevice();
 	}
 
 	async function finishOAuth() {
@@ -322,6 +432,7 @@
 					})
 				})) as { providers?: Provider[] }
 			);
+			forgetFlow();
 			close();
 			notice = text('provider_saved');
 		} catch (err) {
@@ -342,6 +453,7 @@
 					body: JSON.stringify({ action: 'logout' })
 				})) as { providers?: Provider[] }
 			);
+			forgetFlow();
 			close();
 			notice = text('provider_saved');
 		} catch (err) {
@@ -358,6 +470,9 @@
 		.sort((left, right) => rank(left) - rank(right));
 	$: claude = isClaude(selected);
 	$: oauth = !!selected && selected.auth_type === 'oauth';
+	$: if (oauth && flow?.completion_input === 'device_code') ensurePoll();
+
+	onDestroy(stopPoll);
 </script>
 
 <section id="nanoagent-providers" class="flex flex-col gap-2">
@@ -370,24 +485,43 @@
 	{/if}
 	<div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
 		{#each configured as provider (provider.name)}
-			<button
-				type="button"
-				class="flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left last:border-b-0 dark:border-gray-800"
-				on:click={() => openProvider(provider)}
+			<div
+				class="flex w-full flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2.5 last:border-b-0 dark:border-gray-800"
 			>
-				<span class="flex min-w-0 items-center gap-3">
+				<button
+					type="button"
+					class="flex min-w-0 flex-1 items-center gap-3 text-left"
+					on:click={() => openProvider(provider, 'models')}
+				>
 					<ProviderMark name={provider.name} label={labelOf(provider)} />
 					<span class="min-w-0">
 						<span class="block truncate text-sm">{labelOf(provider)}</span>
-						{#if provider.name === 'claude_code_cli'}
+						{#if chosenModel(provider)}
+							<span class="block truncate text-xs text-gray-500">{chosenModel(provider)}</span>
+						{:else if provider.name === 'claude_code_cli'}
 							<span class="block truncate text-xs text-gray-500">
 								{text('claude_connected', { hint: provider.cli_oauth_hint || '••••' })}
 							</span>
 						{/if}
 					</span>
+				</button>
+				<span class="flex shrink-0 items-center gap-2">
+					<button
+						type="button"
+						class="rounded-full border border-gray-900 px-3 py-1 text-xs dark:border-gray-100"
+						on:click={() => openProvider(provider, 'models')}
+					>
+						{text('choose_models')}
+					</button>
+					<button
+						type="button"
+						class="text-xs text-gray-500"
+						on:click={() => openProvider(provider, 'connection')}
+					>
+						{text('configure')}
+					</button>
 				</span>
-				<span class="shrink-0 text-xs text-gray-500">{text('configure')}</span>
-			</button>
+			</div>
 		{/each}
 		{#if !selected && !creating}
 			<button
@@ -428,7 +562,7 @@
 		on:click={close}
 	>
 		<div
-			class="max-h-[85dvh] w-full max-w-lg overflow-auto rounded-2xl border border-gray-200 bg-white p-4 text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950"
+			class="max-h-[85dvh] w-full max-w-2xl overflow-auto rounded-2xl border border-gray-200 bg-white p-4 text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950"
 			role="dialog"
 			aria-modal="true"
 			on:click|stopPropagation
@@ -444,7 +578,37 @@
 				<button type="button" class="text-gray-500" on:click={close} aria-label={text('cancel')}>×</button>
 			</div>
 
-			{#if claude && selected}
+			{#if selected}
+				<div class="mb-3 flex flex-wrap gap-2">
+					<button
+						type="button"
+						class="rounded-full border px-3 py-1.5 {dialogTab === 'models'
+							? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950'
+							: 'border-gray-300 dark:border-gray-700'}"
+						on:click={() => (dialogTab = 'models')}
+					>
+						{text('choose_models')}
+					</button>
+					<button
+						type="button"
+						class="rounded-full border px-3 py-1.5 {dialogTab === 'connection'
+							? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950'
+							: 'border-gray-300 dark:border-gray-700'}"
+						on:click={() => (dialogTab = 'connection')}
+					>
+						{text('provider_connection')}
+					</button>
+				</div>
+			{/if}
+
+			{#if selected && dialogTab === 'models'}
+				<ProviderModels
+					name={selected.name}
+					configured={selected.configured === true}
+					lead
+					on:saved={rememberModels}
+				/>
+			{:else if claude && selected}
 				<div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
 					<p class="font-medium">{text('claude_account')}</p>
 					<p class="mt-1 text-xs text-gray-500">
@@ -562,21 +726,40 @@
 						</button>
 					</div>
 				</div>
-				{#if flow?.authorization_url}
+				{#if flow?.completion_input === 'device_code' && flow.user_code}
 					<div class="mt-3 space-y-2">
+						<p class="text-xs text-gray-500">{text('oauth_device_help')}</p>
+						<p class="text-center text-2xl font-medium tracking-widest">{flow.user_code}</p>
 						<a class="block text-xs underline" href={flow.authorization_url} target="_blank" rel="noreferrer">
 							{text('open_sign_in')}
 						</a>
-						<input
-							class="w-full rounded-full border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+						<p class="text-xs text-gray-500">{notice || text('oauth_device_waiting')}</p>
+					</div>
+				{:else if flow?.authorization_url}
+					<div class="mt-3 space-y-2">
+						<p class="text-xs text-gray-500">
+							{text(flow.completion_input === 'callback_url' ? 'oauth_callback_help' : 'oauth_code_help')}
+						</p>
+						<a class="block text-xs underline" href={flow.authorization_url} target="_blank" rel="noreferrer">
+							{text('open_sign_in')}
+						</a>
+						<label class="block text-xs text-gray-500" for="nanoagent-oauth-callback">
+							{text(flow.completion_input === 'callback_url' ? 'oauth_callback_paste' : 'oauth_code_paste')}
+						</label>
+						<textarea
+							id="nanoagent-oauth-callback"
+							class="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-2 text-xs dark:border-gray-700"
+							rows="3"
 							autocomplete="off"
 							spellcheck="false"
-							placeholder={text('claude_code_label')}
+							placeholder={text(
+								flow.completion_input === 'callback_url' ? 'oauth_callback_paste' : 'oauth_code_paste'
+							)}
 							bind:value={authCode}
-						/>
+						></textarea>
 						<button
 							type="button"
-							class="rounded-full border px-3 py-1.5"
+							class="w-full rounded-full border px-3 py-1.5"
 							disabled={busy || !authCode.trim()}
 							on:click={finishOAuth}
 						>

@@ -8,7 +8,6 @@ pipeline.
 ```
 Browser ──► caddy (:443, SITE_ADDRESS)
              ├── /api/v2/*, /ws/v2*, /v1/*  ──► nanobot Agent API   host:8766
-             ├── /legacy/*                  ──► legacy React WebUI  host:8765  (dual-run only)
              └── everything else            ──► open-webui:8080
 
 open-webui ──► host:8766/v1       OpenAI-compatible connection (models list, plain text chat)
@@ -139,18 +138,12 @@ confirmations, cancellation of a turn when the user stops generation, and notifi
 Each Open WebUI chat maps to one nanobot session (`X-NanoAgent-Session` header /
 `X-OpenWebUI-Chat-Id`), so memory, sustained goals and approvals stay attached to the chat.
 
-## 5. Dual-run
+## 5. Legacy client
 
-The legacy React WebUI stays reachable at `https://<SITE_ADDRESS>/legacy/` (Caddy strips the
-prefix and proxies to `:8765`). The `webui/` tree stays in this repository. Leave the
-`/legacy/*` block, `LEGACY_WEBUI_UPSTREAM`, and `webui/` in place until the operator explicitly
-asks to remove the old interface.
-
-Cut-over is a later, explicit step. Only after that request:
-
-1. Delete the `/legacy/*` block from `Caddyfile` and `LEGACY_WEBUI_UPSTREAM` from `.env`.
-2. `docker compose up -d --force-recreate caddy`.
-3. Stop serving the legacy UI from nanobot (`webui.enabled: false` in `config.json`).
+The React client and the public `/legacy/` route are removed. Open WebUI is the browser.
+The gateway still serves the websocket channel's HTTP routes (settings, trading, channels,
+media). TradingView's charting library stays at `webui/public/charting_library/` and is
+mounted by Open WebUI at `/charting_library/`. The gateway does not serve the old SPA.
 
 ## Operations
 

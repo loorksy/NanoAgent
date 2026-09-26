@@ -314,6 +314,12 @@ class SessionService:
                 "UPDATE api_sessions SET updated_at = ? WHERE id = ?", (now_ms(), session_id),
             )
 
+    def use_model(self, session_id: str, model_id: str) -> None:
+        """Select the provider model for the next turn of this chat."""
+        from nanobot.api.chat_models import apply_session_model
+
+        apply_session_model(self._agent, session_key_for(session_id), model_id)
+
     # -- runs --------------------------------------------------------------
 
     def active_run(self, session_id: str) -> str | None:

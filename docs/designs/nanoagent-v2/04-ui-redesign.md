@@ -175,5 +175,5 @@ Pipe لا يحوي منطقاً تداولياً ولا نصوصاً؛ التس�
 2. Fork `open-webui/open-webui` → `loorksy/nanoagent-webui`؛ تثبيت Pipe؛ تشغيل الشات فقط ضد الـ Gateway (Docker بجوار nanobot).
 3. إضافة المسارات الخمسة والإعدادات؛ اختبارات Vitest/Playwright في الـ fork.
 4. تشغيل مزدوج على `nanoagent.lork.cloud` (`/` → Open WebUI، `/legacy` → React) لدورة تحقق.
-5. القطع: حذف `webui/` و`nanobot/web/dist` من الحزمة؛ `hatch_build.py` يتوقف عن تجميع الواجهة؛ `chart-host/` يبقى.
+5. القطع: عميل React حُذف. `webui/public/charting_library/` و`chart-host/` يبقيان حتى لا تتوقف الرسوم. `hatch_build.py` لا يجمّع الواجهة القديمة. البوابة لا تقدّم الـ SPA.
 6. سياسة upstream: rebase شهري على tag مستقر من Open WebUI؛ كل تعديلاتنا في ملفات مضافة أو ملفات قليلة موثّقة في `FORK_NOTES.md`.

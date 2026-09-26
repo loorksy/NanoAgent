@@ -1,13 +1,3 @@
-FROM node:24-bookworm-slim AS webui-builder
-
-WORKDIR /app
-COPY webui/package.json webui/package-lock.json ./webui/
-WORKDIR /app/webui
-RUN npm ci
-COPY webui/ ./
-COPY packages/client-events/ /app/packages/client-events/
-RUN mkdir -p /app/nanobot/web && npm run build
-
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 RUN apt-get update && \
@@ -39,7 +29,6 @@ RUN mkdir -p nanobot && touch nanobot/__init__.py && \
 # Copy the full source and install
 COPY nanobot/ nanobot/
 COPY scripts/install_channel_dependencies.py scripts/
-COPY --from=webui-builder /app/nanobot/web/dist/ nanobot/web/dist/
 RUN NANOBOT_SKIP_WEBUI_BUILD=1 uv pip install --python "$VIRTUAL_ENV/bin/python" --no-cache .
 
 # Preinstall selected channel dependencies from their manifests. A comma-separated

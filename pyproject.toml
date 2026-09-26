@@ -155,9 +155,9 @@ include = [
     "nanobot/channels/*/webui/**/*",
     "nanobot/web/dist/**/*",
 ]
-# nanobot/web/dist/ is produced by `cd webui && bun run build` and is
-# git-ignored. List it as an artifact so hatch ships it in both wheel and
-# sdist even though VCS does not track it.
+# A leftover nanobot/web/dist/ is git-ignored. The legacy React client is no
+# longer built. The path stays an artifact so an existing bundle can still be
+# packed, but the gateway does not serve it.
 artifacts = [
     "nanobot/web/dist/**/*",
 ]

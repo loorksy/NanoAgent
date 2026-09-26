@@ -66,10 +66,8 @@ if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
   bash scripts/sync-oanda-from-foxagent.sh || true
 fi
 
-if ! sudo -u "$SERVICE_USER" bash -lc 'command -v bun >/dev/null'; then
-  sudo -u "$SERVICE_USER" bash -lc 'curl -fsSL https://bun.sh/install | bash'
-fi
-sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR/webui' && export PATH=\"\$HOME/.bun/bin:\$PATH\" && bun install && bun run build"
+# The legacy React client is not built. Open WebUI is the browser.
+# Charting library files stay under webui/public/charting_library/.
 cd "$INSTALL_DIR"
 
 CONFIG_DIR="$INSTALL_DIR/.nanobot"
@@ -151,8 +149,11 @@ systemctl enable nanoagent-gateway.service
 systemctl restart nanoagent-gateway.service
 
 # Public site is the Open WebUI fork on 127.0.0.1:8080.
-# Legacy React WebUI stays on $WEB_PORT and is reachable at /legacy/.
-# Agent API stays on 127.0.0.1:8767. This file is the only vhost this script writes.
+# The legacy React client is not published. Agent API stays on 127.0.0.1:8767.
+# Leave an existing Open WebUI vhost in place so Certbot's 443 block survives.
+if [[ -f /etc/nginx/sites-available/nanoagent.lork.cloud ]] && grep -q '127.0.0.1:8080' /etc/nginx/sites-available/nanoagent.lork.cloud; then
+  echo "nginx already serves Open WebUI; leaving the vhost in place"
+else
 cat > /etc/nginx/sites-available/nanoagent.lork.cloud <<NGX
 map \$http_upgrade \$connection_upgrade {
     default upgrade;
@@ -161,7 +162,6 @@ map \$http_upgrade \$connection_upgrade {
 
 map \$http_referer \$nanoagent_shared_upstream {
     default http://127.0.0.1:8080;
-    "~*^https://$DOMAIN/legacy" http://127.0.0.1:$WEB_PORT;
 }
 
 server {
@@ -203,65 +203,6 @@ server {
         proxy_buffering off;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
-        proxy_set_header Host \$host;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$connection_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location = /legacy {
-        return 301 /legacy/;
-    }
-
-    location /legacy/ {
-        proxy_pass http://127.0.0.1:$WEB_PORT/;
-        proxy_http_version 1.1;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
-        proxy_set_header Host \$host;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$connection_upgrade;
-        proxy_set_header X-Forwarded-Prefix /legacy;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /assets/ {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /brand/ {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /auth/ {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$connection_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /webui/ {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_read_timeout 3600s;
         proxy_set_header Host \$host;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
@@ -325,6 +266,7 @@ NGX
 
 ln -sf /etc/nginx/sites-available/nanoagent.lork.cloud /etc/nginx/sites-enabled/nanoagent.lork.cloud
 nginx -t && systemctl reload nginx
+fi
 
 if ! command -v certbot >/dev/null; then
   apt-get update -qq
@@ -347,6 +289,5 @@ OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterv
 echo "$OUT"
 echo ""
 echo "WebUI: https://${DOMAIN}/"
-echo "Legacy WebUI: https://${DOMAIN}/legacy/"
 ISSUED=$(printf '%s\n' "$OUT" | awk -F= '/^ISSUED_TOKEN=/{print $2}' | tail -1)
 echo "Bootstrap token (save this): ${ISSUED:-$WEB_TOKEN}"

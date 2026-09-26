@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 
 ROOT = Path("nanobot")
-WEB_RISK = Path("webui/src/components/trading/RiskParametersSettings.tsx")
 
 SCAN_DIRS = [
     ROOT / "trading" / "gates",
@@ -18,8 +17,6 @@ SCAN_FILES = [
     ROOT / "trading" / "broker_result.py",
     ROOT / "webui" / "trading_risk_api.py",
     ROOT / "webui" / "trading_metaapi_api.py",
-    WEB_RISK,
-    Path("webui/src/components/trading/Mt5ConnectSettings.tsx"),
 ]
 
 # Wire values and i18n keys are allowed; operator sentences are not.

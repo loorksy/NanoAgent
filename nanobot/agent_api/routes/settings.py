@@ -168,6 +168,15 @@ async def system_settings(request: web.Request) -> web.Response:
     )
 
 
+async def chat_models(request: web.Request) -> web.Response:
+    """Models chosen for the agent, so the chat picker can list them."""
+    require_scope(request, "chat")
+    from nanobot.api.chat_models import public_chat_models
+    from nanobot.config.loader import load_config
+
+    return ok({"models": public_chat_models(load_config())})
+
+
 async def models_settings(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from nanobot.config.loader import load_config
@@ -193,6 +202,7 @@ async def distribution(request: web.Request) -> web.Response:
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_get(f"{prefix}/settings/overview", overview)
+    router.add_get(f"{prefix}/chat/models", chat_models)
     router.add_get(f"{prefix}/settings/models", models_settings)
     router.add_get(f"{prefix}/settings/capabilities", capabilities)
     router.add_get(f"{prefix}/settings/system", system_settings)

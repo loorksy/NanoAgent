@@ -137,6 +137,9 @@ async def post_message(request: web.Request) -> web.Response:
     body = await json_body(request)
     text = message_text(body)
     media = media_paths(body)
+    model = body.get("model")
+    if isinstance(model, str) and model.strip():
+        svc.sessions.use_model(session_id, model.strip())
     run_id = svc.sessions.submit(session_id, text, media=media)
     return ok({"run_id": run_id, "session": session_id}, status=202)
 

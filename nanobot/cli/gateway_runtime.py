@@ -379,7 +379,9 @@ def _run_gateway(
     port: int | None = None,
     open_browser_url: str | None = None,
     open_browser_ready_url: str | None = None,
-    webui_static_dist: bool = True,
+    # The legacy React client is no longer served. HTTP routes (trading, settings,
+    # channels) stay on the websocket listener; only the static SPA is omitted.
+    webui_static_dist: bool = False,
     webui_bundle_mode: BuildMode = "warn",
     webui_runtime_surface: str = "browser",
     webui_runtime_capabilities: dict[str, Any] | None = None,

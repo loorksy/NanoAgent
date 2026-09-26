@@ -2,7 +2,7 @@ This file provides guidance to AI coding agents working with this repository.
 
 ## Project Overview
 
-nanobot is a lightweight, open-source AI agent framework written in Python with a React/TypeScript WebUI. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.
+nanobot is a lightweight, open-source AI agent framework written in Python. The browser client is the Open WebUI fork in `open-webui/`. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.
 
 ## Development Commands
 
@@ -16,11 +16,10 @@ uv sync --all-extras --dev
 uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
 uv run --no-sync basedpyright
 
-# WebUI: dev server (proxies API/WS to gateway :8765), build, test
-# Build outputs to ../nanobot/web/dist (bundled into the Python wheel)
-cd webui && bun run dev      # or NANOBOT_API_URL=... bun run dev
-cd webui && bun run build
-cd webui && bun run test
+# Browser client (Open WebUI fork). The legacy React app under webui/src is gone.
+# Charting library assets remain at webui/public/charting_library/.
+cd open-webui && npm run dev
+cd open-webui && npm run build
 
 # Gateway
 nanobot gateway

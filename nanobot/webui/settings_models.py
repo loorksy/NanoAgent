@@ -19,6 +19,7 @@ import secrets
 import time
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypedDict, cast
 
@@ -541,6 +542,8 @@ def model_catalog_kind(spec: Any) -> str:
         return catalog
     if spec.is_transcription_only or spec.is_oauth:
         return "unsupported"
+    if getattr(spec, "builtin_models", ()):
+        return "builtin"
     if spec.backend != "openai_compat" and spec.name != "minimax_anthropic":
         return "unsupported"
     if spec.is_local:
@@ -584,6 +587,136 @@ def _model_context_window(row: Any) -> int | None:
     return None
 
 
+_MODALITY_NAMES = ("text", "image", "video", "audio", "file")
+_MAX_PROVIDER_MODELS = 12
+_MODEL_ID_RE = re.compile(r"^[^\s\x00-\x1f]{1,200}$")
+
+
+def _modality_list(value: object) -> list[str]:
+    if isinstance(value, str):
+        parts = re.split(r"[+,|/ ]+", value)
+    elif isinstance(value, list):
+        parts = [item for item in cast(list[object], value) if isinstance(item, str)]
+    else:
+        return []
+    found: list[str] = []
+    for part in parts:
+        name = part.strip().lower()
+        if name in {"image_url", "vision"}:
+            name = "image"
+        if name in _MODALITY_NAMES and name not in found:
+            found.append(name)
+    return found
+
+
+def _per_million(value: object) -> float | None:
+    """Convert a per-token USD price into USD per million tokens."""
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        number = float(value)
+    elif isinstance(value, str):
+        try:
+            number = float(value.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    if not math.isfinite(number) or number < 0:
+        return None
+    scaled = number * 1_000_000
+    if not math.isfinite(scaled) or scaled > 100_000:
+        return None
+    return round(scaled, 6)
+
+
+def _released_at(row: dict[str, Any]) -> int | None:
+    for key in ("created", "released_at", "released"):
+        value = row.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        stamp = int(value)
+        if stamp > 10_000_000_000:
+            stamp //= 1000
+        if stamp >= 1_000_000_000:
+            return stamp
+    created_at = row.get("created_at")
+    if not isinstance(created_at, str) or not created_at.strip():
+        return None
+    text = created_at.strip()
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    stamp = int(parsed.timestamp())
+    return stamp if stamp >= 1_000_000_000 else None
+
+
+def _pricing(row: dict[str, Any]) -> tuple[float | None, float | None]:
+    pricing = row.get("pricing")
+    if not isinstance(pricing, dict):
+        return None, None
+    mapping = cast(dict[str, Any], pricing)
+    prompt = mapping.get("prompt", mapping.get("input"))
+    completion = mapping.get("completion", mapping.get("output"))
+    return _per_million(prompt), _per_million(completion)
+
+
+def _architecture(row: dict[str, Any]) -> tuple[list[str], list[str]]:
+    inputs: list[str] = []
+    outputs: list[str] = []
+    architecture = row.get("architecture")
+    if isinstance(architecture, dict):
+        mapping = cast(dict[str, Any], architecture)
+        inputs = _modality_list(mapping.get("input_modalities"))
+        outputs = _modality_list(mapping.get("output_modalities"))
+        if not inputs and not outputs:
+            modality = mapping.get("modality")
+            if isinstance(modality, str) and "->" in modality:
+                left, right = modality.split("->", 1)
+                inputs = _modality_list(left)
+                outputs = _modality_list(right)
+    if not inputs:
+        inputs = _modality_list(row.get("input_modalities"))
+    if not outputs:
+        outputs = _modality_list(row.get("output_modalities"))
+    return inputs, outputs
+
+
+def _known_modalities(model_id: str) -> tuple[list[str], list[str]]:
+    leaf = model_id.rsplit("/", 1)[-1].lower()
+    if leaf in {"sonnet", "opus", "haiku"} or leaf.startswith("claude"):
+        return ["text", "image"], ["text"]
+    return [], []
+
+
+def _attach_model_facts(
+    payload: dict[str, Any],
+    *,
+    inputs: list[str] | None = None,
+    outputs: list[str] | None = None,
+    price_in: float | None = None,
+    price_out: float | None = None,
+    released_at: int | None = None,
+) -> dict[str, Any]:
+    known_inputs, known_outputs = _known_modalities(str(payload.get("id") or ""))
+    resolved_inputs = inputs or known_inputs
+    resolved_outputs = outputs or known_outputs
+    if resolved_inputs:
+        payload["input_modalities"] = resolved_inputs
+    if resolved_outputs:
+        payload["output_modalities"] = resolved_outputs
+    if price_in is not None:
+        payload["price_in"] = price_in
+    if price_out is not None:
+        payload["price_out"] = price_out
+    if released_at is not None:
+        payload["released_at"] = released_at
+    return payload
+
+
 def _model_row_payload(row: Any) -> dict[str, Any] | None:
     model_id = _model_id_from_row(row)
     if not model_id:
@@ -610,7 +743,23 @@ def _model_row_payload(row: Any) -> dict[str, Any] | None:
     }
     if description:
         payload["description"] = description
-    return payload
+    if isinstance(row, dict):
+        row_mapping = cast(dict[str, Any], row)
+        inputs, outputs = _architecture(row_mapping)
+        price_in, price_out = _pricing(row_mapping)
+        released_at = _released_at(row_mapping)
+    else:
+        inputs, outputs = [], []
+        price_in = price_out = None
+        released_at = None
+    return _attach_model_facts(
+        payload,
+        inputs=inputs,
+        outputs=outputs,
+        price_in=price_in,
+        price_out=price_out,
+        released_at=released_at,
+    )
 
 
 def _extract_model_rows(body: Any) -> list[dict[str, Any]]:
@@ -662,13 +811,15 @@ def provider_models_payload(
         }
     if catalog_kind == "builtin":
         rows = [
-            {
-                "id": model.id,
-                "label": model.label or None,
-                "description": model.description or None,
-                "owned_by": spec.label,
-                "context_window": model.context_window,
-            }
+            _attach_model_facts(
+                {
+                    "id": model.id,
+                    "label": model.label or None,
+                    "description": model.description or None,
+                    "owned_by": spec.label,
+                    "context_window": model.context_window,
+                }
+            )
             for model in spec.builtin_models
         ]
         return {
@@ -681,15 +832,17 @@ def provider_models_payload(
         proxy = _resolve_env_placeholders(provider_config.proxy)
         catalog = get_oauth_model_catalog(spec.name, proxy=proxy)
         rows = [
-            {
-                "id": model.id,
-                "label": model.label or None,
-                "description": model.description or None,
-                "owned_by": model.owned_by or spec.label,
-                "context_window": model.context_window,
-                "reasoning_efforts": list(model.reasoning_efforts),
-                "supports_backend_search": model.supports_backend_search,
-            }
+            _attach_model_facts(
+                {
+                    "id": model.id,
+                    "label": model.label or None,
+                    "description": model.description or None,
+                    "owned_by": model.owned_by or spec.label,
+                    "context_window": model.context_window,
+                    "reasoning_efforts": list(model.reasoning_efforts),
+                    "supports_backend_search": model.supports_backend_search,
+                }
+            )
             for model in catalog.models
         ]
         return {
@@ -1449,6 +1602,137 @@ def delete_model_configuration(config: Config, query: QueryParams) -> None:
     del config.model_presets[name]
 
 
+def _preset_matches_provider(preset: ModelPresetConfig, provider_name: str) -> bool:
+    return preset.provider == provider_name
+
+
+def provider_model_selection(config: Config, provider_name: str) -> dict[str, Any]:
+    """Return the model ids this provider currently contributes to the call order."""
+    selected: list[str] = []
+    primary: str | None = None
+    order, editable = _model_call_order_state(config)
+    if editable:
+        for index, name in enumerate(order):
+            preset = config.model_presets.get(name)
+            if preset is None or not _preset_matches_provider(preset, provider_name):
+                continue
+            selected.append(preset.model)
+            if index == 0:
+                primary = preset.model
+        return {"selected": selected, "primary": primary}
+
+    defaults = config.agents.defaults
+    if defaults.provider == provider_name and defaults.model.strip():
+        return {"selected": [defaults.model], "primary": defaults.model}
+    return {"selected": [], "primary": None}
+
+
+def assign_provider_models(
+    config: Config,
+    provider_name: str,
+    model_ids: list[str],
+    *,
+    primary_model: str | None,
+    oauth_status: OAuthStatusReader,
+    context_windows: dict[str, int] | None = None,
+) -> None:
+    """Save one or more models from a provider as the agent call order.
+
+    The primary model is called first. Other selected models from the same
+    provider follow it. Presets that belong to a different provider stay in
+    the fallback list.
+    """
+    _validate_configured_provider(config, provider_name, oauth_status)
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in model_ids:
+        if _MODEL_ID_RE.fullmatch(raw.strip()) is None:
+            raise WebUISettingsError("model id is invalid")
+        model_id = raw.strip()
+        if model_id in seen:
+            continue
+        seen.add(model_id)
+        cleaned.append(model_id)
+    if len(cleaned) > _MAX_PROVIDER_MODELS:
+        raise WebUISettingsError("select at most 12 models")
+    if primary_model is not None and primary_model not in cleaned:
+        raise WebUISettingsError("primary model must be one of the selected models")
+    primary_id = primary_model or (cleaned[0] if cleaned else None)
+    windows = context_windows or {}
+
+    by_model: dict[str, str] = {}
+    for name, preset in config.model_presets.items():
+        if _preset_matches_provider(preset, provider_name) and preset.model not in by_model:
+            by_model[preset.model] = name
+
+    chosen_names: list[str] = []
+    base = config.resolve_preset()
+    for model_id in cleaned:
+        existing = by_model.get(model_id)
+        if existing:
+            chosen_names.append(existing)
+            continue
+        window = windows.get(model_id)
+        context_window = (
+            window
+            if isinstance(window, int) and not isinstance(window, bool) and 0 < window <= 10_000_000
+            else base.context_window_tokens
+        )
+        name = _unique_model_configuration_name(config, _model_configuration_label(model_id))
+        config.model_presets[name] = ModelPresetConfig(
+            model=model_id,
+            provider=provider_name,
+            max_tokens=base.max_tokens,
+            context_window_tokens=context_window,
+            temperature=base.temperature,
+            reasoning_effort=base.reasoning_effort,
+        )
+        chosen_names.append(name)
+        by_model[model_id] = name
+
+    remove_names = [
+        name
+        for name, preset in list(config.model_presets.items())
+        if _preset_matches_provider(preset, provider_name) and name not in chosen_names
+    ]
+    defaults = config.agents.defaults
+    for name in remove_names:
+        if defaults.dream.model_override == name:
+            defaults.dream.model_override = None
+        del config.model_presets[name]
+
+    previous = defaults.model_preset if defaults.model_preset in config.model_presets else None
+    preserved: list[FallbackCandidate] = []
+    if previous and previous not in chosen_names:
+        preserved.append(previous)
+    for fallback in defaults.fallback_models:
+        if isinstance(fallback, str):
+            if fallback not in config.model_presets or fallback in chosen_names or fallback in preserved:
+                continue
+            preserved.append(fallback)
+            continue
+        if fallback.provider != provider_name:
+            preserved.append(fallback)
+
+    if not chosen_names:
+        if previous is None or previous in remove_names:
+            promoted = next((item for item in preserved if isinstance(item, str)), None)
+            defaults.model_preset = promoted
+            defaults.fallback_models = [item for item in preserved if item != promoted]
+        else:
+            defaults.fallback_models = [item for item in preserved if item != previous]
+        return
+
+    assert primary_id is not None
+    primary_name = by_model[primary_id]
+    ordered = [primary_name, *[name for name in chosen_names if name != primary_name]]
+    defaults.model_preset = ordered[0]
+    defaults.fallback_models = [
+        *ordered[1:],
+        *[item for item in preserved if item != ordered[0]],
+    ]
+
+
 def create_provider_settings(config: Config, query: QueryParams) -> str:
     display_name = (query_first_alias(query, "name", "displayName") or "").strip()
     if not display_name:
@@ -1543,6 +1827,22 @@ def update_provider_settings(
     return changed, restart_required
 
 
+def _start_codex_device_login(proxy: str | None) -> Any | None:
+    """Start a phone sign-in, or return ``None`` when device login is unavailable."""
+    from nanobot.providers.openai_codex_device import (
+        CodexDeviceError,
+        CodexDeviceUnavailableError,
+        start_openai_codex_device_login,
+    )
+
+    try:
+        return start_openai_codex_device_login(proxy=proxy, timeout_s=_WEBUI_OAUTH_TIMEOUT_S)
+    except CodexDeviceUnavailableError:
+        return None
+    except CodexDeviceError as exc:
+        raise WebUISettingsError(str(exc), status=502) from exc
+
+
 def login_oauth_provider(
     config: Config,
     query: QueryParams,
@@ -1577,6 +1877,20 @@ def login_oauth_provider(
             if remote_browser_value is not None
             else False
         )
+        if remote_browser:
+            device_flow = _start_codex_device_login(proxy)
+            if device_flow is not None:
+                flow_id = secrets.token_urlsafe(24)
+                oauth_flows.register(spec.name, flow_id, device_flow)
+                return {
+                    "status": "authorization_required",
+                    "provider": spec.name,
+                    "flow_id": flow_id,
+                    "authorization_url": device_flow.authorization_url,
+                    "user_code": device_flow.user_code,
+                    "expires_in": device_flow.remaining_seconds,
+                    "completion_input": "device_code",
+                }
         try:
             flow = start_openai_codex_oauth_login(
                 proxy=proxy,
@@ -1669,15 +1983,31 @@ def complete_oauth_provider(
 
     try:
         if spec.name == "openai_codex":
+            from nanobot.providers.openai_codex_device import CodexDeviceError, CodexDeviceLogin
             from nanobot.providers.openai_codex_oauth import (
                 OpenAICodexOAuthInputError,
                 complete_openai_codex_oauth_login,
             )
 
             try:
-                token = complete_openai_codex_oauth_login(flow, authorization_response)
+                if isinstance(flow, CodexDeviceLogin):
+                    token = flow.poll()
+                    if token is None:
+                        return {
+                            "status": "pending",
+                            "provider": spec.name,
+                            "flow_id": flow_id,
+                            "authorization_url": flow.authorization_url,
+                            "user_code": flow.user_code,
+                            "expires_in": flow.remaining_seconds,
+                            "completion_input": "device_code",
+                        }
+                else:
+                    token = complete_openai_codex_oauth_login(flow, authorization_response)
             except OpenAICodexOAuthInputError as exc:
                 raise WebUISettingsError(str(exc), status=400) from exc
+            except CodexDeviceError as exc:
+                raise WebUISettingsError(str(exc), status=502) from exc
         else:
             from nanobot.providers.xai_oauth import complete_xai_oauth_login
 

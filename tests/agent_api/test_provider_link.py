@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+import httpx
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import auth
@@ -140,3 +141,94 @@ async def test_claude_connect_exchanges_without_returning_the_token(
     assert "auth-code" not in _wire(body)
     claude = next(item for item in body["providers"] if item["name"] == "claude_code_cli")
     assert claude["cli_oauth_hint"] == "••••ZZZZ"
+
+
+async def test_provider_model_selection_hides_the_api_key(
+    client: TestClient, agent, monkeypatch,
+) -> None:
+    secret = "sk-or-v1-catalog-secret-KEY77"
+    saved = await client.put(
+        "/api/v2/settings/providers/openrouter",
+        headers=auth(),
+        json={"api_key": secret},
+    )
+    assert saved.status == 200
+
+    def fake_get(url: str, **kwargs):
+        assert kwargs["headers"]["Authorization"] == f"Bearer {secret}"
+        assert url == "https://openrouter.ai/api/v1/models"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "google/gemini-test",
+                        "name": "Gemini Test",
+                        "context_length": 1_300_000,
+                        "created": 1787702400,
+                        "architecture": {
+                            "input_modalities": ["text", "image", "video"],
+                            "output_modalities": ["text"],
+                        },
+                        "pricing": {"prompt": "0.00000004", "completion": "0.0000005"},
+                    }
+                ]
+            },
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr("nanobot.webui.settings_api.httpx.get", fake_get)
+    listed = await client.get("/api/v2/settings/providers/openrouter/models", headers=auth())
+    assert listed.status == 200
+    catalog = await listed.json()
+    assert secret not in _wire(catalog)
+    assert catalog["models"][0]["price_in"] == 0.04
+    assert catalog["models"][0]["input_modalities"] == ["text", "image", "video"]
+    assert catalog["models"][0]["context_window"] == 1_300_000
+
+    chosen = await client.put(
+        "/api/v2/settings/providers/openrouter/models",
+        headers=auth(),
+        json={
+            "models": ["google/gemini-test"],
+            "primary": "google/gemini-test",
+            "context_windows": {"google/gemini-test": 1_300_000},
+        },
+    )
+    assert chosen.status == 200
+    body = await chosen.json()
+    assert secret not in _wire(body)
+    assert body["selected"] == ["google/gemini-test"]
+    assert body["primary"] == "google/gemini-test"
+
+    listed_providers = await client.get("/api/v2/settings/providers", headers=auth())
+    assert listed_providers.status == 200
+    providers = await listed_providers.json()
+    row = next(item for item in providers["providers"] if item["name"] == "openrouter")
+    assert row["selected_models"] == ["google/gemini-test"]
+    assert row["primary_model"] == "google/gemini-test"
+    assert secret not in _wire(providers)
+
+    catalog = await client.get("/api/v2/chat/models", headers=auth())
+    assert catalog.status == 200
+    chat_models = await catalog.json()
+    assert chat_models["models"] == [
+        {"id": "google/gemini-test", "name": "google/gemini-test"},
+    ]
+    assert secret not in _wire(chat_models)
+
+    sent = await client.post(
+        "/api/v2/sessions/chat-models/messages",
+        headers=auth(),
+        json={"content": "hi", "model": "google/gemini-test"},
+    )
+    assert sent.status == 202
+    assert agent.presets == [("agent_api:chat-models", "gemini-test")]
+
+    issued = client.app[SERVICES_KEY].tokens.issue("service", scopes=["read"], label="reader")
+    denied = await client.put(
+        "/api/v2/settings/providers/openrouter/models",
+        headers=auth(issued["token"]),
+        json={"models": ["google/gemini-test"]},
+    )
+    assert denied.status == 403
