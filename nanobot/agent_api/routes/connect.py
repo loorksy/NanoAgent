@@ -271,7 +271,76 @@ async def get_control(request: web.Request) -> web.Response:
     return ok({"runtime_state": await asyncio.to_thread(_runtime_state)})
 
 
+async def get_channels(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from nanobot.agent_api.messaging import channel_rows
+
+    path = services(request).config_path
+    if path is None:
+        raise ApiError(500, "config_unavailable")
+    rows = await asyncio.to_thread(channel_rows, path)
+    return ok({"channels": rows})
+
+
+async def post_telegram(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from nanobot.agent_api.messaging import channel_rows, enable_channel, save_telegram_token
+
+    path = services(request).config_path
+    if path is None:
+        raise ApiError(500, "config_unavailable")
+    body = await json_body(request)
+    token = require_str(body, "token").strip()
+    await asyncio.to_thread(save_telegram_token, path, token)
+    requires_restart = await enable_channel(path, "telegram")
+    rows = await asyncio.to_thread(channel_rows, path)
+    row = next(item for item in rows if item["name"] == "telegram")
+    row["saved"] = True
+    row["requires_restart"] = requires_restart
+    return ok(row)
+
+
+async def post_whatsapp(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from nanobot.agent_api.messaging import (
+        channel_rows,
+        connector,
+        enable_channel,
+        public_connect_payload,
+    )
+    from nanobot.channels.connect import ChannelConnectError
+
+    path = services(request).config_path
+    if path is None:
+        raise ApiError(500, "config_unavailable")
+    body = await json_body(request)
+    action = require_str(body, "action").strip()
+    if action not in {"start", "poll", "cancel"}:
+        raise ApiError(400, "invalid_field", details={"field": "action"})
+    query: dict[str, list[str]] = {}
+    session_id = optional_str(body, "session_id")
+    if session_id:
+        query["session_id"] = [session_id.strip()]
+    if body.get("force") is True:
+        query["force"] = ["true"]
+    try:
+        payload = await connector("whatsapp").handle(action, query)
+    except ChannelConnectError as exc:
+        raise ApiError(exc.status, "channel_connect_error", details={"message": exc.message}) from exc
+    if not isinstance(payload, dict):
+        raise ApiError(500, "channel_connect_error")
+    public = public_connect_payload(payload)
+    if public["status"] == "succeeded":
+        public["requires_restart"] = await enable_channel(path, "whatsapp")
+    rows = await asyncio.to_thread(channel_rows, path)
+    public["channel"] = next((item for item in rows if item["name"] == "whatsapp"), {})
+    return ok(public)
+
+
 def register(router: web.UrlDispatcher, prefix: str) -> None:
+    router.add_get(f"{prefix}/connect/channels", get_channels)
+    router.add_post(f"{prefix}/connect/channels/telegram", post_telegram)
+    router.add_post(f"{prefix}/connect/channels/whatsapp", post_whatsapp)
     router.add_get(f"{prefix}/connect", get_connect)
     router.add_get(f"{prefix}/connect/risk", get_risk)
     router.add_put(f"{prefix}/connect/risk", put_risk)

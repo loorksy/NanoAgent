@@ -807,6 +807,9 @@ def _run_gateway(
         webui_recovery_action=recovery.handle_action,
         config_path=Path(config_path),
     )
+    from nanobot.channels.runtime_ref import bind_channel_manager
+
+    bind_channel_manager(channels)
 
     def _pick_heartbeat_target() -> tuple[str, str]:
         """Pick a routable channel/chat target for heartbeat-triggered messages."""
