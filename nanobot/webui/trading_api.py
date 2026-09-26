@@ -319,7 +319,7 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
     })
 
 
-def handle_trading_performance(_request: WsRequest) -> Response:
+def performance_document() -> dict[str, Any]:
     from nanobot.config.paths import get_data_dir
     from nanobot.trading.gold import DATA_SYMBOL
     from nanobot.trading.memory.decisions import list_recent_decisions
@@ -359,7 +359,7 @@ def handle_trading_performance(_request: WsRequest) -> Response:
     paper_actions = 0
     if paper_path.exists():
         paper_actions = sum(1 for line in paper_path.read_text(encoding="utf-8").splitlines() if line.strip())
-    return _http_json_response({
+    return {
         "totalRecommendations": len(recs),
         "openRecommendations": open_count,
         "closedRecommendations": closed_count,
@@ -372,7 +372,11 @@ def handle_trading_performance(_request: WsRequest) -> Response:
             transitions,
             live_price=live_price,
         ),
-    })
+    }
+
+
+def handle_trading_performance(_request: WsRequest) -> Response:
+    return _http_json_response(performance_document())
 
 
 def _chart_host_authorized(request: WsRequest) -> bool:
@@ -483,8 +487,7 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
     return _http_json_response({"ok": True})
 
 
-def handle_trading_briefing(request: WsRequest) -> Response:
-    locale = _locale_of(_parse_query(request.path))
+def briefing_document(locale: str | None) -> dict[str, Any]:
     from nanobot.trading.config import load_trading_config
     from nanobot.trading.oanda import fetch_quote
     from nanobot.trading.recommendations.followup import (
@@ -505,7 +508,7 @@ def handle_trading_briefing(request: WsRequest) -> Response:
             "livePrice": live_price,
         }
     recs = list_recommendations(limit=5)
-    return _http_json_response({
+    return {
         "symbol": "XAUUSD",
         "quote": {
             "mid": quote.mid if quote else None,
@@ -519,7 +522,12 @@ def handle_trading_briefing(request: WsRequest) -> Response:
             if quote and quote.mid is not None
             else tr("api.gold_quote_unavailable", locale)
         ),
-    })
+    }
+
+
+def handle_trading_briefing(request: WsRequest) -> Response:
+    locale = _locale_of(_parse_query(request.path))
+    return _http_json_response(briefing_document(locale))
 
 
 async def handle_trading_recommendation_transition(request: WsRequest) -> Response:

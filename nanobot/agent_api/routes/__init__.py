@@ -14,6 +14,7 @@ from nanobot.agent_api.routes import (
     log,
     market,
     me,
+    operator,
     providers,
     recommendations,
     results,
@@ -37,6 +38,7 @@ def setup_routes(app: web.Application) -> None:
     recommendations.register(router, API_PREFIX)
     connect.register(router, API_PREFIX)
     log.register(router, API_PREFIX)
+    operator.register(router, API_PREFIX)
     devices.register(router, API_PREFIX)
     settings.register(router, API_PREFIX)
     providers.register(router, API_PREFIX)
