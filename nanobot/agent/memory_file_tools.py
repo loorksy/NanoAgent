@@ -9,6 +9,14 @@ from nanobot.agent.tools.base import Tool, ToolResult, tool_parameters
 from nanobot.agent.tools.schema import IntegerSchema, StringSchema, tool_parameters_schema
 
 
+def _resolve(path: str, workspace: Path | None) -> Path:
+    """Relative paths are workspace-relative so the model can say ``memory/MEMORY.md``."""
+    target = Path(path).expanduser()
+    if not target.is_absolute() and workspace is not None:
+        target = workspace / target
+    return target
+
+
 def _allowed(path: Path, allowed_files: tuple[Path, ...]) -> bool:
     try:
         resolved = path.resolve()
@@ -20,16 +28,17 @@ def _allowed(path: Path, allowed_files: tuple[Path, ...]) -> bool:
 @tool_parameters(
     tool_parameters_schema(
         path=StringSchema("Path to a memory file"),
-        offset=IntegerSchema("Line offset (0-based)"),
-        limit=IntegerSchema("Maximum lines to read"),
+        offset=IntegerSchema(description="Line offset (0-based)"),
+        limit=IntegerSchema(description="Maximum lines to read"),
         required=["path"],
     )
 )
 class DreamReadFileTool(Tool):
     _plugin_discoverable = False
 
-    def __init__(self, *, allowed_files: tuple[Path, ...]) -> None:
+    def __init__(self, *, allowed_files: tuple[Path, ...], workspace: Path | None = None) -> None:
         self._allowed_files = allowed_files
+        self._workspace = workspace
 
     @classmethod
     def create(cls, ctx: Any) -> Tool:
@@ -49,12 +58,13 @@ class DreamReadFileTool(Tool):
 
     async def execute(
         self,
+        *,
         path: str,
         offset: int = 0,
         limit: int = 500,
         **kwargs: Any,
     ) -> str:
-        target = Path(path)
+        target = _resolve(path, self._workspace)
         if not _allowed(target, self._allowed_files):
             return ToolResult.error("Path not allowed for Dream memory edits.")
         if not target.exists():
@@ -75,8 +85,9 @@ class DreamReadFileTool(Tool):
 class DreamEditFileTool(Tool):
     _plugin_discoverable = False
 
-    def __init__(self, *, allowed_files: tuple[Path, ...]) -> None:
+    def __init__(self, *, allowed_files: tuple[Path, ...], workspace: Path | None = None) -> None:
         self._allowed_files = allowed_files
+        self._workspace = workspace
 
     @classmethod
     def create(cls, ctx: Any) -> Tool:
@@ -92,12 +103,13 @@ class DreamEditFileTool(Tool):
 
     async def execute(
         self,
+        *,
         path: str,
         old_string: str,
         new_string: str,
         **kwargs: Any,
     ) -> str:
-        target = Path(path)
+        target = _resolve(path, self._workspace)
         if not _allowed(target, self._allowed_files):
             return ToolResult.error("Path not allowed for Dream memory edits.")
         text = target.read_text(encoding="utf-8") if target.exists() else ""
@@ -117,8 +129,9 @@ class DreamEditFileTool(Tool):
 class DreamWriteFileTool(Tool):
     _plugin_discoverable = False
 
-    def __init__(self, *, allowed_files: tuple[Path, ...]) -> None:
+    def __init__(self, *, allowed_files: tuple[Path, ...], workspace: Path | None = None) -> None:
         self._allowed_files = allowed_files
+        self._workspace = workspace
 
     @classmethod
     def create(cls, ctx: Any) -> Tool:
@@ -132,8 +145,8 @@ class DreamWriteFileTool(Tool):
     def description(self) -> str:
         return "Overwrite one of the agent memory files."
 
-    async def execute(self, path: str, content: str, **kwargs: Any) -> str:
-        target = Path(path)
+    async def execute(self, *, path: str, content: str, **kwargs: Any) -> str:
+        target = _resolve(path, self._workspace)
         if not _allowed(target, self._allowed_files):
             return ToolResult.error("Path not allowed for Dream memory edits.")
         target.parent.mkdir(parents=True, exist_ok=True)
