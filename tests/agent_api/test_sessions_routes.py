@@ -202,3 +202,19 @@ async def test_message_attachments_saved_as_media(
     await (await client.get(f"/api/v2/sessions/{session}/events?until_end=1", headers=auth())).text()
     assert agent.calls[0]["media"] == ["/tmp/1.png", "/tmp/2.png"]
     assert saved == ["data:image/p", "data:image/p"]
+
+
+async def test_openai_compat_routes_share_listener_and_auth(client: TestClient, agent: FakeAgent) -> None:
+    assert (await client.get("/v1/models")).status == 401
+    models = await (await client.get("/v1/models", headers=auth())).json()
+    assert [m["id"] for m in models["data"]] == ["nanoagent"]
+
+    resp = await client.post(
+        "/v1/chat/completions",
+        json={"model": "nanoagent", "messages": [{"role": "user", "content": "hi"}]},
+        headers={**auth(), "X-OpenWebUI-Chat-Id": "chat-42"},
+    )
+    assert resp.status == 200
+    body = await resp.json()
+    assert body["choices"][0]["message"]["content"].strip() == agent.reply
+    assert agent.calls[0]["session_key"] == "api:chat-42"

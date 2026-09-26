@@ -33,6 +33,10 @@ class AgentApiConfig(Base):
     bootstrap_token: str = ""
     max_events_per_session: int = 5000
     request_timeout_seconds: float = 900.0
+    # Also serve the OpenAI-compatible ``/v1/chat/completions`` + ``/v1/models`` on this
+    # listener (Open WebUI's model connection); authenticated by the same bearer tokens.
+    openai_compat: bool = True
+    openai_model_name: str = "nanoagent"
 
 
 def _from_mapping(blob: object) -> AgentApiConfig | None:

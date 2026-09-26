@@ -6,6 +6,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -43,7 +44,7 @@ class FakeAgent:
         if on_stream is not None:
             for token in self.reply.split(" "):
                 await on_stream(token + " ")
-        return None
+        return SimpleNamespace(content=self.reply)
 
     async def _cancel_active_tasks(self, key: str) -> int:
         self.cancelled_keys.append(key)

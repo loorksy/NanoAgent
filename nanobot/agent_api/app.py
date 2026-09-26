@@ -212,6 +212,15 @@ def create_app(
     )
     app[SERVICES_KEY] = svc
     setup_routes(app)
+    if config.openai_compat:
+        from nanobot.api.server import register_openai_routes
+
+        register_openai_routes(
+            app,
+            agent,
+            model_name=config.openai_model_name,
+            request_timeout=config.request_timeout_seconds,
+        )
 
     registry = getattr(agent, "tools", None)
     if registry is not None and hasattr(registry, "register"):

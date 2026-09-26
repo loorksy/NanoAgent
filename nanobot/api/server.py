@@ -330,6 +330,10 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
     if requested_model and requested_model != model_name:
         return _error_json(400, f"Only configured model '{model_name}' is available")
 
+    # Open WebUI forwards its chat id when ENABLE_FORWARD_USER_INFO_HEADERS is on; use it
+    # so the plain OpenAI-compatible path maps one chat to one nanobot session.
+    if not session_id:
+        session_id = request.headers.get("X-OpenWebUI-Chat-Id") or None
     session_key = f"api:{session_id}" if session_id else API_SESSION_KEY
     session_locks: dict[str, asyncio.Lock] = _app_value(
         request.app,
@@ -472,6 +476,31 @@ async def handle_health(request: web.Request) -> web.Response:
 # ---------------------------------------------------------------------------
 
 
+def register_openai_routes(
+    app: web.Application,
+    agent_loop: Any,
+    *,
+    model_name: str = "nanobot",
+    request_timeout: float = 120.0,
+    prepare_agent: Callable[[], Awaitable[None]] | None = None,
+    include_health: bool = False,
+) -> None:
+    """Mount ``/v1/chat/completions`` and ``/v1/models`` on an existing application.
+
+    The host application owns authentication; this only installs state and routes so
+    the OpenAI-compatible surface can share a listener with the Agent API.
+    """
+    app[_AGENT_LOOP_KEY] = agent_loop
+    app[_MODEL_NAME_KEY] = model_name
+    app[_REQUEST_TIMEOUT_KEY] = request_timeout
+    app[_SESSION_LOCKS_KEY] = {}
+    app[_PREPARE_AGENT_KEY] = prepare_agent
+    app.router.add_post("/v1/chat/completions", handle_chat_completions)
+    app.router.add_get("/v1/models", handle_models)
+    if include_health:
+        app.router.add_get("/health", handle_health)
+
+
 def create_app(
     agent_loop: "AgentLoop",
     model_name: str = "nanobot",
@@ -489,11 +518,6 @@ def create_app(
         prepare_agent: Optional application-owned readiness callback run before each turn.
     """
     app = web.Application(client_max_size=20 * 1024 * 1024)  # 20MB for base64 images
-    app[_AGENT_LOOP_KEY] = agent_loop
-    app[_MODEL_NAME_KEY] = model_name
-    app[_REQUEST_TIMEOUT_KEY] = request_timeout
-    app[_SESSION_LOCKS_KEY] = {}  # per-user locks, keyed by session_key
-    app[_PREPARE_AGENT_KEY] = prepare_agent
 
     @web.middleware
     async def auth_middleware(
@@ -513,8 +537,12 @@ def create_app(
         return await handler(request)
 
     app.middlewares.append(auth_middleware)
-
-    app.router.add_post("/v1/chat/completions", handle_chat_completions)
-    app.router.add_get("/v1/models", handle_models)
-    app.router.add_get("/health", handle_health)
+    register_openai_routes(
+        app,
+        agent_loop,
+        model_name=model_name,
+        request_timeout=request_timeout,
+        prepare_agent=prepare_agent,
+        include_health=True,
+    )
     return app
