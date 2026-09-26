@@ -18,6 +18,9 @@ PAGES = (
     "open-webui/src/routes/(app)/recommendations/+page.svelte",
     "open-webui/src/routes/(app)/connect/+page.svelte",
     "open-webui/src/routes/(app)/log/+page.svelte",
+    "open-webui/src/routes/(app)/briefing/+page.svelte",
+    "open-webui/src/routes/(app)/performance/+page.svelte",
+    "open-webui/src/routes/(app)/usage/+page.svelte",
 )
 
 SVELTE_ROOTS = (
@@ -27,6 +30,9 @@ SVELTE_ROOTS = (
     "open-webui/src/routes/(app)/recommendations",
     "open-webui/src/routes/(app)/connect",
     "open-webui/src/routes/(app)/log",
+    "open-webui/src/routes/(app)/briefing",
+    "open-webui/src/routes/(app)/performance",
+    "open-webui/src/routes/(app)/usage",
 )
 
 
@@ -40,6 +46,11 @@ def test_fork_pages_proxy_and_sidebar() -> None:
         encoding="utf-8"
     )
     assert "NanoAgentNav" in sidebar
+    nav = (ROOT / "open-webui/src/lib/components/nanoagent/NanoAgentNav.svelte").read_text(
+        encoding="utf-8"
+    )
+    for href in ("/briefing", "/performance", "/usage"):
+        assert href in nav
     assert "nanoagent-chart-button" in (
         ROOT / "open-webui/src/lib/components/chat/MessageInput.svelte"
     ).read_text(encoding="utf-8")
