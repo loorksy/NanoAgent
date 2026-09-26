@@ -11,8 +11,9 @@ pytest.importorskip("botpy")
 
 
 def _make_channel():
-    from nanobot.bus.queue import MessageBus
     from nanobot.channels.qq.runtime import QQChannel, QQConfig
+
+    from nanobot.bus.queue import MessageBus
 
     bus = MessageBus()
     config = QQConfig(app_id="test_app", secret="test_secret")

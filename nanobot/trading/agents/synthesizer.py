@@ -191,14 +191,13 @@ async def run_final_decision_synthesizer(
             refusal_summary="Market context missing",
         )
 
-    from nanobot.trading.types import LiquidityResult as LQ
-    from nanobot.trading.types import SupplyDemandResult as SD
+    from nanobot.trading.types import LiquidityResult, SupplyDemandResult
 
     snapshot = build_evidence_snapshot(
         market=market,
         structure=structure,
-        liquidity=liquidity or LQ([], [], None, None, [], None),
-        supply_demand=supply_demand or SD([], None, None),
+        liquidity=liquidity or LiquidityResult([], [], None, None, [], None),
+        supply_demand=supply_demand or SupplyDemandResult([], None, None),
         mtf=mtf,
         news=news,
         risk=risk,

@@ -1,0 +1,9 @@
+{
+  "name": "subagent_forbidden",
+  "is_subagent": true,
+  "legacy": {"kernel": false, "decision": null, "nodes": []},
+  "unified_script": [
+    {"tool": "run_trading_kernel", "args": {"gather_missing": true}}
+  ],
+  "expect": {"kernel": false, "tools": [], "error_substring": "cannot call run_trading_kernel"}
+}

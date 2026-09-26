@@ -1,4 +1,3 @@
-import os
 
 from nanobot.trading.gates.news_policy import news_gate_mode
 

@@ -15,12 +15,12 @@ from nanobot.agent.tools.context import (
 )
 from nanobot.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
 from nanobot.trading.cards.artifacts import build_price_quote_artifacts
-from nanobot.trading.config import load_trading_config
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.chart_capture import resolve_visual_capture
+from nanobot.trading.config import load_trading_config, unified_loop_serving
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
+from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.chart_capture import resolve_visual_capture
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.recommendations.lifecycle import (
@@ -184,6 +184,8 @@ def _build_plan_status_artifact(
 class GetGoldQuoteTool(Tool):
     """Fetch the live XAUUSD quote from the platform market feed."""
 
+    _scopes = {"core"}
+
     def __init__(self, bus: MessageBus | None) -> None:
         self._bus = bus
 
@@ -214,6 +216,56 @@ class GetGoldQuoteTool(Tool):
         present_ui: bool = False,
         **kwargs: Any,
     ) -> str:
+        if unified_loop_serving():
+            from nanobot.trading.gold import require_gold
+            from nanobot.trading.unified_evidence import fetch_evidence_nodes
+
+            try:
+                require_gold(symbol)
+                payload = await fetch_evidence_nodes(["market_data"])
+            except GoldOnlyError as exc:
+                return ToolResult.error(str(exc))
+            except Exception as exc:
+                return ToolResult.error(f"Failed to fetch quote: {exc}")
+            if payload.get("aborted"):
+                return ToolResult.error(payload.get("abort_reason") or "Market data sync failed")
+            market = payload.get("nodes", {}).get("market_data") or {}
+            display = payload.get("display") or {}
+            locale = _operator_locale()
+            quote_data = {
+                "symbol": DATA_SYMBOL,
+                "bid": market.get("quote_bid"),
+                "ask": market.get("quote_ask"),
+                "mid": market.get("quote_mid"),
+                "tradeable": market.get("tradeable"),
+            }
+            artifacts = build_price_quote_artifacts(quote_data, locale=locale)
+            channel, chat_id = _request_route()
+            await _maybe_publish_artifacts(
+                self._bus,
+                channel=channel,
+                chat_id=chat_id,
+                locale=locale,
+                artifacts=artifacts,
+                present_ui=present_ui,
+            )
+            return json.dumps(
+                {
+                    **quote_data,
+                    "locale": locale,
+                    "display": {
+                        "bid": display.get("bid"),
+                        "ask": display.get("ask"),
+                        "mid": display.get("mid"),
+                    },
+                    "instruction": (
+                        "Quote display.mid (or bid/ask) verbatim — never invent or reformat "
+                        "with commas."
+                    ),
+                    "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
+                },
+                indent=2,
+            )
         config = load_trading_config()
         if not config.oanda_configured:
             return ToolResult.error("Market data is not available — cannot fetch gold quote.")
@@ -262,6 +314,8 @@ class GetGoldQuoteTool(Tool):
 @tool_parameters(_LIVE_PLAN_PARAMETERS)
 class GetLiveRecommendationTool(Tool):
     """Return the active live recommendation for this conversation."""
+
+    _scopes = {"core"}
 
     def __init__(self, bus: MessageBus | None) -> None:
         self._bus = bus
@@ -389,6 +443,8 @@ class GetLiveRecommendationTool(Tool):
 class ManageTradingPlanTool(Tool):
     """Archive, sync, and close trading recommendations for this session."""
 
+    _scopes = {"core"}
+
     @classmethod
     def create(cls, ctx: ToolContext) -> Tool:
         return cls()
@@ -454,6 +510,8 @@ class ManageTradingPlanTool(Tool):
 class AnalyzeGoldTool(Tool):
     """Run the full gold recommendation pipeline and open the side chart."""
 
+    _scopes = {"core"}
+
     def __init__(self, bus: MessageBus | None, subagent_manager: Any | None) -> None:
         self._bus = bus
         self._subagent_manager = subagent_manager
@@ -489,6 +547,16 @@ class AnalyzeGoldTool(Tool):
         config = load_trading_config()
         session_key = current_request_session_key()
         prepare_for_new_recommendation(session_key)
+        if unified_loop_serving():
+            return await self._execute_unified(
+                interval=interval,
+                team_mode=team_mode,
+                preset=preset,
+                reevaluate=reevaluate,
+                force_new_plan=force_new_plan,
+                present_ui=present_ui,
+                session_key=session_key,
+            )
         if config.agent_first_mode and not reevaluate:
             live = latest_live_recommendation(session_key)
             if live:
@@ -569,10 +637,91 @@ class AnalyzeGoldTool(Tool):
 
         return json.dumps(wire, indent=2)
 
+    async def _execute_unified(
+        self,
+        *,
+        interval: str,
+        team_mode: str,
+        preset: str | None,
+        reevaluate: bool,
+        force_new_plan: bool,
+        present_ui: bool,
+        session_key: str | None,
+    ) -> str:
+        from nanobot.trading.kernel import run_trading_kernel
+        from nanobot.trading.policy_guard import PolicyViolation
+
+        channel, chat_id = _request_route()
+        locale = _operator_locale()
+        publisher = TradingStagePublisher(
+            self._bus,
+            channel=channel,
+            chat_id=chat_id,
+            locale=locale,
+        )
+        publish_ui = should_publish_trading_ui(present_ui)
+        if publish_ui:
+            await publisher.open_chart(interval)
+        visual_capture = resolve_visual_capture(publisher) if publish_ui else None
+        briefing = None
+        resolved_mode = team_mode or "core"
+        try:
+            if team_mode == "debate":
+                debate = await run_debate_crew(
+                    user_message=(
+                        (current_request_context().original_user_text if current_request_context() else "")
+                        or ""
+                    ),
+                    emit=publisher.sync_emit if publish_ui else None,
+                    subagent_manager=self._subagent_manager,
+                    publisher=publisher if publish_ui else None,
+                    interval=interval,
+                    visual_capture=visual_capture,
+                )
+                briefing = debate.briefing
+                resolved_mode = "debate"
+            elif team_mode == "swarm":
+                if not preset:
+                    return ToolResult.error("team_mode=swarm requires an explicit preset parameter.")
+                swarm = await run_swarm(
+                    preset,
+                    subagent_manager=self._subagent_manager,
+                    publisher=publisher if publish_ui else None,
+                    interval=interval,
+                    emit=publisher.sync_emit if publish_ui else None,
+                    visual_capture=visual_capture,
+                )
+                briefing = swarm.get("team_briefing")
+                resolved_mode = f"swarm:{preset}"
+            result = await run_trading_kernel(
+                interval=interval,
+                team_mode=resolved_mode,
+                gather_missing=True,
+                reevaluate=reevaluate,
+                force_new_plan=force_new_plan,
+                present_ui=publish_ui,
+                session_key=session_key,
+                team_briefing=briefing,
+                visual_capture=visual_capture,
+                emit=publisher.sync_emit if publish_ui else None,
+            )
+        except PolicyViolation as exc:
+            return ToolResult.error(str(exc.reason))
+        except Exception as exc:
+            return ToolResult.error(f"Gold analysis failed: {exc}")
+        if result is None:
+            return ToolResult.error("Analysis produced no result.")
+        wire = result_to_wire(result)
+        if publish_ui:
+            await publisher.publish_result(wire)
+        return json.dumps(wire, indent=2)
+
 
 @tool_parameters(_CAPTURE_PARAMETERS)
 class CaptureGoldChartTool(Tool):
     """Capture a TradingView chart screenshot for XAUUSD."""
+
+    _scopes = {"core"}
 
     def __init__(self, bus: MessageBus | None) -> None:
         self._bus = bus

@@ -48,6 +48,9 @@ if TYPE_CHECKING:
 class SpawnTool(Tool):
     """Tool to spawn a subagent for background task execution."""
 
+    # Hard Law: subagents do not receive spawn (max_depth=1). Interceptor also refuses.
+    _scopes = {"core"}
+
     def __init__(self, manager: "SubagentManager"):
         self._manager = manager
 

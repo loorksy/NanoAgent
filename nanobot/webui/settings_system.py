@@ -58,6 +58,7 @@ class SystemSettingsOperations:
     deny_code: SettingsOperation
     mcp_presets_action: SettingsOperation
     trading_risk_action: SettingsOperation
+    trading_metaapi_action: SettingsOperation
     reload_mcp: SettingsOperation
     mcp_runtime_status: Callable[[], Mapping[str, str]] | None
     check_for_update: SettingsOperation
@@ -481,6 +482,14 @@ class SystemSettingsHandler:
             return await self._trading_risk(
                 request,
                 action.removeprefix("trading-risk-"),
+                operations,
+            )
+        if action == "trading-metaapi-list":
+            return await self._trading_metaapi(request, None, operations)
+        if action.startswith("trading-metaapi-"):
+            return await self._trading_metaapi(
+                request,
+                action.removeprefix("trading-metaapi-"),
                 operations,
             )
         if action == "version-check":
@@ -1039,6 +1048,29 @@ class SystemSettingsHandler:
             if status >= 500:
                 self.logger.exception(
                     "Trading risk action '{}' failed",
+                    action or "list",
+                )
+            return SettingsRouteResult.failure(status, message)
+        return SettingsRouteResult.success(payload)
+
+    async def _trading_metaapi(
+        self,
+        request: SettingsRequest,
+        action: str | None,
+        operations: SystemSettingsOperations,
+    ) -> SettingsRouteResult:
+        try:
+            payload = await operations.trading_metaapi_action(
+                action,
+                request.query,
+                config=self.settings.config,
+            )
+        except Exception as exc:
+            status = getattr(exc, "status", 500)
+            message = getattr(exc, "message", str(exc))
+            if status >= 500:
+                self.logger.exception(
+                    "Trading MetaAPI action '{}' failed",
                     action or "list",
                 )
             return SettingsRouteResult.failure(status, message)

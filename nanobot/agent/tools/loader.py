@@ -30,6 +30,8 @@ _GOLD_AGENT_MODULES = frozenset({
     "trading_chart",
     "trading_team",
     "trading_intel",
+    "trading_evidence",
+    "trading_kernel",
     "mt5_execution",
     "web",
     "message",

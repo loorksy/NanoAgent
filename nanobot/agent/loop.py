@@ -1686,15 +1686,51 @@ class AgentLoop:
 
         await self._run_turn_stage(ctx, "restore", self._restore_turn)
         await self._run_turn_stage(ctx, "compact", self._compact_session)
-        if await self._run_turn_stage(ctx, "command", self._dispatch_command):
-            return ctx.outbound
-        if await self._run_turn_stage(ctx, "gold_fast_path", self._dispatch_gold_fast_path):
-            return ctx.outbound
-        await self._run_turn_stage(ctx, "build", self._build_turn)
-        await self._run_turn_stage(ctx, "run", self._run_turn)
-        await self._run_turn_stage(ctx, "save", self._persist_turn)
-        await self._run_turn_stage(ctx, "respond", self._prepare_outbound)
-        return ctx.outbound
+        from nanobot.trading.config import peek_unified_loop_env, unified_loop_mode
+        from nanobot.trading.turn_session import bind_turn_session, reset_turn_session
+
+        turn_token = None
+        try:
+            peeked = peek_unified_loop_env()
+            mode = unified_loop_mode() if peeked is not None else "off"
+            is_subagent = ctx.msg.sender_id == "subagent"
+            user_turn = ctx.kind is TurnKind.USER and ctx.msg.channel != "system"
+            if mode == "on" and (user_turn or is_subagent):
+                from nanobot.trading.policy_guard import validate_turn_input
+
+                session = validate_turn_input(
+                    ctx.original_user_text or ctx.msg.content,
+                    session_key=ctx.session_key,
+                    turn_id=ctx.turn_id,
+                    is_subagent=is_subagent,
+                )
+                turn_token = bind_turn_session(session)
+            if await self._run_turn_stage(ctx, "command", self._dispatch_command):
+                return self._finalize_unified_outbound(ctx)
+            if mode != "on":
+                if await self._run_turn_stage(ctx, "gold_fast_path", self._dispatch_gold_fast_path):
+                    return self._finalize_unified_outbound(ctx)
+            await self._run_turn_stage(ctx, "build", self._build_turn)
+            await self._run_turn_stage(ctx, "run", self._run_turn)
+            await self._run_turn_stage(ctx, "save", self._persist_turn)
+            await self._run_turn_stage(ctx, "respond", self._prepare_outbound)
+            return self._finalize_unified_outbound(ctx)
+        finally:
+            if turn_token is not None:
+                reset_turn_session(turn_token)
+
+    def _finalize_unified_outbound(self, ctx: TurnContext):
+        """Output-policy + shadow logs. Identity when LONORA_UNIFIED_LOOP is off."""
+        from nanobot.trading.delivery import finalize_turn_outbound
+
+        outbound = finalize_turn_outbound(
+            ctx.outbound,
+            user_text=ctx.original_user_text or ctx.msg.content or "",
+        )
+        ctx.outbound = outbound
+        if outbound is not None:
+            ctx.final_content = outbound.content
+        return outbound
 
     async def _run_turn_stage(
         self,

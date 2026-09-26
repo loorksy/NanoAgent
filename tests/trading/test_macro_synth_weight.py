@@ -21,20 +21,7 @@ from nanobot.trading.agents.macro_drivers import format_team_briefing
 from nanobot.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
 from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.types import (
-    AgentMarketContext,
-    Candle,
     EvidenceSnapshot,
-    GateChainResult,
-    LiquidityResult,
-    MarketSync,
-    MultiTimeframeResult,
-    NewsMacroResult,
-    RiskAgentResult,
-    StructureResult,
-    SupplyDemandResult,
-    TradeCandidate,
-    TradeValidationResult,
-    VisualReview,
 )
 
 
