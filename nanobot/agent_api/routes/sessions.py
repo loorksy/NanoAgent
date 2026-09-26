@@ -9,7 +9,7 @@ from typing import cast
 from aiohttp import web
 from loguru import logger
 
-from nanobot.agent_api.auth import require_scope
+from nanobot.agent_api.auth import require_any_scope, require_scope
 from nanobot.agent_api.context import services
 from nanobot.agent_api.errors import ApiError
 from nanobot.agent_api.events import GatewayEvent, JsonObject
@@ -37,6 +37,14 @@ def _part_data_url(part: dict[str, object]) -> str | None:
     mime = part.get("mime")
     if isinstance(base64_payload, str) and base64_payload and isinstance(mime, str) and mime:
         return f"data:{mime};base64,{base64_payload}"
+    return None
+
+
+def optional_locale(body: JsonObject) -> str | None:
+    """UI locale from the pipe or websocket frame. Empty values are ignored."""
+    value = body.get("locale")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
     return None
 
 
@@ -157,12 +165,15 @@ async def post_message(request: web.Request) -> web.Response:
                 raise ApiError(500, "model_clear_failed", details={"session": session_id})
         elif not svc.sessions.use_model(session_id, selected):
             raise ApiError(400, "unknown_model", details={"model": selected})
-    run_id = svc.sessions.submit(session_id, text, media=media)
+    run_id = svc.sessions.submit(
+        session_id, text, media=media, locale=optional_locale(body)
+    )
     return ok({"run_id": run_id, "session": session_id}, status=202)
 
 
 async def cancel_session(request: web.Request) -> web.Response:
-    require_scope(request, "control")
+    # The same chat token that starts a run must be able to stop it.
+    require_any_scope(request, "chat", "control")
     svc = services(request)
     session_id = request.match_info["id"]
     cancelled = await svc.sessions.cancel(session_id)

@@ -541,7 +541,8 @@ class Pipe:
             description="Base URL of the NanoAgent Agent API (no trailing slash).",
         )
         GATEWAY_TOKEN: str = Field(
-            default="", description="Bearer token for the Agent API (scopes: chat, approve)."
+            default="",
+            description="Bearer token for the Agent API (scopes: chat, approve). Stop uses chat.",
         )
         DEFAULT_LOCALE: str = Field(
             default="en",

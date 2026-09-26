@@ -296,6 +296,15 @@ def require_scope(request: web.Request, scope: Scope) -> Principal:
     return principal
 
 
+def require_any_scope(request: web.Request, *scopes: Scope) -> Principal:
+    """Allow the call when the token has any one of ``scopes`` (or admin)."""
+    principal = principal_of(request)
+    granted = set(principal["scopes"])
+    if "admin" in granted or granted.intersection(scopes):
+        return principal
+    raise ApiError(403, "forbidden", "auth.missing_scope", {"scope": scopes[0] if scopes else ""})
+
+
 def is_admin(principal: Principal) -> bool:
     return "admin" in principal["scopes"]
 

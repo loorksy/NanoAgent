@@ -26,7 +26,7 @@ from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gold import DATA_SYMBOL, require_gold
 from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.intel.postmortem import refuse_repeat_error
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.locale import active_locale
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.observability import log_gate_observability
 from nanobot.trading.policy import GOLD_POINT
@@ -286,7 +286,7 @@ async def run_trading_kernel(
             setup = rec.plan_type
         repeat = refuse_repeat_error(side=rec.action, setup=setup)
         if repeat is not None:
-            loc = locale_from_text(_operator_text())
+            loc = active_locale()
             reason = tr("lesson.repeat", loc, reason=repeat.reason)
             decision.decision = "wait"
             decision.refusal_summary = reason
@@ -387,7 +387,7 @@ async def run_trading_kernel(
 
     if not gate_chain.allowed:
         veto = gate_chain.vetoed_by
-        loc = locale_from_text(_operator_text())
+        loc = active_locale()
         reason = (veto.reason_ar or veto.reason) if veto else tr("synth.operational_blocker", loc)
         check = gate_label(veto.id, loc) if veto else ""
         decision.decision = "wait"
@@ -441,7 +441,7 @@ async def run_trading_kernel(
     )
     if present_ui:
         operator = _operator_text()
-        locale = locale_from_text(operator)
+        locale = active_locale(operator)
         result.cards = derive_cards(result, locale=locale)
         apply_result_artifacts(
             result,

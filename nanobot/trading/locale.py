@@ -12,6 +12,20 @@ def locale_from_text(text: str) -> str:
     return "ar" if _ARABIC_RE.search(text or "") else "en"
 
 
+def active_locale(text: str | None = None) -> str:
+    """Prefer the locale the UI sent on this turn, then the script of the text."""
+    from nanobot.agent.tools.context import current_request_context
+
+    ctx = current_request_context()
+    if ctx is not None:
+        raw = ctx.attributes.get("locale") if isinstance(ctx.attributes, dict) else None
+        if isinstance(raw, str) and raw.strip():
+            return normalize_locale(raw)
+        if text is None:
+            text = ctx.original_user_text or ""
+    return locale_from_text(text or "")
+
+
 def normalize_locale(locale: str | None) -> str:
     if locale and str(locale).lower().startswith("ar"):
         return "ar"

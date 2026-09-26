@@ -347,6 +347,7 @@ class SessionService:
         text: str,
         *,
         media: list[str] | None = None,
+        locale: str | None = None,
     ) -> str:
         if not text.strip() and not media:
             raise ApiError(400, "empty_message")
@@ -358,14 +359,21 @@ class SessionService:
         self._run_ids[session_id] = run_id
         self.hub.run_started(session_id, run_id)
         task = asyncio.create_task(
-            self._run(session_id, run_id, text, media or []),
+            self._run(session_id, run_id, text, media or [], locale),
             name=f"agent-api-run:{session_id}",
         )
         self._runs[session_id] = task
         self._touch(session_id)
         return run_id
 
-    async def _run(self, session_id: str, run_id: str, text: str, media: list[str]) -> None:
+    async def _run(
+        self,
+        session_id: str,
+        run_id: str,
+        text: str,
+        media: list[str],
+        locale: str | None = None,
+    ) -> None:
         key = session_key_for(session_id)
         hook = TurnHook(self.hub, self.approvals, session=session_id, run=run_id)
         emitted = False
@@ -391,6 +399,7 @@ class SessionService:
                     on_stream=on_stream,
                     on_stream_end=on_stream_end,
                     hooks=[hook],
+                    attributes={"locale": locale} if locale else None,
                 )
             if not emitted:
                 final = _response_text(response)

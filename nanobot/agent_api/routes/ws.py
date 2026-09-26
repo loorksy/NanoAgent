@@ -31,12 +31,12 @@ from typing import cast
 from aiohttp import WSMsgType, web
 from loguru import logger
 
-from nanobot.agent_api.auth import Principal, principal_of, require_scope
+from nanobot.agent_api.auth import Principal, principal_of, require_any_scope, require_scope
 from nanobot.agent_api.context import AgentApiServices, services
 from nanobot.agent_api.errors import ApiError
 from nanobot.agent_api.events import GatewayEvent, JsonObject, now_ms
 from nanobot.agent_api.hub import Subscription
-from nanobot.agent_api.routes.sessions import media_paths, message_text
+from nanobot.agent_api.routes.sessions import media_paths, message_text, optional_locale
 
 WS_HEARTBEAT_SECONDS = 20.0
 _MAX_FRAME_BYTES = 1 << 20
@@ -193,10 +193,12 @@ class WsClient:
             self.svc.sessions.ensure(session)
             if session not in self._subs:
                 self.subscribe(session, None)
-            run_id = self.svc.sessions.submit(session, text, media=media)
+            run_id = self.svc.sessions.submit(
+                session, text, media=media, locale=optional_locale(frame)
+            )
             return {"session": session, "run_id": run_id}
         if op == "cancel":
-            require_scope(self.request, "control")
+            require_any_scope(self.request, "chat", "control")
             session = self._session(frame)
             cancelled = await self.svc.sessions.cancel(session)
             return {"session": session, "cancelled": cancelled}
