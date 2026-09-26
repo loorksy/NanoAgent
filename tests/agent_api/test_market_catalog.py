@@ -67,6 +67,20 @@ async def test_workspace_tools_include_emit_result(client: TestClient, monkeypat
     assert "emit_result" in names
 
 
+def test_apply_disabled_skills_reaches_the_live_agent() -> None:
+    from nanobot.agent_api.tool_ref import apply_disabled_skills, bind_agent
+
+    skills = SimpleNamespace(disabled_skills=set())
+    subagents = SimpleNamespace(disabled_skills=set())
+    bind_agent(SimpleNamespace(context=SimpleNamespace(skills=skills), subagents=subagents))
+    try:
+        apply_disabled_skills({"cron"})
+        assert skills.disabled_skills == {"cron"}
+        assert subagents.disabled_skills == {"cron"}
+    finally:
+        bind_agent(None)
+
+
 def test_every_gold_tool_has_a_schema(tmp_path) -> None:
     from nanobot.agent.tools.context import ToolContext
     from nanobot.agent.tools.loader import ToolLoader

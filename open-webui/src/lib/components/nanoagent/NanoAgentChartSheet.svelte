@@ -20,6 +20,7 @@
 	let loading = false;
 	let container: HTMLDivElement | undefined;
 	let generation = 0;
+	let mounted = false;
 	let widget: { remove?: () => void; activeChart?: () => { setResolution: (value: string) => void } } | null =
 		null;
 	let scriptPromise: Promise<void> | null = null;
@@ -115,20 +116,23 @@
 				onError: (reason: string) => void
 			) => {
 				bars(resolution, period.from, period.to, Math.min(period.countBack ?? 300, 4000))
-					.then((rows) => onResult(rows, { noData: rows.length === 0 }))
-					.catch((error: Error) => onError(error.message));
+					.then((rows) => setTimeout(() => onResult(rows, { noData: rows.length === 0 }), 0))
+					.catch((error: Error) => setTimeout(() => onError(error.message), 0));
 			},
 			subscribeBars: (
 				_symbol: object,
 				resolution: string,
-				onTick: (bar: object) => void,
+				onTick: (bar: { time: number }) => void,
 				guid: string
 			) => {
+				let last = 0;
 				const timer = setInterval(() => {
 					void bars(resolution, undefined, undefined, 2)
 						.then((rows) => {
 							const latest = rows[rows.length - 1];
-							if (latest) onTick(latest);
+							if (!latest || latest.time < last) return;
+							last = latest.time;
+							onTick(latest);
 						})
 						.catch(() => undefined);
 				}, 5000);
@@ -156,11 +160,17 @@
 		loading = true;
 		failed = '';
 		await tick();
-		if (token !== generation || !container) return;
+		if (token !== generation || !container) {
+			if (token === generation) loading = false;
+			return;
+		}
 		destroyWidget();
 		try {
 			await loadScript();
-			if (token !== generation || !container) return;
+			if (token !== generation || !container) {
+				if (token === generation) loading = false;
+				return;
+			}
 			const tradingView = (window as unknown as { TradingView?: { widget?: new (options: object) => typeof widget } })
 				.TradingView;
 			if (!tradingView?.widget || !container) throw new Error('chart_library');
@@ -203,10 +213,13 @@
 		}
 	}
 
-	$: if ($chartOpen) {
+	$: if ($chartOpen && !mounted) {
+		mounted = true;
 		void mountChart();
-	} else {
+	}
+	$: if (!$chartOpen) {
 		generation += 1;
+		mounted = false;
 		destroyWidget();
 	}
 

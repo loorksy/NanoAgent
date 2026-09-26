@@ -8,7 +8,7 @@ from typing import Any, cast
 from nanobot.agent.tools.context import ToolContext
 from nanobot.agent.tools.loader import ToolLoader
 from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent_api.tool_ref import tool_registry
+from nanobot.agent_api.tool_ref import apply_disabled_skills, tool_registry
 from nanobot.config.loader import load_config
 from nanobot.webui.skills_api import set_webui_skill_enabled, webui_skills_payload
 
@@ -36,16 +36,15 @@ def set_skill_enabled(
 ) -> dict[str, object]:
     config = load_config(config_path)
     disabled = set(config.agents.defaults.disabled_skills)
-    return cast(
-        dict[str, object],
-        set_webui_skill_enabled(
-            workspace_path(config_path),
-            name,
-            enabled=enabled,
-            disabled_skills=disabled,
-            config_path=config_path,
-        ),
+    saved = set_webui_skill_enabled(
+        workspace_path(config_path),
+        name,
+        enabled=enabled,
+        disabled_skills=disabled,
+        config_path=config_path,
     )
+    apply_disabled_skills(disabled)
+    return cast(dict[str, object], saved)
 
 
 def _schema_function(schema: dict[str, Any]) -> dict[str, Any]:

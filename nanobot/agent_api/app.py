@@ -228,9 +228,10 @@ def create_app(
             register_emit_result_tool(registry, svc.results, svc.hub)
         except Exception:
             logger.debug("agent_api emit_result tool registration skipped", exc_info=True)
-        from nanobot.agent_api.tool_ref import bind_tool_registry
+        from nanobot.agent_api.tool_ref import bind_agent, bind_tool_registry
 
         bind_tool_registry(registry)
+        bind_agent(agent)
 
     bridge = RuntimeEventBridge(svc.hub)
     if deps.subscribe_runtime_events is not None:
