@@ -1,4 +1,5 @@
 import { ChannelQrConnectFlow } from "@/components/settings/channels/ChannelQrConnectFlow";
+import { Mt5ConnectSettings } from "@/components/trading/Mt5ConnectSettings";
 import { RiskParametersSettings } from "@/components/trading/RiskParametersSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,10 @@ export function TradingConnect() {
 
       {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
       {status ? <p className="mb-4 text-sm text-emerald-600 dark:text-emerald-400">{status}</p> : null}
+
+      <div className="mb-8">
+        <Mt5ConnectSettings />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card p-5">

@@ -1,0 +1,8 @@
+{
+  "name": "chart",
+  "legacy": {"kernel": false, "decision": null, "nodes": []},
+  "unified_script": [
+    {"tool": "capture_gold_chart", "args": {"interval": "15m"}}
+  ],
+  "expect": {"kernel": false, "tools": ["capture_gold_chart"]}
+}

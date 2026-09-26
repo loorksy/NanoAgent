@@ -11,7 +11,7 @@ agents:
     system_prompt: Argue AGAINST the gold trade setup; cite risks and conflicts.
   - id: risk_manager
     role: Risk Manager
-    system_prompt: Synthesize bull and bear briefs; enforce G1-G7 gate discipline.
+    system_prompt: Synthesize bull and bear briefs; enforce G1-G20 gate discipline.
 
 tasks:
   - id: task-bull

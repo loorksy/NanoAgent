@@ -39,7 +39,7 @@ If the user asks only: **«أرسل لي صورة الشارت»** / **«screens
 
 ### Gap vs a general-purpose agent (e.g. Claude Agent)
 
-Nanobot gold mode today is a **structured recommendation system** (market data → specialists → synthesizer → G1–G7 → store), not an open-ended trading copilot that satisfies every trading-related intent.
+Nanobot gold mode today is a **structured recommendation system** (market data → specialists → synthesizer → G1–G20 → store), not an open-ended trading copilot that satisfies every trading-related intent.
 
 Current tools: `get_gold_quote`, `analyze_gold`, `run_trading_team`.
 

@@ -103,7 +103,10 @@ trading-memory = [
     "scipy>=1.13.0,<2.0.0",
 ]
 trading-mt5 = [
-    "metaapi-cloud-sdk>=29.0.0,<30.0.0",
+    # metaapi-cloud-sdk is intentionally omitted: it pins python-socketio<5 and
+    # python-engineio<4, which conflict with [dev] / MoChat (socketio>=5.16).
+    # Runtime already treats the SDK as optional (NullTransport when missing).
+    # Install separately when needed: pip install 'metaapi-cloud-sdk>=29,<30'
     "yfinance>=0.2.40,<1.0.0",
 ]
 dev = [

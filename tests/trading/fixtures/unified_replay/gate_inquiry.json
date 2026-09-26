@@ -1,0 +1,8 @@
+{
+  "name": "gate_inquiry",
+  "legacy": {"kernel": false, "decision": null, "nodes": []},
+  "unified_script": [
+    {"tool": "get_gate_report", "args": {}}
+  ],
+  "expect": {"kernel": false, "tools": ["get_gate_report"]}
+}

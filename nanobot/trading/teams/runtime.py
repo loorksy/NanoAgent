@@ -86,6 +86,7 @@ async def run_swarm(
     interval: str = "15m",
     emit: Any | None = None,
     visual_capture: Any = None,
+    brief_only: bool | None = None,
 ) -> dict[str, Any]:
     preset = load_preset(preset_name)
     vars_ = {"target": "XAUUSD", "market": "forex", **(variables or {})}
@@ -130,6 +131,21 @@ async def run_swarm(
     )
     macro_briefing = format_team_briefing(verdicts)
     team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
+
+    from nanobot.trading.config import unified_loop_serving
+
+    briefs_only = brief_only if brief_only is not None else unified_loop_serving()
+    if briefs_only:
+        duration_ms = int((time.time() - started) * 1000)
+        return {
+            "preset": preset_name,
+            "task_summaries": summaries,
+            "macro_drivers": [item.to_wire() for item in verdicts],
+            "team_briefing": team_briefing,
+            "team_agents": list(collector.agents),
+            "final": None,
+            "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
+        }
 
     stage_emit = emit
     if publisher is not None and stage_emit is None:

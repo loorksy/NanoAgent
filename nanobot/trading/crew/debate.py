@@ -25,6 +25,7 @@ class DebateMessage:
 class DebateResult:
     messages: list[DebateMessage] = field(default_factory=list)
     final: Any | None = None
+    briefing: str = ""
 
 
 def _debate_briefing(messages: list[DebateMessage]) -> str:
@@ -42,6 +43,7 @@ async def run_debate_crew(
     publisher: Any | None = None,
     interval: str = "15m",
     visual_capture: Any = None,
+    brief_only: bool | None = None,
 ) -> DebateResult:
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
     evidence_text = format_market_evidence(market)
@@ -110,6 +112,13 @@ async def run_debate_crew(
     )
     messages.append(DebateMessage(role="risk", content=risk, round=2))
 
+    briefing = _debate_briefing(messages)
+    from nanobot.trading.config import unified_loop_serving
+
+    briefs_only = brief_only if brief_only is not None else unified_loop_serving()
+    if briefs_only:
+        return DebateResult(messages=messages, final=None, briefing=briefing)
+
     stage_emit = emit
     if publisher is not None and stage_emit is None:
         stage_emit = publisher.sync_emit
@@ -117,9 +126,9 @@ async def run_debate_crew(
     final = await run_unified_chart_agent(
         interval=interval,
         team_mode="debate",
-        team_briefing=_debate_briefing(messages),
+        team_briefing=briefing,
         emit=stage_emit,
         visual_capture=visual_capture,
     )
     final.team_agents = list(collector.agents)
-    return DebateResult(messages=messages, final=final)
+    return DebateResult(messages=messages, final=final, briefing=briefing)

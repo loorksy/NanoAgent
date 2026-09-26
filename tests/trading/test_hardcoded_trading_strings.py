@@ -17,7 +17,9 @@ SCAN_FILES = [
     ROOT / "trading" / "mt5_metaapi.py",
     ROOT / "trading" / "broker_result.py",
     ROOT / "webui" / "trading_risk_api.py",
+    ROOT / "webui" / "trading_metaapi_api.py",
     WEB_RISK,
+    Path("webui/src/components/trading/Mt5ConnectSettings.tsx"),
 ]
 
 # Wire values and i18n keys are allowed; operator sentences are not.
