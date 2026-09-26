@@ -136,6 +136,21 @@ GitHub Actions' free tier:
 If your change genuinely needs to step outside this, please call it out
 explicitly in the PR description so it can be discussed before merge.
 
+### When **Detect changes** fails in a few seconds with no logs
+
+If the **Test Suite** workflow shows six checks where only **Detect changes**
+failed and every Python, webui, tui, and docker job was **skipped**, open the
+failed job. When GitHub never assigned a runner (`runner_name` is empty and the
+job has no steps), the failure is usually an **Actions billing or account lock**,
+not a broken test in the repository. Restore Actions billing on the org or user
+account, then use **Re-run all jobs**.
+
+While billing is blocked, run local parity checks before merging:
+
+```bash
+./scripts/verify-ci-local.sh
+```
+
 ## Release Packaging Contract
 
 A stable install must never combine Python from one version with a TUI from another. Publish in
