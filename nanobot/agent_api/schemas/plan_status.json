@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "plan_status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan_id", "state", "transitions"],
+  "properties": {
+    "plan_id": {"type": "string"},
+    "state": {"type": "string"},
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "at"],
+        "properties": {
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "at": {"type": "integer"},
+          "reason_key": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "pnl": {"type": ["number", "null"]},
+    "direction": {"type": ["string", "null"], "enum": ["buy", "sell", null]},
+    "entry": {"type": ["number", "null"]},
+    "stop": {"type": ["number", "null"]},
+    "targets": {"type": "array", "items": {"type": "number"}}
+  }
+}

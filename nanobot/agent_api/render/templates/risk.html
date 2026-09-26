@@ -1,0 +1,14 @@
+{% extends "_layout.html" %}
+{% block body %}
+<dl class="na-grid">
+  <div><dt>{{ L('label.result.risk.risk_pct') }}</dt><dd>{{ p.risk_pct | num }}%</dd></div>
+  <div><dt>{{ L('label.result.risk.lot') }}</dt><dd>{{ p.lot | num }}</dd></div>
+  <div><dt>{{ L('label.result.risk.rr') }}</dt><dd>{{ p.rr | num }}</dd></div>
+  <div><dt>{{ L('label.result.risk.daily_dd_used_pct') }}</dt><dd>{{ p.daily_dd_used_pct | num }}%</dd></div>
+  <div><dt>{{ L('label.result.risk.open_positions') }}</dt><dd>{{ p.open_positions | num }}</dd></div>
+</dl>
+{% if p.blockers %}
+<p class="na-muted">{{ L('label.result.risk.blockers') }}</p>
+<ul>{% for b in p.blockers %}<li><strong>{{ L('label.gate.' ~ b.gate) }}</strong> — {{ L(b.reason_key) }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

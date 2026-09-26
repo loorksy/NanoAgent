@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 from pydantic import AliasChoices, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from nanobot.agent_api.config import AgentApiConfig
 from nanobot.config.timezone import detect_system_timezone
 from nanobot.config_base import Base
 from nanobot.cron.types import CronSchedule
@@ -600,6 +601,11 @@ class Config(BaseSettings):
     transcription: TranscriptionConfig = Field(default_factory=TranscriptionConfig)
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    agent_api: AgentApiConfig = Field(
+        default_factory=AgentApiConfig,
+        validation_alias=AliasChoices("agentApi", "agent_api"),
+        serialization_alias="agentApi",
+    )
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     trading_metaapi: TradingMetaApiConfig = Field(
         default_factory=TradingMetaApiConfig,

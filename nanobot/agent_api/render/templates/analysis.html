@@ -1,0 +1,23 @@
+{% extends "_layout.html" %}
+{% block body %}
+<p><span class="na-badge na-{{ p.htf_bias }}">{{ L('label.bias.' ~ p.htf_bias) }}</span> <span class="na-muted">{{ p.structure }}</span></p>
+{% if p.momentum_score is not none %}
+<p>{{ L('label.result.analysis.momentum_score') }}: <strong>{{ p.momentum_score | num }}</strong></p>
+{% endif %}
+{% if p.zones %}
+<table><thead><tr><th>{{ L('label.result.analysis.zone_type') }}</th><th>{{ L('label.result.analysis.low') }}</th><th>{{ L('label.result.analysis.high') }}</th></tr></thead>
+<tbody>{% for z in p.zones %}<tr><td>{{ L('label.zone.' ~ z.type) }}</td><td>{{ z.low | num }}</td><td>{{ z.high | num }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+{% if p.fvg %}
+<table><thead><tr><th>{{ L('label.result.analysis.fvg') }}</th><th>{{ L('label.result.analysis.low') }}</th><th>{{ L('label.result.analysis.high') }}</th></tr></thead>
+<tbody>{% for f in p.fvg %}<tr><td>{{ L('label.bias.' ~ f.direction) }}</td><td>{{ f.low | num }}</td><td>{{ f.high | num }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+{% if p.liquidity %}
+<table><thead><tr><th>{{ L('label.result.analysis.liquidity') }}</th><th>{{ L('label.result.analysis.level') }}</th></tr></thead>
+<tbody>{% for l in p.liquidity %}<tr><td>{{ L('label.liquidity.' ~ l.type) }}</td><td>{{ l.level | num }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}
+{% if p.confluence %}
+<p class="na-muted">{{ L('label.result.analysis.confluence') }}</p>
+<ul>{% for c in p.confluence %}<li>{{ L(c) }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

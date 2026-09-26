@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "scorecard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["period", "trades", "notes_keys"],
+  "properties": {
+    "period": {"type": "string"},
+    "trades": {"type": "integer", "minimum": 0},
+    "win_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "expectancy": {"type": ["number", "null"]},
+    "max_dd": {"type": ["number", "null"]},
+    "notes_keys": {"type": "array", "items": {"type": "string"}}
+  }
+}
