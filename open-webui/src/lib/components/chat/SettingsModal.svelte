@@ -224,58 +224,10 @@
 			searchPrefixes: ['settings.personal.interface.']
 		},
 		{
-			id: 'notifications',
-			titleKey: 'settings.personal.notifications.title',
-			title: $i18n.t('settings.personal.notifications.title'),
-			searchPrefixes: ['settings.personal.notifications.']
-		},
-		{
-			id: 'shortcuts',
-			titleKey: 'settings.personal.shortcuts.title',
-			title: $i18n.t('settings.personal.shortcuts.title'),
-			searchPrefixes: ['settings.personal.shortcuts.']
-		},
-		{
-			id: 'connections',
-			titleKey: 'settings.personal.connections.title',
-			title: $i18n.t('settings.personal.connections.title'),
-			searchPrefixes: ['settings.personal.connections.']
-		},
-		{
-			id: 'tools',
-			titleKey: 'settings.personal.tools.title',
-			title: $i18n.t('settings.personal.tools.title'),
-			searchPrefixes: ['settings.personal.tools.']
-		},
-		{
-			id: 'personalization',
-			titleKey: 'settings.personal.personalization.title',
-			title: $i18n.t('settings.personal.personalization.title'),
-			searchPrefixes: ['settings.personal.personalization.']
-		},
-		{
-			id: 'audio',
-			titleKey: 'settings.personal.audio.title',
-			title: $i18n.t('settings.personal.audio.title'),
-			searchPrefixes: ['settings.personal.audio.']
-		},
-		{
 			id: 'data_controls',
 			titleKey: 'settings.personal.dataControls.title',
 			title: $i18n.t('settings.personal.dataControls.title'),
 			searchPrefixes: ['settings.personal.dataControls.']
-		},
-		{
-			id: 'usage',
-			titleKey: 'settings.personal.usage.title',
-			title: $i18n.t('settings.personal.usage.title'),
-			searchPrefixes: ['settings.personal.usage.']
-		},
-		{
-			id: 'archived_chats',
-			titleKey: 'settings.personal.archivedChats.title',
-			title: $i18n.t('settings.personal.archivedChats.title'),
-			searchPrefixes: ['settings.personal.archivedChats.']
 		},
 		{
 			id: 'account',
@@ -303,12 +255,6 @@
 			titleKey: 'settings.admin.authentication.title',
 			title: $i18n.t('settings.admin.authentication.title'),
 			searchPrefixes: ['settings.admin.authentication.']
-		},
-		{
-			id: 'admin:connections',
-			titleKey: 'settings.admin.connections.title',
-			title: $i18n.t('settings.admin.connections.title'),
-			searchPrefixes: ['settings.admin.connections.']
 		},
 		{
 			id: 'admin:models',
@@ -404,21 +350,7 @@
 	}
 
 	const getAvailableSettings = (personalTabs: SettingsTab[], administratorTabs: SettingsTab[]) => {
-		const hiddenInFork = new Set([
-			'personalization',
-			'audio',
-			'connections',
-			'tools',
-			'archived_chats',
-			'usage',
-			'shortcuts',
-			'notifications'
-		]);
 		const personalSettings = personalTabs.filter((tab) => {
-			if (NANOAGENT_FORK && hiddenInFork.has(tab.id)) {
-				return false;
-			}
-
 			if (tab.id === 'connections') {
 				return $config?.features?.enable_direct_connections;
 			}

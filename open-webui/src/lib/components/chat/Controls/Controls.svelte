@@ -4,13 +4,11 @@
 	const i18n = getContext('i18n');
 
 	import XMark from '$lib/components/icons/XMark.svelte';
-	import AdvancedParams from '../Settings/Advanced/AdvancedParams.svelte';
 	import Valves from '$lib/components/chat/Controls/Valves.svelte';
 	import FileItem from '$lib/components/common/FileItem.svelte';
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 
 	import { user, settings } from '$lib/stores';
-	import { NANOAGENT_FORK } from '$lib/nanoagent/mode';
 	export let models = [];
 	export let chatFiles = [];
 	export let params = {};
@@ -27,8 +25,6 @@
 
 	let showFiles = getOpen('files');
 	let showValves = getOpen('valves', false);
-	let showSystemPrompt = getOpen('systemPrompt');
-	let showAdvancedParams = getOpen('advancedParams');
 
 	const compactSectionButtonClass =
 		'w-full py-1 text-xs font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition cursor-pointer select-none';
@@ -107,44 +103,6 @@
 				</Collapsible>
 			{/if}
 
-			{#if !NANOAGENT_FORK && ($user?.role === 'admin' || ($user?.permissions.chat?.system_prompt ?? true))}
-				<Collapsible
-					title={$i18n.t('System Prompt')}
-					bind:open={showSystemPrompt}
-					onChange={setOpen('systemPrompt')}
-					buttonClassName={compactSectionButtonClass}
-					chevronClassName="size-2.5"
-					chevronStrokeWidth="2"
-				>
-					<div class="pt-1 pb-1" slot="content">
-						<textarea
-							bind:value={params.system}
-							class={($settings?.highContrastMode ?? false)
-								? systemPromptTextareaClass
-								: compactSystemPromptTextareaClass}
-							rows="3"
-							placeholder={$i18n.t('Enter system prompt')}
-						/>
-					</div>
-				</Collapsible>
-			{/if}
-
-			{#if !NANOAGENT_FORK && ($user?.role === 'admin' || ($user?.permissions.chat?.params ?? true))}
-				<Collapsible
-					title={$i18n.t('Advanced Params')}
-					bind:open={showAdvancedParams}
-					onChange={setOpen('advancedParams')}
-					buttonClassName={compactSectionButtonClass}
-					chevronClassName="size-2.5"
-					chevronStrokeWidth="2"
-				>
-					<div class="pt-1 pb-1 text-xs" slot="content">
-						<div>
-							<AdvancedParams admin={$user?.role === 'admin'} custom={true} bind:params />
-						</div>
-					</div>
-				</Collapsible>
-			{/if}
 		</div>
 	{/if}
 </div>

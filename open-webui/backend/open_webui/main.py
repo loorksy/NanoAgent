@@ -914,9 +914,12 @@ if ENABLE_SCIM:
 async def get_models(request: Request, refresh: bool = False, user=Depends(get_verified_user)):
     all_models = await get_all_models(request, refresh=refresh, user=user)
 
-    # Filter out filter pipelines
+    # Filter out filter pipelines. Chat uses the NanoAgent pipe only, so a
+    # direct /v1 connection cannot open a second session for the same person.
     models = [
-        model for model in all_models if not ('pipeline' in model and model['pipeline'].get('type', None) == 'filter')
+        model for model in all_models
+        if not ('pipeline' in model and model['pipeline'].get('type', None) == 'filter')
+        and isinstance(model.get('pipe'), dict)
     ]
 
     # Chat requests resolve models by ID from request.app.state.MODELS, where
