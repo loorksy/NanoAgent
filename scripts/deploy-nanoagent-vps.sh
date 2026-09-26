@@ -66,10 +66,8 @@ if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
   bash scripts/sync-oanda-from-foxagent.sh || true
 fi
 
-if ! sudo -u "$SERVICE_USER" bash -lc 'command -v bun >/dev/null'; then
-  sudo -u "$SERVICE_USER" bash -lc 'curl -fsSL https://bun.sh/install | bash'
-fi
-sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR/webui' && export PATH=\"\$HOME/.bun/bin:\$PATH\" && bun install && bun run build"
+# The legacy React client is not built. Open WebUI is the browser.
+# Charting library files stay under webui/public/charting_library/.
 cd "$INSTALL_DIR"
 
 CONFIG_DIR="$INSTALL_DIR/.nanobot"
@@ -150,6 +148,11 @@ systemctl daemon-reload
 systemctl enable nanoagent-gateway.service
 systemctl restart nanoagent-gateway.service
 
+# Do not replace a vhost that already serves Open WebUI. Rewriting it would
+# point the public site at the gateway port and hide the current client.
+if [[ -f /etc/nginx/sites-available/nanoagent.lork.cloud ]] && grep -q '127.0.0.1:8080' /etc/nginx/sites-available/nanoagent.lork.cloud; then
+  echo "nginx already serves Open WebUI; leaving the vhost in place"
+else
 cat > /etc/nginx/sites-available/nanoagent.lork.cloud <<NGX
 server {
     listen 80;
@@ -171,6 +174,7 @@ NGX
 
 ln -sf /etc/nginx/sites-available/nanoagent.lork.cloud /etc/nginx/sites-enabled/nanoagent.lork.cloud
 nginx -t && systemctl reload nginx
+fi
 
 if ! command -v certbot >/dev/null; then
   apt-get update -qq

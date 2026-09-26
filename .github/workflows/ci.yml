@@ -274,28 +274,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect legacy React client
+        id: legacy
+        run: |
+          if [[ -f webui/package.json ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Legacy React client removed. Open WebUI is the browser."
+          fi
+
       - name: Set up Bun
+        if: steps.legacy.outputs.present == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.6
 
       - name: Verify npm lockfile
+        if: steps.legacy.outputs.present == 'true'
         working-directory: webui
         run: npm ci --ignore-scripts --dry-run
 
       - name: Install WebUI dependencies
+        if: steps.legacy.outputs.present == 'true'
         working-directory: webui
         run: bun install --frozen-lockfile
 
       - name: Lint WebUI
+        if: steps.legacy.outputs.present == 'true'
         working-directory: webui
         run: bun run lint
 
       - name: Test WebUI
+        if: steps.legacy.outputs.present == 'true'
         working-directory: webui
         run: bun run test:coverage
 
       - name: Build WebUI
+        if: steps.legacy.outputs.present == 'true'
         working-directory: webui
         run: bun run build
 

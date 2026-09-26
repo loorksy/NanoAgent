@@ -1,8 +1,8 @@
-"""Hatch build hook that bundles the webui (Vite) into nanobot/web/dist.
+"""Hatch build hook that used to bundle the legacy React client.
 
-Triggered automatically by `python -m build` (and any other hatch-driven build)
-so published wheels and sdists ship a fresh webui without requiring developers
-to remember `cd webui && bun run build` beforehand.
+The React client is removed. Open WebUI is the browser. This hook stays so
+existing `NANOBOT_SKIP_WEBUI_BUILD` installs and sdists keep building, and it
+no-ops when `webui/package.json` is absent.
 
 Behavior:
 
@@ -64,7 +64,7 @@ class WebUIBuildHook(BuildHookInterface):
 
         if not package_json.is_file():
             self.app.display_info(
-                "[webui-build] no webui/ source tree, assuming prebuilt nanobot/web/dist/"
+                "[webui-build] legacy React client removed; Open WebUI is the browser"
             )
             return
 

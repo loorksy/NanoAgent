@@ -2,7 +2,6 @@
 #
 #   Browser ──► caddy (:80/:443, nanoagent.lork.cloud)
 #                 ├── /api/v2/*, /ws/v2*, /v1/*  ──► host:8766  nanobot Agent API (nanobot/agent_api)
-#                 ├── /legacy/*                  ──► host:8765  legacy nanobot React WebUI (prefix stripped)
 #                 └── everything else            ──► open-webui:8080
 #
 #   open-webui ──► host:8766/v1  (OpenAI-compatible connection; the Pipe Function talks to /api/v2)
@@ -148,7 +147,6 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:-nanoagent.lork.cloud}
       ACME_EMAIL: ${ACME_EMAIL:-}
       AGENT_API_UPSTREAM: ${AGENT_API_UPSTREAM:-host.docker.internal:8766}
-      LEGACY_WEBUI_UPSTREAM: ${LEGACY_WEBUI_UPSTREAM:-host.docker.internal:8765}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

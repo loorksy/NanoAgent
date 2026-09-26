@@ -3079,7 +3079,7 @@ def swagger_ui_html(*args, **kwargs):
 applications.get_swagger_ui_html = swagger_ui_html
 
 def _charting_library_dir() -> str | None:
-    """TradingView static files shipped with the legacy WebUI, served on this origin."""
+    """TradingView static files kept after the legacy React client was removed."""
     configured = os.environ.get('NANOAGENT_CHARTING_LIBRARY', '').strip()
     candidates = [configured] if configured else []
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
