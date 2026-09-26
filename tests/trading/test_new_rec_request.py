@@ -1,10 +1,8 @@
 """Explicit new-recommendation requests vs live-plan guard."""
 
-import asyncio
 
 import pytest
 
-from nanobot.trading.fast_path import try_gold_fast_path
 from nanobot.trading.operator_keywords import wants_explicit_new_analysis
 from nanobot.trading.recommendations.followup import (
     explain_new_rec_blocked,
@@ -49,7 +47,10 @@ def test_finalize_live_plan_when_tp1_reached(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
     monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
 
-    from nanobot.trading.recommendations.store import store_recommendation, update_recommendation_status
+    from nanobot.trading.recommendations.store import (
+        store_recommendation,
+        update_recommendation_status,
+    )
     from nanobot.trading.types import (
         AgentMarketContext,
         AgentRecommendation,
@@ -103,7 +104,10 @@ async def test_explicit_new_rec_after_tp1_runs_analysis(monkeypatch, tmp_path) -
     monkeypatch.setenv("OANDA_API_TOKEN", "test-token")
     install_evidence_stubs(monkeypatch)
 
-    from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
+    from nanobot.trading.recommendations.store import (
+        latest_live_recommendation,
+        store_recommendation,
+    )
     from nanobot.trading.types import (
         AgentMarketContext,
         AgentRecommendation,

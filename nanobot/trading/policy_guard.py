@@ -21,7 +21,7 @@ from nanobot.trading.evidence.nodes import NODE_REGISTRY
 from nanobot.trading.turn_planner import TurnBudget, TurnPlan
 
 
-class PolicyViolation(Exception):  # noqa: N818
+class PolicyViolation(Exception):  # noqa: N818 — public Hard Law API name
     """Turn plan or unified-loop tool call cannot be executed under Hard Law."""
 
     def __init__(self, reason: str, plan: TurnPlan | None = None) -> None:

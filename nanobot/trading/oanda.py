@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 
 from nanobot.trading.config import TradingConfig, load_trading_config
-from nanobot.trading.gold import OANDA_INSTRUMENT, DATA_SYMBOL, require_gold
+from nanobot.trading.gold import DATA_SYMBOL, OANDA_INSTRUMENT, require_gold
 
 GRANULARITY: dict[str, str] = {
     "1m": "M1",

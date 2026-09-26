@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 from nanobot.trading.market_context import build_agent_market_context
 from nanobot.trading.oanda import fetch_quote

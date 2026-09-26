@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass
 from typing import Any
-
-import html
 
 from nanobot.trading.cards.format import format_price
 from nanobot.trading.i18n import label_map

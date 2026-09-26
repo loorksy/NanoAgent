@@ -14,7 +14,6 @@ except ImportError:
 
 from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.bus.outbound_events import ProgressEvent
-from nanobot.channels.telegram.trading_progress import TRADING_PROGRESS_META
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.telegram.runtime import (
     TELEGRAM_MAX_MESSAGE_LEN,
@@ -28,6 +27,7 @@ from nanobot.channels.telegram.runtime import (
     _StreamBuf,
     _telegram_command_text,
 )
+from nanobot.channels.telegram.trading_progress import TRADING_PROGRESS_META
 from nanobot.events import ContextCompactionEvent
 
 

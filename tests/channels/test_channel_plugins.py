@@ -2365,6 +2365,7 @@ def test_optional_features_payload_lists_feishu_instances(monkeypatch):
 
 def test_optional_features_payload_does_not_refresh_saved_feishu_identity(monkeypatch, tmp_path):
     from nanobot.channels.feishu import runtime as feishu_module
+
     from nanobot.config import loader
     from nanobot.optional_features import optional_features_payload
 
@@ -2408,6 +2409,7 @@ def test_enable_optional_feature_refreshes_feishu_identity(
     tmp_path,
 ):
     from nanobot.channels.feishu import runtime as feishu_module
+
     from nanobot.config import loader
     from nanobot.optional_features import enable_optional_feature
 
@@ -2457,6 +2459,7 @@ def test_enable_optional_feature_refreshes_feishu_identity(
 
 def test_optional_features_payload_preserves_legacy_flat_feishu_config(monkeypatch, tmp_path):
     from nanobot.channels.feishu import runtime as feishu_module
+
     from nanobot.config import loader
     from nanobot.optional_features import optional_features_payload
 

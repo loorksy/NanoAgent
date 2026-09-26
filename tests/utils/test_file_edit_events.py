@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from nanobot.agent.tools.apply_patch import ApplyPatchTool
+
 from nanobot.agent.tools.filesystem import EditFileTool, WriteFileTool
 from nanobot.utils.file_edit_events import (
     build_file_edit_end_event,

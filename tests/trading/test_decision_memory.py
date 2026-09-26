@@ -1,11 +1,8 @@
-import json
-from pathlib import Path
 
 from nanobot.trading.memory.decisions import (
     format_decisions_for_dream,
     list_recent_decisions,
     record_trade_decision,
-    trades_memory_path,
 )
 from nanobot.trading.types import (
     AgentMarketContext,
