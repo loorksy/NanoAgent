@@ -34,5 +34,17 @@
   "calendar": "Calendar",
   "desk": "Bot desk",
   "providers": "Providers",
+  "lab": "Strategy lab",
+  "run": "Run replay",
+  "passed": "On",
+  "failed": "Off",
+  "dream": "Dream memory",
+  "audio": "Audio",
+  "image": "Image generation",
+  "web": "Web tools",
+  "timezone": "Timezone",
+  "api": "Agent API",
+  "version": "Version",
+  "enabled": "Enabled",
   "about_license": "A custom product name is allowed for deployments of at most 50 users in any 30-day period. Larger deployments keep the Open WebUI name unless an enterprise license says otherwise."
 }

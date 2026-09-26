@@ -139,11 +139,14 @@ confirmations, cancellation of a turn when the user stops generation, and notifi
 Each Open WebUI chat maps to one nanobot session (`X-NanoAgent-Session` header /
 `X-OpenWebUI-Chat-Id`), so memory, sustained goals and approvals stay attached to the chat.
 
-## 5. Dual-run and cut-over
+## 5. Dual-run
 
-During verification the legacy React WebUI remains reachable at
-`https://<SITE_ADDRESS>/legacy/` (Caddy strips the prefix and proxies to `:8765`). When the
-Open WebUI client is accepted:
+The legacy React WebUI stays reachable at `https://<SITE_ADDRESS>/legacy/` (Caddy strips the
+prefix and proxies to `:8765`). The `webui/` tree stays in this repository. Leave the
+`/legacy/*` block, `LEGACY_WEBUI_UPSTREAM`, and `webui/` in place until the operator explicitly
+asks to remove the old interface.
+
+Cut-over is a later, explicit step. Only after that request:
 
 1. Delete the `/legacy/*` block from `Caddyfile` and `LEGACY_WEBUI_UPSTREAM` from `.env`.
 2. `docker compose up -d --force-recreate caddy`.
@@ -151,8 +154,11 @@ Open WebUI client is accepted:
 
 ## Operations
 
+The Open WebUI image is built from the vendored tree in this repo (`nanoagent-open-webui:local`),
+not pulled from a registry.
+
 ```bash
-docker compose pull && docker compose up -d      # upgrade Open WebUI / Caddy
+docker compose build open-webui && docker compose up -d   # build the local image and start
 docker compose logs -f open-webui                # Pipe Function logs (logger nanoagent.pipe)
 docker run --rm -v nanoagent-webui_open-webui-data:/data -v "$PWD":/backup alpine \
   tar czf /backup/open-webui-data.tgz -C /data .  # back up chats / users / functions

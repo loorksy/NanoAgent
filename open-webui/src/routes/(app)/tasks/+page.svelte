@@ -10,9 +10,16 @@
 	type Circuit = { strategy?: string; losses?: number; safe_mode?: boolean };
 
 	let state: 'loading' | 'ready' | 'error' = 'loading';
+	type Validation = {
+		walk_forward?: { ok?: boolean };
+		monte_carlo?: { p50?: number };
+		bootstrap?: { mean?: number };
+	};
+
 	let jobs: Job[] = [];
 	let approvals: Approval[] = [];
 	let circuits: Circuit[] = [];
+	let validation: Validation | null = null;
 
 	async function load() {
 		const [taskBody, approvalBody, deskBody] = await Promise.all([
@@ -37,6 +44,14 @@
 	async function act(id: string, action: 'pause' | 'resume' | 'cancel') {
 		await gateway(`tasks/${id}/${action}`, { method: 'POST', body: '{}' });
 		await load();
+	}
+
+	async function runLab() {
+		const payload = (await gateway('tasks/lab', {
+			method: 'POST',
+			body: JSON.stringify({ name: 'atr_breakout' })
+		})) as { validation?: Validation };
+		validation = payload.validation ?? null;
 	}
 
 	async function decide(id: string, approved: boolean) {
@@ -84,6 +99,20 @@
 				{#each circuits as circuit (`${circuit.strategy}`)}
 					<p class="text-sm">{circuit.strategy} · {circuit.losses}{circuit.safe_mode ? ' · safe' : ''}</p>
 				{/each}
+			{/if}
+		</div>
+
+		<div class="flex flex-col gap-2">
+			<h2 class="text-sm font-medium">{nanoagentText($i18n?.language, 'lab')}</h2>
+			<button class="w-fit text-sm underline" on:click={runLab}>
+				{nanoagentText($i18n?.language, 'run')}
+			</button>
+			{#if validation}
+				<p class="text-sm">
+					walk_forward · {nanoagentText($i18n?.language, validation.walk_forward?.ok ? 'passed' : 'failed')}
+				</p>
+				<p class="text-sm">monte_carlo · {validation.monte_carlo?.p50 ?? ''}</p>
+				<p class="text-sm">bootstrap · {validation.bootstrap?.mean ?? ''}</p>
 			{/if}
 		</div>
 

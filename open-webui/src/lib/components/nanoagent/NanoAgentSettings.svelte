@@ -11,11 +11,20 @@
 	let failed = false;
 	let devices: { id?: string; platform?: string; label?: string }[] = [];
 	let providers: { name?: string; configured?: boolean }[] = [];
+	let capabilities: { key?: string; enabled?: boolean }[] = [];
+	let trading: string[] = [];
+	let system: {
+		timezone?: string;
+		host?: string;
+		port?: number;
+		enabled?: boolean;
+		version?: string;
+	} | null = null;
 
 	const paths: Record<string, string> = {
 		overview: 'settings/overview',
-		capabilities: 'settings/overview',
-		system: 'health',
+		capabilities: 'settings/capabilities',
+		system: 'settings/system',
 		channels: 'devices',
 		models: 'settings/models'
 	};
@@ -30,6 +39,21 @@
 			}
 			if (tab === 'models' && Array.isArray(payload.providers)) {
 				providers = payload.providers as { name?: string; configured?: boolean }[];
+			}
+			if (tab === 'capabilities') {
+				capabilities = Array.isArray(payload.items)
+					? (payload.items as { key?: string; enabled?: boolean }[])
+					: [];
+				trading = Array.isArray(payload.trading) ? (payload.trading as string[]) : [];
+			}
+			if (tab === 'system') {
+				system = payload as {
+					timezone?: string;
+					host?: string;
+					port?: number;
+					enabled?: boolean;
+					version?: string;
+				};
 			}
 			body = JSON.stringify(payload, null, 2);
 		} catch {
@@ -52,6 +76,28 @@
 		{/each}
 	{:else if failed}
 		<p class="text-sm text-red-500">{nanoagentText($i18n?.language, 'error')}</p>
+	{:else if tab === 'capabilities'}
+		{#each capabilities as item (`${item.key}`)}
+			<p class="text-sm">
+				{nanoagentText($i18n?.language, item.key || '')} · {nanoagentText(
+					$i18n?.language,
+					item.enabled ? 'passed' : 'failed'
+				)}
+			</p>
+		{/each}
+		{#each trading as name (`${name}`)}
+			<p class="text-sm text-gray-500">{name}</p>
+		{/each}
+	{:else if tab === 'system' && system}
+		<p class="text-sm">{nanoagentText($i18n?.language, 'timezone')} · {system.timezone}</p>
+		<p class="text-sm">{nanoagentText($i18n?.language, 'api')} · {system.host}:{system.port}</p>
+		<p class="text-sm">
+			{nanoagentText($i18n?.language, 'enabled')} · {nanoagentText(
+				$i18n?.language,
+				system.enabled ? 'passed' : 'failed'
+			)}
+		</p>
+		<p class="text-sm">{nanoagentText($i18n?.language, 'version')} · {system.version}</p>
 	{:else if tab === 'channels'}
 		{#if devices.length === 0}
 			<p class="text-sm text-gray-500">{nanoagentText($i18n?.language, 'empty')}</p>
