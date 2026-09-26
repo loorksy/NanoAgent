@@ -9,6 +9,7 @@ from nanobot.trading.cron import (
     GOLD_FOLLOWUP_JOB_ID,
     GOLD_NEWS_JOB_ID,
     GOLD_SCAN_JOB_ID,
+    TRADING_CRON_JOB_IDS,
     register_trading_cron_jobs,
     run_gold_news_job,
 )
@@ -48,7 +49,7 @@ def test_register_trading_cron_jobs_enabled_registers_all() -> None:
 
     register_trading_cron_jobs(cron, enabled=True)
 
-    assert set(cron.jobs) == {GOLD_SCAN_JOB_ID, GOLD_NEWS_JOB_ID, GOLD_FOLLOWUP_JOB_ID}
+    assert set(cron.jobs) == set(TRADING_CRON_JOB_IDS)
 
 
 def test_run_gold_news_job_reads_economic_event_title(monkeypatch) -> None:

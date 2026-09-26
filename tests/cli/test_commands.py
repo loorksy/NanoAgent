@@ -3451,6 +3451,10 @@ def test_gateway_local_trigger_queue_submits_agent_turns(
         "remove:gold_scan",
         "remove:gold_news",
         "remove:gold_rec_followup",
+        "remove:morning_briefing",
+        "remove:scorecard",
+        "remove:daily_wrap",
+        "remove:trade_management",
         "status",
     ]
     assert isinstance(turn_delivery_factory.route_policy, WebuiTurnRoutePolicy)

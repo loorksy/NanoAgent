@@ -11,6 +11,27 @@ from nanobot.bus.events import OUTBOUND_META_AGENT_UI, OutboundMessage
 from nanobot.trading.locale import locale_from_text, normalize_locale
 
 
+def silence_blocks(*, regime: str, material_change: bool) -> bool:
+    """T-9.3 — no proactive ping in a range unless something material changed."""
+    return regime == "range" and not material_change
+
+
+def broadcast_channels(
+    channels: list[str],
+    *,
+    regime: str = "trend",
+    material_change: bool = True,
+) -> list[str]:
+    """T-6.7 — channels that should receive a proactive event after the silence gate."""
+    if silence_blocks(regime=regime, material_change=material_change):
+        return []
+    seen: list[str] = []
+    for name in channels:
+        if name and name not in seen:
+            seen.append(name)
+    return seen
+
+
 def operator_locale(text: str | None = None, locale: str | None = None) -> str:
     if locale:
         return normalize_locale(locale)

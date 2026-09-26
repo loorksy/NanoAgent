@@ -35,6 +35,7 @@ COOLDOWN_AFTER_TWO_LOSSES_MINUTES = 180  # 3.4 midpoint of 2–4 hours
 COOLDOWN_AFTER_TWO_LOSSES_SESSION_MINUTES = 60  # playbook 187
 COOLDOWN_AFTER_NEWS_STOP_MINUTES = 45  # news 62
 MAX_OPEN_GOLD_POSITIONS = 2  # 3.5
+MAX_TOTAL_LOTS = 0.0  # T-3.5; 0 = no aggregate cap
 MIN_RR = 2.0  # 3.6 — farthest target must be at least 1:2
 MIN_RR_LIVE_FILL = 1.5  # playbook 196 — cancel if live fill degrades below 1:1.5
 
@@ -130,6 +131,7 @@ class LiveRiskPolicy:
     COOLDOWN_AFTER_TWO_LOSSES_SESSION_MINUTES: float
     COOLDOWN_AFTER_NEWS_STOP_MINUTES: float
     MAX_OPEN_GOLD_POSITIONS: int
+    MAX_TOTAL_LOTS: float
     MIN_RR: float
     MIN_RR_LIVE_FILL: float
     IDEA_STALE_HOURS: float
@@ -207,6 +209,7 @@ def _defaults() -> LiveRiskPolicy:
         ),
         COOLDOWN_AFTER_NEWS_STOP_MINUTES=float(COOLDOWN_AFTER_NEWS_STOP_MINUTES),
         MAX_OPEN_GOLD_POSITIONS=MAX_OPEN_GOLD_POSITIONS,
+        MAX_TOTAL_LOTS=MAX_TOTAL_LOTS,
         MIN_RR=MIN_RR,
         MIN_RR_LIVE_FILL=MIN_RR_LIVE_FILL,
         IDEA_STALE_HOURS=IDEA_STALE_HOURS,
@@ -283,6 +286,7 @@ def _from_config(params: Any) -> LiveRiskPolicy:
         ),
         COOLDOWN_AFTER_NEWS_STOP_MINUTES=params.cooldown_after_news_stop_minutes,
         MAX_OPEN_GOLD_POSITIONS=int(params.max_open_gold_positions),
+        MAX_TOTAL_LOTS=float(params.max_total_lots),
         MIN_RR=params.min_rr,
         MIN_RR_LIVE_FILL=params.min_rr_live_fill,
         IDEA_STALE_HOURS=params.idea_stale_hours,

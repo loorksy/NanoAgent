@@ -447,5 +447,18 @@
   "result.value": "القيمة",
   "timeline.title": "مسار عمل الوكيل",
   "error.gateway": "لا يمكن الوصول إلى بوابة الوكيل.",
-  "error.stream": "انتهى تدفق الأحداث قبل أن ينهي الوكيل عمله."
+  "error.stream": "انتهى تدفق الأحداث قبل أن ينهي الوكيل عمله.",
+  "mt5.pending_unsupported": "اتصال MetaAPI هذا لا يدعم الأوامر المعلقة.",
+  "mt5.partial_unsupported": "اتصال MetaAPI هذا لا يدعم الإغلاق الجزئي.",
+  "management.news_shield": "انقل الوقف إلى الدخول قبل نافذة الخبر.",
+  "management.breakeven_after_tp1": "انقل الوقف إلى الدخول بعد الهدف الأول.",
+  "management.trail": "ضيّق الوقف مع المسار.",
+  "management.partial": "أغلق جزءاً من الصفقة عند الهدف.",
+  "management.momentum_weak": "ضعف الزخم؛ فكّر في الخروج.",
+  "management.no_quote": "لا يوجد سعر حي لإدارة الصفقة.",
+  "behaviour.postmortem": "أُبطلت الخطة. راجع الوقف والدخول.",
+  "behaviour.daily_wrap": "ماذا ستغيّر في قرارات الذهب اليوم؟",
+  "backtest.not_enough_bars": "لا توجد شموع كافية لإعادة التشغيل.",
+  "distribution.android": "بيانات بناء أندرويد.",
+  "gate.positions.total_lots": "اللوت المفتوح مع هذا الأمر يتجاوز سقف اللوت الإجمالي."
 }

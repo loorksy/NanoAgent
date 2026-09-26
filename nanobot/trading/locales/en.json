@@ -447,5 +447,18 @@
   "result.value": "Value",
   "timeline.title": "Agent timeline",
   "error.gateway": "The agent gateway is unreachable.",
-  "error.stream": "The event stream ended before the agent finished."
+  "error.stream": "The event stream ended before the agent finished.",
+  "mt5.pending_unsupported": "This MetaAPI connection does not support pending orders.",
+  "mt5.partial_unsupported": "This MetaAPI connection does not support partial close.",
+  "management.news_shield": "Move the stop to entry before the news window.",
+  "management.breakeven_after_tp1": "Move the stop to entry after the first target.",
+  "management.trail": "Tighten the stop with the trail.",
+  "management.partial": "Close part of the position at the target.",
+  "management.momentum_weak": "Momentum faded; consider exiting.",
+  "management.no_quote": "No live quote is available for trade management.",
+  "behaviour.postmortem": "The plan was invalidated. Review the stop and the entry.",
+  "behaviour.daily_wrap": "What would you change about today's gold decisions?",
+  "backtest.not_enough_bars": "Not enough candles to replay.",
+  "distribution.android": "Android build metadata.",
+  "gate.positions.total_lots": "Open lots plus this order exceed the total lot cap."
 }

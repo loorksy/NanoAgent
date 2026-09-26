@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 from nanobot.cron.types import CronJob, CronPayload, CronSchedule
 from nanobot.trading.bots.coordinator import run_bot_cycle
@@ -12,6 +13,20 @@ logger = logging.getLogger(__name__)
 GOLD_SCAN_JOB_ID = "gold_scan"
 GOLD_NEWS_JOB_ID = "gold_news"
 GOLD_FOLLOWUP_JOB_ID = "gold_rec_followup"
+MORNING_BRIEFING_JOB_ID = "morning_briefing"
+SCORECARD_JOB_ID = "scorecard"
+DAILY_WRAP_JOB_ID = "daily_wrap"
+TRADE_MANAGEMENT_JOB_ID = "trade_management"
+
+TRADING_CRON_JOB_IDS = (
+    GOLD_SCAN_JOB_ID,
+    GOLD_NEWS_JOB_ID,
+    GOLD_FOLLOWUP_JOB_ID,
+    MORNING_BRIEFING_JOB_ID,
+    SCORECARD_JOB_ID,
+    DAILY_WRAP_JOB_ID,
+    TRADE_MANAGEMENT_JOB_ID,
+)
 
 
 def register_trading_cron_jobs(
@@ -27,24 +42,30 @@ def register_trading_cron_jobs(
     """
     register = getattr(cron_service, "register_system_job", None)
     remove = getattr(cron_service, "remove_system_job", None)
-    job_ids = (GOLD_SCAN_JOB_ID, GOLD_NEWS_JOB_ID, GOLD_FOLLOWUP_JOB_ID)
     if remove is not None:
-        for job_id in job_ids:
+        for job_id in TRADING_CRON_JOB_IDS:
             remove(job_id)
     if not enabled or register is None:
         if not enabled:
-            logger.info("Cron: gold trading monitor jobs disabled (opt-in via gateway.tradingCron.enabled)")
+            logger.info(
+                "Cron: gold trading monitor jobs disabled (opt-in via gateway.tradingCron.enabled)"
+            )
         return
-    for job_id, every_ms in (
-        (GOLD_SCAN_JOB_ID, 30 * 60 * 1000),
-        (GOLD_NEWS_JOB_ID, 60 * 60 * 1000),
-        (GOLD_FOLLOWUP_JOB_ID, 15 * 60 * 1000),
-    ):
+    schedules = {
+        GOLD_SCAN_JOB_ID: CronSchedule(kind="every", every_ms=30 * 60 * 1000, tz=timezone),
+        GOLD_NEWS_JOB_ID: CronSchedule(kind="every", every_ms=60 * 60 * 1000, tz=timezone),
+        GOLD_FOLLOWUP_JOB_ID: CronSchedule(kind="every", every_ms=15 * 60 * 1000, tz=timezone),
+        MORNING_BRIEFING_JOB_ID: CronSchedule(kind="cron", expr="30 7 * * 1-5", tz=timezone),
+        SCORECARD_JOB_ID: CronSchedule(kind="cron", expr="0 21 * * 5", tz=timezone),
+        DAILY_WRAP_JOB_ID: CronSchedule(kind="cron", expr="0 21 * * 1-5", tz=timezone),
+        TRADE_MANAGEMENT_JOB_ID: CronSchedule(kind="every", every_ms=60 * 1000, tz=timezone),
+    }
+    for job_id in TRADING_CRON_JOB_IDS:
         register(
             CronJob(
                 id=job_id,
                 name=job_id,
-                schedule=CronSchedule(kind="every", every_ms=every_ms, tz=timezone),
+                schedule=schedules[job_id],
                 payload=CronPayload(kind="system_event"),
             )
         )
@@ -81,6 +102,81 @@ async def run_gold_followup_job() -> list[dict[str, object]] | None:
             }
         )
     return payloads
+
+
+_last_management_keys: set[str] = set()
+
+
+async def run_morning_briefing_job() -> str:
+    news = await run_gold_news_job()
+    if news:
+        return f"Morning briefing: {news}"
+    return "Morning briefing: no high-impact events on the calendar"
+
+
+async def run_scorecard_job() -> str:
+    from nanobot.trading.reports.scorecard import build_scorecard
+
+    card = build_scorecard([], period="week")
+    return (
+        f"Scorecard {card['period']}: trades={card['trades']} "
+        f"win_rate={card['win_rate']:.2f} pnl={card['pnl']:.2f}"
+    )
+
+
+async def run_daily_wrap_job() -> str:
+    from datetime import UTC, datetime
+
+    from nanobot.trading.reports.behaviour import daily_wrap_prompt
+
+    day = datetime.now(tz=UTC).date().isoformat()
+    prompt = daily_wrap_prompt(day)
+    return f"Daily wrap {prompt['day']}: {prompt['prompt_key']}"
+
+
+async def run_trade_management_job() -> str | None:
+    global _last_management_keys
+    from nanobot.trading.management.engine import run_management_cycle
+
+    summary = await run_management_cycle()
+    actions_raw = summary.get("actions")
+    rows: list[dict[str, object]] = []
+    if isinstance(actions_raw, list):
+        for item in cast(list[object], actions_raw):
+            if isinstance(item, dict):
+                rows.append(cast(dict[str, object], item))
+    if not rows:
+        _last_management_keys = set()
+        return None
+
+    def _cell(row: dict[str, object], key: str) -> str:
+        value = row.get(key)
+        return "" if value is None else str(value)
+
+    keys = {f"{_cell(row, 'ticket')}:{_cell(row, 'kind')}:{_cell(row, 'stop')}:{_cell(row, 'volume')}" for row in rows}
+    if keys == _last_management_keys:
+        return None
+    _last_management_keys = keys
+    kinds = ", ".join(sorted({_cell(row, "kind") for row in rows}))
+    return f"Trade management: {kinds}"
+
+
+async def run_trading_cron_job(name: str) -> str | list[dict[str, object]] | None:
+    if name == GOLD_NEWS_JOB_ID:
+        return await run_gold_news_job()
+    if name == GOLD_FOLLOWUP_JOB_ID:
+        return await run_gold_followup_job()
+    if name == GOLD_SCAN_JOB_ID:
+        return await run_gold_scan_job()
+    if name == MORNING_BRIEFING_JOB_ID:
+        return await run_morning_briefing_job()
+    if name == SCORECARD_JOB_ID:
+        return await run_scorecard_job()
+    if name == DAILY_WRAP_JOB_ID:
+        return await run_daily_wrap_job()
+    if name == TRADE_MANAGEMENT_JOB_ID:
+        return await run_trade_management_job()
+    return None
 
 
 async def run_gold_scan_job() -> str | None:

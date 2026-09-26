@@ -31,7 +31,12 @@ DEFAULT_SCOPES: dict[ClientKind, tuple[Scope, ...]] = {
 TOKEN_PREFIX = "nbat_"
 BOOTSTRAP_CLIENT_ID = "bootstrap"
 PRINCIPAL_KEY = web.RequestKey["Principal"]("agent_api_principal")
-PUBLIC_PATHS: frozenset[str] = frozenset({"/health", "/api/v2/health", "/api/v2/devices/pair"})
+PUBLIC_PATHS: frozenset[str] = frozenset({
+    "/health",
+    "/api/v2/health",
+    "/api/v2/devices/pair",
+    "/api/v2/distribution/version",
+})
 
 
 class Principal(TypedDict):

@@ -296,8 +296,9 @@ async def mt5_propose_order(
     open_lots = 0.0
     if perms.level == "execute":
         open_lots = _open_lots(_gold_rows(await transport.open_positions()))
+    pending = order_type.strip().lower() not in {"", "market"}
     decision = evaluate_permission(
-        "open",
+        "place_pending" if pending else "open",
         _permission_context(
             perms, now_ms=now, requested_lot=float(sized), open_lots=open_lots
         ),
@@ -404,16 +405,22 @@ async def mt5_confirm_order(
         auto_confirmed=permission_mode == "execute" and confirmed_by != OPERATOR_ACTOR,
     )
     tp = proposal.targets[0] if proposal.targets else None
-    sent = await transport.send_market(
-        {
-            "symbol": proposal.symbol,
-            "side": proposal.side,
-            "lot": proposal.lot,
-            "stop": proposal.stop,
-            "take_profit": tp,
-            "comment": proposal.comment,
-        }
-    )
+    pending_kind = proposal.order_type.strip().lower()
+    order_payload = {
+        "symbol": proposal.symbol,
+        "side": proposal.side,
+        "lot": proposal.lot,
+        "stop": proposal.stop,
+        "take_profit": tp,
+        "comment": proposal.comment,
+    }
+    if pending_kind not in {"", "market"}:
+        kind = "stop" if pending_kind == "stop" else "limit"
+        order_payload["kind"] = kind
+        order_payload["price"] = proposal.entry
+        sent = await transport.send_pending(order_payload)
+    else:
+        sent = await transport.send_market(order_payload)
     if not broker_send_succeeded(sent, require_ticket=True):
         refreshed = store.get(proposal_id)
         return {

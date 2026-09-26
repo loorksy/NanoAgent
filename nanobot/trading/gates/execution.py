@@ -8,7 +8,11 @@ from nanobot.trading.gates.check import GateCheck, disabled_by_operator, passed,
 from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
 from nanobot.trading.gates.drawdown_breaker import evaluate_drawdown_breaker
 from nanobot.trading.gates.margin_guard import evaluate_margin_guard
-from nanobot.trading.gates.max_positions import evaluate_max_positions, evaluate_no_martingale
+from nanobot.trading.gates.max_positions import (
+    evaluate_max_positions,
+    evaluate_max_total_lots,
+    evaluate_no_martingale,
+)
 from nanobot.trading.gates.news_candle import evaluate_news_candle_shield
 from nanobot.trading.gates.news_operational import evaluate_news_operational
 from nanobot.trading.gates.pending_ttl import evaluate_pending_ttl
@@ -77,6 +81,7 @@ def collect_execution_checks(
         ("spread", evaluate_spread_guard(risk)),
         ("cooldown", evaluate_cooldown_lock(risk, now_ms=now_ms)),
         ("max_positions", evaluate_max_positions(plan, risk)),
+        ("max_total_lots", evaluate_max_total_lots(risk)),
         ("drawdown", evaluate_drawdown_breaker(risk)),
         ("stale_quote", evaluate_stale_quote(risk)),
         ("pending", evaluate_pending_ttl(plan, risk, now_ms=now_ms, live_price=live_price)),

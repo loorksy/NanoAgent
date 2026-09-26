@@ -15,6 +15,7 @@ from nanobot.agent_api.routes import (
     recommendations,
     results,
     sessions,
+    settings,
     ws,
 )
 
@@ -34,4 +35,5 @@ def setup_routes(app: web.Application) -> None:
     connect.register(router, API_PREFIX)
     log.register(router, API_PREFIX)
     devices.register(router, API_PREFIX)
+    settings.register(router, API_PREFIX)
     ws.register(router, WS_PATH)
