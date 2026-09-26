@@ -71,6 +71,7 @@ DEFAULT_LABELS: dict[str, str] = {
     "timeline.title": "Agent timeline",
     "error.gateway": "The agent gateway is unreachable.",
     "error.stream": "The event stream ended before the agent finished.",
+    "error.cancel": "Stop did not reach the agent. The run may still be active.",
 }
 
 EventEmitter = Callable[[dict[str, object]], Awaitable[None]]
@@ -732,7 +733,7 @@ class Pipe:
                             "data": {"description": turn.label("error.stream"), "done": True},
                         },
                     )
-                    if turn.run_id and not turn.finished:
+                    if (turn.submitted or turn.run_id) and not turn.finished:
                         await self._cancel_quietly(gateway, session)
                     break
                 attempt += 1
@@ -750,8 +751,15 @@ class Pipe:
             )
             yield f"\n\n{detail}"
         except (GeneratorExit, asyncio.CancelledError):
-            if turn.run_id and not turn.finished:
-                await self._cancel_quietly(gateway, session)
+            if (turn.submitted or turn.run_id) and not turn.finished:
+                if not await self._cancel_quietly(gateway, session):
+                    await self._emit(
+                        __event_emitter__,
+                        {
+                            "type": "status",
+                            "data": {"description": turn.label("error.cancel"), "done": True},
+                        },
+                    )
             raise
         finally:
             await gateway.aclose()
@@ -1031,11 +1039,13 @@ class Pipe:
         return True
 
     @staticmethod
-    async def _cancel_quietly(gateway: GatewayClient, session: str) -> None:
+    async def _cancel_quietly(gateway: GatewayClient, session: str) -> bool:
         try:
             await asyncio.wait_for(gateway.cancel(session), timeout=CANCEL_TIMEOUT_SECONDS)
         except BaseException as exc:
             log.warning("nanoagent pipe: cancel for %s failed: %s", session, exc)
+            return False
+        return True
 
     @staticmethod
     def _render_timeline(turn: _Turn) -> str:

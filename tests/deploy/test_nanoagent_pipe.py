@@ -87,6 +87,7 @@ class FakeGateway:
         html: str | None = "<html><body>card</body></html>",
         html_status: int = 200,
         message_run_id: str | None = RUN,
+        cancel_status: int = 200,
     ) -> None:
         self.streams = list(streams)
         self.sessions: set[str] = {SESSION} if session_exists else set()
@@ -97,6 +98,7 @@ class FakeGateway:
         self.approvals: list[tuple[str, str]] = []
         self.labels_calls = 0
         self.message_run_id = message_run_id
+        self.cancel_status = cancel_status
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self.handle)
@@ -135,6 +137,8 @@ class FakeGateway:
             if action == "messages":
                 body = {} if self.message_run_id is None else {"run_id": self.message_run_id}
                 return httpx.Response(200, json=body)
+            if action == "cancel":
+                return httpx.Response(self.cancel_status, json={"ok": self.cancel_status < 400})
             return httpx.Response(200, json={"ok": True})
         match = re.fullmatch(r"/api/v2/approvals/([^/]+)", path)
         if match and request.method == "POST":
@@ -556,6 +560,24 @@ async def test_client_stop_cancels_the_run() -> None:
     blocker.set()
 
     assert gateway.paths("POST")[-1] == f"POST /api/v2/sessions/{SESSION}/cancel"
+
+
+async def test_failed_stop_is_visible_and_still_attempted_without_run_id() -> None:
+    blocker = asyncio.Event()
+    stream = ChunkStream([sse(ev("delta", {"text": "partial"}), "1")], block_after=blocker)
+    gateway = FakeGateway([stream], message_run_id=None, cancel_status=500)
+    harness = Harness(gateway, show_timeline=False)
+
+    generator = harness.generator()
+    assert await generator.__anext__() == "partial"
+    await generator.aclose()
+    blocker.set()
+
+    assert f"POST /api/v2/sessions/{SESSION}/cancel" in gateway.paths("POST")
+    assert harness.statuses()[-1] == (
+        "Stop did not reach the agent. The run may still be active.",
+        True,
+    )
 
 
 async def test_completed_run_is_not_cancelled_on_close() -> None:
