@@ -84,6 +84,15 @@
 		return (source[0] || '?').toUpperCase();
 	}
 
+	function liftToBody(node: HTMLElement) {
+		document.body.appendChild(node);
+		return {
+			destroy() {
+				node.remove();
+			}
+		};
+	}
+
 	function close() {
 		selected = null;
 		creating = false;
@@ -374,7 +383,14 @@
 					<span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs font-semibold dark:bg-gray-800">
 						{mark(provider)}
 					</span>
-					<span class="truncate text-sm">{labelOf(provider)}</span>
+					<span class="min-w-0">
+						<span class="block truncate text-sm">{labelOf(provider)}</span>
+						{#if provider.name === 'claude_code_cli'}
+							<span class="block truncate text-xs text-gray-500">
+								{text('claude_connected', { hint: provider.cli_oauth_hint || '••••' })}
+							</span>
+						{/if}
+					</span>
 				</span>
 				<span class="shrink-0 text-xs text-gray-500">{text('configure')}</span>
 			</button>
@@ -406,7 +422,8 @@
 
 {#if selected || creating}
 	<div
-		class="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 p-3 sm:items-center"
+		use:liftToBody
+		class="fixed inset-0 z-[10050] flex items-end justify-center bg-black/50 p-3 sm:items-center"
 		role="presentation"
 		on:click={close}
 	>

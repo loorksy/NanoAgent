@@ -46,6 +46,7 @@ def test_fork_pages_proxy_and_sidebar() -> None:
     assert "nanoagent-claude-connect" in (
         ROOT / "open-webui/src/lib/components/nanoagent/NanoAgentProviders.svelte"
     ).read_text(encoding="utf-8")
+    assert "no-cache, no-store, must-revalidate" in main
     assert (ROOT / "open-webui/src/routes/(app)/workspace/agent/+page.svelte").is_file()
     assert "__nanoagent_macro__" in (
         ROOT / "open-webui/src/routes/(app)/calendar/+page.svelte"
