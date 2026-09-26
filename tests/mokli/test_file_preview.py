@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from mokli.security.workspace_access import default_workspace_scope
-from mokli.mokli.file_preview import MokliFilePreviewError, file_preview_payload
+from mokli.surface.file_preview import MokliFilePreviewError, file_preview_payload
 
 
 def test_restricted_preview_allows_media_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -13,7 +13,7 @@ def test_restricted_preview_allows_media_file(tmp_path: Path, monkeypatch: pytes
     media.mkdir()
     uploaded = media / "upload.txt"
     uploaded.write_text("uploaded", encoding="utf-8")
-    monkeypatch.setattr("mokli.mokli.file_preview.get_media_dir", lambda: media)
+    monkeypatch.setattr("mokli.surface.file_preview.get_media_dir", lambda: media)
 
     scope = default_workspace_scope(workspace, restrict_to_workspace=True)
 
@@ -30,7 +30,7 @@ def test_restricted_preview_rejects_other_root(tmp_path: Path, monkeypatch: pyte
     media.mkdir()
     outside = tmp_path / "outside.txt"
     outside.write_text("secret", encoding="utf-8")
-    monkeypatch.setattr("mokli.mokli.file_preview.get_media_dir", lambda: media)
+    monkeypatch.setattr("mokli.surface.file_preview.get_media_dir", lambda: media)
 
     scope = default_workspace_scope(workspace, restrict_to_workspace=True)
 

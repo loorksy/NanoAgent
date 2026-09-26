@@ -33,7 +33,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 
 def _load_mokli_build_module() -> ModuleType:
-    from mokli.mokli import build as mokli_build
+    from mokli.surface import build as mokli_build
 
     return mokli_build
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from mokli.mokli import cli_apps_api
+from mokli.surface import cli_apps_api
 
 
 class _FakeManager:

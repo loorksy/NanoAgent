@@ -132,7 +132,7 @@ import mokli.channels.validation
 unexpected = {
     "mokli.channels.manager",
     "mokli.channels.websocket",
-    "mokli.mokli.gateway_services",
+    "mokli.surface.gateway_services",
 } & sys.modules.keys()
 assert not unexpected, sorted(unexpected)
 """

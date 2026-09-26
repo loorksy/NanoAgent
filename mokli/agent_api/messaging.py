@@ -68,8 +68,8 @@ def _allow_install(config_path: Path) -> bool:
 
 
 def save_telegram_token(config_path: Path, token: str) -> None:
-    from mokli.mokli.settings_services import MokliSettingsConfig
-    from mokli.mokli.settings_system import MokliSettingsError, save_channel_config_values
+    from mokli.surface.settings_services import MokliSettingsConfig
+    from mokli.surface.settings_system import MokliSettingsError, save_channel_config_values
 
     store = MokliSettingsConfig(config_path)
 

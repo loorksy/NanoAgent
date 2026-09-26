@@ -36,7 +36,7 @@ from mokli.cli.mokli_support import (
 )
 from mokli.config.paths import get_workspace_path
 from mokli.utils.helpers import sync_workspace_templates
-from mokli.mokli.dev import (
+from mokli.surface.dev import (
     MokliDevError,
     MokliDevServer,
     run_mokli_dev_server,

@@ -7,11 +7,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from mokli.mokli.attachment_ingress import (
+from mokli.surface.attachment_ingress import (
     extract_data_url_mime,
     store_inbound_attachments,
 )
-from mokli.mokli.ingress_policy import AttachmentIngressLimits
+from mokli.surface.ingress_policy import AttachmentIngressLimits
 
 
 def _data_url(mime: str, payload: bytes) -> str:

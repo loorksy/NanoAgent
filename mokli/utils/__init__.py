@@ -30,8 +30,8 @@ class _LazyModuleAlias(ModuleType):
 
 
 _LEGACY_MODULE_ALIASES = {
-    "mokli_thread_disk": "mokli.mokli.thread_disk",
-    "mokli_transcript": "mokli.mokli.transcript",
+    "mokli_thread_disk": "mokli.surface.thread_disk",
+    "mokli_transcript": "mokli.surface.transcript",
     "mokli_turn_helpers": "mokli.session.mokli_turns",
 }
 

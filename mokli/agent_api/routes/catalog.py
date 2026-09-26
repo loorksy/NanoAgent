@@ -11,7 +11,7 @@ from mokli.agent_api.catalog import set_skill_enabled, skill_rows, tool_rows
 from mokli.agent_api.context import services
 from mokli.agent_api.errors import ApiError
 from mokli.agent_api.routes._util import json_body, ok
-from mokli.mokli.skills_api import SkillManagementError
+from mokli.surface.skills_api import SkillManagementError
 
 
 async def get_skills(request: web.Request) -> web.Response:

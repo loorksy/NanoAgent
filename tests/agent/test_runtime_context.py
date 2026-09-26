@@ -22,7 +22,7 @@ from mokli.runtime_context import (
 from mokli.sdk.types import snapshot_from_session
 from mokli.session.manager import Session, _message_preview_text
 from mokli.session.mokli_turns import _title_inputs
-from mokli.mokli.transcript import _session_user_event
+from mokli.surface.transcript import _session_user_event
 
 
 @pytest.mark.asyncio

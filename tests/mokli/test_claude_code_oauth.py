@@ -11,24 +11,24 @@ import pytest
 from websockets.datastructures import Headers
 
 from mokli.config.loader import get_config_path
-from mokli.mokli.claude_code_oauth import (
+from mokli.surface.claude_code_oauth import (
     ENV_KEY,
     apply_claude_code_oauth_token,
     mask_token_last4,
     public_status,
     resolve_env_file_path,
 )
-from mokli.mokli.claude_code_oauth_flow import (
+from mokli.surface.claude_code_oauth_flow import (
     create_connect_flow,
     exchange_authorization_code,
     parse_authorization_response,
     token_url,
 )
-from mokli.mokli.http_utils import http_json_response
-from mokli.mokli.settings_api import settings_payload, update_claude_code_oauth_settings
-from mokli.mokli.settings_contracts import MokliSettingsError
-from mokli.mokli.settings_routes import MokliSettingsRouter
-from mokli.mokli.settings_services import MokliSettingsServices
+from mokli.surface.http_utils import http_json_response
+from mokli.surface.settings_api import settings_payload, update_claude_code_oauth_settings
+from mokli.surface.settings_contracts import MokliSettingsError
+from mokli.surface.settings_routes import MokliSettingsRouter
+from mokli.surface.settings_services import MokliSettingsServices
 
 
 def _router(*, authorized: bool = True, config_path: Path | None = None) -> MokliSettingsRouter:
@@ -164,7 +164,7 @@ async def test_callback_accepts_state_without_flow_id(
     state = parse_qs(urlsplit(flow["authorization_url"]).query)["state"][0]
     token = "sk-ant-oat-state-only-7788"
     monkeypatch.setattr(
-        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.surface.claude_code_oauth_flow.exchange_authorization_code",
         lambda **_kwargs: token,
     )
     response = await router.dispatch(
@@ -289,7 +289,7 @@ def test_update_settings_returns_masked_payload(
     config_path = tmp_path / "config.json"
     config_path.write_text("{}\n")
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._load_settings_config",
+        "mokli.surface.settings_api._load_settings_config",
         lambda _path=None: Config(),
     )
     token = "operator-setup-token-QQ99"
@@ -316,7 +316,7 @@ def test_settings_payload_status_does_not_echo_token(
 
     os.environ[ENV_KEY] = "live-process-token-zz42"
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._load_settings_config",
+        "mokli.surface.settings_api._load_settings_config",
         lambda _path=None: Config(),
     )
     payload = settings_payload()
@@ -481,7 +481,7 @@ async def test_callback_requires_auth(
     config_path.write_text("{}\n")
     token = "must-not-persist-unauth-9911"
     monkeypatch.setattr(
-        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.surface.claude_code_oauth_flow.exchange_authorization_code",
         lambda **_kwargs: token,
     )
     request = _mutation_request(
@@ -523,7 +523,7 @@ async def test_callback_rejects_bad_state_csrf(
         return "should-not-exchange-csrf"
 
     monkeypatch.setattr(
-        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.surface.claude_code_oauth_flow.exchange_authorization_code",
         boom,
     )
     response = await router.dispatch(
@@ -566,7 +566,7 @@ async def test_callback_stores_masked_token(
     state = parse_qs(urlsplit(flow["authorization_url"]).query)["state"][0]
     token = "sk-ant-oat-connect-ZZ99"
     monkeypatch.setattr(
-        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.surface.claude_code_oauth_flow.exchange_authorization_code",
         lambda **_kwargs: token,
     )
     response = await router.dispatch(

@@ -19,7 +19,7 @@ from mokli.session.model_selection import (
     SESSION_MODEL_PRESET_METADATA_KEY,
     model_preset_from_metadata,
 )
-from mokli.mokli.settings_api import update_agent_settings
+from mokli.surface.settings_api import update_agent_settings
 
 
 def _provider(default_model: str, max_tokens: int = 123) -> MagicMock:

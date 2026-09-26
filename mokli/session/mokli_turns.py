@@ -51,12 +51,12 @@ from mokli.session.session_messages import (
 )
 from mokli.utils.helpers import strip_think, truncate_text
 from mokli.utils.llm_runtime import LLMRuntime
-from mokli.mokli.metadata import (
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
 )
-from mokli.mokli.session_identity import is_mokli_session_key
-from mokli.mokli.transcript import append_session_message_input
+from mokli.surface.session_identity import is_mokli_session_key
+from mokli.surface.transcript import append_session_message_input
 
 MOKLI_SESSION_METADATA_KEY = "mokli"
 MOKLI_TITLE_METADATA_KEY = "title"

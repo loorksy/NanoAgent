@@ -19,8 +19,8 @@
 |---|---|---|
 | قناة WebSocket عامة بإصدار توكن لأي عميل | موجودة، تُستبدل بـ `/ws/v2` و SSE من البوابة | `mokli/channels/websocket/runtime.py` 180–247 |
 | عميل بروتوكول TS كامل | موجود؛ يُستبدل بـ `packages/mokli-sdk/` المولَّد من عقد البوابة | `mokli/src/lib/mokli-client.ts`, `packages/client-events/` |
-| REST بتوكن Bearer | موجود (`gateway_tokens.py`)؛ يُعاد استخدامه في `agent_api/auth.py` | `mokli/mokli/gateway_tokens.py` |
-| نسخ صوتي (`transcribe_audio`) | موجود | `mokli/mokli/transcription_ws.py` |
+| REST بتوكن Bearer | موجود (`gateway_tokens.py`)؛ يُعاد استخدامه في `agent_api/auth.py` | `mokli/surface/gateway_tokens.py` |
+| نسخ صوتي (`transcribe_audio`) | موجود | `mokli/surface/transcription_ws.py` |
 | غلاف Android WebView + فحص تحديث + APK ذاتي الاستضافة | موجود في AiChart؛ يُنقل منه `UpdateChecker` + سكربت البناء (R18) | `/tmp/aichart/admin_android/` |
 | Push (FCM/APNs) | **غير موجود** في أي مشروع → `mokli/agent_api/push/` (07 §7) | — |
 

@@ -25,7 +25,7 @@ from mokli.security.network import (
 from mokli.utils.helpers import detect_image_mime
 
 _OPENROUTER_ATTRIBUTION_HEADERS = {
-    "HTTP-Referer": "https://github.com/HKUDS/mokli",
+    "HTTP-Referer": "https://github.com/HKUDS/nanobot",
     "X-OpenRouter-Title": "mokli",
     "X-OpenRouter-Categories": "cli-agent,personal-agent",
 }

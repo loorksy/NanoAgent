@@ -9,18 +9,18 @@ from mokli.channels.websocket import runtime
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_PATH = _REPOSITORY_ROOT / "mokli" / "channels" / "websocket" / "runtime.py"
-_SESSION_IDENTITY_PATH = _REPOSITORY_ROOT / "mokli" / "mokli" / "session_identity.py"
+_SESSION_IDENTITY_PATH = _REPOSITORY_ROOT / "mokli" / "surface" / "session_identity.py"
 _FORBIDDEN_RUNTIME_IMPORTS = (
     "mokli.bus.outbound_events",
     "mokli.command",
     "mokli.runtime_context",
     "mokli.security.workspace_access",
     "mokli.session.goal_state",
-    "mokli.mokli.cli_apps_api",
-    "mokli.mokli.forking",
-    "mokli.mokli.mcp_presets_api",
-    "mokli.mokli.sidebar_state",
-    "mokli.mokli.transcription_ws",
+    "mokli.surface.cli_apps_api",
+    "mokli.surface.forking",
+    "mokli.surface.mcp_presets_api",
+    "mokli.surface.sidebar_state",
+    "mokli.surface.transcription_ws",
 )
 
 

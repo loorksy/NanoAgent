@@ -3,8 +3,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-import mokli.mokli.sidebar_state as sidebar_state
-from mokli.mokli.sidebar_state import (
+import mokli.surface.sidebar_state as sidebar_state
+from mokli.surface.sidebar_state import (
     default_mokli_sidebar_state,
     read_mokli_sidebar_state,
     mokli_sidebar_state_path,

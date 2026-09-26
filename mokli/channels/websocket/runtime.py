@@ -33,30 +33,30 @@ from mokli.session.mokli_turns import (
     mark_websocket_turn_transcript_persistence_failed,
     websocket_turn_transcript_persistence_failed,
 )
-from mokli.mokli.gateway_services import GatewayServices
-from mokli.mokli.http_utils import (
+from mokli.surface.gateway_services import GatewayServices
+from mokli.surface.http_utils import (
     normalize_config_path as _normalize_config_path,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     parse_request_path as _parse_request_path,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     query_first as _query_first,
 )
-from mokli.mokli.inbound_commands import MokliCommandRouter
-from mokli.mokli.metadata import (
+from mokli.surface.inbound_commands import MokliCommandRouter
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
 )
-from mokli.mokli.outbound_projection import MokliOutboundProjector
-from mokli.mokli.outbound_wire import (
+from mokli.surface.outbound_projection import MokliOutboundProjector
+from mokli.surface.outbound_wire import (
     MokliWirePayload,
     MokliWirePersistence,
     project_tool_events,
 )
-from mokli.mokli.session_identity import is_valid_mokli_chat_id
-from mokli.mokli.transcript import MOKLI_TRANSCRIPT_INCOMPLETE_KEY
-from mokli.mokli.websocket_logging import websockets_server_logger
+from mokli.surface.session_identity import is_valid_mokli_chat_id
+from mokli.surface.transcript import MOKLI_TRANSCRIPT_INCOMPLETE_KEY
+from mokli.surface.websocket_logging import websockets_server_logger
 
 if TYPE_CHECKING:
     from mokli.bus.outbound_events import ProgressEvent

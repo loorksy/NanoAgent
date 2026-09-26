@@ -67,7 +67,7 @@ mokli/agent_api/
     └── html.py            # GET /results/{id}/html
 ```
 
-- تُركَّب على `mokli/mokli/gateway_endpoint.py` الحالي (نفس المنفذ 8765) بدون لمس `agent/loop.py`: البوابة **تشترك** في `RuntimeEventPublisher` وفي `stage_events`/`trace_events` الموجودة، وتستدعي واجهات `AgentLoop` العامة فقط (`submit`, `_cancel_active_tasks` تُغلَّف بدالة عامة `cancel_session(key)`).
+- تُركَّب على `mokli/surface/gateway_endpoint.py` الحالي (نفس المنفذ 8765) بدون لمس `agent/loop.py`: البوابة **تشترك** في `RuntimeEventPublisher` وفي `stage_events`/`trace_events` الموجودة، وتستدعي واجهات `AgentLoop` العامة فقط (`submit`, `_cancel_active_tasks` تُغلَّف بدالة عامة `cancel_session(key)`).
 - الحلقة الحالية للويب القديم (`/mokli`, `/ws`) تبقى حتى القطع (04 §7) ثم تُحذف.
 - الأنواع عند الحدود الديناميكية `TypedDict` (`.agent/gotchas.md`)؛ لا `Any` في العقد العام.
 
@@ -187,7 +187,7 @@ mokli/agent_api/
 | `service` | إعداد يدوي | حسب الحاجة | `read` فقط (لوحات خارجية) |
 
 - `approve` مطلوب لـ `POST /approvals` و`control` لـ `cancel`/`kill-switch`/`pause`/`jobs`.
-- إعادة استخدام `mokli/mokli/gateway_tokens.py` للتوقيع؛ إضافة جدول `gateway_clients` (id, kind, scopes, label, created_at, revoked_at).
+- إعادة استخدام `mokli/surface/gateway_tokens.py` للتوقيع؛ إضافة جدول `gateway_clients` (id, kind, scopes, label, created_at, revoked_at).
 - الحد الأقصى للطلبات لكل توكن؛ CORS مقصور على أصل Mokli.
 
 ---

@@ -2,7 +2,7 @@
 
 import pytest
 
-from mokli.mokli.transcript import replay_transcript_to_ui_messages
+from mokli.surface.transcript import replay_transcript_to_ui_messages
 
 
 @pytest.mark.parametrize("phase", ["succeeded", "cancelled"])

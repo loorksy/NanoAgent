@@ -1,7 +1,7 @@
 import importlib
 
 from mokli.session import mokli_turns
-from mokli.mokli import thread_disk, transcript
+from mokli.surface import thread_disk, transcript
 
 
 def test_legacy_mokli_utils_imports_resolve_to_new_modules() -> None:

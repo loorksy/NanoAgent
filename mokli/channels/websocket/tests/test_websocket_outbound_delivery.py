@@ -16,7 +16,7 @@ from mokli.channels.manager import ChannelManager
 from mokli.channels.websocket import runtime
 from mokli.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
 from mokli.config.schema import Config
-from mokli.mokli.gateway_services import build_gateway_services
+from mokli.surface.gateway_services import build_gateway_services
 
 
 class _RecordingConnection:

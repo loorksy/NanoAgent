@@ -15,7 +15,7 @@ from mokli.bus.outbound_events import (
 from mokli.bus.queue import MessageBus
 from mokli.events import AgentEvent, ContextCompactionEvent, EventSink, RetryWaitEvent
 from mokli.utils.progress_events import output_events
-from mokli.mokli.outbound_wire import project_notification
+from mokli.surface.outbound_wire import project_notification
 
 
 async def test_sink_isolates_observer_failure_but_propagates_cancellation():

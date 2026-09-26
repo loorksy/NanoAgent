@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from mokli.channels.registry import load_channel_plugin
 from mokli.config.schema import Config
-from mokli.mokli.settings_system import (
+from mokli.surface.settings_system import (
     coerce_channel_value,
     save_channel_config_values,
     system_settings_payload,

@@ -11,7 +11,7 @@ from mokli.events import RetryStatusEvent
 from mokli.providers.base import LLMProvider, ProviderCallContext
 from mokli.session.manager import SessionManager
 from mokli.session.mokli_turns import MokliTurnRoutePolicy
-from mokli.mokli.metadata import (
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
 )

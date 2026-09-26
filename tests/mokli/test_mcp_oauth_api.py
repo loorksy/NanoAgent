@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 from mokli.config.schema import MCPServerConfig
-from mokli.mokli.mcp_oauth_api import (
+from mokli.surface.mcp_oauth_api import (
     McpOAuthError,
     McpOAuthManager,
     prepare_mcp_oauth_redirect_uri,
@@ -51,7 +51,7 @@ async def test_browser_flow_retries_current_server_and_ignores_unrelated_reload_
     reload_calls = 0
 
     monkeypatch.setattr(
-        "mokli.mokli.mcp_oauth_api.validate_url_target",
+        "mokli.surface.mcp_oauth_api.validate_url_target",
         lambda _url: (True, ""),
     )
 
@@ -81,7 +81,7 @@ async def test_browser_flow_retries_current_server_and_ignores_unrelated_reload_
             "message": "MCP config reloaded, but some servers did not connect: notion",
         }
 
-    monkeypatch.setattr("mokli.mokli.mcp_oauth_api.connect_mcp_servers", connect)
+    monkeypatch.setattr("mokli.surface.mcp_oauth_api.connect_mcp_servers", connect)
 
     started = await manager.start(
         "xmind",
@@ -128,7 +128,7 @@ async def test_browser_flow_activates_tools_before_probe_cleanup_completes(
     reload_started = asyncio.Event()
 
     monkeypatch.setattr(
-        "mokli.mokli.mcp_oauth_api.validate_url_target",
+        "mokli.surface.mcp_oauth_api.validate_url_target",
         lambda _url: (True, ""),
     )
 
@@ -149,7 +149,7 @@ async def test_browser_flow_activates_tools_before_probe_cleanup_completes(
             "failed": [],
         }
 
-    monkeypatch.setattr("mokli.mokli.mcp_oauth_api.connect_mcp_servers", connect)
+    monkeypatch.setattr("mokli.surface.mcp_oauth_api.connect_mcp_servers", connect)
 
     started = await manager.start(
         "linear",
@@ -184,7 +184,7 @@ async def test_remote_http_flow_accepts_a_pasted_loopback_callback(
     received: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "mokli.mokli.mcp_oauth_api.validate_url_target",
+        "mokli.surface.mcp_oauth_api.validate_url_target",
         lambda _url: (True, ""),
     )
 
@@ -197,7 +197,7 @@ async def test_remote_http_flow_accepts_a_pasted_loopback_callback(
         received["callback"] = await handlers.callback_handler()
         return {"linear": connection}
 
-    monkeypatch.setattr("mokli.mokli.mcp_oauth_api.connect_mcp_servers", connect)
+    monkeypatch.setattr("mokli.surface.mcp_oauth_api.connect_mcp_servers", connect)
 
     started = await manager.start(
         "linear",
@@ -256,7 +256,7 @@ async def test_browser_flow_surfaces_provider_denial_without_callback_descriptio
 ) -> None:
     manager = McpOAuthManager()
     monkeypatch.setattr(
-        "mokli.mokli.mcp_oauth_api.validate_url_target",
+        "mokli.surface.mcp_oauth_api.validate_url_target",
         lambda _url: (True, ""),
     )
 
@@ -266,7 +266,7 @@ async def test_browser_flow_surfaces_provider_denial_without_callback_descriptio
         await handlers.callback_handler()
         return {}
 
-    monkeypatch.setattr("mokli.mokli.mcp_oauth_api.connect_mcp_servers", connect)
+    monkeypatch.setattr("mokli.surface.mcp_oauth_api.connect_mcp_servers", connect)
     started = await manager.start(
         "notion",
         _config(),
@@ -302,7 +302,7 @@ async def test_browser_flow_blocks_unsafe_authorization_url(
 ) -> None:
     manager = McpOAuthManager()
     monkeypatch.setattr(
-        "mokli.mokli.mcp_oauth_api.validate_url_target",
+        "mokli.surface.mcp_oauth_api.validate_url_target",
         lambda _url: (url_is_safe, "private address"),
     )
 
@@ -310,7 +310,7 @@ async def test_browser_flow_blocks_unsafe_authorization_url(
         await oauth_handlers["linear"].redirect_handler(authorization_url)
         return {}
 
-    monkeypatch.setattr("mokli.mokli.mcp_oauth_api.connect_mcp_servers", connect)
+    monkeypatch.setattr("mokli.surface.mcp_oauth_api.connect_mcp_servers", connect)
 
     result = await manager.start(
         "linear",

@@ -15,8 +15,8 @@ SCAN_FILES = [
     ROOT / "trading" / "mt5_execution.py",
     ROOT / "trading" / "mt5_metaapi.py",
     ROOT / "trading" / "broker_result.py",
-    ROOT / "mokli" / "trading_risk_api.py",
-    ROOT / "mokli" / "trading_metaapi_api.py",
+    ROOT / "surface" / "trading_risk_api.py",
+    ROOT / "surface" / "trading_metaapi_api.py",
 ]
 
 # Wire values and i18n keys are allowed; operator sentences are not.

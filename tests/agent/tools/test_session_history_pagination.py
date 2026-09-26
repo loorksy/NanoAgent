@@ -10,7 +10,7 @@ import pytest
 from mokli.agent.tools.context import RequestContext, request_context
 from mokli.agent.tools.sessions import ReadSessionTool, SearchSessionsTool
 from mokli.session.manager import SessionManager
-from mokli.mokli.transcript import append_transcript_object, mokli_transcript_segments_dir
+from mokli.surface.transcript import append_transcript_object, mokli_transcript_segments_dir
 
 
 @pytest.mark.asyncio
@@ -20,11 +20,11 @@ async def test_session_tools_find_old_matches_beyond_the_latest_page(
     tmp_path, monkeypatch, compacted, tool_name,
 ):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     if compacted:
-        monkeypatch.setattr("mokli.mokli.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", 8192)
-        monkeypatch.setattr("mokli.mokli.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", 4096)
+        monkeypatch.setattr("mokli.surface.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", 8192)
+        monkeypatch.setattr("mokli.surface.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", 4096)
     manager = SessionManager(tmp_path)
     key = "websocket:history"
     session = manager.get_or_create(key)
@@ -100,7 +100,7 @@ async def test_read_releases_raw_pages_while_preserving_global_indexes(tmp_path,
             "before_cursor": str(index + 1) if index < 9 else None,
         }}
 
-    monkeypatch.setattr("mokli.mokli.session_access.build_mokli_thread_response", page)
+    monkeypatch.setattr("mokli.surface.session_access.build_mokli_thread_response", page)
     with request_context(RequestContext(
         channel="websocket", chat_id="current", session_key="websocket:current",
     )):
@@ -118,8 +118,8 @@ async def test_session_tools_preserve_durable_sources_after_index_rebuild_and_re
     tmp_path, monkeypatch, state,
 ):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     key = "websocket:history"
     if state != "transcript":

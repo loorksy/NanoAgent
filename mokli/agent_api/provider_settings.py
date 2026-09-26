@@ -16,27 +16,27 @@ from mokli.agent_api.events import JsonObject
 from mokli.agent_api.tool_ref import refresh_bound_runtime
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
-from mokli.mokli.claude_code_oauth import apply_claude_code_oauth_token, public_status
-from mokli.mokli.claude_code_oauth_flow import complete_connect, start_connect_payload
-from mokli.mokli.settings_api import (
+from mokli.surface.claude_code_oauth import apply_claude_code_oauth_token, public_status
+from mokli.surface.claude_code_oauth_flow import complete_connect, start_connect_payload
+from mokli.surface.settings_api import (
     complete_oauth_provider as finish_oauth_provider,
 )
-from mokli.mokli.settings_api import (
+from mokli.surface.settings_api import (
     create_provider_settings,
     login_oauth_provider,
     logout_oauth_provider,
     provider_models_payload,
     update_provider_settings,
 )
-from mokli.mokli.settings_contracts import MokliSettingsError
-from mokli.mokli.settings_models import (
+from mokli.surface.settings_contracts import MokliSettingsError
+from mokli.surface.settings_models import (
     assign_provider_models,
     model_settings_payload,
     oauth_provider_status,
     provider_model_selection,
     resolve_settings_provider,
 )
-from mokli.mokli.settings_services import MokliOAuthFlowRegistry, MokliSettingsConfig
+from mokli.surface.settings_services import MokliOAuthFlowRegistry, MokliSettingsConfig
 
 _NAME = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 _MAX_SECRET = 16384

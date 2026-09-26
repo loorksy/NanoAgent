@@ -6,11 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from mokli.mokli.transcript import replay_transcript_to_ui_messages
+from mokli.surface.transcript import replay_transcript_to_ui_messages
 
 _FIXTURE_PATH = (
     Path(__file__).parents[2]
-    / "mokli"
+    / "mokli-assets"
     / "src"
     / "tests"
     / "fixtures"

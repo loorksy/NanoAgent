@@ -15,14 +15,14 @@ from mokli.agent_api.routes._util import ok, query_int
 
 async def performance(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    from mokli.mokli.trading_api import performance_document
+    from mokli.surface.trading_api import performance_document
 
     return ok(performance_document())
 
 
 async def briefing(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    from mokli.mokli.trading_api import briefing_document
+    from mokli.surface.trading_api import briefing_document
 
     locale = request.query.get("locale") or None
     return ok(briefing_document(locale))

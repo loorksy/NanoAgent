@@ -26,7 +26,7 @@ from mokli.gateway.service import (
     GatewayServiceResult,
     ServiceManagerKind,
 )
-from mokli.mokli.build import BuildMode
+from mokli.surface.build import BuildMode
 
 RuntimeConfigLoader = Callable[[str | None, str | None], Config]
 GatewayRunner = Callable[..., None]

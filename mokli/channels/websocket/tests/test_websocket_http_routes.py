@@ -25,7 +25,7 @@ from mokli.session.keys import UNIFIED_SESSION_KEY
 from mokli.session.manager import Session, SessionManager
 from mokli.session.session_handles import SessionHandleResolver
 from mokli.triggers.local_store import LocalTriggerStore
-from mokli.mokli.gateway_services import GatewayServices, build_gateway_services
+from mokli.surface.gateway_services import GatewayServices, build_gateway_services
 
 from .ws_test_client import InProcessHttpChannel
 from .ws_test_client import http_get as _http_get
@@ -300,7 +300,7 @@ async def test_sessions_list_and_thread_restore_transcript_without_canonical_fil
 ) -> None:
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     sm = SessionManager(tmp_path / "workspace")
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     key = "websocket:restored-history"
     append_transcript_object(
@@ -645,8 +645,8 @@ async def test_mokli_skill_management_routes(
         skill_dir.rmdir()
         return {"name": name, "enabled": False, "deleted": True}
 
-    monkeypatch.setattr("mokli.mokli.ws_http.set_mokli_skill_enabled", set_enabled)
-    monkeypatch.setattr("mokli.mokli.ws_http.delete_mokli_skill", delete)
+    monkeypatch.setattr("mokli.surface.ws_http.set_mokli_skill_enabled", set_enabled)
+    monkeypatch.setattr("mokli.surface.ws_http.delete_mokli_skill", delete)
 
     port = _free_port()
     channel = _ch(
@@ -750,10 +750,10 @@ async def test_mokli_skills_marketplace_routes_search_and_install(
         return {"installed": True, "already_installed": False, "name": skill_id}
 
     install_mock = AsyncMock(side_effect=install)
-    monkeypatch.setattr("mokli.mokli.ws_http.search_marketplace_skills", search)
-    monkeypatch.setattr("mokli.mokli.ws_http.trending_marketplace_skills", trending)
-    monkeypatch.setattr("mokli.mokli.ws_http.marketplace_skill_trends", trends)
-    monkeypatch.setattr("mokli.mokli.ws_http.install_marketplace_skill", install_mock)
+    monkeypatch.setattr("mokli.surface.ws_http.search_marketplace_skills", search)
+    monkeypatch.setattr("mokli.surface.ws_http.trending_marketplace_skills", trending)
+    monkeypatch.setattr("mokli.surface.ws_http.marketplace_skill_trends", trends)
+    monkeypatch.setattr("mokli.surface.ws_http.install_marketplace_skill", install_mock)
 
     port = _free_port()
     channel = _ch(
@@ -848,7 +848,7 @@ async def test_mokli_skill_install_rejects_overlapping_requests(
         return {"installed": True, "already_installed": False, "name": skill_id}
 
     install_mock = AsyncMock(side_effect=install)
-    monkeypatch.setattr("mokli.mokli.ws_http.install_marketplace_skill", install_mock)
+    monkeypatch.setattr("mokli.surface.ws_http.install_marketplace_skill", install_mock)
     channel = _ch(
         bus,
         session_manager=_seed_session(tmp_path),
@@ -889,7 +889,7 @@ async def test_mokli_skill_delete_remains_local_only(
     policy = MagicMock()
     policy.tools.mokli_allow_remote_package_install = True
     monkeypatch.setattr("mokli.config.loader.load_config", lambda: policy)
-    monkeypatch.setattr("mokli.mokli.ws_http.delete_mokli_skill", delete)
+    monkeypatch.setattr("mokli.surface.ws_http.delete_mokli_skill", delete)
     channel = _ch(
         bus,
         session_manager=_seed_session(tmp_path),
@@ -931,7 +931,7 @@ async def test_mokli_skill_install_honors_remote_install_opt_in(
         return {"installed": True, "already_installed": False, "name": skill_id}
 
     monkeypatch.setattr(
-        "mokli.mokli.ws_http.install_marketplace_skill",
+        "mokli.surface.ws_http.install_marketplace_skill",
         AsyncMock(side_effect=install),
     )
     channel = _ch(
@@ -989,11 +989,11 @@ async def test_cli_apps_routes_require_token_and_return_payload(
         }
 
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.cli_apps_payload",
+        "mokli.surface.settings_routes.cli_apps_payload",
         payload,
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.cli_apps_action",
+        "mokli.surface.settings_routes.cli_apps_action",
         lambda action, query, *, config_path=None: {
             "apps": [],
             "installed_count": 1,
@@ -1164,13 +1164,13 @@ async def test_pairing_routes_require_token_and_approve_or_deny(
     approved: list[str] = []
     denied: list[str] = []
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.list_pending", lambda: list(pending))
+    monkeypatch.setattr("mokli.surface.settings_routes.list_pending", lambda: list(pending))
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.approve_code",
+        "mokli.surface.settings_routes.approve_code",
         lambda code: approved.append(code) or ("feishu", "ou_123") if code == "ABCD-EFGH" else None,
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.deny_code",
+        "mokli.surface.settings_routes.deny_code",
         lambda code: denied.append(code) or code == "ABCD-EFGH",
     )
 
@@ -1384,7 +1384,7 @@ async def test_mokli_feature_install_only_does_not_start_channel(
         return {"handled": True, "ok": True, "requires_restart": False}
 
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.mokli_features_action",
+        "mokli.surface.settings_routes.mokli_features_action",
         feature_action,
     )
     channel = _ch(
@@ -1421,7 +1421,7 @@ async def test_channel_connect_runtime_import_error_is_not_reported_as_unsupport
             return BrokenConnector()
 
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.load_channel_plugin",
+        "mokli.surface.settings_routes.load_channel_plugin",
         lambda _name: FakePlugin(),
     )
     channel = _ch(bus, session_manager=_seed_session(tmp_path), port=_free_port())
@@ -1479,7 +1479,7 @@ async def test_channel_configure_route_saves_telegram_config_and_hot_reloads(
             "last_action": {"ok": True, "message": "Enabled channel 'telegram'", "enabled": True},
         }
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.mokli_features_action", fake_feature_action)
+    monkeypatch.setattr("mokli.surface.settings_routes.mokli_features_action", fake_feature_action)
     calls: list[tuple[str, str, str]] = []
 
     async def channel_feature_action(action: str, name: str, instance_id: str) -> dict[str, Any]:
@@ -1712,7 +1712,7 @@ async def test_cli_apps_catalog_does_not_block_other_mokli_http_routes(
             await asyncio.wait_for(release.wait(), 2.0)
         return {"apps": [], "installed_count": 0, "catalog_updated_at": None}
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.cli_apps_payload", slow_payload)
+    monkeypatch.setattr("mokli.surface.settings_routes.cli_apps_payload", slow_payload)
     channel = _ch(bus, session_manager=_seed_session(tmp_path), port=29935)
     server_task = asyncio.create_task(channel.start())
     try:
@@ -1756,7 +1756,7 @@ async def test_cli_apps_route_supports_installed_only_payload(
         calls.append(installed_only)
         return {"apps": [], "installed_count": 0, "catalog_updated_at": None}
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.cli_apps_payload", payload)
+    monkeypatch.setattr("mokli.surface.settings_routes.cli_apps_payload", payload)
     channel = _ch(bus, session_manager=_seed_session(tmp_path), port=29936)
     server_task = asyncio.create_task(channel.start())
     try:
@@ -1783,7 +1783,7 @@ async def test_mcp_presets_routes_require_token_and_return_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.mcp_presets_api.mcp_presets_payload",
+        "mokli.surface.mcp_presets_api.mcp_presets_payload",
         lambda **_kwargs: {
             "presets": [
                 {
@@ -1844,11 +1844,11 @@ async def test_mcp_presets_routes_require_token_and_return_payload(
         }
 
     monkeypatch.setattr(
-        "mokli.mokli.mcp_presets_api.mcp_presets_action",
+        "mokli.surface.mcp_presets_api.mcp_presets_action",
         _mcp_preset_action,
     )
     monkeypatch.setattr(
-        "mokli.mokli.mcp_presets_api.custom_mcp_action",
+        "mokli.surface.mcp_presets_api.custom_mcp_action",
         _custom_action,
     )
 
@@ -2042,7 +2042,7 @@ async def test_session_delete_removes_file(
 ) -> None:
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     sm = _seed_session(tmp_path, key="websocket:doomed")
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     append_transcript_object("websocket:doomed", {"event": "user", "chat_id": "doomed", "text": "x"})
     channel = _ch(bus, session_manager=sm, port=29903)
@@ -2072,7 +2072,7 @@ async def test_session_delete_removes_transcript_without_canonical_file(
 ) -> None:
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     sm = SessionManager(tmp_path / "workspace")
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     key = "websocket:transcript-only"
     append_transcript_object(
@@ -2664,7 +2664,7 @@ async def test_session_delete_action_accepts_websocket_keys(
 async def test_mokli_thread_resigns_assistant_media_urls(
     bus: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     media_root = tmp_path / "media"
@@ -2676,7 +2676,7 @@ async def test_mokli_thread_resigns_assistant_media_urls(
     def fake_media_dir(channel: str | None = None) -> Path:
         return websocket_media if channel == "websocket" else media_root
 
-    monkeypatch.setattr("mokli.mokli.media_gateway.get_media_dir", fake_media_dir)
+    monkeypatch.setattr("mokli.surface.media_gateway.get_media_dir", fake_media_dir)
 
     append_transcript_object(
         "websocket:video-replay",
@@ -2761,7 +2761,7 @@ async def test_sessions_list_negotiates_gzip_across_repeated_headers(
 async def test_mokli_thread_complete_transcript_skips_session_history_read(
     bus: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     key = "websocket:fast-thread"
@@ -2808,7 +2808,7 @@ async def test_mokli_thread_complete_transcript_skips_session_history_read(
 async def test_mokli_thread_negotiates_gzip_for_large_payloads(
     bus: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     sm = SessionManager(tmp_path)
@@ -3087,10 +3087,10 @@ async def test_workspace_folder_picker_is_local_authenticated_mutation(
     selected.mkdir()
     pick_folder = AsyncMock(return_value=str(selected))
     monkeypatch.setattr(
-        "mokli.mokli.ws_http.native_folder_picker_available",
+        "mokli.surface.ws_http.native_folder_picker_available",
         lambda: True,
     )
-    monkeypatch.setattr("mokli.mokli.ws_http.pick_native_folder", pick_folder)
+    monkeypatch.setattr("mokli.surface.ws_http.pick_native_folder", pick_folder)
     channel = _ch(bus)
 
     response = await _mokli_mutate(channel, "workspace.pick_folder")
@@ -3107,10 +3107,10 @@ async def test_workspace_folder_picker_rejects_direct_http(
 ) -> None:
     pick_folder = AsyncMock(return_value="/tmp")
     monkeypatch.setattr(
-        "mokli.mokli.ws_http.native_folder_picker_available",
+        "mokli.surface.ws_http.native_folder_picker_available",
         lambda: True,
     )
-    monkeypatch.setattr("mokli.mokli.ws_http.pick_native_folder", pick_folder)
+    monkeypatch.setattr("mokli.surface.ws_http.pick_native_folder", pick_folder)
     channel = _ch(bus)
 
     response = await channel.gateway.http.dispatch(
@@ -3140,10 +3140,10 @@ async def test_workspace_folder_picker_rejects_nonlocal_surfaces(
 ) -> None:
     pick_folder = AsyncMock(return_value="/tmp")
     monkeypatch.setattr(
-        "mokli.mokli.ws_http.native_folder_picker_available",
+        "mokli.surface.ws_http.native_folder_picker_available",
         lambda: True,
     )
-    monkeypatch.setattr("mokli.mokli.ws_http.pick_native_folder", pick_folder)
+    monkeypatch.setattr("mokli.surface.ws_http.pick_native_folder", pick_folder)
     channel = _ch(bus, host=host, token="test-token" if host == "0.0.0.0" else "")
 
     response = await _mokli_mutate(
@@ -3157,7 +3157,7 @@ async def test_workspace_folder_picker_rejects_nonlocal_surfaces(
 
 
 def test_local_browser_request_requires_loopback_host_and_forwarded_origin() -> None:
-    from mokli.mokli.http_utils import is_local_browser_request
+    from mokli.surface.http_utils import is_local_browser_request
 
     assert is_local_browser_request(_LOCAL, {"Host": "127.0.0.1:8765"}) is True
     assert is_local_browser_request(_LOCAL, {"Host": "localhost:8765"}) is True
@@ -3326,7 +3326,7 @@ def test_trusted_proxy_matches_ip_versions_and_mapped_peers(
     peer: str,
     cidr: str,
 ) -> None:
-    from mokli.mokli.http_utils import is_trusted_proxy_authenticated_request
+    from mokli.surface.http_utils import is_trusted_proxy_authenticated_request
 
     config = WebSocketConfig.model_validate(_trusted_proxy_config([cidr]))
     request = _FakeReq({"Cf-Access-Jwt-Assertion": "present"})
@@ -3509,7 +3509,7 @@ def test_authenticated_bootstrap_returns_distinct_api_token(bus: MagicMock) -> N
 
 def test_bootstrap_prefers_runtime_model_name(bus: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.ws_http._default_model_name_from_config",
+        "mokli.surface.ws_http._default_model_name_from_config",
         lambda _config_path=None: "from-disk",
     )
     channel = _ch(bus, host="127.0.0.1", runtime_model_name=lambda: "  live/model  ")
@@ -3521,7 +3521,7 @@ def test_bootstrap_prefers_runtime_model_name(bus: MagicMock, monkeypatch: pytes
 
 def test_bootstrap_falls_back_when_runtime_returns_empty(bus: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.ws_http._default_model_name_from_config",
+        "mokli.surface.ws_http._default_model_name_from_config",
         lambda _config_path=None: "from-disk",
     )
     channel = _ch(bus, host="127.0.0.1", runtime_model_name=lambda: "   ")
@@ -3533,7 +3533,7 @@ def test_bootstrap_falls_back_when_runtime_returns_empty(bus: MagicMock, monkeyp
 
 def test_bootstrap_falls_back_when_runtime_raises(bus: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.ws_http._default_model_name_from_config",
+        "mokli.surface.ws_http._default_model_name_from_config",
         lambda _config_path=None: "from-disk",
     )
 

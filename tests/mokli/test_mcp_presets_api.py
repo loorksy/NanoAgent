@@ -12,7 +12,7 @@ from mokli.agent.plugins import AGENT_PLUGIN_MCP_SCHEMA, AGENT_PLUGIN_SCHEMA
 from mokli.agent.tools.mcp_oauth import MCPOAuthStorage, mcp_oauth_has_credentials
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
-from mokli.mokli.mcp_presets_api import (
+from mokli.surface.mcp_presets_api import (
     McpPresetError,
     custom_mcp_action,
     mcp_presets_action,
@@ -426,7 +426,7 @@ def test_test_mcp_preset_reports_missing_dependency(
 ) -> None:
     _use_config(tmp_path, monkeypatch)
     mcp_presets_action("enable", {"name": ["playwright"]})
-    monkeypatch.setattr("mokli.mokli.mcp_presets_api.shutil.which", lambda _command: None)
+    monkeypatch.setattr("mokli.surface.mcp_presets_api.shutil.which", lambda _command: None)
 
     payload = asyncio.run(mcp_presets_test_action({"name": ["playwright"]}))
 

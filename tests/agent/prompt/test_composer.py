@@ -141,7 +141,6 @@ def test_composed_prompt_has_no_arabic_or_second_persona(language: str) -> None:
     prompt = compose_system_prompt(_ctx(language, True))
     assert not ARABIC_RE.search(prompt)
     assert "lonora" not in prompt.lower()
-    assert "mokli" not in prompt.lower()
     assert not WIRE_ID_RE.search(prompt)
     assert prompt.count("You are Mokli") == 1
 

@@ -7,7 +7,7 @@ import pytest
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
 from mokli.trading.mt5_metaapi import NullTransport, reset_transport
-from mokli.mokli.trading_metaapi_api import (
+from mokli.surface.trading_metaapi_api import (
     TradingMetaApiError,
     trading_metaapi_action,
     trading_metaapi_payload,
@@ -85,7 +85,7 @@ async def test_trading_metaapi_provision_does_not_store_password(
         return {"ok": True, "account_id": "prov-9"}
 
     monkeypatch.setattr(
-        "mokli.mokli.trading_metaapi_api.provision_mt5_account",
+        "mokli.surface.trading_metaapi_api.provision_mt5_account",
         fake_provision,
     )
     payload = await trading_metaapi_action(
@@ -172,7 +172,7 @@ async def test_trading_metaapi_test_uses_transport(
             }
 
     monkeypatch.setattr(
-        "mokli.mokli.trading_metaapi_api.get_transport",
+        "mokli.surface.trading_metaapi_api.get_transport",
         lambda: OkTransport("mt5.sdk_missing"),
     )
     payload = await trading_metaapi_action("test", {})

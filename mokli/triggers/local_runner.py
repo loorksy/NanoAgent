@@ -14,7 +14,7 @@ from mokli.bus.events import InboundMessage, OutboundMessage
 from mokli.triggers.local_session_turns import LOCAL_TRIGGER_META
 from mokli.triggers.local_store import LocalTriggerStore
 from mokli.triggers.local_types import LocalTrigger, TriggerDelivery
-from mokli.mokli.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
+from mokli.surface.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
 
 
 async def run_local_trigger_queue(

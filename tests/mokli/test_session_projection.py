@@ -5,7 +5,7 @@ import pytest
 from mokli.providers.base import LLMUsage
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
 from mokli.session.recovery import RECOVERY_METADATA_KEY
-from mokli.mokli.session_projection import MokliSessionProjection
+from mokli.surface.session_projection import MokliSessionProjection
 
 
 def test_attach_fields_restore_session_runtime_metadata() -> None:
@@ -64,11 +64,11 @@ def test_hydration_events_restore_goal_and_running_turn(
         }
     }
     monkeypatch.setattr(
-        "mokli.mokli.session_projection.websocket_turn_wall_started_at",
+        "mokli.surface.session_projection.websocket_turn_wall_started_at",
         lambda _chat_id: 42.5,
     )
     monkeypatch.setattr(
-        "mokli.mokli.session_projection.websocket_turn_id",
+        "mokli.surface.session_projection.websocket_turn_id",
         lambda _chat_id: "turn-1",
     )
 
@@ -104,7 +104,7 @@ def test_hydration_events_are_quiet_without_actionable_state(
     sessions = MagicMock()
     sessions.read_session_metadata.return_value = {"metadata": {}}
     monkeypatch.setattr(
-        "mokli.mokli.session_projection.websocket_turn_wall_started_at",
+        "mokli.surface.session_projection.websocket_turn_wall_started_at",
         lambda _chat_id: None,
     )
 

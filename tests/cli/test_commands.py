@@ -35,8 +35,8 @@ from mokli.providers.openai_codex_provider import _strip_model_prefix
 from mokli.providers.registry import find_by_name
 from mokli.providers.unconfigured_provider import UnconfiguredProvider
 from mokli.session.mokli_turns import MokliTurnRoutePolicy
-from mokli.mokli.dev import MokliDevError
-from mokli.mokli.metadata import (
+from mokli.surface.dev import MokliDevError
+from mokli.surface.metadata import (
     MOKLI_MESSAGE_SOURCE_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
 )

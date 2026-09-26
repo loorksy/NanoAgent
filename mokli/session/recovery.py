@@ -27,8 +27,8 @@ from mokli.bus.queue import MessageBus
 from mokli.session import turn_continuation
 from mokli.session.keys import UNIFIED_SESSION_KEY, last_channel_from_metadata
 from mokli.session.manager import Session, SessionManager
-from mokli.mokli.metadata import MOKLI_TURN_METADATA_KEY
-from mokli.mokli.session_identity import mokli_chat_id, mokli_session_key
+from mokli.surface.metadata import MOKLI_TURN_METADATA_KEY
+from mokli.surface.session_identity import mokli_chat_id, mokli_session_key
 
 RUNTIME_CHECKPOINT_KEY = "runtime_checkpoint"
 PENDING_USER_TURN_KEY = "pending_user_turn"
@@ -522,7 +522,7 @@ class RecoveryCoordinator:
             # Imported lazily because the sidebar index also projects recovery
             # metadata.  The index is the owner of transcript-only discovery;
             # duplicating its filename and migration rules here would drift.
-            from mokli.mokli.session_list_index import list_mokli_sessions
+            from mokli.surface.session_list_index import list_mokli_sessions
 
             for item in list_mokli_sessions(self.sessions):
                 key = item.get("key")
@@ -890,7 +890,7 @@ class RecoveryCoordinator:
         partial turn from being presented as active forever after a restart.
         """
         try:
-            from mokli.mokli.transcript import has_unfinished_transcript_tail
+            from mokli.surface.transcript import has_unfinished_transcript_tail
 
             return has_unfinished_transcript_tail(session_key)
         except (OSError, ValueError, TypeError):

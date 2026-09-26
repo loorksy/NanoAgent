@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from mokli.mokli.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
+from mokli.surface.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
 
 
 def cron_proactive_delivery_metadata(

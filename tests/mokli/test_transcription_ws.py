@@ -10,7 +10,7 @@ import pytest
 
 from mokli.config.loader import save_config
 from mokli.config.schema import Config
-from mokli.mokli.transcription_ws import mokli_transcription_event
+from mokli.surface.transcription_ws import mokli_transcription_event
 
 
 def _audio_data_url(payload: bytes = b"voice", mime: str = "audio/webm") -> str:

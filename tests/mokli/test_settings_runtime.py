@@ -6,9 +6,9 @@ import pytest
 
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
-from mokli.mokli.settings_api import update_runtime_config_settings
-from mokli.mokli.settings_contracts import MokliSettingsError
-from mokli.mokli.settings_runtime import (
+from mokli.surface.settings_api import update_runtime_config_settings
+from mokli.surface.settings_contracts import MokliSettingsError
+from mokli.surface.settings_runtime import (
     RUNTIME_CONFIG_PATHS,
     runtime_config_payload,
     update_runtime_config,

@@ -9,7 +9,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from mokli.mokli.metadata import MOKLI_TURN_METADATA_KEY
+from mokli.surface.metadata import MOKLI_TURN_METADATA_KEY
 
 RESTART_NOTIFY_CHANNEL_ENV = "MOKLI_RESTART_NOTIFY_CHANNEL"
 RESTART_NOTIFY_CHAT_ID_ENV = "MOKLI_RESTART_NOTIFY_CHAT_ID"

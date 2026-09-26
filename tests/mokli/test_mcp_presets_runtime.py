@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mokli.mokli import mcp_presets_runtime
+from mokli.surface import mcp_presets_runtime
 
 
 def test_mcp_preset_session_extra_only_persists_structured_mentions() -> None:

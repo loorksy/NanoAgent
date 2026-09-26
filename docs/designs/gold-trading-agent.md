@@ -513,7 +513,7 @@ mokli/channels/telegram/
   trading_progress.py        # Arabic stage bubble
   trading_cards.py           # card HTML renderer
 
-mokli/mokli/
+mokli/surface/
   trading_routes.py          # /api/trading/*
 
 mokli/src/

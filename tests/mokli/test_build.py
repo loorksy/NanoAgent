@@ -4,7 +4,7 @@ import os
 import tomllib
 from pathlib import Path
 
-from mokli.mokli.build import (
+from mokli.surface.build import (
     ensure_mokli_bundle,
     inspect_mokli_bundle,
     pick_mokli_build_runner,
@@ -139,7 +139,7 @@ def test_pick_mokli_build_runner_returns_resolved_executable(monkeypatch) -> Non
     bun_shim = r"C:\tools\npm\bun.CMD"
 
     monkeypatch.setattr(
-        "mokli.mokli.build.shutil.which",
+        "mokli.surface.build.shutil.which",
         lambda candidate: bun_shim if candidate == "bun" else None,
     )
 

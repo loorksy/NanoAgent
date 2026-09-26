@@ -26,7 +26,7 @@ Agent Gateway  (mokli/agent_api/)        ← 07
 ```
 
 **ما يُستبدل:** `mokli/` (React SPA) بالكامل، بعد القطع.
-**ما يبقى بلا تغيير:** كل `mokli/` عدا إضافة `mokli/agent_api/` وتعديلات صغيرة في `mokli/mokli/*` لإعادة استخدام معالجات الإعدادات/التداول من الـ Gateway.
+**ما يبقى بلا تغيير:** كل `mokli/` عدا إضافة `mokli/agent_api/` وتعديلات صغيرة في `mokli/surface/*` لإعادة استخدام معالجات الإعدادات/التداول من الـ Gateway.
 
 ## 2. لماذا هذا الشكل يعمل الآن (وقيوده)
 
@@ -85,7 +85,7 @@ Pipe لا يحوي منطقاً تداولياً ولا نصوصاً؛ التس�
 |---|---|---|
 | Overview | جديد | `GET /api/v2/settings/overview` (توكنات، حالة) |
 | Appearance | Mokli «Interface» + اللغة (ar/en، RTL) | محلي |
-| Models | جديد (يستبدل «Connections») | `GET/POST /api/v2/settings/models` — يلفّ `mokli/mokli/settings_models.py` |
+| Models | جديد (يستبدل «Connections») | `GET/POST /api/v2/settings/models` — يلفّ `mokli/surface/settings_models.py` |
 | Channels | جديد | Telegram token، WhatsApp QR، **Mobile devices** (إقران QR، إلغاء) |
 | Capabilities | جديد | صورة/صوت/ويب/Dream + مهارات التداول |
 | System | جديد | منطقة زمنية، خدمة API، إعادة تشغيل، تشخيص |

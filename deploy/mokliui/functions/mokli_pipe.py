@@ -1,8 +1,8 @@
 """
 title: Mokli
 author: Mokli
-author_url: https://github.com/loorksy/Mokli
-funding_url: https://github.com/loorksy/Mokli
+author_url: https://github.com/loorksy/NanoAgent
+funding_url: https://github.com/loorksy/NanoAgent
 version: 0.1.0
 license: MIT
 description: Streams a Mokli Agent API session (SSE) into Mokli as the "mokli" model. Translates gateway events into status / embeds / files / confirmation / notification events.

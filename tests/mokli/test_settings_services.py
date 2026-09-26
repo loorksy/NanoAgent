@@ -10,9 +10,9 @@ import pytest
 from mokli.channels.websocket.runtime import WebSocketConfig
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
-from mokli.mokli.gateway_services import build_gateway_services
-from mokli.mokli.settings_api import settings_payload, update_agent_settings, update_api_settings
-from mokli.mokli.settings_services import (
+from mokli.surface.gateway_services import build_gateway_services
+from mokli.surface.settings_api import settings_payload, update_agent_settings, update_api_settings
+from mokli.surface.settings_services import (
     MokliOAuthFlowRegistry,
     MokliSettingsServices,
 )
@@ -104,7 +104,7 @@ def test_settings_mutations_serialize_read_modify_write(
     second_loaded = threading.Event()
     errors: list[BaseException] = []
 
-    from mokli.mokli import settings_api
+    from mokli.surface import settings_api
 
     original_load = settings_api._load_settings_config
 
@@ -165,7 +165,7 @@ def test_distinct_gateways_serialize_mutations_for_the_same_config(
     second_loaded = threading.Event()
     errors: list[BaseException] = []
 
-    from mokli.mokli import settings_api
+    from mokli.surface import settings_api
 
     original_load = settings_api._load_settings_config
 

@@ -17,7 +17,7 @@ import websockets
 from mokli.bus.events import OutboundMessage
 from mokli.bus.outbound_events import ProgressEvent
 from mokli.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
-from mokli.mokli.gateway_services import build_gateway_services
+from mokli.surface.gateway_services import build_gateway_services
 
 from .ws_test_client import WsTestClient, issue_token, issue_token_ok
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-import mokli.mokli.session_list_index as session_list_index
+import mokli.surface.session_list_index as session_list_index
 from mokli.cron.session_turns import CRON_HISTORY_META
 from mokli.providers.base import ProviderConversationState
 from mokli.security.workspace_access import WORKSPACE_SCOPE_METADATA_KEY

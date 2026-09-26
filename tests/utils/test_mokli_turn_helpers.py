@@ -26,7 +26,7 @@ from mokli.session.manager import SessionManager
 from mokli.session.session_handles import session_handle_for_name
 from mokli.session.session_messages import SESSION_MESSAGE_METADATA_KEY
 from mokli.utils.llm_runtime import LLMRuntime
-from mokli.mokli.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
+from mokli.surface.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
 
 
 @pytest.fixture(autouse=True)

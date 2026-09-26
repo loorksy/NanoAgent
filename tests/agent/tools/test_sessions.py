@@ -15,7 +15,7 @@ from mokli.agent.tools.sessions import ReadSessionTool, SearchSessionsTool
 from mokli.runtime_context import RuntimeContextBlock, append_runtime_context
 from mokli.session.manager import SessionManager
 from mokli.session.session_handles import SessionHandleResolver
-from mokli.mokli.transcript import append_transcript_object
+from mokli.surface.transcript import append_transcript_object
 
 
 def _save_session(
@@ -84,8 +84,8 @@ async def test_search_sessions_reads_the_full_mokli_transcript_after_compaction(
     monkeypatch,
 ):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,
@@ -110,8 +110,8 @@ async def test_search_sessions_reads_the_full_mokli_transcript_after_compaction(
 @pytest.mark.asyncio
 async def test_search_sessions_has_no_hidden_content_scan_cutoff(tmp_path, monkeypatch):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     for index in range(200):
         _save_session(
@@ -138,8 +138,8 @@ async def test_search_sessions_has_no_hidden_content_scan_cutoff(tmp_path, monke
 @pytest.mark.asyncio
 async def test_search_sessions_ranks_titles_before_message_matches(tmp_path, monkeypatch):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,
@@ -353,8 +353,8 @@ async def test_read_session_accepts_a_persisted_session_handle(tmp_path):
 @pytest.mark.asyncio
 async def test_session_tools_work_without_request_context(tmp_path, monkeypatch):
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,

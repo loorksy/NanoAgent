@@ -280,8 +280,8 @@ Before deploying mokli:
 **Last Updated**: 2026-07-21
 
 For the latest security updates and announcements, check:
-- GitHub Security Advisories: https://github.com/HKUDS/mokli/security/advisories
-- Release Notes: https://github.com/HKUDS/mokli/releases
+- GitHub Security Advisories: https://github.com/HKUDS/nanobot/security/advisories
+- Release Notes: https://github.com/HKUDS/nanobot/releases
 
 ## License
 

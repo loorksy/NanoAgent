@@ -36,7 +36,7 @@
 | R15 | **Bot desk** (instances, circuits, live signals) | `foxagent/frontend/.../bots` | يُدمج في **Tasks** كبطاقات «مهام مستمرة» — لا صفحة مستقلة | 8.1 | M |
 | R16 | **Tradability calibration cron** + **event monitor** للخطط المفتوحة | `aichart/api/cron/tradability-calibration`, `economicEventMonitor.ts` | مهام نظام اختيارية في `trading/cron.py` | 4.5 / 6.x | S |
 | R17 | **Opportunity scan** | `aichart/src/lib/opportunityScan.ts` | يُدمج في `bots/coordinator.py` كمسح متعدد الإعدادات | 8.1 | S |
-| R18 | **UpdateChecker + APK ذاتي الاستضافة** | `aichart/admin_android/UpdateChecker.kt`, `public/admin-android/version.json` | `mokli/mokli/mobile_dist.py` يخدم `/mobile/version.json` + `/mobile/mokli.apk` | 05/M5 | XS |
+| R18 | **UpdateChecker + APK ذاتي الاستضافة** | `aichart/admin_android/UpdateChecker.kt`, `public/admin-android/version.json` | `mokli/surface/mobile_dist.py` يخدم `/mobile/version.json` + `/mobile/mokli.apk` | 05/M5 | XS |
 | R19 | **نمط ApiClient (Bearer + cookie) و RTL theme** | `aichart/admin_flutter/lib/api/client.dart`, `theme.dart` | مرجع فقط لتطبيق React Native (05) — لا ترحيل كود | 05 | — |
 | R20 | **Token usage meter** | `foxagent/.../token_usage.py`, `ChatUsageMeter.tsx` | Settings → Overview (04) فوق `llm_usage/` الموجود | — | XS |
 

@@ -28,7 +28,7 @@ from mokli.cli.mokli_support import (
 )
 from mokli.config.paths import get_data_dir
 from mokli.config.schema import Config
-from mokli.mokli.session_identity import is_mokli_session_key, mokli_chat_id
+from mokli.surface.session_identity import is_mokli_session_key, mokli_chat_id
 
 if TYPE_CHECKING:
     from mokli.gateway import GatewayClientLease
@@ -263,7 +263,7 @@ def _download_release_tui(asset: str, *, data_dir: Path | None = None) -> Path |
     if cached is not None:
         return cached
 
-    base = f"https://github.com/HKUDS/mokli/releases/download/v{version}"
+    base = f"https://github.com/HKUDS/nanobot/releases/download/v{version}"
     archive_name = f"{asset}.zip"
     try:
         checksum = _read_release_asset(f"{base}/{archive_name}.sha256", max_bytes=1024)

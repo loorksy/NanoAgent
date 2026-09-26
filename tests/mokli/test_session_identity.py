@@ -1,4 +1,4 @@
-from mokli.mokli.session_identity import (
+from mokli.surface.session_identity import (
     MOKLI_SESSION_STORAGE_PREFIX,
     is_valid_mokli_chat_id,
     is_mokli_session_key,

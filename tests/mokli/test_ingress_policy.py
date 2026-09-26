@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mokli.mokli.ingress_policy import MokliIngressPolicy
+from mokli.surface.ingress_policy import MokliIngressPolicy
 
 
 def test_text_limit_counts_utf8_bytes() -> None:

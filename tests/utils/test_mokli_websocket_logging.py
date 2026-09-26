@@ -6,7 +6,7 @@ import logging
 
 from websockets.exceptions import InvalidMessage
 
-from mokli.mokli.websocket_logging import (
+from mokli.surface.websocket_logging import (
     OPENING_HANDSHAKE_FAILED_MESSAGE,
     WebSocketHandshakeNoiseFilter,
 )

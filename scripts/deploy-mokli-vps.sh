@@ -18,7 +18,7 @@ INSTALL_DIR="/opt/mokli"
 SERVICE_USER="mokli"
 WEB_PORT=8766
 HEALTH_PORT=18791
-REPO_URL="https://github.com/loorksy/Mokli.git"
+REPO_URL="https://github.com/loorksy/NanoAgent.git"
 
 if [[ -z "${VPS:-}" || -z "${VPSPASS:-}" ]]; then
   echo "deploy: VPS and VPSPASS must be set" >&2

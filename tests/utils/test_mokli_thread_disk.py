@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from mokli.mokli.thread_disk import delete_mokli_thread, mokli_thread_file_path
-from mokli.mokli.transcript import (
+from mokli.surface.thread_disk import delete_mokli_thread, mokli_thread_file_path
+from mokli.surface.transcript import (
     append_transcript_object,
     mokli_transcript_path,
     mokli_transcript_segments_dir,
@@ -12,9 +12,9 @@ from mokli.mokli.transcript import (
 
 def test_delete_mokli_thread_removes_legacy_json_and_transcript(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("mokli.mokli.transcript._MAX_TRANSCRIPT_FILE_BYTES", 520)
-    monkeypatch.setattr("mokli.mokli.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", 520)
-    monkeypatch.setattr("mokli.mokli.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", 260)
+    monkeypatch.setattr("mokli.surface.transcript._MAX_TRANSCRIPT_FILE_BYTES", 520)
+    monkeypatch.setattr("mokli.surface.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", 520)
+    monkeypatch.setattr("mokli.surface.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", 260)
     key = "websocket:k1"
     json_path = mokli_thread_file_path(key)
     json_path.parent.mkdir(parents=True, exist_ok=True)

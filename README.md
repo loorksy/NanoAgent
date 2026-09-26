@@ -17,12 +17,12 @@
     <a href="https://mokli.wiki/vi/docs/latest/getting-started/mokli-overview">Tiếng Việt</a>
   </p>
   <p>
-    <a href="https://github.com/HKUDS/mokli"><img src="https://img.shields.io/github/stars/HKUDS/mokli?style=flat&logo=github" alt="GitHub stars"></a>
+    <a href="https://github.com/HKUDS/nanobot"><img src="https://img.shields.io/github/stars/HKUDS/nanobot?style=flat&logo=github" alt="GitHub stars"></a>
     <a href="https://pypi.org/project/mokli-ai/"><img src="https://img.shields.io/pypi/v/mokli-ai" alt="PyPI version"></a>
     <a href="https://pepy.tech/project/mokli-ai"><img src="https://static.pepy.tech/badge/mokli-ai" alt="PyPI downloads"></a>
-    <a href="https://github.com/HKUDS/mokli/actions/workflows/ci.yml"><img src="https://github.com/HKUDS/mokli/actions/workflows/ci.yml/badge.svg?branch=main" alt="Test Suite"></a>
+    <a href="https://github.com/HKUDS/nanobot/actions/workflows/ci.yml"><img src="https://github.com/HKUDS/nanobot/actions/workflows/ci.yml/badge.svg?branch=main" alt="Test Suite"></a>
     <a href="https://pypi.org/project/mokli-ai/"><img src="https://img.shields.io/badge/python-%3E%3D3.11-blue" alt="Python 3.11 or newer"></a>
-    <a href="./LICENSE"><img src="https://img.shields.io/github/license/HKUDS/mokli" alt="MIT License"></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/github/license/HKUDS/nanobot" alt="MIT License"></a>
     <a href="https://mokli.wiki/docs/latest/getting-started/mokli-overview"><img src="https://img.shields.io/badge/docs-mokli.wiki-blue" alt="mokli documentation"></a>
   </p>
   <p>
@@ -91,13 +91,13 @@ If terminals, API keys, or config files are new to you, use the guided zero-back
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.sh | sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.ps1 | iex
 ```
 
 The default command installs or upgrades `mokli-ai` from PyPI. On a fresh local desktop, it then starts `mokli mokli` so you can configure the first provider and model in **Settings → Models**. SSH, headless, existing-config, and older-release paths keep the terminal setup wizard. The installer avoids system-wide pip installs by using an active virtual environment, `uv`, `pipx`, or a managed venv under `~/.mokli/venv`. It also prints the exact command it used to run mokli; reuse that full command below if `mokli` is not on `PATH`.
@@ -105,11 +105,11 @@ The default command installs or upgrades `mokli-ai` from PyPI. On a fresh local 
 To preview the plan without changing your environment, pass `--dry-run`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.sh | sh -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.sh | sh -s -- --dry-run
 ```
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.ps1))) --dry-run
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.ps1))) --dry-run
 ```
 
 If you prefer to inspect the script first, open [`scripts/install.sh`](./scripts/install.sh) or [`scripts/install.ps1`](./scripts/install.ps1).
@@ -134,7 +134,7 @@ Clone the repository and install it in editable mode. Bun is required because th
 checkout runs the matching TUI directly instead of downloading an older release binary.
 
 ```bash
-git clone https://github.com/HKUDS/mokli.git
+git clone https://github.com/HKUDS/nanobot.git
 cd mokli
 python -m venv .venv
 ```
@@ -246,7 +246,7 @@ If mokli worked for you, a star on GitHub is the simplest way to support the pro
 
 Deploy mokli's gateway and bundled Mokli from the repository's ready-to-use Blueprint:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/HKUDS/mokli)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/HKUDS/nanobot)
 
 Render will ask for `ANTHROPIC_API_KEY` and a private `MOKLI_WEB_TOKEN`, then provision persistent storage for sessions, memory, and Mokli history. Persistent disks require a paid Render service.
 
@@ -346,7 +346,7 @@ Browse the [repo docs](./docs/README.md) for the latest features and GitHub deve
 
 ## Releases
 
-**Latest release: [v0.3.0 - The Agency Release](https://github.com/HKUDS/mokli/releases/tag/v0.3.0)**
+**Latest release: [v0.3.0 - The Agency Release](https://github.com/HKUDS/nanobot/releases/tag/v0.3.0)**
 
 The Agency Release turns mokli from a durable workbench into an agent runtime that can coordinate helpers, switch models per session, and carry authorized work through to completion.
 
@@ -355,7 +355,7 @@ The Agency Release turns mokli from a durable workbench into an agent runtime th
 - Start from a guided Mokli setup with clearer execution controls
 - Apply configuration changes live across a more reliable provider, channel, and tool runtime
 
-[Read the v0.3.0 release notes](https://github.com/HKUDS/mokli/releases/tag/v0.3.0)
+[Read the v0.3.0 release notes](https://github.com/HKUDS/nanobot/releases/tag/v0.3.0)
 
 ## Recent Updates
 
@@ -366,7 +366,7 @@ The Agency Release turns mokli from a durable workbench into an agent runtime th
 - **2026-08-19** 🔗 Session mentions let agents read and message other saved conversations.
 - **2026-08-12** 🖥️ A Mokli workbench with grouped conversation panes and adjustable layouts.
 
-For older updates, see the [release archive](./docs/release-archive.md) or [GitHub releases](https://github.com/HKUDS/mokli/releases).
+For older updates, see the [release archive](./docs/release-archive.md) or [GitHub releases](https://github.com/HKUDS/nanobot/releases).
 
 ## Open Source Partners
 
@@ -380,8 +380,8 @@ For older updates, see the [release archive](./docs/release-archive.md) or [GitH
 Use mokli for a real task, report what broke, and then pick a focused improvement.
 
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the development workflow.
-- Browse [open issues](https://github.com/HKUDS/mokli/issues) for problems to investigate.
-- Open a [pull request](https://github.com/HKUDS/mokli/pulls) for a focused fix or integration.
+- Browse [open issues](https://github.com/HKUDS/nanobot/issues) for problems to investigate.
+- Open a [pull request](https://github.com/HKUDS/nanobot/pulls) for a focused fix or integration.
 
 ## Maintainers
 

@@ -19,9 +19,9 @@ def test_public_proxy_does_not_route_the_legacy_client() -> None:
 
 
 def test_legacy_react_app_is_removed_and_charts_remain() -> None:
-    assert not (ROOT / "mokli/package.json").is_file()
-    assert not (ROOT / "mokli/src").exists()
-    chart = ROOT / "mokli/public/charting_library/charting_library.standalone.js"
+    assert not (ROOT / "mokli-assets/package.json").is_file()
+    assert not (ROOT / "mokli-assets/src").exists()
+    chart = ROOT / "mokli-assets/public/charting_library/charting_library.standalone.js"
     assert chart.is_file()
 
 

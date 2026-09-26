@@ -25,7 +25,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Request as WsRequest
 
 from mokli.channels.websocket.runtime import WebSocketChannel
-from mokli.mokli.http_utils import http_response
+from mokli.surface.http_utils import http_response
 
 _IN_PROCESS_HTTP_CHANNELS: dict[int, InProcessHttpChannel] = {}
 

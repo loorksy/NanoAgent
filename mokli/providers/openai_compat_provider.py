@@ -95,7 +95,7 @@ _ALNUM = string.ascii_letters + string.digits
 _STANDARD_TC_KEYS = frozenset({"id", "type", "index", "function"})
 _STANDARD_FN_KEYS = frozenset({"name", "arguments"})
 _DEFAULT_OPENROUTER_HEADERS = {
-    "HTTP-Referer": "https://github.com/HKUDS/mokli",
+    "HTTP-Referer": "https://github.com/HKUDS/nanobot",
     "X-OpenRouter-Title": "mokli",
     "X-OpenRouter-Categories": "cli-agent,personal-agent",
 }

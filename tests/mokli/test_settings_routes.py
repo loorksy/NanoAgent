@@ -13,10 +13,10 @@ import pytest
 from websockets.datastructures import Headers
 
 from mokli.config.loader import get_config_path
-from mokli.mokli.http_utils import http_json_response
-from mokli.mokli.mcp_presets_api import custom_mcp_action
-from mokli.mokli.settings_routes import MokliSettingsRouter
-from mokli.mokli.settings_services import MokliSettingsServices
+from mokli.surface.http_utils import http_json_response
+from mokli.surface.mcp_presets_api import custom_mcp_action
+from mokli.surface.settings_routes import MokliSettingsRouter
+from mokli.surface.settings_services import MokliSettingsServices
 
 
 def _router(
@@ -126,7 +126,7 @@ async def test_usage_query_runs_off_the_event_loop(monkeypatch) -> None:
         worker_threads.append(threading.get_ident())
         return {"days": []}
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.settings_usage_payload", usage_payload)
+    monkeypatch.setattr("mokli.surface.settings_routes.settings_usage_payload", usage_payload)
     request = SimpleNamespace(path="/api/settings/usage", headers=Headers())
 
     response = await _router().dispatch(None, request, request.path)
@@ -168,7 +168,7 @@ async def test_mcp_reload_callback_is_bounded(
         return {"ok": True}
 
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes._MCP_RELOAD_TIMEOUT_SECONDS",
+        "mokli.surface.settings_routes._MCP_RELOAD_TIMEOUT_SECONDS",
         0.01,
     )
     router = _router(mcp_reload=reload_mcp)
@@ -191,7 +191,7 @@ async def test_mcp_oauth_start_uses_gateway_callback_and_requires_api_auth(monke
         url="https://app.xmind.com/api/mcp",
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.ensure_mcp_oauth_server",
+        "mokli.surface.settings_routes.ensure_mcp_oauth_server",
         lambda _query, *, config_path=None: ("xmind", config),
     )
     router = _router()
@@ -330,7 +330,7 @@ async def test_oauth_completion_reads_websocket_payload(
             "flow_id": "flow-123",
         }
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.complete_oauth_provider", complete)
+    monkeypatch.setattr("mokli.surface.settings_routes.complete_oauth_provider", complete)
     router = _router()
     request = _mutation_request(
         "/api/settings/provider/oauth-login/complete",
@@ -430,7 +430,7 @@ async def test_runtime_config_mutation_routes_refresh_live_runtime(
         captured["query"] = query
         return {"routed": function_name}
 
-    monkeypatch.setattr(f"mokli.mokli.settings_routes.{function_name}", mutate)
+    monkeypatch.setattr(f"mokli.surface.settings_routes.{function_name}", mutate)
     request = _mutation_request(route_path, payload)
 
     response = await _router(
@@ -454,7 +454,7 @@ async def test_model_update_route_forwards_session_rename_dependency(monkeypatch
         captured.update(query=query, rename_model_preset=rename_model_preset)
         return {"updated": True}
 
-    monkeypatch.setattr("mokli.mokli.settings_routes.update_model_configuration", update)
+    monkeypatch.setattr("mokli.surface.settings_routes.update_model_configuration", update)
     path = "/api/settings/model-configurations/update"
     request = _mutation_request(path, {"name": "openai", "new_name": "Codex"})
 
@@ -520,7 +520,7 @@ async def test_version_check_route_returns_stable_payload(
     expected: dict[str, object],
 ) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.check_for_update",
+        "mokli.surface.settings_routes.check_for_update",
         lambda: update_info,
     )
     request = SimpleNamespace(path="/api/settings/version-check", headers=Headers())
@@ -537,7 +537,7 @@ async def test_version_check_route_enforces_auth_and_bounds_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     check = MagicMock(side_effect=RuntimeError("upstream secret body"))
-    monkeypatch.setattr("mokli.mokli.settings_routes.check_for_update", check)
+    monkeypatch.setattr("mokli.surface.settings_routes.check_for_update", check)
     request = SimpleNamespace(path="/api/settings/version-check", headers=Headers())
 
     unauthorized = await _router(authorized=False).dispatch(None, request, request.path)
@@ -636,7 +636,7 @@ async def test_image_switch_round_trip_clears_restart(tmp_path, monkeypatch, ena
     config_path = tmp_path / "config.json"
     save_config(config, config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.request_image_generation_reload",
+        "mokli.surface.settings_routes.request_image_generation_reload",
         AsyncMock(return_value={"ok": False, "requires_restart": True}),
     )
     router = _router(config_path=config_path)

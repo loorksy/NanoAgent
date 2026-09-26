@@ -71,7 +71,7 @@ def manager() -> ChannelManager:
 
 def test_websocket_gateway_uses_configured_workspace_restriction(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "mokli.mokli.workspaces.read_mokli_default_access_mode",
+        "mokli.surface.workspaces.read_mokli_default_access_mode",
         lambda: "default",
     )
     config = Config.model_validate(

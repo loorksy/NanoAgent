@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from mokli.channels.websocket.runtime import WebSocketChannel
-from mokli.mokli.outbound_projection import MokliOutboundProjector
-from mokli.mokli.session_projection import MokliSessionProjection
+from mokli.surface.outbound_projection import MokliOutboundProjector
+from mokli.surface.session_projection import MokliSessionProjection
 
 
 @pytest.mark.asyncio
@@ -31,7 +31,7 @@ async def test_hydrate_after_subscribe_is_quiet_when_no_turn_active():
     channel.send_goal_state = mock_send_goal_state
     channel.send_goal_status = mock_send_goal_status
 
-    with patch("mokli.mokli.session_projection.websocket_turn_wall_started_at", return_value=None):
+    with patch("mokli.surface.session_projection.websocket_turn_wall_started_at", return_value=None):
         await channel._hydrate_after_subscribe("test-chat")
 
     assert sent_events == []
@@ -61,11 +61,11 @@ async def test_hydrate_after_subscribe_pushes_running_when_turn_active():
 
     with (
         patch(
-            "mokli.mokli.session_projection.websocket_turn_wall_started_at",
+            "mokli.surface.session_projection.websocket_turn_wall_started_at",
             return_value=1234567890.0,
         ),
         patch(
-            "mokli.mokli.session_projection.websocket_turn_id",
+            "mokli.surface.session_projection.websocket_turn_id",
             return_value="turn-active",
         ),
     ):

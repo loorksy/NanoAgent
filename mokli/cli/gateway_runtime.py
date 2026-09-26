@@ -39,9 +39,9 @@ from mokli.security.network import is_loopback_host
 from mokli.session.keys import UNIFIED_SESSION_KEY, last_channel_from_metadata
 from mokli.utils.evaluator import evaluate_response, resolve_evaluator_prompt
 from mokli.utils.helpers import sync_workspace_templates
-from mokli.mokli.build import BuildMode
-from mokli.mokli.dev import MokliDevError, MokliDevServer
-from mokli.mokli.sidebar_state import read_mokli_sidebar_state
+from mokli.surface.build import BuildMode
+from mokli.surface.dev import MokliDevError, MokliDevServer
+from mokli.surface.sidebar_state import read_mokli_sidebar_state
 
 __all__ = ["_run_gateway"]
 

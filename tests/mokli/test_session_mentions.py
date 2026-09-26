@@ -8,11 +8,11 @@ from mokli.session.session_handles import (
     SessionHandleResolver,
     session_handle_for_name,
 )
-from mokli.mokli.session_access import (
+from mokli.surface.session_access import (
     MokliSessionAccess,
     session_mentions_runtime_context,
 )
-from mokli.mokli.transcript import normalize_session_mentions_metadata
+from mokli.surface.transcript import normalize_session_mentions_metadata
 
 
 def _save_session(manager: SessionManager, key: str, title: str) -> None:
@@ -93,8 +93,8 @@ def test_session_mention_context_treats_titles_as_data() -> None:
 
 def test_session_mentions_do_not_isolate_workspaces(tmp_path, monkeypatch) -> None:
     mokli_dir = tmp_path / "mokli"
-    monkeypatch.setattr("mokli.mokli.transcript.get_mokli_dir", lambda: mokli_dir)
-    monkeypatch.setattr("mokli.mokli.session_list_index.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     project_b = tmp_path / "b"
     project_b.mkdir()

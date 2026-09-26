@@ -390,7 +390,7 @@ def test_multi_plugin_action_defaults_to_default_instance(
     tmp_path,
 ):
     from mokli.config import loader
-    from mokli.mokli.mokli_features_api import mokli_features_action
+    from mokli.surface.mokli_features_api import mokli_features_action
 
     class _ManagedMultiPlugin(_FakeMultiChannel):
         name = "managedmulti"
@@ -444,7 +444,7 @@ async def test_single_channel_enable_applies_defaults_before_hot_reload(
     tmp_path,
 ):
     from mokli.config import loader
-    from mokli.mokli.mokli_features_api import mokli_features_action
+    from mokli.surface.mokli_features_api import mokli_features_action
 
     class _SingleDefaultsPlugin(_FakePlugin):
         name = "singleplugin"
@@ -637,8 +637,8 @@ def test_plugin_setup_contract_drives_save_and_validation(
 ):
     from mokli.channels.validation import validate_channel_config
     from mokli.config import loader
-    from mokli.mokli.settings_routes import MokliSettingsRouter
-    from mokli.mokli.settings_services import MokliSettingsServices
+    from mokli.surface.settings_routes import MokliSettingsRouter
+    from mokli.surface.settings_services import MokliSettingsServices
 
     config_path = tmp_path / "config.json"
     save_config(Config(), config_path)
@@ -1806,7 +1806,7 @@ def test_enable_optional_feature_reports_install_failure(monkeypatch, tmp_path):
 
 def test_install_only_adds_channel_support_without_enabling_it(monkeypatch, tmp_path):
     from mokli.optional_features import InstallResult
-    from mokli.mokli.mokli_features_api import mokli_features_action
+    from mokli.surface.mokli_features_api import mokli_features_action
 
     config_path = tmp_path / "config.json"
     config_path.write_text(

@@ -39,7 +39,7 @@ async def _risk_action(
     *,
     who: str | None = None,
 ) -> JsonObject:
-    from mokli.mokli.trading_risk_api import TradingRiskError, trading_risk_action
+    from mokli.surface.trading_risk_api import TradingRiskError, trading_risk_action
 
     svc = services(request)
     try:
@@ -56,13 +56,13 @@ async def _risk_action(
 
 
 def _risk_payload(request: web.Request) -> JsonObject:
-    from mokli.mokli.trading_risk_api import trading_risk_payload
+    from mokli.surface.trading_risk_api import trading_risk_payload
 
     return cast(JsonObject, trading_risk_payload(config_path=services(request).config_path))
 
 
 def _permissions_payload(request: web.Request) -> JsonObject:
-    from mokli.mokli.trading_risk_api import mt5_permissions_payload
+    from mokli.surface.trading_risk_api import mt5_permissions_payload
 
     return cast(JsonObject, mt5_permissions_payload(config_path=services(request).config_path))
 

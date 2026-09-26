@@ -1,4 +1,4 @@
-"""Reproduction test for HKUDS/mokli#4302.
+"""Reproduction test for HKUDS/nanobot#4302.
 
 This test starts a real FastMCP streamable-http server in a child process,
 lets its idle timeout kill the session, and then exercises mokli's MCP

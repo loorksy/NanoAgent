@@ -4,7 +4,7 @@ from websockets.http11 import Request
 
 from mokli.trading.chart_host_bridge import get_chart_host_bridge
 from mokli.trading.chart_host_token import mint_chart_host_page_token
-from mokli.mokli.trading_api import (
+from mokli.surface.trading_api import (
     handle_trading_chart_host_poll,
     handle_trading_chart_host_submit,
 )

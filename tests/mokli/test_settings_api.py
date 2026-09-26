@@ -17,7 +17,7 @@ from mokli.providers.oauth_model_catalog import OAuthModelCatalogSnapshot
 from mokli.providers.registry import ProviderModelSpec, find_by_name
 from mokli.session.manager import SessionManager
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
-from mokli.mokli.settings_api import (
+from mokli.surface.settings_api import (
     MokliSettingsError,
     _docs_version,
     _model_catalog_kind,
@@ -42,7 +42,7 @@ from mokli.mokli.settings_api import (
     update_transcription_settings,
     update_web_search_settings,
 )
-from mokli.mokli.settings_services import MokliOAuthFlowRegistry
+from mokli.surface.settings_services import MokliOAuthFlowRegistry
 
 DYNAMIC_PROVIDER_NAME = "my-company-api"
 DYNAMIC_PROVIDER_API_BASE = "https://example.test/v1"
@@ -57,7 +57,7 @@ def test_settings_payload_propagates_preset_resolution_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = Config()
-    monkeypatch.setattr("mokli.mokli.settings_api.load_config", lambda: config)
+    monkeypatch.setattr("mokli.surface.settings_api.load_config", lambda: config)
     monkeypatch.setattr(
         Config,
         "resolve_preset",
@@ -86,7 +86,7 @@ def test_settings_payload_includes_versioned_docs(
     config_path = tmp_path / "config.json"
     save_config(Config(), config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.settings_api.__version__", "0.2.3")
+    monkeypatch.setattr("mokli.surface.settings_api.__version__", "0.2.3")
 
     payload = settings_payload()
 
@@ -430,7 +430,7 @@ def test_update_model_configuration_edits_named_preset_without_selecting(
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._oauth_provider_status",
+        "mokli.surface.settings_api._oauth_provider_status",
         lambda spec: {
             "configured": spec.name == "openai_codex",
             "account": "acct-test",
@@ -536,7 +536,7 @@ def test_update_model_configuration_rolls_back_sessions_when_config_save_fails(
     def fail_save(_config: Config, _path) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("mokli.mokli.settings_api._save_settings_config", fail_save)
+    monkeypatch.setattr("mokli.surface.settings_api._save_settings_config", fail_save)
 
     with pytest.raises(OSError, match="disk full"):
         update_model_configuration(
@@ -960,7 +960,7 @@ def test_update_provider_settings_updates_and_clears_oauth_proxy(
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._oauth_provider_status",
+        "mokli.surface.settings_api._oauth_provider_status",
         lambda _spec: {
             "configured": False,
             "account": None,
@@ -1116,7 +1116,7 @@ def test_settings_payload_includes_oauth_provider_status(
             "login_supported": True,
         }
 
-    monkeypatch.setattr("mokli.mokli.settings_api._oauth_provider_status", fake_oauth_status)
+    monkeypatch.setattr("mokli.surface.settings_api._oauth_provider_status", fake_oauth_status)
 
     payload = settings_payload()
     providers = {row["name"]: row for row in payload["providers"]}
@@ -1237,7 +1237,7 @@ def test_settings_payload_includes_network_safety_fields(
     config.tools.ssrf_whitelist = ["100.64.0.0/10"]
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     payload = settings_payload()
 
@@ -1258,7 +1258,7 @@ def test_settings_payload_includes_exec_path_flags(
     config.tools.exec.path_append = "/usr/sbin"
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     payload = settings_payload()
 
@@ -1610,7 +1610,7 @@ def test_update_network_safety_settings_writes_local_service_flag(
     config_path = tmp_path / "config.json"
     save_config(Config(), config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     payload = update_network_safety_settings(
         {
@@ -1636,7 +1636,7 @@ def test_update_network_safety_settings_accepts_legacy_restricted_default_access
     config_path = tmp_path / "config.json"
     save_config(Config(), config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     payload = update_network_safety_settings({"mokli_default_access_mode": ["restricted"]})
 
@@ -1651,7 +1651,7 @@ def test_update_network_safety_settings_default_access_is_mokli_only(
     save_config(Config(), config_path)
     before = config_path.read_text(encoding="utf-8")
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     payload = update_network_safety_settings({"mokli_default_access_mode": ["full"]})
 
@@ -1806,7 +1806,7 @@ def test_openai_codex_oauth_login_passes_configured_proxy(
         fake_complete,
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_api.settings_payload",
+        "mokli.surface.settings_api.settings_payload",
         lambda **_kwargs: {"settings": "ready"},
     )
 
@@ -1984,7 +1984,7 @@ def test_xai_grok_login_starts_fresh_browser_flow_with_proxy(
         fake_complete,
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_api.settings_payload",
+        "mokli.surface.settings_api.settings_payload",
         lambda **_kwargs: {"settings": "ready"},
     )
 
@@ -2082,7 +2082,7 @@ def test_provider_models_payload_fetches_openai_compatible_models(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
 
     payload = provider_models_payload({"provider": ["deepseek"]})
 
@@ -2097,7 +2097,7 @@ def test_provider_models_payload_returns_online_openai_codex_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.settings_models.get_oauth_model_catalog",
+        "mokli.surface.settings_models.get_oauth_model_catalog",
         lambda *_args, **_kwargs: OAuthModelCatalogSnapshot(
             models=(
                 ProviderModelSpec(
@@ -2135,7 +2135,7 @@ def test_provider_models_payload_returns_online_github_copilot_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.settings_models.get_oauth_model_catalog",
+        "mokli.surface.settings_models.get_oauth_model_catalog",
         lambda *_args, **_kwargs: OAuthModelCatalogSnapshot(
             models=(
                 ProviderModelSpec(
@@ -2162,7 +2162,7 @@ def test_provider_models_payload_returns_online_xai_grok_models(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "mokli.mokli.settings_models.get_oauth_model_catalog",
+        "mokli.surface.settings_models.get_oauth_model_catalog",
         lambda *_args, **_kwargs: OAuthModelCatalogSnapshot(
             models=(
                 ProviderModelSpec(
@@ -2233,7 +2233,7 @@ def test_provider_models_payload_fetches_dynamic_custom_provider_models(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
 
     payload = provider_models_payload({"provider": [DYNAMIC_PROVIDER_NAME]})
 
@@ -2273,7 +2273,7 @@ def test_provider_models_payload_fetches_minimax_anthropic_models(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
 
     payload = provider_models_payload({"provider": ["minimax_anthropic"]})
 
@@ -2328,7 +2328,7 @@ def test_provider_models_payload_fetches_orcarouter_catalog(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
 
     payload = provider_models_payload({"provider": ["orcarouter"]})
 
@@ -2382,7 +2382,7 @@ def test_provider_models_payload_reads_price_modalities_and_release(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
     payload = provider_models_payload({"provider": ["openrouter"]})
     rich, plain = payload["models"]
     assert rich["label"] == "Gemini Test"
@@ -2409,7 +2409,7 @@ def test_claude_code_cli_lists_builtin_models_with_vision() -> None:
 
 
 def test_assign_provider_models_keeps_other_providers(tmp_path, monkeypatch) -> None:
-    from mokli.mokli.settings_models import assign_provider_models, provider_model_selection
+    from mokli.surface.settings_models import assign_provider_models, provider_model_selection
 
     config_path = tmp_path / "config.json"
     config = Config()
@@ -2466,7 +2466,7 @@ def test_create_model_configuration_accepts_configured_oauth_provider(
     save_config(Config(), config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._oauth_provider_status",
+        "mokli.surface.settings_api._oauth_provider_status",
         lambda spec: {
             "configured": spec.name == "openai_codex",
             "account": "acct-test",
@@ -2599,7 +2599,7 @@ def test_create_model_configuration_rejects_azure_openai_without_base(
 
 def test_azure_openai_spec_no_longer_requires_api_key() -> None:
     """Contract guard: api_key is optional for azure_openai (AAD fallback)."""
-    from mokli.mokli.settings_api import _provider_requires_api_key
+    from mokli.surface.settings_api import _provider_requires_api_key
 
     spec = find_by_name("azure_openai")
     assert spec is not None

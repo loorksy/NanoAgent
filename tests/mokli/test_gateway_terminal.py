@@ -7,8 +7,8 @@ from websockets.datastructures import Headers
 from websockets.http11 import Request
 
 from mokli.channels.websocket.runtime import WebSocketConfig
-from mokli.mokli.gateway_tokens import GatewayTokenStore
-from mokli.mokli.ws_http import GatewayHTTPHandler
+from mokli.surface.gateway_tokens import GatewayTokenStore
+from mokli.surface.ws_http import GatewayHTTPHandler
 
 
 def test_terminal_probe_is_private_stable_and_does_not_issue_credentials():

@@ -5,13 +5,13 @@ import tarfile
 from pathlib import Path
 
 from mokli.events import ContextCompactionEvent, RecoveryStateEvent, RetryStatusEvent
-from mokli.mokli.outbound_wire import project_notification
+from mokli.surface.outbound_wire import project_notification
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_wire_fixtures_are_real_python_projections(monkeypatch):
-    monkeypatch.setattr("mokli.mokli.outbound_wire.time.time", lambda: 100.0)
+    monkeypatch.setattr("mokli.surface.outbound_wire.time.time", lambda: 100.0)
     fixtures = json.loads((ROOT / "packages/client-events/fixtures.json").read_text())
     for expected in fixtures:
         fields = {key: value for key, value in expected.items() if key not in {"event", "chat_id"}}

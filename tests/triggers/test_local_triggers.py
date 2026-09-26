@@ -14,7 +14,7 @@ from mokli.bus.events import InboundMessage, OutboundMessage
 from mokli.triggers.local_runner import run_local_trigger_queue
 from mokli.triggers.local_store import LocalTriggerStore, TriggerDisabledError
 from mokli.triggers.local_types import LocalTrigger, TriggerDelivery
-from mokli.mokli.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
+from mokli.surface.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
 
 
 def _channel_is_enabled(_name: str) -> bool:

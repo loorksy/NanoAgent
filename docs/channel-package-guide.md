@@ -773,7 +773,7 @@ String and secret fields default to `""`, list fields to `[]`, and boolean field
 ## Local Development
 
 ```bash
-git clone https://github.com/HKUDS/mokli.git
+git clone https://github.com/HKUDS/nanobot.git
 cd mokli
 python -m pip install -e .
 mokli plugins list    # should show the package as "webhook"

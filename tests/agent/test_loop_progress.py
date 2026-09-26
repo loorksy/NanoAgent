@@ -25,7 +25,7 @@ from mokli.providers.base import LLMResponse, ToolCallRequest
 from mokli.providers.factory import ProviderSnapshot
 from mokli.session.mokli_turns import MokliTurnCoordinator, MokliTurnRoutePolicy
 from mokli.utils.progress_events import output_events
-from mokli.mokli.metadata import (
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
 )

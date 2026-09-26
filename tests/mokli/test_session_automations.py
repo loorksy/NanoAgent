@@ -8,7 +8,7 @@ import pytest
 from mokli.cron.types import CronJob, CronPayload
 from mokli.session.manager import SessionManager
 from mokli.triggers.local_types import LocalTrigger
-from mokli.mokli.session_automations import serialize_automation_jobs
+from mokli.surface.session_automations import serialize_automation_jobs
 
 
 @pytest.mark.parametrize(

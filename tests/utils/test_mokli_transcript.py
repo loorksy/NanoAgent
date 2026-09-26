@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-import mokli.mokli.transcript as transcript_module
+import mokli.surface.transcript as transcript_module
 from mokli.session.history_visibility import HIDDEN_HISTORY_META
-from mokli.mokli.transcript import (
+from mokli.surface.transcript import (
     MOKLI_TRANSCRIPT_SCHEMA_VERSION,
     append_fork_marker,
     append_transcript_object,
@@ -32,7 +32,7 @@ def test_append_and_read_roundtrip(tmp_path, monkeypatch) -> None:
 
 def test_append_stamps_created_at_ms(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("mokli.mokli.transcript.time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr("mokli.surface.transcript.time.time", lambda: 1_700_000_000.0)
     key = "websocket:t-created-at"
 
     append_transcript_object(key, {"event": "user", "chat_id": "t-created-at", "text": "hello"})
@@ -42,9 +42,9 @@ def test_append_stamps_created_at_ms(tmp_path, monkeypatch) -> None:
 
 
 def _force_small_transcript_budget(monkeypatch, *, limit: int = 520, target: int = 260) -> None:
-    monkeypatch.setattr("mokli.mokli.transcript._MAX_TRANSCRIPT_FILE_BYTES", limit)
-    monkeypatch.setattr("mokli.mokli.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", limit)
-    monkeypatch.setattr("mokli.mokli.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", target)
+    monkeypatch.setattr("mokli.surface.transcript._MAX_TRANSCRIPT_FILE_BYTES", limit)
+    monkeypatch.setattr("mokli.surface.transcript._ACTIVE_TRANSCRIPT_ROTATE_BYTES", limit)
+    monkeypatch.setattr("mokli.surface.transcript._TARGET_ACTIVE_TRANSCRIPT_BYTES", target)
 
 
 def _append_numbered_turn(key: str, chat_id: str, idx: int) -> None:
@@ -224,8 +224,8 @@ def test_rotation_does_not_reread_existing_segments(tmp_path, monkeypatch) -> No
 
 
 def test_delete_mokli_transcript_removes_segments(tmp_path, monkeypatch) -> None:
-    from mokli.mokli.thread_disk import mokli_thread_file_path
-    from mokli.mokli.transcript import delete_mokli_transcript, mokli_transcript_path
+    from mokli.surface.thread_disk import mokli_thread_file_path
+    from mokli.surface.transcript import delete_mokli_transcript, mokli_transcript_path
 
     key = "websocket:delete-segments"
     _write_segmented_turns(tmp_path, monkeypatch, key, "delete-segments", 4)

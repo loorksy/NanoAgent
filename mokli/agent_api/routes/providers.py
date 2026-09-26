@@ -21,7 +21,7 @@ from mokli.agent_api.provider_settings import (
     save_provider_models,
 )
 from mokli.agent_api.routes._util import json_body, ok
-from mokli.mokli.settings_services import MokliOAuthFlowRegistry
+from mokli.surface.settings_services import MokliOAuthFlowRegistry
 
 
 def _flows(request: web.Request) -> MokliOAuthFlowRegistry:
@@ -92,7 +92,7 @@ async def oauth_provider(request: web.Request) -> web.Response:
 
 async def claude_status(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    from mokli.mokli.claude_code_oauth import public_status
+    from mokli.surface.claude_code_oauth import public_status
 
     return ok(public_status())
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from mokli.config.schema import Config
-from mokli.mokli.settings_models import (
+from mokli.surface.settings_models import (
     model_settings_payload,
     update_agent_model_settings,
     update_provider_settings,

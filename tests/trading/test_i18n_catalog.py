@@ -148,5 +148,5 @@ def test_no_arabic_script_in_trading_python_sources() -> None:
 
 
 def test_no_arabic_script_in_trading_mokli_api() -> None:
-    text = Path("mokli/mokli/trading_api.py").read_text(encoding="utf-8")
+    text = Path("mokli/surface/trading_api.py").read_text(encoding="utf-8")
     assert not _ARABIC.search(text)

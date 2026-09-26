@@ -23,7 +23,7 @@ from mokli.runtime_context import RUNTIME_CONTEXT_INPUT_META
 from mokli.session import mokli_turns as wth
 from mokli.session.manager import SessionManager
 from mokli.session.session_handles import SessionHandleResolver
-from mokli.mokli.gateway_services import build_gateway_services
+from mokli.surface.gateway_services import build_gateway_services
 
 
 def _tiny_png_data_url() -> str:
@@ -154,7 +154,7 @@ async def test_mokli_message_projects_attachments_to_other_clients(tmp_path: Pat
         "cli_apps": [{"name": "DrawIO", "entry_point": "cli-anything-drawio"}],
     }
 
-    with patch("mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path):
+    with patch("mokli.surface.media_gateway.get_media_dir", return_value=tmp_path):
         await channel._dispatch_envelope(origin, "client-1", envelope)
 
     event = json.loads(peer.send.await_args.args[0])
@@ -282,7 +282,7 @@ async def test_message_with_single_image_forwards_saved_path(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -311,7 +311,7 @@ async def test_message_with_multiple_images(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -334,7 +334,7 @@ async def test_image_only_message_allows_empty_text(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -356,7 +356,7 @@ async def test_message_rejected_when_more_than_four_images(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -388,7 +388,7 @@ async def test_message_rejected_when_too_many_total_attachments(tmp_path) -> Non
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -411,7 +411,7 @@ async def test_message_rejected_on_oversize_payload(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -433,7 +433,7 @@ async def test_message_with_pdf_forwards_saved_path(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -461,7 +461,7 @@ async def test_message_with_csv_forwards_saved_path(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -485,7 +485,7 @@ async def test_message_rejected_on_unsupported_file_mime(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -508,7 +508,7 @@ async def test_message_rejected_on_svg_mime(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -529,7 +529,7 @@ async def test_message_rejected_on_malformed_data_url(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -550,7 +550,7 @@ async def test_message_rejected_on_broken_base64(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -572,7 +572,7 @@ async def test_message_rejected_when_media_item_shape_wrong(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 
@@ -620,7 +620,7 @@ async def test_failed_media_does_not_partially_persist(tmp_path) -> None:
     }
 
     with patch(
-        "mokli.mokli.media_gateway.get_media_dir", return_value=tmp_path
+        "mokli.surface.media_gateway.get_media_dir", return_value=tmp_path
     ):
         await channel._dispatch_envelope(mock_conn, "client-1", envelope)
 

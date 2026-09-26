@@ -18,7 +18,7 @@ from mokli.session.session_handles import (
     SessionHandleResolver,
     normalize_session_handle,
 )
-from mokli.mokli.session_access import MokliSessionAccess
+from mokli.surface.session_access import MokliSessionAccess
 
 _SEARCH_LIMIT = 5
 _READ_LIMIT = 8

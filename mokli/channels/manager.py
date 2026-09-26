@@ -182,7 +182,7 @@ class ChannelManager:
         kwargs: dict[str, Any] = {}
         if cls.name == "websocket":
             from mokli.channels.websocket.runtime import WebSocketConfig
-            from mokli.mokli.gateway_services import build_gateway_services
+            from mokli.surface.gateway_services import build_gateway_services
 
             parsed = WebSocketConfig.model_validate(section)
             static_path = _default_mokli_dist() if self._mokli_static_dist else None

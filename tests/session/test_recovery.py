@@ -20,7 +20,7 @@ from mokli.session.recovery import (
     pending_followups,
     record_pending_followup,
 )
-from mokli.mokli import session_list_index, transcript
+from mokli.surface import session_list_index, transcript
 
 
 def _persist(manager: SessionManager, session: Session) -> None:
@@ -59,7 +59,7 @@ async def test_stale_incomplete_transcript_waits_for_confirmation(tmp_path: Path
     session = sessions.get_or_create("websocket:chat")
     _persist(sessions, session)
     monkeypatch.setattr(
-        "mokli.mokli.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: True,
     )
 
@@ -92,7 +92,7 @@ async def test_materialized_interruption_can_continue_from_saved_context(
     )
     _persist(sessions, session)
     monkeypatch.setattr(
-        "mokli.mokli.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: True,
     )
 
@@ -186,7 +186,7 @@ async def test_scan_loads_only_sessions_that_need_mokli_recovery(
 
     monkeypatch.setattr(restarted, "get_or_create", tracked_get_or_create)
     monkeypatch.setattr(
-        "mokli.mokli.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: False,
     )
 

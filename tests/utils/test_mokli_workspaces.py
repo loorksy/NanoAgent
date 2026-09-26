@@ -8,7 +8,7 @@ from mokli.security.workspace_access import (
     default_workspace_scope,
 )
 from mokli.session.manager import SessionManager, SessionStore
-from mokli.mokli.workspaces import (
+from mokli.surface.workspaces import (
     MokliWorkspaceController,
     read_mokli_default_access_mode,
     read_mokli_workspace_state,
@@ -19,7 +19,7 @@ from mokli.mokli.workspaces import (
 
 
 def test_workspace_state_defaults_when_file_missing(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     state = read_mokli_workspace_state()
 
@@ -28,7 +28,7 @@ def test_workspace_state_defaults_when_file_missing(tmp_path, monkeypatch) -> No
 
 
 def test_workspace_payload_is_config_data_dir_scoped(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
 
@@ -49,7 +49,7 @@ def test_workspace_payload_hides_mutable_state_when_controls_unavailable(
     tmp_path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
 
@@ -66,7 +66,7 @@ def test_workspace_payload_hides_mutable_state_when_controls_unavailable(
 
 
 def test_workspace_payload_advertises_native_folder_picker(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
 
@@ -81,7 +81,7 @@ def test_workspace_payload_advertises_native_folder_picker(tmp_path, monkeypatch
 
 
 def test_workspace_payload_uses_mokli_default_access_mode(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
 
@@ -100,14 +100,14 @@ def test_workspace_payload_uses_mokli_default_access_mode(tmp_path, monkeypatch)
 
 
 def test_legacy_restricted_mokli_default_access_mode_maps_to_default(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
 
     assert write_mokli_default_access_mode("restricted") is False
     assert read_mokli_default_access_mode() == "default"
 
 
 def test_mokli_default_access_applies_to_unscoped_old_sessions(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
     sessions = SessionManager(tmp_path / "sessions")
@@ -128,7 +128,7 @@ def test_mokli_default_access_applies_to_unscoped_old_sessions(tmp_path, monkeyp
 
 
 def test_indexed_scope_preserves_missing_and_explicit_null_semantics(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     default.mkdir()
     write_mokli_default_access_mode("full")
@@ -155,7 +155,7 @@ def test_indexed_scope_preserves_missing_and_explicit_null_semantics(tmp_path, m
 
 
 def test_mokli_default_access_does_not_override_explicit_session_scope(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     project = tmp_path / "project"
     default.mkdir()
@@ -179,7 +179,7 @@ def test_scope_for_session_key_reads_metadata_without_full_history(
     tmp_path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     project = tmp_path / "project"
     default.mkdir()
@@ -205,7 +205,7 @@ def test_scope_for_session_key_reads_metadata_without_full_history(
 
 
 def test_new_chat_scope_is_persisted_only_after_first_message(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     project = tmp_path / "project"
     default.mkdir()
@@ -229,7 +229,7 @@ def test_new_chat_scope_is_persisted_only_after_first_message(tmp_path, monkeypa
 
 
 def test_scope_for_session_key_always_reads_the_active_store(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     project = tmp_path / "project"
     default.mkdir()
@@ -276,7 +276,7 @@ def test_scope_for_session_key_always_reads_the_active_store(tmp_path, monkeypat
 
 
 def test_remote_existing_chat_can_reduce_its_workspace_access(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     project = tmp_path / "project"
     default.mkdir()
@@ -324,7 +324,7 @@ def test_remote_new_chat_only_allows_non_escalating_scope_change(
     access_mode: str,
     allowed: bool,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default = tmp_path / "default"
     other = tmp_path / "other"
     default.mkdir()

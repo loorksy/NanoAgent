@@ -1,7 +1,7 @@
 """Bearer tokens with scopes for web / device / service clients (07 §8).
 
 Tokens are random secrets stored hashed in SQLite (``gateway_clients`` +
-``gateway_tokens``); the in-memory :mod:`mokli.mokli.gateway_tokens` store is
+``gateway_tokens``); the in-memory :mod:`mokli.surface.gateway_tokens` store is
 not suitable because device tokens must survive restarts and be revocable.
 """
 

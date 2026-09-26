@@ -11,5 +11,5 @@ The mokli application source, lockfile, build scripts, notices, and relinking in
 already included in this archive. Exact upstream revisions are listed in `RELINKING.md`.
 
 To request any additional corresponding-source material, open an issue at
-<https://github.com/HKUDS/mokli/issues> or email <xubinrencs@gmail.com> and identify the mokli
+<https://github.com/HKUDS/nanobot/issues> or email <xubinrencs@gmail.com> and identify the mokli
 release tag and target platform shown in `THIRD_PARTY_NOTICES.txt`.

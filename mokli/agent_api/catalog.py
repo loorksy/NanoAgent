@@ -10,7 +10,7 @@ from mokli.agent.tools.loader import ToolLoader
 from mokli.agent.tools.registry import ToolRegistry
 from mokli.agent_api.tool_ref import apply_disabled_skills, tool_registry
 from mokli.config.loader import load_config
-from mokli.mokli.skills_api import set_mokli_skill_enabled, mokli_skills_payload
+from mokli.surface.skills_api import set_mokli_skill_enabled, mokli_skills_payload
 
 
 def workspace_path(config_path: Path | None = None) -> Path:

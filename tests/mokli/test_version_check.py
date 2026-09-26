@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import mokli.mokli.version_check as version_check
+import mokli.surface.version_check as version_check
 
 
 @pytest.fixture(autouse=True)

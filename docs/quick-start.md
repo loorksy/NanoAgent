@@ -21,13 +21,13 @@ The recommended installer keeps mokli out of the system Python environment. On a
 **macOS / Linux**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.sh | sh
 ```
 
 **Windows PowerShell**
 
 ```powershell
-irm https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.ps1 | iex
 ```
 
 The installer chooses an active virtual environment, `uv`, `pipx`, or a managed environment under `~/.mokli/venv`. It installs the stable PyPI release. At the end it prints the exact command it used to run mokli; if `mokli` is not on `PATH`, reuse that full command in the examples below.
@@ -159,7 +159,7 @@ Clone the repository and install it in editable mode. Bun is required so the che
 its matching native TUI instead of mixing current Python with an older release binary.
 
 ```bash
-git clone https://github.com/HKUDS/mokli.git
+git clone https://github.com/HKUDS/nanobot.git
 cd mokli
 python -m venv .venv
 ```
@@ -224,7 +224,7 @@ Upgrade with the same method you used to install:
 
 ```bash
 # Recommended installer
-curl -fsSL https://raw.githubusercontent.com/HKUDS/mokli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.sh | sh
 
 # Or one of these
 uv tool upgrade mokli-ai

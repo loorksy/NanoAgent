@@ -41,9 +41,9 @@ _STORE_VERSION = 1
 _STORE_LOCK_TIMEOUT_S = 15
 _REFRESH_LOCK_TIMEOUT_S = 60
 _DEFAULT_REDIRECT_URI = f"http://127.0.0.1{MCP_OAUTH_CALLBACK_PATH}"
-_CLIENT_URI = AnyHttpUrl("https://github.com/HKUDS/mokli")
+_CLIENT_URI = AnyHttpUrl("https://github.com/HKUDS/nanobot")
 _LOGO_URI = AnyHttpUrl(
-    "https://raw.githubusercontent.com/HKUDS/mokli/main/"
+    "https://raw.githubusercontent.com/HKUDS/nanobot/main/"
     "mokli/public/brand/mokli_apple_touch.png"
 )
 
@@ -844,7 +844,7 @@ async def create_mcp_oauth_auth(
         client_name="mokli",
         client_uri=_CLIENT_URI,
         logo_uri=_LOGO_URI,
-        software_id="https://github.com/HKUDS/mokli",
+        software_id="https://github.com/HKUDS/nanobot",
     )
     return _RefreshingOAuthClientProvider(
         server_url,

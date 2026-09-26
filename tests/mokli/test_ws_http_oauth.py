@@ -7,7 +7,7 @@ from websockets.datastructures import Headers
 from websockets.http11 import Request as WsRequest
 
 from mokli.channels.websocket.runtime import WebSocketConfig
-from mokli.mokli.ws_http import GatewayHTTPHandler
+from mokli.surface.ws_http import GatewayHTTPHandler
 
 
 def _handler(config: WebSocketConfig) -> GatewayHTTPHandler:

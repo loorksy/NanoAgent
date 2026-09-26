@@ -118,7 +118,7 @@ async def test_claude_connect_exchanges_without_returning_the_token(
         return exchanged
 
     monkeypatch.setattr(
-        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.surface.claude_code_oauth_flow.exchange_authorization_code",
         _exchange,
     )
     started = await client.post("/api/v2/settings/claude-code/connect", headers=auth(), json={})
@@ -177,7 +177,7 @@ async def test_provider_model_selection_hides_the_api_key(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.surface.settings_api.httpx.get", fake_get)
     listed = await client.get("/api/v2/settings/providers/openrouter/models", headers=auth())
     assert listed.status == 200
     catalog = await listed.json()

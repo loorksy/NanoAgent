@@ -9,8 +9,8 @@ from mokli.bus.outbound_events import (
     TurnEndEvent,
 )
 from mokli.providers.base import LLMUsage
-from mokli.mokli.metadata import MOKLI_TURN_METADATA_KEY
-from mokli.mokli.outbound_wire import (
+from mokli.surface.metadata import MOKLI_TURN_METADATA_KEY
+from mokli.surface.outbound_wire import (
     encode_context_compaction,
     encode_recovery_state,
     encode_retry_status,
@@ -81,7 +81,7 @@ def test_encode_recovery_state_preserves_false_can_continue() -> None:
 def test_encode_retry_status_projects_relative_wait_and_turn_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.outbound_wire.time.time", lambda: 120.0)
+    monkeypatch.setattr("mokli.surface.outbound_wire.time.time", lambda: 120.0)
 
     payload = encode_retry_status(
         "chat-1",

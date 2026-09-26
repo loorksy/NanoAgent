@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from mokli.mokli.dev import (
+from mokli.surface.dev import (
     MokliDevError,
     MokliDevServer,
     run_mokli_dev_server,
@@ -75,7 +75,7 @@ def test_start_mokli_dev_server_uses_vite_directly_and_sets_proxy_target(
         return process
 
     monkeypatch.setattr(
-        "mokli.mokli.dev.shutil.which",
+        "mokli.surface.dev.shutil.which",
         lambda name: "node" if name == "node" else None,
     )
 
@@ -167,7 +167,7 @@ def test_dev_server_context_stops_the_child(monkeypatch) -> None:
     server = type("Server", (), {"process": process})()
     stopped: list[bool] = []
     server.stop = lambda: stopped.append(True)
-    monkeypatch.setattr("mokli.mokli.dev.start_mokli_dev_server", lambda **_kwargs: server)
+    monkeypatch.setattr("mokli.surface.dev.start_mokli_dev_server", lambda **_kwargs: server)
 
     with run_mokli_dev_server(target_url="unused", browser_url="unused") as running:
         assert running is server

@@ -23,7 +23,7 @@ from mokli.cli.runtime_config import (
 )
 from mokli.config.schema import Config
 from mokli.security.network import is_loopback_host
-from mokli.mokli.build import (
+from mokli.surface.build import (
     BuildMode,
     MokliBuildError,
     ensure_mokli_bundle,

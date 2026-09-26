@@ -30,7 +30,7 @@ Follow-up grading could show **invalidated** while SQLite still held a **live** 
 
 ## Upstream mokli (HKUDS)
 
-Remote: `mokli-upstream` → https://github.com/HKUDS/mokli
+Remote: `mokli-upstream` → https://github.com/HKUDS/nanobot
 
 This fork adds `mokli/trading/`, Lonora runtime, Mokli trading surfaces, and heavily modified agent loop. **Do not merge upstream wholesale.** Safe sync process:
 

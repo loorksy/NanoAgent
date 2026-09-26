@@ -1,6 +1,6 @@
-# Upstream sync log (HKUDS/mokli)
+# Upstream sync log (HKUDS/nanobot)
 
-Remote: `mokli-upstream` → https://github.com/HKUDS/mokli
+Remote: `mokli-upstream` → https://github.com/HKUDS/nanobot
 
 | Date | Upstream | Summary | Method | Branch |
 |------|----------|---------|--------|--------|

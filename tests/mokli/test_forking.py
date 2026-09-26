@@ -5,7 +5,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
-import mokli.mokli.forking as forking
+import mokli.surface.forking as forking
 from mokli.session.mokli_turns import MOKLI_TITLE_METADATA_KEY
 
 

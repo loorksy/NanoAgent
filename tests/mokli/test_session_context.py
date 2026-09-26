@@ -1,7 +1,7 @@
 from mokli.providers.base import LLMUsage
 from mokli.session import Session
 from mokli.utils.helpers import estimate_message_tokens
-from mokli.mokli.session_context import session_context_payload
+from mokli.surface.session_context import session_context_payload
 
 
 def test_session_context_separates_archive_progress_from_replay() -> None:

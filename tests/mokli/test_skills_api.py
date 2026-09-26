@@ -5,7 +5,7 @@ import pytest
 
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
-from mokli.mokli.skills_api import (
+from mokli.surface.skills_api import (
     SkillManagementError,
     delete_mokli_skill,
     set_mokli_skill_enabled,
@@ -81,9 +81,9 @@ def test_set_mokli_skill_enabled_persists_and_updates_runtime(
     _write_skill(tmp_path, "custom-skill")
     config = _config()
     saved: list[object] = []
-    monkeypatch.setattr("mokli.mokli.skills_api.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.surface.skills_api.load_config", lambda _path=None: config)
     monkeypatch.setattr(
-        "mokli.mokli.skills_api.save_config",
+        "mokli.surface.skills_api.save_config",
         lambda value, _path=None: saved.append(value),
     )
     disabled: set[str] = set()
@@ -136,9 +136,9 @@ def test_delete_mokli_skill_only_deletes_workspace_skills(
     directory = _write_skill(tmp_path, "custom-skill")
     config = _config("custom-skill")
     saved: list[object] = []
-    monkeypatch.setattr("mokli.mokli.skills_api.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.surface.skills_api.load_config", lambda _path=None: config)
     monkeypatch.setattr(
-        "mokli.mokli.skills_api.save_config",
+        "mokli.surface.skills_api.save_config",
         lambda value, _path=None: saved.append(value),
     )
     disabled = {"custom-skill"}
@@ -190,12 +190,12 @@ def test_delete_mokli_skill_restores_directory_when_config_save_fails(
 ) -> None:
     directory = _write_skill(tmp_path, "custom-skill")
     config = _config("custom-skill")
-    monkeypatch.setattr("mokli.mokli.skills_api.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.surface.skills_api.load_config", lambda _path=None: config)
 
     def fail_save(_config: object, _path: Path | None = None) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("mokli.mokli.skills_api.save_config", fail_save)
+    monkeypatch.setattr("mokli.surface.skills_api.save_config", fail_save)
     disabled = {"custom-skill"}
 
     with pytest.raises(OSError, match="disk full"):

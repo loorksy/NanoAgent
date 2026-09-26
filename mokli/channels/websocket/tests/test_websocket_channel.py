@@ -54,33 +54,33 @@ from mokli.session import mokli_turns as wth
 from mokli.session.manager import SessionManager
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
 from mokli.session.session_handles import session_handle_for_name
-from mokli.mokli.gateway_services import GatewayServices, build_gateway_services
-from mokli.mokli.http_utils import (
+from mokli.surface.gateway_services import GatewayServices, build_gateway_services
+from mokli.surface.http_utils import (
     http_error as _http_error,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     http_json_response as _http_json_response,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     issue_route_secret_matches as _issue_route_secret_matches,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     normalize_config_path as _normalize_config_path,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     parse_query as _parse_query,
 )
-from mokli.mokli.http_utils import (
+from mokli.surface.http_utils import (
     parse_request_path as _parse_request_path,
 )
-from mokli.mokli.metadata import (
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_MESSAGE_SOURCE_METADATA_KEY,
     MOKLI_SYSTEM_COMMAND_TURN_PREFIX,
     MOKLI_TURN_METADATA_KEY,
 )
-from mokli.mokli.settings_api import settings_payload, update_provider_settings
-from mokli.mokli.transcript import (
+from mokli.surface.settings_api import settings_payload, update_provider_settings
+from mokli.surface.transcript import (
     append_transcript_object,
     build_mokli_thread_response,
     read_transcript_lines,
@@ -253,7 +253,7 @@ def isolate_mokli_workspace_state(tmp_path, monkeypatch) -> None:
     wth._WEBSOCKET_TURN_OWNERS.clear()
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     monkeypatch.setattr(
-        "mokli.mokli.workspaces.get_mokli_dir",
+        "mokli.surface.workspaces.get_mokli_dir",
         lambda: tmp_path / "mokli",
     )
     yield
@@ -787,7 +787,7 @@ async def test_token_issue_route_requires_secret_when_static_token_configured(bu
 
 @pytest.mark.asyncio
 async def test_mokli_message_envelope_marks_inbound_metadata(bus: MagicMock) -> None:
-    from mokli.mokli.transcript import read_transcript_lines
+    from mokli.surface.transcript import read_transcript_lines
 
     channel = _ch(bus)
     conn = MagicMock()
@@ -835,7 +835,7 @@ async def test_mokli_message_envelope_marks_inbound_metadata(bus: MagicMock) -> 
 async def test_trusted_mokli_shell_preserves_display_text_and_hides_dispatch_command(
     bus: MagicMock,
 ) -> None:
-    from mokli.mokli.transcript import read_transcript_lines
+    from mokli.surface.transcript import read_transcript_lines
 
     channel = _ch(bus)
     conn = MagicMock()
@@ -892,7 +892,7 @@ async def test_mokli_message_envelope_persists_user_transcript_for_refresh(
     tmp_path,
     monkeypatch,
 ) -> None:
-    from mokli.mokli.transcript import build_mokli_thread_response, read_transcript_lines
+    from mokli.surface.transcript import build_mokli_thread_response, read_transcript_lines
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     channel = _ch(bus)
@@ -925,7 +925,7 @@ async def test_mokli_stop_control_message_is_not_persisted_as_user_bubble(
     tmp_path,
     monkeypatch,
 ) -> None:
-    from mokli.mokli.transcript import read_transcript_lines
+    from mokli.surface.transcript import read_transcript_lines
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     channel = _ch(bus)
@@ -951,7 +951,7 @@ async def test_mokli_user_transcript_append_failure_does_not_block_inbound(
     def fail_append(_session_key: str, _obj: dict[str, Any]) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", fail_append)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", fail_append)
     channel = _ch(bus)
     conn = AsyncMock()
     conn.remote_address = ("127.0.0.1", 50123)
@@ -1252,7 +1252,7 @@ def test_mokli_request_cache_prunes_expired_completed_but_keeps_pending(
     bus: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import mokli.mokli.inbound_commands as websocket_module
+    import mokli.surface.inbound_commands as websocket_module
 
     channel = _ch(bus)
     now = 1_000.0
@@ -1275,7 +1275,7 @@ def test_mokli_request_cache_prunes_oldest_completed_at_capacity(
     bus: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import mokli.mokli.inbound_commands as websocket_module
+    import mokli.surface.inbound_commands as websocket_module
 
     channel = _ch(bus)
     now = 1_000.0
@@ -1868,7 +1868,7 @@ async def test_remote_mokli_scope_allows_access_reduction(
     tmp_path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default_workspace = tmp_path / "default"
     default_workspace.mkdir()
     sessions = SessionManager(tmp_path / "sessions")
@@ -1916,7 +1916,7 @@ async def test_remote_access_reduction_rejects_stale_in_flight_message_scope(
     tmp_path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
+    monkeypatch.setattr("mokli.surface.workspaces.get_mokli_dir", lambda: tmp_path / "mokli")
     default_workspace = tmp_path / "default"
     default_workspace.mkdir()
     sessions = SessionManager(tmp_path / "sessions")
@@ -2215,7 +2215,7 @@ async def test_send_stages_external_media_as_signed_url(monkeypatch, tmp_path) -
     def fake_media_dir(channel: str | None = None):
         return ws_media if channel == "websocket" else media_root
 
-    monkeypatch.setattr("mokli.mokli.media_gateway.get_media_dir", fake_media_dir)
+    monkeypatch.setattr("mokli.surface.media_gateway.get_media_dir", fake_media_dir)
     channel = WebSocketChannel({"enabled": True, "allowFrom": ["*"]}, bus, gateway=_basic_handler(bus))
     mock_ws = AsyncMock()
     channel._attach(mock_ws, "chat-1")
@@ -2528,7 +2528,7 @@ async def test_send_delta_marks_resuming_stream_end() -> None:
 
 @pytest.mark.asyncio
 async def test_send_delta_keeps_buffer_across_merged_stream_boundary() -> None:
-    from mokli.mokli.transcript import build_mokli_thread_response, read_transcript_lines
+    from mokli.surface.transcript import build_mokli_thread_response, read_transcript_lines
 
     bus = MagicMock()
     channel = WebSocketChannel(
@@ -2602,7 +2602,7 @@ async def test_send_delta_stream_end_rewrites_local_markdown_image(monkeypatch, 
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    monkeypatch.setattr("mokli.mokli.media_gateway.get_media_dir", fake_media_dir)
+    monkeypatch.setattr("mokli.surface.media_gateway.get_media_dir", fake_media_dir)
     channel = WebSocketChannel(
         {"enabled": True, "allowFrom": ["*"], "streaming": True},
         bus,
@@ -2634,7 +2634,7 @@ async def test_send_delta_stream_end_rewrites_inline_final_text(monkeypatch, tmp
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    monkeypatch.setattr("mokli.mokli.media_gateway.get_media_dir", fake_media_dir)
+    monkeypatch.setattr("mokli.surface.media_gateway.get_media_dir", fake_media_dir)
     channel = WebSocketChannel(
         {"enabled": True, "allowFrom": ["*"], "streaming": True},
         bus,
@@ -2737,7 +2737,7 @@ async def test_send_reasoning_without_subscribers_is_noop() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_transcript_persists_without_subscribers() -> None:
-    from mokli.mokli.transcript import build_mokli_thread_response, read_transcript_lines
+    from mokli.surface.transcript import build_mokli_thread_response, read_transcript_lines
 
     bus = MagicMock()
     channel = WebSocketChannel(
@@ -2776,7 +2776,7 @@ async def test_stream_transcript_writes_once_per_completed_segment(monkeypatch) 
         gateway=_basic_handler(bus),
     )
     append = MagicMock()
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", append)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", append)
 
     await channel.send_delta("chat-write-rate", "one", stream_id="s1")
     await channel.send_delta("chat-write-rate", " two", stream_id="s1")
@@ -2801,7 +2801,7 @@ async def test_reasoning_transcript_persists_one_canonical_record(monkeypatch) -
         gateway=_basic_handler(bus),
     )
     append = MagicMock()
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", append)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", append)
 
     await channel.send_reasoning_delta("chat-reasoning-write-rate", "plan ", stream_id="r1")
     await channel.send_reasoning_delta("chat-reasoning-write-rate", "then act", stream_id="r1")
@@ -2862,7 +2862,7 @@ async def test_send_turn_end_emits_turn_end_event() -> None:
 async def test_retry_status_is_transient_and_turn_scoped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("mokli.mokli.outbound_wire.time.time", lambda: 120.0)
+    monkeypatch.setattr("mokli.surface.outbound_wire.time.time", lambda: 120.0)
     bus = MagicMock()
     channel = WebSocketChannel(
         {"enabled": True, "allowFrom": ["*"]},
@@ -3167,7 +3167,7 @@ async def test_turn_end_keeps_registry_when_transcript_persistence_fails(
     )
     await wth.publish_turn_run_status(bus, inbound, "running", started_at=1234.5)
     append = MagicMock(side_effect=OSError("disk full"))
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", append)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", append)
 
     await channel.send(OutboundMessage(
         channel="websocket",
@@ -3207,7 +3207,7 @@ async def test_durable_incomplete_marker_stays_pending_without_safe_session_reco
     monkeypatch,
 ) -> None:
     from mokli.bus.events import InboundMessage
-    from mokli.mokli.transcript import build_mokli_thread_response
+    from mokli.surface.transcript import build_mokli_thread_response
 
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
@@ -3244,7 +3244,7 @@ async def test_durable_incomplete_marker_stays_pending_without_safe_session_reco
             raise OSError("transient disk failure")
         original_append(session_key, event)
 
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", fail_answer)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", fail_answer)
 
     await channel.send(OutboundMessage(
         channel="websocket",
@@ -3350,7 +3350,7 @@ async def test_http_replay_recovers_marked_answer_from_session_after_gateway_res
             raise OSError("transient disk failure")
         original_append(session_key, event)
 
-    monkeypatch.setattr("mokli.mokli.transcript.append_transcript_object", fail_answer)
+    monkeypatch.setattr("mokli.surface.transcript.append_transcript_object", fail_answer)
     await channel.send(OutboundMessage(
         channel="websocket",
         chat_id=chat_id,
@@ -3468,7 +3468,7 @@ async def test_non_mokli_transcript_failure_does_not_block_idle_cleanup(
     )
     await wth.publish_turn_run_status(bus, inbound, "running", started_at=1234.5)
     monkeypatch.setattr(
-        "mokli.mokli.transcript.append_transcript_object",
+        "mokli.surface.transcript.append_transcript_object",
         MagicMock(side_effect=OSError("disk full")),
     )
 
@@ -4031,7 +4031,7 @@ async def test_settings_api_returns_safe_subset_and_updates_whitelist(
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_api._oauth_provider_status",
+        "mokli.surface.settings_api._oauth_provider_status",
         lambda _spec: {
             "configured": False,
             "account": None,
@@ -4047,7 +4047,7 @@ async def test_settings_api_returns_safe_subset_and_updates_whitelist(
         }
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.request_image_generation_reload",
+        "mokli.surface.settings_routes.request_image_generation_reload",
         image_reload,
     )
 
@@ -4447,7 +4447,7 @@ async def test_image_settings_hot_reload_without_restart(
         }
     )
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.request_image_generation_reload",
+        "mokli.surface.settings_routes.request_image_generation_reload",
         image_reload,
     )
 
@@ -4492,7 +4492,7 @@ async def test_image_settings_fall_back_to_restart_when_hot_reload_fails(
     save_config(config, config_path)
     monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     monkeypatch.setattr(
-        "mokli.mokli.settings_routes.request_image_generation_reload",
+        "mokli.surface.settings_routes.request_image_generation_reload",
         AsyncMock(
             return_value={
                 "ok": False,
@@ -5428,7 +5428,7 @@ def test_sessions_list_includes_active_run_started_at(monkeypatch) -> None:
     from websockets.http11 import Request
 
     from mokli.session import mokli_turns as wth
-    from mokli.mokli import ws_http as ws_http_module
+    from mokli.surface import ws_http as ws_http_module
 
     bus = MagicMock()
     session_manager = MagicMock()
@@ -5517,7 +5517,7 @@ def test_handle_mokli_thread_get_returns_json(tmp_path, monkeypatch) -> None:
     from websockets.datastructures import Headers
     from websockets.http11 import Request
 
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     key = "websocket:c1"
@@ -5597,7 +5597,7 @@ def test_handle_mokli_thread_get_reports_registered_turn_as_pending(
     from websockets.datastructures import Headers
     from websockets.http11 import Request
 
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     monkeypatch.setattr(
@@ -5644,7 +5644,7 @@ async def test_idle_registry_stays_pending_until_turn_end_is_persisted(
 
     from mokli.bus.events import InboundMessage
     from mokli.session import mokli_turns as wth
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     key = "websocket:idle-order"
@@ -5783,7 +5783,7 @@ def test_handle_mokli_thread_get_reconciles_registered_turn_with_turn_end(
     from websockets.datastructures import Headers
     from websockets.http11 import Request
 
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     monkeypatch.setattr(
@@ -5842,7 +5842,7 @@ def test_handle_mokli_thread_get_accepts_pagination_query(tmp_path, monkeypatch)
     from websockets.datastructures import Headers
     from websockets.http11 import Request
 
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     key = "websocket:paged-route"
@@ -5982,7 +5982,7 @@ def test_handle_file_preview_probe_reports_binary_file_as_unavailable(tmp_path) 
 
 
 def test_file_preview_normalizes_windows_file_url() -> None:
-    from mokli.mokli.file_preview import _clean_preview_path
+    from mokli.surface.file_preview import _clean_preview_path
 
     assert _clean_preview_path("file:///C:/Users/me/project/app.py") == (
         "C:/Users/me/project/app.py"
@@ -6061,7 +6061,7 @@ def test_handle_mokli_thread_get_backfills_legacy_missing_user_rows(
     from websockets.datastructures import Headers
     from websockets.http11 import Request
 
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     workspace = tmp_path / "workspace"
@@ -6106,7 +6106,7 @@ def test_handle_mokli_thread_get_does_not_backfill_cron_internal_prompt(
     from websockets.http11 import Request
 
     from mokli.cron.session_turns import CRON_HISTORY_META
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     workspace = tmp_path / "workspace"
@@ -6152,7 +6152,7 @@ def test_handle_mokli_thread_get_does_not_backfill_trigger_internal_prompt(
     from websockets.http11 import Request
 
     from mokli.session.automation_turns import AUTOMATION_HISTORY_META
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     workspace = tmp_path / "workspace"
@@ -6198,7 +6198,7 @@ def test_handle_mokli_thread_get_does_not_backfill_hidden_subagent_result(
     from websockets.http11 import Request
 
     from mokli.session.history_visibility import HIDDEN_HISTORY_META
-    from mokli.mokli.transcript import append_transcript_object
+    from mokli.surface.transcript import append_transcript_object
 
     monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     workspace = tmp_path / "workspace"

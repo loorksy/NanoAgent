@@ -30,4 +30,4 @@ Supported targets are `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, 
 The resulting executable is written to `dist/`.
 
 Questions about source availability can be reported at
-<https://github.com/HKUDS/mokli/issues>.
+<https://github.com/HKUDS/nanobot/issues>.

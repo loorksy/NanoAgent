@@ -7,7 +7,7 @@ import pytest
 from mokli.config.loader import load_config, save_config
 from mokli.config.schema import Config
 from mokli.trading.risk_state import DEFAULT_TOGGLES, RiskStateStore
-from mokli.mokli.trading_risk_api import (
+from mokli.surface.trading_risk_api import (
     TradingRiskError,
     trading_risk_action,
     trading_risk_payload,
@@ -24,7 +24,7 @@ def _use_config(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_trading_risk_payload_lists_defaults(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _use_config(tmp_path, monkeypatch)
     monkeypatch.setattr(
-        "mokli.mokli.trading_risk_api.get_risk_store",
+        "mokli.surface.trading_risk_api.get_risk_store",
         lambda: RiskStateStore(tmp_path / "risk.json"),
     )
     payload = trading_risk_payload()
@@ -63,7 +63,7 @@ def test_trading_risk_action_persists_json_values(tmp_path, monkeypatch: pytest.
 def test_trading_risk_action_updates_toggles(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _use_config(tmp_path, monkeypatch)
     store = RiskStateStore(tmp_path / "risk.json")
-    monkeypatch.setattr("mokli.mokli.trading_risk_api.get_risk_store", lambda: store)
+    monkeypatch.setattr("mokli.surface.trading_risk_api.get_risk_store", lambda: store)
     payload = trading_risk_action(
         "update",
         {"toggles": [json.dumps({"news_shield": False, "rr_filter": True})]},

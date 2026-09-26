@@ -213,9 +213,9 @@ async def test_create_mcp_oauth_auth_uses_browser_handlers_and_persists_redirect
     assert str(auth.context.client_metadata.redirect_uris[0]) == (
         "https://agent.example/auth/mcp/callback"
     )
-    assert str(auth.context.client_metadata.client_uri) == "https://github.com/HKUDS/mokli"
+    assert str(auth.context.client_metadata.client_uri) == "https://github.com/HKUDS/nanobot"
     assert str(auth.context.client_metadata.logo_uri) == (
-        "https://raw.githubusercontent.com/HKUDS/mokli/main/"
+        "https://raw.githubusercontent.com/HKUDS/nanobot/main/"
         "mokli/public/brand/mokli_apple_touch.png"
     )
     assert auth.context.redirect_handler is redirect
@@ -799,7 +799,7 @@ async def test_official_mcp_sdk_completes_discovery_registration_and_token_excha
             })
         if request.url.path == "/register":
             registration = json.loads(request.content)
-            assert registration["client_uri"] == "https://github.com/HKUDS/mokli"
+            assert registration["client_uri"] == "https://github.com/HKUDS/nanobot"
             assert registration["logo_uri"].endswith(
                 "/mokli/public/brand/mokli_apple_touch.png"
             )

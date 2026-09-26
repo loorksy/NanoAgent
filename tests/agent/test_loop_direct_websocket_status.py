@@ -11,7 +11,7 @@ from mokli.channels.websocket.runtime import WebSocketChannel
 from mokli.providers.base import GenerationSettings, LLMResponse
 from mokli.session import mokli_turns as wth
 from mokli.session.mokli_turns import MokliTurnCoordinator, MokliTurnRoutePolicy
-from mokli.mokli.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
+from mokli.surface.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
 
 
 def _make_loop(tmp_path):

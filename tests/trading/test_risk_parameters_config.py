@@ -9,7 +9,7 @@ from mokli.config.schema import Config, TradingRiskParameters
 from mokli.trading.gates.rr_filter import evaluate_rr_filter
 from mokli.trading.policy import MIN_RR, invalidate_live_cache, live
 from mokli.trading.types import EntryPlan
-from mokli.mokli.trading_risk_api import trading_risk_action, trading_risk_payload
+from mokli.surface.trading_risk_api import trading_risk_action, trading_risk_payload
 
 
 def _plan(rr: float) -> EntryPlan:
