@@ -31,6 +31,7 @@
 	};
 
 	const LOCAL = ['vllm', 'ollama', 'lm_studio', 'atomic_chat', 'ovms'];
+	const FLOW_KEY = 'nanoagent-oauth-flow';
 
 	let providers: Provider[] = [];
 	let failed = false;
@@ -101,6 +102,43 @@
 		editing = false;
 	}
 
+	function rememberFlow(providerName: string, started: Flow) {
+		if (!started.flow_id || !started.authorization_url) return;
+		try {
+			sessionStorage.setItem(
+				FLOW_KEY,
+				JSON.stringify({
+					provider: providerName,
+					flow_id: started.flow_id,
+					authorization_url: started.authorization_url,
+					completion_input: started.completion_input
+				})
+			);
+		} catch {
+			/* Private browsing can reject session storage. The open dialog still works. */
+		}
+	}
+
+	function recallFlow(providerName: string): Flow | null {
+		try {
+			const raw = sessionStorage.getItem(FLOW_KEY);
+			if (!raw) return null;
+			const saved = JSON.parse(raw) as Flow;
+			if (saved.provider !== providerName || !saved.flow_id || !saved.authorization_url) return null;
+			return saved;
+		} catch {
+			return null;
+		}
+	}
+
+	function forgetFlow() {
+		try {
+			sessionStorage.removeItem(FLOW_KEY);
+		} catch {
+			/* Ignore storage failures. */
+		}
+	}
+
 	function openProvider(provider: Provider) {
 		creating = false;
 		adding = false;
@@ -112,7 +150,7 @@
 		authCode = '';
 		reveal = false;
 		editing = !provider.configured;
-		flow = null;
+		flow = recallFlow(provider.name);
 		notice = '';
 	}
 
@@ -292,10 +330,11 @@
 				method: 'POST',
 				body: JSON.stringify({ action: 'login' })
 			})) as Flow;
-			if (started.authorization_url) {
+			if (started.authorization_url && selected) {
 				flow = started;
-				window.open(started.authorization_url, '_blank', 'noopener,noreferrer');
+				rememberFlow(selected.name, started);
 			} else {
+				forgetFlow();
 				apply(started as { providers?: Provider[] });
 				notice = text('provider_saved');
 			}
@@ -323,6 +362,7 @@
 					})
 				})) as { providers?: Provider[] }
 			);
+			forgetFlow();
 			close();
 			notice = text('provider_saved');
 		} catch (err) {
@@ -343,6 +383,7 @@
 					body: JSON.stringify({ action: 'logout' })
 				})) as { providers?: Provider[] }
 			);
+			forgetFlow();
 			close();
 			notice = text('provider_saved');
 		} catch (err) {
@@ -565,19 +606,29 @@
 				</div>
 				{#if flow?.authorization_url}
 					<div class="mt-3 space-y-2">
+						<p class="text-xs text-gray-500">
+							{text(flow.completion_input === 'callback_url' ? 'oauth_callback_help' : 'oauth_code_help')}
+						</p>
 						<a class="block text-xs underline" href={flow.authorization_url} target="_blank" rel="noreferrer">
 							{text('open_sign_in')}
 						</a>
-						<input
-							class="w-full rounded-full border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+						<label class="block text-xs text-gray-500" for="nanoagent-oauth-callback">
+							{text(flow.completion_input === 'callback_url' ? 'oauth_callback_paste' : 'oauth_code_paste')}
+						</label>
+						<textarea
+							id="nanoagent-oauth-callback"
+							class="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-2 text-xs dark:border-gray-700"
+							rows="3"
 							autocomplete="off"
 							spellcheck="false"
-							placeholder={text('claude_code_label')}
+							placeholder={text(
+								flow.completion_input === 'callback_url' ? 'oauth_callback_paste' : 'oauth_code_paste'
+							)}
 							bind:value={authCode}
-						/>
+						></textarea>
 						<button
 							type="button"
-							class="rounded-full border px-3 py-1.5"
+							class="w-full rounded-full border px-3 py-1.5"
 							disabled={busy || !authCode.trim()}
 							on:click={finishOAuth}
 						>
