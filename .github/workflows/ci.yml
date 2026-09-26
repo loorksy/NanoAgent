@@ -59,7 +59,18 @@ jobs:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-        run: bash scripts/ci_detect_changes.sh
+        run: |
+          set +e
+          bash scripts/ci_detect_changes.sh
+          status=$?
+          set -e
+          if [[ "$status" -ne 0 ]]; then
+            echo "change detection failed; running full test matrix (exit=$status)" >&2
+            echo "python_required=true" >> "$GITHUB_OUTPUT"
+            echo "webui_required=true" >> "$GITHUB_OUTPUT"
+            echo "tui_required=true" >> "$GITHUB_OUTPUT"
+            echo "docker_required=true" >> "$GITHUB_OUTPUT"
+          fi
 
   test:
     name: Python (${{ matrix.name }})
