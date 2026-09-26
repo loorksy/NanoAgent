@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nanobot.trading.gates.adr_gap import evaluate_adr_chase, evaluate_gap_chase
 from nanobot.trading.gates.bad_tick import evaluate_bad_tick
-from nanobot.trading.gates.check import GateCheck, disabled_by_operator, veto
+from nanobot.trading.gates.check import GateCheck, disabled_by_operator, passed, veto
 from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
 from nanobot.trading.gates.drawdown_breaker import evaluate_drawdown_breaker
 from nanobot.trading.gates.margin_guard import evaluate_margin_guard
@@ -28,6 +28,7 @@ from nanobot.trading.types import EntryPlan
 # Names that still block even if the operator disabled a related risk toggle.
 _ALWAYS_ON = frozenset({
     "hitl",
+    "permission",
     "proposal_ttl",
     "confirm_slippage",
     "no_widen",
@@ -69,6 +70,7 @@ def collect_execution_checks(
     favorable_progress: bool = False,
     current_stop: float | None = None,
     requested_stop: float | None = None,
+    permission_mode: str | None = None,
 ) -> list[tuple[str, GateCheck]]:
     raw: list[tuple[str, GateCheck]] = [
         ("rr", evaluate_rr_filter(plan, live_entry=live_price)),
@@ -133,7 +135,25 @@ def collect_execution_checks(
                 veto("gate.hitl_required", operator_confirmed=False),
             )
         )
+    raw.append(
+        (
+            "permission",
+            evaluate_permission_gate(
+                operator_confirmed=operator_confirmed, permission_mode=permission_mode
+            ),
+        )
+    )
     return [(name, _apply_toggle(name, check, risk)) for name, check in raw]
+
+
+def evaluate_permission_gate(
+    *, operator_confirmed: bool, permission_mode: str | None
+) -> GateCheck:
+    """Pass on an operator confirmation or an ``execute`` permission decision (08 §4)."""
+    mode = permission_mode or "none"
+    if operator_confirmed or permission_mode == "execute":
+        return passed(operator_confirmed=operator_confirmed, permission_mode=mode)
+    return veto("gate.permission_required", permission_mode=mode)
 
 
 def first_blocker(checks: list[tuple[str, GateCheck]]) -> tuple[str, GateCheck] | None:
@@ -148,6 +168,7 @@ def first_blocker(checks: list[tuple[str, GateCheck]]) -> tuple[str, GateCheck] 
             "session",
             "news_ops",
             "hitl",
+            "permission",
             "proposal_ttl",
             "time_stop",
             "no_widen",
