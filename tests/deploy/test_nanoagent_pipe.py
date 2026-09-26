@@ -778,6 +778,28 @@ async def test_gateway_http_error_is_reported_as_status_and_text() -> None:
 def test_pipes_manifest_and_valves_defaults() -> None:
     pipe = pipe_mod.Pipe()
     assert pipe.pipes() == [{"id": "nanoagent", "name": "NanoAgent"}]
+
+
+def test_pipes_lists_models_chosen_for_the_agent(monkeypatch) -> None:
+    def fake_get(*_args: object, **_kwargs: object) -> object:
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return {"models": [{"id": "google/gemini-test", "name": "google/gemini-test"}]}
+
+        return Response()
+
+    monkeypatch.setattr(pipe_mod.httpx, "get", fake_get)
+    pipe = pipe_mod.Pipe()
+    pipe.valves.GATEWAY_TOKEN = "nbat_test"
+    assert pipe.pipes() == [
+        {"id": "nanoagent", "name": "NanoAgent"},
+        {"id": "google/gemini-test", "name": "google/gemini-test"},
+    ]
+    assert pipe._requested_model({"model": "nanoagent.google/gemini-test"}) == "google/gemini-test"
+    assert pipe._requested_model({"model": "nanoagent.nanoagent"}) == ""
     valves = pipe.Valves()
     assert valves.GATEWAY_URL == "http://127.0.0.1:8766"
     assert valves.GATEWAY_TOKEN == ""

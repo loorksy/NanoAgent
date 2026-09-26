@@ -377,6 +377,7 @@ class GatewayClient:
         text: str,
         attachments: list[Attachment],
         locale: str,
+        model: str = "",
     ) -> str:
         payload: dict[str, object] = {
             "role": "user",
@@ -386,6 +387,8 @@ class GatewayClient:
         }
         if attachments:
             payload["attachments"] = attachments
+        if model:
+            payload["model"] = model
         url = f"{API_PREFIX}/sessions/{session}/messages"
         response = await self._client.post(
             url, json=payload, headers=self._session_headers(session)
@@ -555,7 +558,53 @@ class Pipe:
         self._labels_cache: dict[str, dict[str, str]] = {}
 
     def pipes(self) -> list[dict[str, str]]:
-        return [{"id": MODEL_ID, "name": MODEL_NAME}]
+        models = [{"id": MODEL_ID, "name": MODEL_NAME}]
+        seen = {MODEL_ID}
+        for row in self._catalog_models():
+            model_id = row["id"]
+            if model_id in seen:
+                continue
+            seen.add(model_id)
+            models.append({"id": model_id, "name": row["name"] or model_id})
+        return models
+
+    def _catalog_models(self) -> list[dict[str, str]]:
+        token = self.valves.GATEWAY_TOKEN.strip()
+        base = self.valves.GATEWAY_URL.rstrip("/")
+        if not token or not base:
+            return []
+        try:
+            response = httpx.get(
+                f"{base}/api/v2/chat/models",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            payload: object = response.json()
+        except Exception:
+            log.warning("nanoagent pipe: model list unavailable")
+            return []
+        body = _as_dict(payload)
+        rows = body.get("models")
+        found: list[dict[str, str]] = []
+        for raw in _as_list(rows):
+            row = _as_dict(raw)
+            model_id = _as_str(row.get("id")).strip()
+            if not model_id:
+                continue
+            name = _as_str(row.get("name")).strip() or model_id
+            found.append({"id": model_id, "name": name})
+        return found
+
+    def _requested_model(self, body: Mapping[str, object]) -> str:
+        raw = _as_str(body.get("model"))
+        prefix = f"{MODEL_ID}."
+        if not raw.startswith(prefix):
+            return ""
+        chosen = raw[len(prefix):].strip()
+        if not chosen or chosen == MODEL_ID:
+            return ""
+        return chosen
 
     # -- wiring -------------------------------------------------------------
 
@@ -628,7 +677,11 @@ class Pipe:
                     async with gateway.open_events(session, turn.last_event_id) as stream:
                         if not turn.run_id:
                             turn.run_id = await gateway.send_message(
-                                session, text, attachments, locale
+                                session,
+                                text,
+                                attachments,
+                                locale,
+                                self._requested_model(body),
                             )
                         events = stream.events()
                         try:

@@ -144,7 +144,7 @@ async def test_claude_connect_exchanges_without_returning_the_token(
 
 
 async def test_provider_model_selection_hides_the_api_key(
-    client: TestClient, monkeypatch,
+    client: TestClient, agent, monkeypatch,
 ) -> None:
     secret = "sk-or-v1-catalog-secret-KEY77"
     saved = await client.put(
@@ -208,6 +208,22 @@ async def test_provider_model_selection_hides_the_api_key(
     assert row["selected_models"] == ["google/gemini-test"]
     assert row["primary_model"] == "google/gemini-test"
     assert secret not in _wire(providers)
+
+    catalog = await client.get("/api/v2/chat/models", headers=auth())
+    assert catalog.status == 200
+    chat_models = await catalog.json()
+    assert chat_models["models"] == [
+        {"id": "google/gemini-test", "name": "google/gemini-test"},
+    ]
+    assert secret not in _wire(chat_models)
+
+    sent = await client.post(
+        "/api/v2/sessions/chat-models/messages",
+        headers=auth(),
+        json={"content": "hi", "model": "google/gemini-test"},
+    )
+    assert sent.status == 202
+    assert agent.presets == [("agent_api:chat-models", "gemini-test")]
 
     issued = client.app[SERVICES_KEY].tokens.issue("service", scopes=["read"], label="reader")
     denied = await client.put(
