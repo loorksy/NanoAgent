@@ -10,6 +10,7 @@ from loguru import logger
 
 from nanobot.agent.tools.context import current_request_context
 from nanobot.security.workspace_access import current_workspace_scope
+from nanobot.trading.i18n import tr
 from nanobot.trading.teams.role_prompts import role_system_prompt
 
 if TYPE_CHECKING:
@@ -86,9 +87,24 @@ async def _publish_team_agent(
     await publisher.publish_team_agent(event.to_wire())
 
 
-async def _llm_complete(role: str, task_text: str, runtime: LLMRuntime) -> str:
+def resolve_role_prompt(role: str, system_prompt: str = "") -> str:
+    """System prompt for one team role.
+
+    The preset YAML ``system_prompt`` wins (``role_prompts`` resolves ``role:<file>``
+    references); an empty field falls back to the role-label mapping.
+    """
+    return role_system_prompt(role, system_prompt=(system_prompt or "").strip())
+
+
+async def _llm_complete(
+    role: str,
+    task_text: str,
+    runtime: LLMRuntime,
+    *,
+    system_prompt: str = "",
+) -> str:
     messages = [
-        {"role": "system", "content": role_system_prompt(role)},
+        {"role": "system", "content": resolve_role_prompt(role, system_prompt)},
         {"role": "user", "content": task_text},
     ]
     response = await runtime.provider.chat(
@@ -106,21 +122,29 @@ async def run_team_role(
     role: str,
     task_text: str,
     evidence_text: str,
+    system_prompt: str = "",
     manager: SubagentManager | None = None,
     publisher: TradingStagePublisher | None = None,
     layer: int = 0,
     collector: TeamRunCollector | None = None,
 ) -> str:
-    """Execute one team role and return its textual summary."""
+    """Execute one team role and return its textual summary.
+
+    ``system_prompt`` is the preset's role instruction. Inline subagents get the
+    generic subagent system prompt, so the role instruction is prepended to the
+    task; the direct-LLM fallback uses it as the system message.
+    """
     request = current_request_context()
     runtime = request.runtime if request else None
     started = time.time()
 
-    full_task = (
+    role_prompt = resolve_role_prompt(role, system_prompt)
+    task_body = (
         f"{task_text.strip()}\n\n"
         f"FROZEN MARKET EVIDENCE (do not invent prices outside this JSON):\n"
         f"{evidence_text[:12000]}"
     )
+    full_task = f"ROLE INSTRUCTIONS:\n{role_prompt}\n\nTASK:\n{task_body}"
 
     await _publish_team_agent(
         publisher,
@@ -143,11 +167,16 @@ async def run_team_role(
             if summary.startswith("Error:"):
                 raise RuntimeError(summary)
         elif runtime is not None:
-            summary = await _llm_complete(role, full_task, runtime)
+            summary = await _llm_complete(
+                role,
+                task_body,
+                runtime,
+                system_prompt=system_prompt,
+            )
         else:
-            raise RuntimeError("No LLM runtime available for team agent")
+            raise RuntimeError(tr("team.no_llm_runtime"))
 
-        summary = summary.strip() or f"{role}: no summary produced."
+        summary = summary.strip() or tr("team.no_summary", role=role)
         duration_ms = int((time.time() - started) * 1000)
         await _publish_team_agent(
             publisher,
@@ -165,7 +194,7 @@ async def run_team_role(
     except Exception as exc:
         logger.warning("Team agent {} ({}) failed: {}", agent_id, role, exc)
         duration_ms = int((time.time() - started) * 1000)
-        message = f"{role} failed: {exc}"
+        message = tr("team.agent_failed", role=role, error=exc)
         await _publish_team_agent(
             publisher,
             TeamAgentEvent(

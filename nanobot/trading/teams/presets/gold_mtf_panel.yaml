@@ -5,12 +5,16 @@ description: H1, H4, D1 parallel analysts then MTF synthesizer
 agents:
   - id: h1_analyst
     role: H1 Analyst
+    system_prompt: role:timeframe
   - id: h4_analyst
     role: H4 Analyst
+    system_prompt: role:timeframe
   - id: d1_analyst
     role: D1 Analyst
+    system_prompt: role:timeframe
   - id: mtf_synthesizer
     role: MTF Synthesizer
+    system_prompt: role:mtf_synthesizer
 
 tasks:
   - id: task-h1

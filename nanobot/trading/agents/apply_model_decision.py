@@ -1,4 +1,4 @@
-"""Deterministic Lonora coercions after the model answers."""
+"""Deterministic decision coercions after the model answers."""
 
 from __future__ import annotations
 

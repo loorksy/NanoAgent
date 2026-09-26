@@ -29,6 +29,7 @@ from nanobot.agent.cron_turns import CronTurnCoordinator
 from nanobot.agent.hook import AgentHook, AgentTurnHookFactory
 from nanobot.agent.memory import Consolidator
 from nanobot.agent.model_runtime import ModelRuntimeResolver
+from nanobot.agent.prompt.composer import PromptSettings
 from nanobot.agent.runner import (
     _MAX_INJECTIONS_PER_TURN,
     AgentRunner,
@@ -124,6 +125,7 @@ if TYPE_CHECKING:
     from nanobot.triggers.local_store import LocalTriggerStore
 
 _T = TypeVar("_T")
+PromptFactProvider = Callable[[RequestContext], Mapping[str, str]]
 _SUBAGENT_PROVIDER_TASK_META = "subagent_provider_task_id"
 _SUBAGENT_TERMINAL_WAIT_SECONDS = 300.0
 
@@ -287,6 +289,7 @@ class AgentLoop:
         hook_factories: list[AgentTurnHookFactory] | None = None,
         unified_session: bool = False,
         disabled_skills: list[str] | None = None,
+        prompt_settings: PromptSettings | None = None,
         tools_config: ToolsConfig | None = None,
         image_generation_provider_config: ProviderConfig | None = None,
         image_generation_provider_configs: dict[str, ProviderConfig] | None = None,
@@ -375,7 +378,12 @@ class AgentLoop:
         self._extra_hooks: list[AgentHook] = hooks or []
         self._hook_factories: list[AgentTurnHookFactory] = hook_factories or []
 
-        self.context = ContextBuilder(workspace, timezone=timezone, disabled_skills=disabled_skills)
+        self.context = ContextBuilder(
+            workspace,
+            timezone=timezone,
+            disabled_skills=disabled_skills,
+            prompt_settings=prompt_settings,
+        )
         self.sessions = session_manager or SessionManager(workspace)
         # One file-read/write tracker per logical session. The tool registry is
         # shared by this loop, so tools resolve the active state via contextvars.
@@ -400,6 +408,7 @@ class AgentLoop:
         self._unified_session = unified_session
         self._running = False
         self._runtime_context_providers: list[RuntimeContextProvider] = []
+        self._prompt_fact_providers: list[PromptFactProvider] = []
         self._active_tasks: dict[str, set[asyncio.Task[Any]]] = {}
         self._discarding_sessions: set[str] = set()
         self._background_tasks: set[asyncio.Task[Any]] = set()
@@ -456,8 +465,10 @@ class AgentLoop:
             self.set_model_preset(model_preset, publish_update=False)
         self._register_default_tools(provider_snapshot_loader=provider_snapshot_loader)
         from nanobot.trading.gold_intent_context import gold_intent_runtime_context
+        from nanobot.trading.prompt_facts import trading_prompt_facts
 
         self.register_runtime_context_provider(gold_intent_runtime_context)
+        self.register_prompt_fact_provider(trading_prompt_facts)
         self.commands = CommandRouter()
         register_builtin_commands(self.commands)
 
@@ -515,6 +526,7 @@ class AgentLoop:
             timezone=defaults.timezone,
             unified_session=defaults.unified_session,
             disabled_skills=defaults.disabled_skills,
+            prompt_settings=PromptSettings.from_agent_defaults(defaults),
             session_ttl_minutes=defaults.session_ttl_minutes,
             idle_compact_check_interval_seconds=defaults.idle_compact_check_interval_seconds,
             tools_config=config.tools,
@@ -646,6 +658,27 @@ class AgentLoop:
         registered = loader.load(ctx, self.tools)
 
         logger.info("Registered {} tools: {}", len(registered), registered)
+
+    def register_prompt_fact_provider(self, provider: PromptFactProvider) -> Callable[[], None]:
+        """Register a provider of system-prompt runtime facts (rendered as key/value rows)."""
+        if provider in self._prompt_fact_providers:
+            return lambda: None
+        self._prompt_fact_providers.append(provider)
+
+        def _unsubscribe() -> None:
+            with suppress(ValueError):
+                self._prompt_fact_providers.remove(provider)
+
+        return _unsubscribe
+
+    def _collect_prompt_facts(self, request: RequestContext) -> dict[str, str]:
+        facts: dict[str, str] = {}
+        for provider in self._prompt_fact_providers:
+            try:
+                facts.update({str(k): str(v) for k, v in dict(provider(request)).items()})
+            except Exception:
+                logger.exception("Prompt fact provider {} failed", getattr(provider, "__name__", provider))
+        return facts
 
     def register_runtime_context_provider(
         self,
@@ -1124,18 +1157,20 @@ class AgentLoop:
             message_metadata=request_metadata,
             session_metadata=session.metadata if session is not None else None,
         )
+        effective_tools = tools or self.tools
         transcript_builder = partial(
             self.context.build_transcript,
             channel=request_ctx.channel,
             workspace=effective_scope.project_path,
             include_memory=session.policy.persist if session is not None else True,
+            tool_names=list(effective_tools.tool_names),
+            facts=self._collect_prompt_facts(request_ctx),
         )
         if request_context is None:
             request_ctx = dataclasses.replace(
                 request_ctx,
                 workspace=effective_scope.project_path,
             )
-        effective_tools = tools or self.tools
         file_state_token = bind_file_states(self._file_state_store.for_session(active_session_key))
         request_token = bind_request_context(request_ctx)
         workspace_token = bind_workspace_scope(effective_scope)

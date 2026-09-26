@@ -8,6 +8,14 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
 from nanobot.agent.memory import MemoryStore
+from nanobot.agent.prompt.composer import (
+    WORKSPACE_LAYER,
+    PromptContext,
+    PromptSettings,
+    compose_system_prompt,
+    render_layer,
+    render_placeholders,
+)
 from nanobot.agent.skills import SkillsLoader
 from nanobot.agent.tools import image_generation as image_generation_tools
 from nanobot.agent.tools import mcp as mcp_tools
@@ -91,10 +99,21 @@ class ContextBuilder:
 
     BOOTSTRAP_FILES = ["AGENTS.md", "SOUL.md", "USER.md"]
     _SKIPPABLE_DEFAULTS = {"AGENTS.md", "USER.md"}
+    _LEGACY_SOUL_TEMPLATES = ("legacy/SOUL.md",)
+    # Workspaces created before the single-persona SOUL start with this opener.
+    _LEGACY_SOUL_OPENER = "I am nanobot"
 
-    def __init__(self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None):
+    def __init__(
+        self,
+        workspace: Path,
+        timezone: str | None = None,
+        disabled_skills: list[str] | None = None,
+        *,
+        prompt_settings: PromptSettings | None = None,
+    ):
         self.workspace = workspace
         self.timezone = timezone
+        self.prompt_settings = prompt_settings or PromptSettings()
         self.memory = MemoryStore(workspace)
         self.skills = SkillsLoader(workspace, disabled_skills=set(disabled_skills) if disabled_skills else None)
 
@@ -105,67 +124,107 @@ class ContextBuilder:
         session_summary: SessionSummary | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        tool_names: Sequence[str] | None = None,
+        facts: Mapping[str, str] | None = None,
     ) -> str:
-        """Build the system prompt from identity, bootstrap files, memory, and skills."""
+        """Compose the layered system prompt plus workspace, bootstrap, memory, and skills."""
         root = workspace or self.workspace
-        parts = [self._get_identity(channel=channel, workspace=root)]
 
-        bootstrap = self._load_bootstrap_files(root)
-        if bootstrap:
-            parts.append(bootstrap)
-
-        parts.append(render_template("agent/tool_contract.md"))
-
+        project = ""
         project_path = root.expanduser().resolve()
         if project_path != self.workspace.expanduser().resolve():
-            parts.append(
+            project = (
                 "# Current Project\n\n"
                 f"Working directory: {project_path}\n"
                 "Use it as the default root for project files and relative tool paths."
             )
 
+        memory_section = ""
         if include_memory:
             memory = self.memory.read_memory()
             if memory and not self._is_template_content(memory, "memory/MEMORY.md"):
-                parts.append(f"# Memory\n\n## Long-term Memory\n{memory}")
+                memory_section = f"# Memory\n\n## Long-term Memory\n{memory}"
 
+        active_section = ""
         active_skills = self.skills.get_always_skills()
         if active_skills:
             active_content = self.skills.load_skills_for_context(active_skills)
             if active_content:
-                parts.append(f"# Active Skills\n\n{active_content}")
+                active_section = f"# Active Skills\n\n{active_content}"
 
+        skills_section = ""
         skills_summary = self.skills.build_skills_summary(
             exclude=set(active_skills),
             workspace=root,
         )
         if skills_summary:
-            parts.append(render_template("agent/skills_section.md", skills_summary=skills_summary))
+            skills_section = render_template("agent/skills_section.md", skills_summary=skills_summary)
 
+        archived = ""
         if session_summary and session_summary["text"] != "(nothing)":
-            parts.append(
+            archived = (
                 "[Archived Context Summary]\n\n"
                 f"Previous conversation summary (last active {session_summary['last_active']}):\n"
                 f"{session_summary['text']}"
             )
 
-        return "\n\n---\n\n".join(parts)
+        return compose_system_prompt(
+            PromptContext(
+                settings=self.prompt_settings,
+                channel=channel,
+                tool_names=tool_names,
+                facts=dict(facts or {}),
+                workspace=self._get_identity(workspace=root),
+                bootstrap=self._load_bootstrap_files(root),
+                project=project,
+                memory=memory_section,
+                active_skills=active_section,
+                skills_index=skills_section,
+                archived_summary=archived,
+            )
+        )
 
     def _get_identity(self, channel: str | None = None, workspace: Path | None = None) -> str:
-        """Get the core identity section."""
+        """Runtime and workspace facts (paths, memory contract, external-content policy)."""
+        del channel
         root = workspace or self.workspace
         workspace_path = str(root.expanduser().resolve())
         agent_workspace_path = str(self.workspace.expanduser().resolve())
         system = platform.system()
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
 
-        return render_template(
-            "agent/identity.md",
-            workspace_path=workspace_path,
-            agent_workspace_path=agent_workspace_path,
-            runtime=runtime,
-            platform_policy=render_template("agent/platform_policy.md", system=system),
-            channel=channel or "",
+        if agent_workspace_path != workspace_path:
+            prefix = f"{agent_workspace_path}/"
+            paths = [f"The agent workspace is at: {agent_workspace_path}"]
+        else:
+            prefix = ""
+            paths = []
+        paths.extend(
+            [
+                f"- Agent profile: {prefix}SOUL.md and {prefix}USER.md",
+                f"- Long-term memory: {prefix}memory/MEMORY.md",
+                f"- History log: {prefix}memory/history.jsonl (append-only JSONL; prefer built-in `grep` for search).",
+                f"- Custom skills: {prefix}skills/{{skill-name}}/SKILL.md",
+            ]
+        )
+        if system == "Windows":
+            platform_notes = (
+                "Platform: Windows. Do not assume GNU tools like `grep`, `sed`, or `awk` exist; "
+                "prefer Windows-native commands or file tools. If terminal output is garbled, "
+                "retry with UTF-8 output enabled."
+            )
+        else:
+            platform_notes = (
+                "Platform: POSIX. Prefer UTF-8 and standard shell tools; use file tools when they "
+                "are simpler or more reliable than shell commands."
+            )
+        return render_layer(
+            WORKSPACE_LAYER,
+            {
+                "runtime": runtime,
+                "platform_notes": platform_notes,
+                "workspace_paths": "\n".join(paths),
+            },
         )
 
     @staticmethod
@@ -205,11 +264,14 @@ class ContextBuilder:
             file_path = root / filename
             if file_path.exists():
                 content = file_path.read_text(encoding="utf-8")
-                if filename == "SOUL.md" and self._is_template_content(
-                    content,
-                    "legacy/SOUL.md",
-                ):
-                    content = load_bundled_template("SOUL.md") or content
+                if filename == "SOUL.md":
+                    if self._is_legacy_soul(content):
+                        content = load_bundled_template("SOUL.md") or content
+                    content = render_placeholders(
+                        content,
+                        {"product_name": self.prompt_settings.product_name},
+                        strict=False,
+                    )
                 if not content.strip():
                     continue
                 if filename in self._SKIPPABLE_DEFAULTS and self._is_template_content(
@@ -219,6 +281,14 @@ class ContextBuilder:
                 parts.append(f"## {filename}\n\n{content}")
 
         return "\n\n".join(parts) if parts else ""
+
+    @classmethod
+    def _is_legacy_soul(cls, content: str) -> bool:
+        """Detect an untouched pre-single-persona SOUL so it is upgraded in memory."""
+        if any(cls._is_template_content(content, name) for name in cls._LEGACY_SOUL_TEMPLATES):
+            return True
+        lines = [line.strip() for line in content.strip().splitlines() if line.strip()]
+        return len(lines) >= 2 and lines[0] == "# Soul" and lines[1].startswith(cls._LEGACY_SOUL_OPENER)
 
     @staticmethod
     def _is_template_content(content: str, template_path: str) -> bool:
@@ -240,6 +310,8 @@ class ContextBuilder:
         runtime_context_blocks: Sequence[RuntimeContextBlock] | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        tool_names: Sequence[str] | None = None,
+        facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Compatibility wrapper for callers that need merged adjacent roles."""
         messages = self.build_transcript(
@@ -254,6 +326,8 @@ class ContextBuilder:
             channel=channel,
             workspace=workspace,
             include_memory=include_memory,
+            tool_names=tool_names,
+            facts=facts,
         )
         if current_message is None:
             return messages
@@ -280,6 +354,8 @@ class ContextBuilder:
         channel: str | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        tool_names: Sequence[str] | None = None,
+        facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Build a model transcript while preserving the fresh-turn boundary."""
         root = workspace or self.workspace
@@ -291,6 +367,8 @@ class ContextBuilder:
                     session_summary=transcript.session_summary,
                     workspace=root,
                     include_memory=include_memory,
+                    tool_names=tool_names,
+                    facts=facts,
                 ),
             },
             *transcript.history,

@@ -1,4 +1,8 @@
-"""Bull/bear debate crew with real team subagents."""
+"""Bull/bear debate crew with real team subagents.
+
+Invoked only as a tool by the agent (``analyze_gold(team_mode=debate)``). The
+crew produces a briefing; ``run_trading_kernel`` issues the decision.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +11,6 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from nanobot.trading.agents.market_data import run_market_data_agent
-from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.teams.evidence_text import format_market_evidence
 from nanobot.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 
@@ -24,8 +27,8 @@ class DebateMessage:
 @dataclass
 class DebateResult:
     messages: list[DebateMessage] = field(default_factory=list)
-    final: Any | None = None
     briefing: str = ""
+    team_agents: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _debate_briefing(messages: list[DebateMessage]) -> str:
@@ -43,8 +46,11 @@ async def run_debate_crew(
     publisher: Any | None = None,
     interval: str = "15m",
     visual_capture: Any = None,
-    brief_only: bool | None = None,
 ) -> DebateResult:
+    """Run technical -> bull || bear -> risk and return the briefing (no BUY/SELL).
+
+    ``emit`` and ``visual_capture`` are accepted for call-site compatibility.
+    """
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
     evidence_text = format_market_evidence(market)
     operator = (user_message or "").strip()
@@ -113,22 +119,4 @@ async def run_debate_crew(
     messages.append(DebateMessage(role="risk", content=risk, round=2))
 
     briefing = _debate_briefing(messages)
-    from nanobot.trading.config import unified_loop_serving
-
-    briefs_only = brief_only if brief_only is not None else unified_loop_serving()
-    if briefs_only:
-        return DebateResult(messages=messages, final=None, briefing=briefing)
-
-    stage_emit = emit
-    if publisher is not None and stage_emit is None:
-        stage_emit = publisher.sync_emit
-
-    final = await run_unified_chart_agent(
-        interval=interval,
-        team_mode="debate",
-        team_briefing=briefing,
-        emit=stage_emit,
-        visual_capture=visual_capture,
-    )
-    final.team_agents = list(collector.agents)
-    return DebateResult(messages=messages, final=final, briefing=briefing)
+    return DebateResult(messages=messages, briefing=briefing, team_agents=list(collector.agents))

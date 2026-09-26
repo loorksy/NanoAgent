@@ -1,6 +1,6 @@
 ---
 name: xauusd-playbook
-description: Lonora 200-rule XAUUSD field playbook — flexible entries, stop philosophy, retests, trendlines, gold-specific liquidity, take-profit, candle traps, and execution discipline. Use during analysis, management, or when the operator challenges a wait, a stop, or a missed fill. English skill; reply in the operator's language.
+description: 200-rule XAUUSD field playbook — flexible entries, stop philosophy, retests, trendlines, gold-specific liquidity, take-profit, candle traps, and execution discipline. Use during analysis, management, or when the operator challenges a wait, a stop, or a missed fill. English skill; reply in the operator's language.
 ---
 
 # XAUUSD playbook (200 rules)

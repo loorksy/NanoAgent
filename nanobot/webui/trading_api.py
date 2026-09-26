@@ -197,7 +197,7 @@ def handle_trading_runtime_update(request: WsRequest) -> Response:
 def analyze_request_context() -> RequestContext:
     """Request context with the configured default LLM runtime (same as chat).
 
-    HTTP analyze runs outside AgentLoop, so Lonora's synthesizer otherwise
+    HTTP analyze runs outside AgentLoop, so the synthesizer otherwise
     sees no provider and returns WAIT / "no usable decision".
     """
     existing = current_request_context()
