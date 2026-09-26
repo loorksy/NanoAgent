@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-class PolicyViolation(Exception):  # noqa: N818
+class PolicyViolation(Exception):  # noqa: N818 — public Hard Law API name
     """A tool call cannot be executed under Hard Law."""
 
     def __init__(self, reason: str) -> None:
