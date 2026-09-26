@@ -1832,7 +1832,7 @@ def test_openai_codex_oauth_login_passes_configured_proxy(
     ]
 
 
-def test_openai_codex_remote_login_uses_headless_dependency_mode(
+def test_openai_codex_remote_login_uses_device_code(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
     oauth_flows: WebUIOAuthFlowRegistry,
@@ -1842,21 +1842,29 @@ def test_openai_codex_remote_login_uses_headless_dependency_mode(
     monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
     captured: dict[str, object] = {}
 
-    class FakeFlow:
-        authorization_url = "https://auth.openai.com/oauth/authorize?state=test"
+    class FakeDevice:
+        authorization_url = "https://auth.openai.com/codex/device"
+        user_code = "ABCD-EFGH"
         remaining_seconds = 600
         expired = False
 
         def cancel(self) -> None:
             captured["cancelled"] = True
 
-    def fake_start(**kwargs):
+    def fake_device(**kwargs):
         captured.update(kwargs)
-        return FakeFlow()
+        return FakeDevice()
+
+    def fail_localhost(**_kwargs):
+        raise AssertionError("remote sign-in must not open the localhost callback")
 
     monkeypatch.setattr(
+        "nanobot.providers.openai_codex_device.start_openai_codex_device_login",
+        fake_device,
+    )
+    monkeypatch.setattr(
         "nanobot.providers.openai_codex_oauth.start_openai_codex_oauth_login",
-        fake_start,
+        fail_localhost,
     )
 
     try:
@@ -1867,8 +1875,11 @@ def test_openai_codex_remote_login_uses_headless_dependency_mode(
     finally:
         oauth_flows.clear("openai_codex")
 
-    assert payload["completion_input"] == "callback_url"
-    assert captured["open_browser"] is False
+    assert payload["completion_input"] == "device_code"
+    assert payload["user_code"] == "ABCD-EFGH"
+    assert payload["authorization_url"] == "https://auth.openai.com/codex/device"
+    assert "localhost" not in payload["authorization_url"]
+    assert captured["timeout_s"] == 600
     assert captured["cancelled"] is True
 
 

@@ -58,6 +58,7 @@ _FLOW_FIELDS = (
     "provider",
     "flow_id",
     "authorization_url",
+    "user_code",
     "expires_in",
     "completion_input",
 )

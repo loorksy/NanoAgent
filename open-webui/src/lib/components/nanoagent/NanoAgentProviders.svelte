@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { onDestroy, onMount, getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
 	import ProviderMark from './ProviderMark.svelte';
@@ -27,7 +27,9 @@
 		provider?: string;
 		flow_id?: string;
 		authorization_url?: string;
+		user_code?: string;
 		completion_input?: string;
+		providers?: Provider[];
 	};
 
 	const LOCAL = ['vllm', 'ollama', 'lm_studio', 'atomic_chat', 'ovms'];
@@ -48,6 +50,8 @@
 	let reveal = false;
 	let editing = false;
 	let flow: Flow | null = null;
+	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let polling = false;
 
 	function text(key: string, vars: Record<string, string> = {}): string {
 		let value = nanoagentText($i18n?.language, key);
@@ -91,7 +95,13 @@
 		};
 	}
 
+	function stopPoll() {
+		polling = false;
+		clearTimeout(pollTimer);
+	}
+
 	function close() {
+		stopPoll();
 		selected = null;
 		creating = false;
 		flow = null;
@@ -111,7 +121,8 @@
 					provider: providerName,
 					flow_id: started.flow_id,
 					authorization_url: started.authorization_url,
-					completion_input: started.completion_input
+					completion_input: started.completion_input,
+					user_code: started.user_code
 				})
 			);
 		} catch {
@@ -345,6 +356,46 @@
 		}
 	}
 
+	async function pollDevice() {
+		if (!selected || flow?.completion_input !== 'device_code' || !flow.flow_id) {
+			polling = false;
+			return;
+		}
+		const providerName = selected.name;
+		const flowId = flow.flow_id;
+		try {
+			const result = (await gateway(`settings/providers/${encodeURIComponent(providerName)}/oauth`, {
+				method: 'POST',
+				body: JSON.stringify({ action: 'complete', flow_id: flowId })
+			})) as Flow;
+			if (!selected || flow?.flow_id !== flowId) {
+				polling = false;
+				return;
+			}
+			if (result.status === 'pending' || result.status === 'authorization_required') {
+				pollTimer = setTimeout(() => void pollDevice(), 4000);
+				return;
+			}
+			if (Array.isArray(result.providers)) {
+				apply(result);
+				forgetFlow();
+				close();
+				notice = text('provider_saved');
+				return;
+			}
+			pollTimer = setTimeout(() => void pollDevice(), 4000);
+		} catch (err) {
+			polling = false;
+			notice = noteFrom(err);
+		}
+	}
+
+	function ensurePoll() {
+		if (polling || flow?.completion_input !== 'device_code' || !flow.flow_id || !selected) return;
+		polling = true;
+		void pollDevice();
+	}
+
 	async function finishOAuth() {
 		if (!selected || !flow?.flow_id) return;
 		const pasted = authCode.trim();
@@ -400,6 +451,9 @@
 		.sort((left, right) => rank(left) - rank(right));
 	$: claude = isClaude(selected);
 	$: oauth = !!selected && selected.auth_type === 'oauth';
+	$: if (oauth && flow?.completion_input === 'device_code') ensurePoll();
+
+	onDestroy(stopPoll);
 </script>
 
 <section id="nanoagent-providers" class="flex flex-col gap-2">
@@ -604,7 +658,16 @@
 						</button>
 					</div>
 				</div>
-				{#if flow?.authorization_url}
+				{#if flow?.completion_input === 'device_code' && flow.user_code}
+					<div class="mt-3 space-y-2">
+						<p class="text-xs text-gray-500">{text('oauth_device_help')}</p>
+						<p class="text-center text-2xl font-medium tracking-widest">{flow.user_code}</p>
+						<a class="block text-xs underline" href={flow.authorization_url} target="_blank" rel="noreferrer">
+							{text('open_sign_in')}
+						</a>
+						<p class="text-xs text-gray-500">{notice || text('oauth_device_waiting')}</p>
+					</div>
+				{:else if flow?.authorization_url}
 					<div class="mt-3 space-y-2">
 						<p class="text-xs text-gray-500">
 							{text(flow.completion_input === 'callback_url' ? 'oauth_callback_help' : 'oauth_code_help')}

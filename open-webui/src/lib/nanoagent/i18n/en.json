@@ -114,6 +114,8 @@
   "oauth_callback_paste": "Full address from the browser bar",
   "oauth_code_help": "After you allow access, paste the authorization code here.",
   "oauth_code_paste": "Authorization code",
+  "oauth_device_help": "Open the sign-in page and enter this code. Nothing has to come back to this phone, and localhost is not used.",
+  "oauth_device_waiting": "Waiting for the code to be entered",
   "open_sign_in": "Open sign-in page",
   "provider_fields_required": "Name and API base are required",
   "model_pick": "Models from this provider",

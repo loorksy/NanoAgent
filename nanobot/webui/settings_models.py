@@ -1646,7 +1646,7 @@ def assign_provider_models(
     cleaned: list[str] = []
     seen: set[str] = set()
     for raw in model_ids:
-        if not isinstance(raw, str) or _MODEL_ID_RE.fullmatch(raw.strip()) is None:
+        if _MODEL_ID_RE.fullmatch(raw.strip()) is None:
             raise WebUISettingsError("model id is invalid")
         model_id = raw.strip()
         if model_id in seen:
@@ -1827,6 +1827,22 @@ def update_provider_settings(
     return changed, restart_required
 
 
+def _start_codex_device_login(proxy: str | None) -> Any | None:
+    """Start a phone sign-in, or return ``None`` when device login is unavailable."""
+    from nanobot.providers.openai_codex_device import (
+        CodexDeviceError,
+        CodexDeviceUnavailableError,
+        start_openai_codex_device_login,
+    )
+
+    try:
+        return start_openai_codex_device_login(proxy=proxy, timeout_s=_WEBUI_OAUTH_TIMEOUT_S)
+    except CodexDeviceUnavailableError:
+        return None
+    except CodexDeviceError as exc:
+        raise WebUISettingsError(str(exc), status=502) from exc
+
+
 def login_oauth_provider(
     config: Config,
     query: QueryParams,
@@ -1861,6 +1877,20 @@ def login_oauth_provider(
             if remote_browser_value is not None
             else False
         )
+        if remote_browser:
+            device_flow = _start_codex_device_login(proxy)
+            if device_flow is not None:
+                flow_id = secrets.token_urlsafe(24)
+                oauth_flows.register(spec.name, flow_id, device_flow)
+                return {
+                    "status": "authorization_required",
+                    "provider": spec.name,
+                    "flow_id": flow_id,
+                    "authorization_url": device_flow.authorization_url,
+                    "user_code": device_flow.user_code,
+                    "expires_in": device_flow.remaining_seconds,
+                    "completion_input": "device_code",
+                }
         try:
             flow = start_openai_codex_oauth_login(
                 proxy=proxy,
@@ -1953,15 +1983,31 @@ def complete_oauth_provider(
 
     try:
         if spec.name == "openai_codex":
+            from nanobot.providers.openai_codex_device import CodexDeviceError, CodexDeviceLogin
             from nanobot.providers.openai_codex_oauth import (
                 OpenAICodexOAuthInputError,
                 complete_openai_codex_oauth_login,
             )
 
             try:
-                token = complete_openai_codex_oauth_login(flow, authorization_response)
+                if isinstance(flow, CodexDeviceLogin):
+                    token = flow.poll()
+                    if token is None:
+                        return {
+                            "status": "pending",
+                            "provider": spec.name,
+                            "flow_id": flow_id,
+                            "authorization_url": flow.authorization_url,
+                            "user_code": flow.user_code,
+                            "expires_in": flow.remaining_seconds,
+                            "completion_input": "device_code",
+                        }
+                else:
+                    token = complete_openai_codex_oauth_login(flow, authorization_response)
             except OpenAICodexOAuthInputError as exc:
                 raise WebUISettingsError(str(exc), status=400) from exc
+            except CodexDeviceError as exc:
+                raise WebUISettingsError(str(exc), status=502) from exc
         else:
             from nanobot.providers.xai_oauth import complete_xai_oauth_login
 

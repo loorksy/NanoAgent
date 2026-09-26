@@ -114,6 +114,8 @@
   "oauth_callback_paste": "العنوان الكامل من شريط المتصفح",
   "oauth_code_help": "بعد السماح بالوصول الصق رمز التفويض هنا.",
   "oauth_code_paste": "رمز التفويض",
+  "oauth_device_help": "افتح صفحة تسجيل الدخول وأدخل هذا الرمز. لا يحتاج الهاتف للرجوع إلى هذا الموقع، ولا يُستخدم localhost.",
+  "oauth_device_waiting": "بانتظار إدخال الرمز",
   "open_sign_in": "فتح صفحة تسجيل الدخول",
   "provider_fields_required": "الاسم وعنوان API مطلوبان",
   "model_pick": "موديلات هذا المزود",
