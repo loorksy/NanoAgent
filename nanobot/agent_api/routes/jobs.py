@@ -75,10 +75,12 @@ def _announce(
 
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:
-    router.add_get(f"{prefix}/jobs", list_jobs)
-    router.add_post(f"{prefix}/jobs", create_job)
-    router.add_get(f"{prefix}/jobs/{{id}}", get_job)
-    router.add_post(f"{prefix}/jobs/{{id}}/pause", pause_job)
-    router.add_post(f"{prefix}/jobs/{{id}}/resume", resume_job)
-    router.add_post(f"{prefix}/jobs/{{id}}/cancel", cancel_job)
-    router.add_delete(f"{prefix}/jobs/{{id}}", cancel_job)
+    # ``tasks`` is the Open WebUI path from design 04 §3.2. Same handlers as jobs.
+    for collection in ("jobs", "tasks"):
+        router.add_get(f"{prefix}/{collection}", list_jobs)
+        router.add_post(f"{prefix}/{collection}", create_job)
+        router.add_get(f"{prefix}/{collection}/{{id}}", get_job)
+        router.add_post(f"{prefix}/{collection}/{{id}}/pause", pause_job)
+        router.add_post(f"{prefix}/{collection}/{{id}}/resume", resume_job)
+        router.add_post(f"{prefix}/{collection}/{{id}}/cancel", cancel_job)
+        router.add_delete(f"{prefix}/{collection}/{{id}}", cancel_job)

@@ -18,7 +18,10 @@ name: nanoagent-webui
 
 services:
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    build:
+      context: ../../open-webui
+      dockerfile: Dockerfile
+    image: nanoagent-open-webui:local
     container_name: nanoagent-open-webui
     restart: unless-stopped
     extra_hosts:
@@ -56,6 +59,9 @@ services:
       ENABLE_OPENAI_API: "true"
       OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://host.docker.internal:8766/v1}
       OPENAI_API_KEY: ${NANOAGENT_API_TOKEN:?set NANOAGENT_API_TOKEN in .env}
+      # Browser calls /api/v1/nanoagent/*; the container proxies to the gateway.
+      NANOAGENT_GATEWAY_URL: ${NANOAGENT_GATEWAY_URL:-http://host.docker.internal:8766}
+      NANOAGENT_API_TOKEN: ${NANOAGENT_API_TOKEN:?set NANOAGENT_API_TOKEN in .env}
       # Sends X-OpenWebUI-Chat-Id (and user headers) to the Agent API so that the plain
       # OpenAI-compatible path can also map chat -> nanobot session.
       ENABLE_FORWARD_USER_INFO_HEADERS: "true"

@@ -14,6 +14,9 @@ docs/plans/
 
 # webui (monorepo frontend)
 webui/node_modules/
+open-webui/node_modules/
+open-webui/.svelte-kit/
+open-webui/backend/data/
 webui/dist/
 webui/coverage/
 webui/.vite/
