@@ -3458,6 +3458,7 @@ def test_gateway_local_trigger_queue_submits_agent_turns(
         "remove:tradability_calibration",
         "remove:event_monitor",
         "remove:opportunity_scan",
+        "remove:cot_refresh",
         "status",
     ]
     assert isinstance(turn_delivery_factory.route_policy, WebuiTurnRoutePolicy)

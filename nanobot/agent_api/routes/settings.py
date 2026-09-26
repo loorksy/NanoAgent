@@ -65,6 +65,43 @@ async def overview(request: web.Request) -> web.Response:
     })
 
 
+def capabilities_view(
+    *,
+    dream: bool,
+    audio: bool,
+    image: bool,
+    web: bool,
+) -> dict[str, object]:
+    """Operator-facing capability flags. No secrets."""
+    return {
+        "items": [
+            {"key": "dream", "enabled": dream},
+            {"key": "audio", "enabled": audio},
+            {"key": "image", "enabled": image},
+            {"key": "web", "enabled": web},
+        ],
+        "trading": ["fast_backtest", "propose_strategy"],
+    }
+
+
+def system_view(
+    *,
+    timezone: str,
+    host: str,
+    port: int,
+    enabled: bool,
+    version: str,
+) -> dict[str, object]:
+    """Listener and timezone summary. The bootstrap token stays out of this document."""
+    return {
+        "timezone": timezone,
+        "host": host,
+        "port": port,
+        "enabled": enabled,
+        "version": version,
+    }
+
+
 def public_models(providers: dict[str, object], default_model: str) -> dict[str, object]:
     """Provider list for Settings → Models. Never includes API keys."""
     rows: list[dict[str, object]] = []
@@ -99,6 +136,38 @@ def _usage_snapshot() -> dict[str, object]:
     return {}
 
 
+async def capabilities(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from nanobot.config.loader import load_config
+
+    config = load_config()
+    return ok(
+        capabilities_view(
+            dream=config.agents.defaults.dream.enabled,
+            audio=config.transcription.enabled,
+            image=bool(config.tools.image_generation.enabled),
+            web=bool(config.tools.web.enable),
+        )
+    )
+
+
+async def system_settings(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from nanobot.config.loader import load_config
+
+    config = load_config()
+    api = config.agent_api
+    return ok(
+        system_view(
+            timezone=config.agents.defaults.timezone,
+            host=api.host,
+            port=api.port,
+            enabled=api.enabled,
+            version=__version__,
+        )
+    )
+
+
 async def models_settings(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from nanobot.config.loader import load_config
@@ -125,5 +194,7 @@ async def distribution(request: web.Request) -> web.Response:
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_get(f"{prefix}/settings/overview", overview)
     router.add_get(f"{prefix}/settings/models", models_settings)
+    router.add_get(f"{prefix}/settings/capabilities", capabilities)
+    router.add_get(f"{prefix}/settings/system", system_settings)
     router.add_get(f"{prefix}/distribution/version", distribution)
     router.add_get(f"{prefix}/distribution/apk", distribution_apk)

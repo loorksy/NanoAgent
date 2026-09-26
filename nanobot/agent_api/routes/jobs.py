@@ -74,6 +74,30 @@ def _announce(
     )
 
 
+async def task_lab(request: web.Request) -> web.Response:
+    """Replay a named strategy against caller candles or the local warehouse (R14)."""
+    require_scope(request, "read")
+    from pathlib import Path
+
+    from nanobot.agent.tools.fast_backtest import candles_from_json
+    from nanobot.trading.strategy_lab import propose_strategy
+    from nanobot.trading.warehouse import CandleWarehouse
+
+    body = await json_body(request)
+    name = optional_str(body, "name") or "atr_breakout"
+    raw = body.get("candles_json")
+    candles = candles_from_json(raw if isinstance(raw, str) else "")
+    if not candles:
+        path = Path.home() / ".nanobot" / "warehouse.sqlite"
+        if path.is_file():
+            store = CandleWarehouse(path)
+            try:
+                candles = store.load("XAUUSD", "15m", limit=200)
+            finally:
+                store.close()
+    return ok(propose_strategy(name, candles))
+
+
 async def task_desk(request: web.Request) -> web.Response:
     """Approvals inbox companion: circuits and the weekend plan (R5, R7, R15)."""
     require_scope(request, "read")
@@ -89,6 +113,7 @@ async def task_desk(request: web.Request) -> web.Response:
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     # ``tasks`` is the Open WebUI path from design 04 §3.2. Same handlers as jobs.
     router.add_get(f"{prefix}/tasks/desk", task_desk)
+    router.add_post(f"{prefix}/tasks/lab", task_lab)
     for collection in ("jobs", "tasks"):
         router.add_get(f"{prefix}/{collection}", list_jobs)
         router.add_post(f"{prefix}/{collection}", create_job)

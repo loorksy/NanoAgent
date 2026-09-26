@@ -101,4 +101,5 @@ def replay(
     card["ok"] = True
     card["candles"] = len(window)
     card["strategy"] = "atr_breakout"
+    card["rs"] = [row["r"] for row in trades]
     return card

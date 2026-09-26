@@ -20,6 +20,7 @@ TRADE_MANAGEMENT_JOB_ID = "trade_management"
 TRADABILITY_JOB_ID = "tradability_calibration"
 EVENT_MONITOR_JOB_ID = "event_monitor"
 OPPORTUNITY_SCAN_JOB_ID = "opportunity_scan"
+COT_REFRESH_JOB_ID = "cot_refresh"
 
 TRADING_CRON_JOB_IDS = (
     GOLD_SCAN_JOB_ID,
@@ -32,6 +33,7 @@ TRADING_CRON_JOB_IDS = (
     TRADABILITY_JOB_ID,
     EVENT_MONITOR_JOB_ID,
     OPPORTUNITY_SCAN_JOB_ID,
+    COT_REFRESH_JOB_ID,
 )
 
 
@@ -68,6 +70,7 @@ def register_trading_cron_jobs(
         TRADABILITY_JOB_ID: CronSchedule(kind="every", every_ms=30 * 60 * 1000, tz=timezone),
         EVENT_MONITOR_JOB_ID: CronSchedule(kind="every", every_ms=15 * 60 * 1000, tz=timezone),
         OPPORTUNITY_SCAN_JOB_ID: CronSchedule(kind="every", every_ms=30 * 60 * 1000, tz=timezone),
+        COT_REFRESH_JOB_ID: CronSchedule(kind="every", every_ms=6 * 60 * 60 * 1000, tz=timezone),
     }
     for job_id in TRADING_CRON_JOB_IDS:
         register(
@@ -87,9 +90,11 @@ async def run_gold_news_job() -> str | None:
     news = run_news_macro_agent()
     if news.news_risk in {"high", "medium"} and news.upcoming_events:
         first = news.upcoming_events[0]
-        title = getattr(first, "title", None) or (
-            first.get("title", "event") if isinstance(first, dict) else "event"
-        )
+        if isinstance(first, dict):
+            raw_title = cast(dict[str, object], first).get("title")
+        else:
+            raw_title = getattr(first, "title", None)
+        title = raw_title if isinstance(raw_title, str) and raw_title else "event"
         return f"Gold news watch: {news.news_risk} — {title}"
     return None
 
@@ -191,6 +196,8 @@ async def run_trading_cron_job(name: str) -> str | list[dict[str, object]] | Non
         return await run_event_monitor_job()
     if name == OPPORTUNITY_SCAN_JOB_ID:
         return await run_opportunity_scan_job()
+    if name == COT_REFRESH_JOB_ID:
+        return await run_cot_job()
     return None
 
 
@@ -204,12 +211,27 @@ async def run_tradability_job() -> str:
 async def run_event_monitor_job() -> str | None:
     from datetime import UTC, datetime
 
-    from nanobot.trading.bots.opportunity import imminent_events
+    from nanobot.trading.intel.calendar_view import upcoming_rows
+    from nanobot.trading.news.forex_factory import fetch_upcoming_events
 
-    soon = imminent_events([], now=datetime.now(tz=UTC), within_minutes=30)
+    try:
+        events = fetch_upcoming_events()
+    except Exception:
+        logger.exception("Event monitor calendar fetch failed")
+        return None
+    soon = upcoming_rows(events, now=datetime.now(tz=UTC), within_minutes=30)
     if not soon:
         return None
     return "Event monitor: calendar.soon"
+
+
+async def run_cot_job() -> str | None:
+    from nanobot.trading.intel.cot import load_gold_cot
+
+    snapshot = load_gold_cot()
+    if not snapshot.get("available"):
+        return None
+    return f"COT: {snapshot['notice_key']}"
 
 
 async def run_opportunity_scan_job() -> str | None:
