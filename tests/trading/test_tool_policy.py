@@ -11,7 +11,6 @@ from nanobot.agent.tools.context import ToolContext
 from nanobot.agent.tools.loader import ToolLoader
 from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.config.schema import ToolsConfig
-from nanobot.trading.output_policy import apply_output_policy
 from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
 from nanobot.trading.turn_session import TurnSession, turn_session_scope
 
@@ -77,34 +76,7 @@ def test_unknown_node_is_policy_violation() -> None:
             validate_tool_call("fetch_evidence", {"nodes": ["not_a_real_node"]})
 
 
-def test_output_policy_strips_unauthorized_buy_and_still_replies() -> None:
-    rewritten = apply_output_policy("BUY XAUUSD now 2500", mutate=True)
-    assert rewritten
-    assert "BUY" not in rewritten.upper()
-    assert "2500" not in rewritten
-    assert "no issued recommendation" in rewritten.lower() or "platform price" in rewritten
-
-
-def test_output_policy_rejects_price_absent_from_evidence_json() -> None:
-    session = TurnSession()
-    session.add_price_strings("4342.60")
-    with turn_session_scope(session):
-        rewritten = apply_output_policy("Gold is 3301.00", mutate=True)
-    assert "3301.00" not in rewritten
-    assert "4342.60" not in rewritten or "3301.00" not in rewritten
-    assert "platform price" in rewritten
-
-
-def test_output_policy_keeps_verbatim_display_mid() -> None:
-    session = TurnSession()
-    session.add_price_strings("4342.60")
-    with turn_session_scope(session):
-        rewritten = apply_output_policy("XAUUSD mid 4342.60", mutate=True)
-    assert "4342.60" in rewritten
-
-
 def test_subagent_registry_excludes_kernel_spawn_mt5(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("LONORA_UNIFIED_LOOP", "on")
     ctx = ToolContext(config=ToolsConfig(), workspace=str(tmp_path), timezone="UTC")
     core = ToolRegistry()
     sub = ToolRegistry()

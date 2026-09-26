@@ -38,7 +38,7 @@ async def gold_intent_runtime_context(
         "When outcome_status is invalidated/tp1/expired, the plan is closed automatically — "
         "you may call analyze_gold for a fresh recommendation.",
         "For status or price follow-ups, call get_live_recommendation (or get_gold_quote for price only).",
-        "Copy exact numeric prices from tool JSON in replies — gold trades near 4300+, never 3300-range.",
+        "Copy exact numeric prices from tool JSON in replies; never quote prices from memory.",
     ]
 
     entry = _plain_price(live.get("entry"))

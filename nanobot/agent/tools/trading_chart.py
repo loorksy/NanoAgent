@@ -16,12 +16,13 @@ from nanobot.agent.tools.context import (
 from nanobot.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
 from nanobot.trading.cards.artifacts import build_price_quote_artifacts
 from nanobot.trading.chart_capture import resolve_visual_capture
-from nanobot.trading.config import load_trading_config, unified_loop_serving
+from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
-from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError
+from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, require_gold
+from nanobot.trading.kernel import LivePlanActive, run_trading_kernel
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
-from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.policy_guard import PolicyViolation
 from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.recommendations.lifecycle import (
     close_plan_for_session,
@@ -29,11 +30,23 @@ from nanobot.trading.recommendations.lifecycle import (
     prepare_for_new_recommendation,
     sync_session_live_plan,
 )
-from nanobot.trading.recommendations.store import latest_live_recommendation
 from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.stage_delivery import TradingStagePublisher
 from nanobot.trading.teams.runtime import run_swarm
 from nanobot.trading.tool_delivery import should_publish_trading_ui
+from nanobot.trading.tool_errors import (
+    REASON_ANALYSIS_FAILED,
+    REASON_MARKET_FEED_UNCONFIGURED,
+    REASON_NO_QUOTE,
+    REASON_NO_RESULT,
+    REASON_NO_SESSION,
+    REASON_POLICY_VIOLATION,
+    REASON_PRESET_REQUIRED,
+    REASON_UNKNOWN_ACTION,
+    live_plan_active_error,
+    tool_error,
+)
+from nanobot.trading.unified_evidence import fetch_evidence_nodes
 
 if TYPE_CHECKING:
     from nanobot.bus.queue import MessageBus
@@ -216,74 +229,40 @@ class GetGoldQuoteTool(Tool):
         present_ui: bool = False,
         **kwargs: Any,
     ) -> str:
-        if unified_loop_serving():
-            from nanobot.trading.gold import require_gold
-            from nanobot.trading.unified_evidence import fetch_evidence_nodes
-
-            try:
-                require_gold(symbol)
-                payload = await fetch_evidence_nodes(["market_data"])
-            except GoldOnlyError as exc:
-                return ToolResult.error(str(exc))
-            except Exception as exc:
-                return ToolResult.error(f"Failed to fetch quote: {exc}")
-            if payload.get("aborted"):
-                return ToolResult.error(payload.get("abort_reason") or "Market data sync failed")
-            market = payload.get("nodes", {}).get("market_data") or {}
-            display = payload.get("display") or {}
-            locale = _operator_locale()
-            quote_data = {
-                "symbol": DATA_SYMBOL,
-                "bid": market.get("quote_bid"),
-                "ask": market.get("quote_ask"),
-                "mid": market.get("quote_mid"),
-                "tradeable": market.get("tradeable"),
-            }
-            artifacts = build_price_quote_artifacts(quote_data, locale=locale)
-            channel, chat_id = _request_route()
-            await _maybe_publish_artifacts(
-                self._bus,
-                channel=channel,
-                chat_id=chat_id,
-                locale=locale,
-                artifacts=artifacts,
-                present_ui=present_ui,
+        if not load_trading_config().oanda_configured:
+            return tool_error(
+                REASON_MARKET_FEED_UNCONFIGURED,
+                instruction=(
+                    "The platform market feed is not configured, so no live gold price is "
+                    "available. Tell the operator; never quote a price from memory."
+                ),
             )
-            return json.dumps(
-                {
-                    **quote_data,
-                    "locale": locale,
-                    "display": {
-                        "bid": display.get("bid"),
-                        "ask": display.get("ask"),
-                        "mid": display.get("mid"),
-                    },
-                    "instruction": (
-                        "Quote display.mid (or bid/ask) verbatim — never invent or reformat "
-                        "with commas."
-                    ),
-                    "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
-                },
-                indent=2,
-            )
-        config = load_trading_config()
-        if not config.oanda_configured:
-            return ToolResult.error("Market data is not available — cannot fetch gold quote.")
         try:
-            quote = fetch_quote(symbol, config=config)
+            require_gold(symbol)
+            payload = await fetch_evidence_nodes(["market_data"])
         except GoldOnlyError as exc:
-            return ToolResult.error(str(exc))
+            return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
         except Exception as exc:
-            return ToolResult.error(f"Failed to fetch quote: {exc}")
-        if quote is None:
-            return ToolResult.error("No live quote is available right now.")
+            return tool_error(
+                REASON_NO_QUOTE,
+                instruction="Failed to fetch the live quote; tell the operator.",
+                error=str(exc),
+            )
+        if payload.get("aborted"):
+            return tool_error(
+                REASON_NO_QUOTE,
+                instruction="Market data sync failed; tell the operator.",
+                error=str(payload.get("abort_reason") or ""),
+            )
+        market = payload.get("nodes", {}).get("market_data") or {}
+        display = payload.get("display") or {}
         locale = _operator_locale()
         quote_data = {
-            "symbol": quote.symbol,
-            "bid": quote.bid,
-            "ask": quote.ask,
-            "mid": quote.mid,
-            "tradeable": quote.tradeable,
+            "symbol": DATA_SYMBOL,
+            "bid": market.get("quote_bid"),
+            "ask": market.get("quote_ask"),
+            "mid": market.get("quote_mid"),
+            "tradeable": market.get("tradeable"),
         }
         artifacts = build_price_quote_artifacts(quote_data, locale=locale)
         channel, chat_id = _request_route()
@@ -300,11 +279,14 @@ class GetGoldQuoteTool(Tool):
                 **quote_data,
                 "locale": locale,
                 "display": {
-                    "bid": f"{quote.bid:.2f}" if quote.bid is not None else None,
-                    "ask": f"{quote.ask:.2f}" if quote.ask is not None else None,
-                    "mid": f"{quote.mid:.2f}" if quote.mid is not None else None,
+                    "bid": display.get("bid"),
+                    "ask": display.get("ask"),
+                    "mid": display.get("mid"),
                 },
-                "instruction": "Quote display.mid (or bid/ask) verbatim — never invent or reformat with commas.",
+                "instruction": (
+                    "Quote display.mid (or bid/ask) verbatim — never invent or reformat "
+                    "with commas."
+                ),
                 "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
             },
             indent=2,
@@ -483,7 +465,10 @@ class ManageTradingPlanTool(Tool):
             payload["ok"] = True
         elif action == "close_plan":
             if not session_key:
-                return ToolResult.error("No session key for this conversation.")
+                return tool_error(
+                    REASON_NO_SESSION,
+                    instruction="No chat session is bound; the plan cannot be closed.",
+                )
             from nanobot.trading.recommendations.state_machine import classify_archive_category
 
             bucket = classify_archive_category(close_status, close_reason="operator_close")
@@ -497,7 +482,11 @@ class ManageTradingPlanTool(Tool):
             rows = list_session_archive(session_key, category=archive_category)
             payload = {"ok": True, "archive": rows, "count": len(rows)}
         else:
-            return ToolResult.error(f"Unknown action: {action}")
+            return tool_error(
+                REASON_UNKNOWN_ACTION,
+                instruction="Use one of: sync, prepare_new, close_plan, list_archive.",
+                action=action,
+            )
         payload["locale"] = locale
         payload["instruction"] = (
             "After prepare_new or closing a terminal plan, call analyze_gold "
@@ -527,11 +516,14 @@ class AnalyzeGoldTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Run a full XAUUSD gold analysis through the specialist fleet and quality "
-            "checks. Use only when the operator wants a new or re-evaluated recommendation. "
-            "For price-only questions use get_gold_quote. For live-plan follow-ups use "
-            "get_live_recommendation. Set present_ui=true to open the chart panel and "
-            "stream visual cards. team_mode=swarm requires an explicit preset."
+            "Run a full XAUUSD gold analysis (evidence, structured decision call, G1-G20 "
+            "quality gates) and issue a recommendation for this conversation. Use only when "
+            "the operator asks for a new or re-evaluated recommendation / trade idea. "
+            "For price-only questions use get_gold_quote. For live-plan status or follow-ups "
+            "use get_live_recommendation. If a live plan already exists this returns "
+            "reason_key=trading.live_plan_active instead of a second plan. "
+            "team_mode=debate runs a bull/bear debate first; team_mode=swarm requires an "
+            "explicit preset. Set present_ui=true to open the chart panel and stream cards."
         )
 
     async def execute(
@@ -544,113 +536,8 @@ class AnalyzeGoldTool(Tool):
         present_ui: bool = False,
         **kwargs: Any,
     ) -> str:
-        config = load_trading_config()
         session_key = current_request_session_key()
         prepare_for_new_recommendation(session_key)
-        if unified_loop_serving():
-            return await self._execute_unified(
-                interval=interval,
-                team_mode=team_mode,
-                preset=preset,
-                reevaluate=reevaluate,
-                force_new_plan=force_new_plan,
-                present_ui=present_ui,
-                session_key=session_key,
-            )
-        if config.agent_first_mode and not reevaluate:
-            live = latest_live_recommendation(session_key)
-            if live:
-                if force_new_plan:
-                    closed = close_plan_for_session(
-                        session_key or "",
-                        status="superseded",
-                        reason="operator_force_new",
-                        category="modified",
-                    )
-                    if not closed.get("ok"):
-                        return ToolResult.error(
-                            "Could not close the active plan. Use manage_trading_plan with "
-                            "action=close_plan first."
-                        )
-                else:
-                    return ToolResult.error(
-                        "This conversation already has a live recommendation. "
-                        "Use get_live_recommendation for price/status follow-ups, "
-                        "manage_trading_plan to archive/close, or pass force_new_plan=true "
-                        "when the operator confirms a new recommendation."
-                    )
-
-        channel, chat_id = _request_route()
-        locale = _operator_locale()
-        publisher = TradingStagePublisher(
-            self._bus,
-            channel=channel,
-            chat_id=chat_id,
-            locale=locale,
-        )
-        publish_ui = should_publish_trading_ui(present_ui)
-        if publish_ui:
-            await publisher.open_chart(interval)
-        visual_capture = resolve_visual_capture(publisher) if publish_ui else None
-
-        try:
-            if team_mode == "debate":
-                debate = await run_debate_crew(
-                    user_message=(current_request_context().original_user_text if current_request_context() else "") or "",
-                    emit=publisher.sync_emit if publish_ui else None,
-                    subagent_manager=self._subagent_manager,
-                    publisher=publisher if publish_ui else None,
-                    interval=interval,
-                    visual_capture=visual_capture,
-                )
-                result = debate.final
-            elif team_mode == "swarm":
-                if not preset:
-                    return ToolResult.error(
-                        "team_mode=swarm requires an explicit preset parameter."
-                    )
-                swarm = await run_swarm(
-                    preset,
-                    subagent_manager=self._subagent_manager,
-                    publisher=publisher if publish_ui else None,
-                    interval=interval,
-                    emit=publisher.sync_emit if publish_ui else None,
-                    visual_capture=visual_capture,
-                )
-                result = swarm["final"]
-            else:
-                result = await run_unified_chart_agent(
-                    interval=interval,
-                    team_mode="core",
-                    emit=publisher.sync_emit if publish_ui else None,
-                    visual_capture=visual_capture,
-                )
-        except Exception as exc:
-            return ToolResult.error(f"Gold analysis failed: {exc}")
-
-        if result is None:
-            return ToolResult.error("Analysis produced no result.")
-
-        wire = result_to_wire(result)
-        if publish_ui:
-            await publisher.publish_result(wire)
-
-        return json.dumps(wire, indent=2)
-
-    async def _execute_unified(
-        self,
-        *,
-        interval: str,
-        team_mode: str,
-        preset: str | None,
-        reevaluate: bool,
-        force_new_plan: bool,
-        present_ui: bool,
-        session_key: str | None,
-    ) -> str:
-        from nanobot.trading.kernel import run_trading_kernel
-        from nanobot.trading.policy_guard import PolicyViolation
-
         channel, chat_id = _request_route()
         locale = _operator_locale()
         publisher = TradingStagePublisher(
@@ -682,7 +569,13 @@ class AnalyzeGoldTool(Tool):
                 resolved_mode = "debate"
             elif team_mode == "swarm":
                 if not preset:
-                    return ToolResult.error("team_mode=swarm requires an explicit preset parameter.")
+                    return tool_error(
+                        REASON_PRESET_REQUIRED,
+                        instruction=(
+                            "team_mode=swarm requires an explicit preset parameter; "
+                            "pick one of the run_trading_team presets."
+                        ),
+                    )
                 swarm = await run_swarm(
                     preset,
                     subagent_manager=self._subagent_manager,
@@ -705,12 +598,24 @@ class AnalyzeGoldTool(Tool):
                 visual_capture=visual_capture,
                 emit=publisher.sync_emit if publish_ui else None,
             )
+        except LivePlanActive as exc:
+            return live_plan_active_error(exc.live)
         except PolicyViolation as exc:
-            return ToolResult.error(str(exc.reason))
+            return tool_error(
+                getattr(exc, "reason_key", REASON_POLICY_VIOLATION),
+                instruction=str(exc.reason),
+            )
         except Exception as exc:
-            return ToolResult.error(f"Gold analysis failed: {exc}")
+            return tool_error(
+                REASON_ANALYSIS_FAILED,
+                instruction="Gold analysis failed; tell the operator and do not invent a plan.",
+                error=str(exc),
+            )
         if result is None:
-            return ToolResult.error("Analysis produced no result.")
+            return tool_error(
+                REASON_NO_RESULT,
+                instruction="Analysis produced no result; tell the operator.",
+            )
         wire = result_to_wire(result)
         if publish_ui:
             await publisher.publish_result(wire)

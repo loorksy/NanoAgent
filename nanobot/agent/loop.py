@@ -50,7 +50,6 @@ from nanobot.agent.turn_delivery import TurnRoute as TurnRoute
 from nanobot.agent.turn_hooks import AgentTurnHookSpec, build_agent_turn_hook
 from nanobot.bus.events import (
     INBOUND_META_USER_SHELL,
-    OUTBOUND_META_AGENT_UI,
     InboundMessage,
     OutboundMessage,
 )
@@ -1686,18 +1685,14 @@ class AgentLoop:
 
         await self._run_turn_stage(ctx, "restore", self._restore_turn)
         await self._run_turn_stage(ctx, "compact", self._compact_session)
-        from nanobot.trading.config import peek_unified_loop_env, unified_loop_mode
+        from nanobot.trading.policy_guard import validate_turn_input
         from nanobot.trading.turn_session import bind_turn_session, reset_turn_session
 
         turn_token = None
         try:
-            peeked = peek_unified_loop_env()
-            mode = unified_loop_mode() if peeked is not None else "off"
             is_subagent = ctx.msg.sender_id == "subagent"
             user_turn = ctx.kind is TurnKind.USER and ctx.msg.channel != "system"
-            if mode == "on" and (user_turn or is_subagent):
-                from nanobot.trading.policy_guard import validate_turn_input
-
+            if user_turn or is_subagent:
                 session = validate_turn_input(
                     ctx.original_user_text or ctx.msg.content,
                     session_key=ctx.session_key,
@@ -1706,31 +1701,15 @@ class AgentLoop:
                 )
                 turn_token = bind_turn_session(session)
             if await self._run_turn_stage(ctx, "command", self._dispatch_command):
-                return self._finalize_unified_outbound(ctx)
-            if mode != "on":
-                if await self._run_turn_stage(ctx, "gold_fast_path", self._dispatch_gold_fast_path):
-                    return self._finalize_unified_outbound(ctx)
+                return ctx.outbound
             await self._run_turn_stage(ctx, "build", self._build_turn)
             await self._run_turn_stage(ctx, "run", self._run_turn)
             await self._run_turn_stage(ctx, "save", self._persist_turn)
             await self._run_turn_stage(ctx, "respond", self._prepare_outbound)
-            return self._finalize_unified_outbound(ctx)
+            return ctx.outbound
         finally:
             if turn_token is not None:
                 reset_turn_session(turn_token)
-
-    def _finalize_unified_outbound(self, ctx: TurnContext):
-        """Output-policy + shadow logs. Identity when LONORA_UNIFIED_LOOP is off."""
-        from nanobot.trading.delivery import finalize_turn_outbound
-
-        outbound = finalize_turn_outbound(
-            ctx.outbound,
-            user_text=ctx.original_user_text or ctx.msg.content or "",
-        )
-        ctx.outbound = outbound
-        if outbound is not None:
-            ctx.final_content = outbound.content
-        return outbound
 
     async def _run_turn_stage(
         self,
@@ -1855,56 +1834,6 @@ class AgentLoop:
             ctx.session_key,
         )
         ctx.pending_summary = pending
-
-    async def _dispatch_gold_fast_path(self, ctx: TurnContext) -> bool:
-        if ctx.kind is not TurnKind.USER or ctx.msg.channel == "system":
-            return False
-        from nanobot.trading.config import load_trading_config
-
-        if load_trading_config().agent_first_mode:
-            return False
-        text = ctx.original_user_text or ctx.msg.content
-        session = ctx.require_session()
-        runtime = ctx.runtime or self.runtime_for_session(session)
-        ctx.runtime = runtime
-        request_ctx = self._request_context_for_turn(ctx)
-        from nanobot.trading.explain import last_trading_wire_from_messages
-        from nanobot.trading.fast_path import try_gold_fast_path
-
-        last_wire = last_trading_wire_from_messages(session.messages)
-        request_token = bind_request_context(request_ctx)
-        try:
-            result = await try_gold_fast_path(
-                text,
-                channel=ctx.msg.channel,
-                chat_id=ctx.msg.chat_id,
-                bus=self.bus,
-                subagent_manager=self.subagents,
-                last_trading_wire=last_wire,
-            )
-        finally:
-            reset_request_context(request_token)
-        if result is None:
-            return False
-        ctx.outbound = result
-        ctx.final_content = result.content
-        ctx.input_persisted_early = self._persist_user_message_early(ctx.msg, session)
-        agent_meta = (result.metadata or {}).get(OUTBOUND_META_AGENT_UI) or {}
-        wire = agent_meta.get("data") if agent_meta.get("kind") == "trading_result" else None
-        msg_kwargs: dict[str, Any] = {"_gold_fast_path": True}
-        if isinstance(wire, dict):
-            msg_kwargs["_trading_wire"] = wire
-        session.add_message("assistant", result.content, **msg_kwargs)
-        self._clear_pending_user_turn(session)
-        self.sessions.save(session)
-        if not ctx.ephemeral:
-            await self.runtime_event_publisher.session_turn_persisted(
-                ctx.msg,
-                ctx.session_key,
-                turn_id=ctx.turn_id,
-                attributes=ctx.attributes,
-            )
-        return True
 
     async def _dispatch_command(self, ctx: TurnContext) -> bool:
         if ctx.kind is TurnKind.SYSTEM or ctx.msg.channel == "system":

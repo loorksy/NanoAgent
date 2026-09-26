@@ -1,4 +1,4 @@
-"""CI replay harness — scripted tool transcripts vs both stacks (Group B/C)."""
+"""Replay harness — scripted tool transcripts validated against Hard Law tool policy."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
-from nanobot.trading.shadow import replay_divergence
 from nanobot.trading.turn_session import TurnSession, turn_session_scope
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "unified_replay"
@@ -78,14 +77,3 @@ def test_replay_fixture(filename: str) -> None:
         assert result["kernel"] is expected["kernel"]
     if "tools" in expected:
         assert result["tools"] == expected["tools"]
-    old = fixture.get("legacy")
-    if old:
-        flags = replay_divergence(
-            old_decision=old.get("decision"),
-            new_decision=result["decision"],
-            old_kernel=bool(old.get("kernel")),
-            new_kernel=result["kernel"],
-            old_nodes=old.get("nodes"),
-            new_nodes=result["nodes"],
-        )
-        assert "side_mismatch" not in flags

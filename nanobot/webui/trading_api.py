@@ -25,7 +25,6 @@ from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
 from nanobot.trading.i18n import tr
 from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
-from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
@@ -229,42 +228,11 @@ async def _run_trading_analyze(
         manager = create_trading_subagent_manager()
         publisher = TradingStagePublisher(None, channel="webui", chat_id="trading-analyze")
         visual_capture = resolve_visual_capture(publisher)
-        from nanobot.trading.config import unified_loop_serving
+        from nanobot.trading.kernel import run_trading_kernel
+        from nanobot.trading.turn_session import turn_session_scope
 
-        if unified_loop_serving():
-            from nanobot.trading.kernel import run_trading_kernel
-            from nanobot.trading.turn_session import turn_session_scope
-
-            briefing = None
-            resolved_mode = "core"
-            if team_mode == "debate":
-                debate = await run_debate_crew(
-                    subagent_manager=manager,
-                    publisher=publisher,
-                    interval=interval,
-                    visual_capture=visual_capture,
-                )
-                briefing = debate.briefing
-                resolved_mode = "debate"
-            elif team_mode == "swarm":
-                swarm = await run_swarm(
-                    preset or "gold_analysis_committee",
-                    subagent_manager=manager,
-                    publisher=publisher,
-                    interval=interval,
-                    visual_capture=visual_capture,
-                )
-                briefing = swarm.get("team_briefing")
-                resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
-            with turn_session_scope():
-                return await run_trading_kernel(
-                    interval=interval,
-                    team_mode=resolved_mode,
-                    gather_missing=True,
-                    team_briefing=briefing,
-                    visual_capture=visual_capture,
-                    present_ui=True,
-                )
+        briefing = None
+        resolved_mode = "core"
         if team_mode == "debate":
             debate = await run_debate_crew(
                 subagent_manager=manager,
@@ -272,8 +240,9 @@ async def _run_trading_analyze(
                 interval=interval,
                 visual_capture=visual_capture,
             )
-            return debate.final
-        if team_mode == "swarm":
+            briefing = debate.briefing
+            resolved_mode = "debate"
+        elif team_mode == "swarm":
             swarm = await run_swarm(
                 preset or "gold_analysis_committee",
                 subagent_manager=manager,
@@ -281,12 +250,17 @@ async def _run_trading_analyze(
                 interval=interval,
                 visual_capture=visual_capture,
             )
-            return swarm["final"]
-        return await run_unified_chart_agent(
-            interval=interval,
-            team_mode="core",
-            visual_capture=visual_capture,
-        )
+            briefing = swarm.get("team_briefing")
+            resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
+        with turn_session_scope():
+            return await run_trading_kernel(
+                interval=interval,
+                team_mode=resolved_mode,
+                gather_missing=True,
+                team_briefing=briefing,
+                visual_capture=visual_capture,
+                present_ui=True,
+            )
 
 
 async def handle_trading_analyze(request: WsRequest) -> Response:
@@ -575,52 +549,20 @@ async def handle_trading_recommendation_transition(request: WsRequest) -> Respon
         return _http_error(409, str(result.get("error") or "transition_failed"))
     if action == "reject_new":
         return _http_json_response(result)
-    from nanobot.bus.events import OUTBOUND_META_AGENT_UI
-    from nanobot.trading.config import unified_loop_serving
+    from nanobot.agent.tools.context import request_context
+    from nanobot.trading.kernel import run_trading_kernel
+    from nanobot.trading.result_wire import result_to_wire
+    from nanobot.trading.turn_session import turn_session_scope
 
-    if unified_loop_serving():
-        from nanobot.agent.tools.context import request_context
-        from nanobot.trading.kernel import run_trading_kernel
-        from nanobot.trading.result_wire import result_to_wire
-        from nanobot.trading.turn_session import turn_session_scope
-
-        with request_context(analyze_request_context()):
-            with turn_session_scope():
-                kernel_result = await run_trading_kernel(
-                    interval="15m",
-                    gather_missing=True,
-                    session_key=session_key,
-                    present_ui=True,
-                )
-        wire = result_to_wire(kernel_result)
-        return _http_json_response({**result, "new_recommendation": wire})
-
-    from nanobot.trading.fast_path import _run_analysis_fast_path
-    from nanobot.trading.intent_router import RoutedIntent
-    from nanobot.trading.turn_planner import FULL_TOOLS, TurnPlan
-
-    turn = TurnPlan(
-        "full_analysis",
-        RoutedIntent(kind="recommendation", confidence=1.0, reason="supersede_approved"),
-        emit_stages=True,
-        reason="supersede_approved",
-        tools=FULL_TOOLS,
-    )
-    parts = session_key.split(":", 1)
-    channel = parts[0] if parts else "websocket"
-    chat_id = parts[1] if len(parts) > 1 else session_key
-    outbound = await _run_analysis_fast_path(
-        turn,
-        "supersede approved new recommendation",
-        channel=channel,
-        chat_id=chat_id,
-        bus=None,
-    )
-    wire = None
-    if outbound and outbound.metadata:
-        agent_ui = outbound.metadata.get("agent_ui") or outbound.metadata.get(OUTBOUND_META_AGENT_UI)
-        if isinstance(agent_ui, dict) and agent_ui.get("kind") == "trading_result":
-            wire = agent_ui.get("data")
+    with request_context(analyze_request_context()):
+        with turn_session_scope():
+            kernel_result = await run_trading_kernel(
+                interval="15m",
+                gather_missing=True,
+                session_key=session_key,
+                present_ui=True,
+            )
+    wire = result_to_wire(kernel_result)
     return _http_json_response({**result, "new_recommendation": wire})
 
 

@@ -1,7 +1,7 @@
-"""Turn-scoped mutable state for the unified gold loop.
+"""Turn-scoped mutable state for the gold agent loop.
 
 RequestContext stays a frozen routing snapshot. Tools read ``current_turn_session()``.
-This ContextVar is only bound when LONORA_UNIFIED_LOOP is not off.
+The ContextVar is bound per operator turn by ``AgentLoop._process_message``.
 """
 
 from __future__ import annotations

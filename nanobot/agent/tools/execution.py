@@ -145,13 +145,10 @@ async def _execute_tool_call(
 
     await hook.before_execute_tool(context, tool_call, tool, params)
     try:
-        from nanobot.trading.config import peek_unified_loop_env, unified_loop_serving
+        from nanobot.trading.policy_guard import validate_tool_call
 
-        if peek_unified_loop_env() is not None and unified_loop_serving():
-            from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
-
-            permit = validate_tool_call(tool_call.name, dict(params or {}))
-            params = permit.args
+        permit = validate_tool_call(tool_call.name, dict(params or {}))
+        params = permit.args
         if tool is not None:
             result = await tool.execute(**params)
         else:

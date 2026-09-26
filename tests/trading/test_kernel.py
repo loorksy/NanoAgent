@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -127,42 +127,6 @@ async def test_gate_veto_wait_never_flips_side(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_shadow_kernel_never_stores(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("LONORA_UNIFIED_LOOP", "shadow")
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
-    install_evidence_stubs(monkeypatch, gate_allowed=True)
-
-    async def _synth(*_a, **_k):
-        return _buy_decision()
-
-    async def _chain(*_a, **_k):
-        return GateChainResult(verdicts=[], allowed=True, confidence_delta=0)
-
-    async def _reprice(chain, gates, plan, rec):
-        return chain, plan, rec
-
-    monkeypatch.setattr("nanobot.trading.kernel.refuse_repeat_error", lambda **_k: None)
-    monkeypatch.setattr("nanobot.trading.kernel.run_final_decision_synthesizer", _synth)
-    monkeypatch.setattr("nanobot.trading.kernel.run_gate_chain", _chain)
-    monkeypatch.setattr(
-        "nanobot.trading.gates.reprice_loop.apply_g7_reprice_loop",
-        _reprice,
-    )
-    monkeypatch.setattr("nanobot.trading.kernel.fetch_quote", lambda *_a, **_k: None)
-
-    with turn_session_scope(TurnSession(session_key="chat:shadow")):
-        result = await run_trading_kernel(
-            gather_missing=True,
-            store=True,
-            session_key="chat:shadow",
-            present_ui=False,
-        )
-    assert result.recommendation_id in {None, ""}
-    assert latest_live_recommendation("chat:shadow") is None
-
-
-@pytest.mark.asyncio
 async def test_pipeline_context_shared_across_fetch_evidence_calls(monkeypatch) -> None:
     market = fake_market()
     calls = {"market": 0}
@@ -189,8 +153,7 @@ async def test_pipeline_context_shared_across_fetch_evidence_calls(monkeypatch) 
 
 
 @pytest.mark.asyncio
-async def test_get_gold_quote_alias_uses_market_data_when_on(monkeypatch) -> None:
-    monkeypatch.setenv("LONORA_UNIFIED_LOOP", "on")
+async def test_get_gold_quote_uses_market_data_node(monkeypatch) -> None:
     payload = {
         "aborted": False,
         "nodes": {
@@ -204,20 +167,15 @@ async def test_get_gold_quote_alias_uses_market_data_when_on(monkeypatch) -> Non
         "display": {"bid": "2399.50", "ask": "2400.50", "mid": "2400.00"},
     }
     monkeypatch.setattr(
-        "nanobot.trading.unified_evidence.fetch_evidence_nodes",
+        "nanobot.agent.tools.trading_chart.fetch_evidence_nodes",
         AsyncMock(return_value=payload),
+    )
+    monkeypatch.setattr(
+        "nanobot.agent.tools.trading_chart.load_trading_config",
+        lambda: MagicMock(oanda_configured=True),
     )
     tool = GetGoldQuoteTool(bus=None)
     raw = await tool.execute()
     body = json.loads(raw)
     assert body["display"]["mid"] == "2400.00"
     assert body["symbol"] == "XAUUSD"
-
-
-def test_plan_turn_still_attaches_cards_when_flag_off(monkeypatch) -> None:
-    monkeypatch.delenv("LONORA_UNIFIED_LOOP", raising=False)
-    from nanobot.trading.turn_planner import plan_turn
-
-    plan = plan_turn("كم سعر الذهب؟")
-    assert plan.mode == "market_data_only"
-    assert "market_data" in plan.nodes

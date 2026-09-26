@@ -109,22 +109,22 @@ async def test_market_data_failure_aborts_graph(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_orchestrator_uses_evidence_graph(monkeypatch):
-    from nanobot.trading.orchestrator import run_unified_chart_agent
+    from nanobot.trading.kernel import run_trading_kernel
     from tests.trading.evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
-    result = await run_unified_chart_agent(store=False)
+    result = await run_trading_kernel(store=False)
     assert result.decision is not None
     stage_names = [s["stage"] for s in result.stages]
     assert "market_data" in stage_names
     assert "structure" in stage_names
-    assert "research" in stage_names
+    assert "final_decision" in stage_names
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
     from nanobot.trading.intel.postmortem import LossRecord
-    from nanobot.trading.orchestrator import run_unified_chart_agent
+    from nanobot.trading.kernel import run_trading_kernel
     from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
     from tests.trading.evidence_stubs import install_evidence_stubs
 
@@ -147,11 +147,11 @@ async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
             recommendation=rec,
         )
 
-    monkeypatch.setattr("nanobot.trading.orchestrator.run_final_decision_synthesizer", _buy)
+    monkeypatch.setattr("nanobot.trading.kernel.run_final_decision_synthesizer", _buy)
     monkeypatch.setattr(
-        "nanobot.trading.orchestrator.refuse_repeat_error",
+        "nanobot.trading.kernel.refuse_repeat_error",
         lambda **_k: LossRecord(2400, 2385, 1, "unknown", "structure", 10.0, "early_entry", "buy"),
     )
-    result = await run_unified_chart_agent(store=False)
+    result = await run_trading_kernel(store=False)
     assert result.decision.decision == "wait"
     assert "losing" in (result.decision.summary or "").lower()

@@ -92,15 +92,20 @@ async def fetch_evidence_nodes(
     refresh: bool = False,
     session: TurnSession | None = None,
     visual_capture: Any | None = None,
+    track: Any | None = None,
 ) -> dict[str, Any]:
-    """Run a subgraph on the turn PipelineContext and return JSON slices."""
+    """Run a subgraph on the turn PipelineContext and return JSON slices.
+
+    ``track`` receives every stage event so callers (the kernel) can surface
+    the evidence timeline alongside the final decision.
+    """
     turn = session or current_turn_session() or require_turn_session()
     requested = tuple(node_ids)
     unknown = sorted(set(requested) - set(NODE_REGISTRY))
     if unknown:
         from nanobot.trading.policy_guard import PolicyViolation
 
-        raise PolicyViolation(f"Unknown evidence nodes: {', '.join(unknown)}", plan=None)
+        raise PolicyViolation(f"Unknown evidence nodes: {', '.join(unknown)}")
 
     require_gold(DATA_SYMBOL)
     pipeline = turn.ensure_pipeline(interval=interval)
@@ -118,7 +123,7 @@ async def fetch_evidence_nodes(
 
     if expanded:
         graph = graph_for_nodes(expanded)
-        pipeline = await run_evidence_graph(pipeline, graph)
+        pipeline = await run_evidence_graph(pipeline, graph, track=track)
         turn.pipeline = pipeline
         for node_id in sorted(expanded):
             if node_id not in turn.nodes_fetched:

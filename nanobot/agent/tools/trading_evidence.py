@@ -1,4 +1,4 @@
-"""Unified-loop evidence tool — registered only when LONORA_UNIFIED_LOOP is not off."""
+"""Evidence tool — fetches evidence nodes into the turn-scoped pipeline context."""
 
 from __future__ import annotations
 
@@ -6,14 +6,12 @@ import json
 from typing import Any
 
 from nanobot.agent.tools.base import Tool, ToolResult, tool_parameters
-from nanobot.agent.tools.context import ToolContext
 from nanobot.agent.tools.schema import (
     ArraySchema,
     BooleanSchema,
     StringSchema,
     tool_parameters_schema,
 )
-from nanobot.trading.config import unified_loop_serving
 from nanobot.trading.evidence.nodes import NODE_REGISTRY
 from nanobot.trading.gold import DATA_SYMBOL
 from nanobot.trading.unified_evidence import fetch_evidence_nodes
@@ -40,10 +38,6 @@ class FetchEvidenceTool(Tool):
     """Fetch Evidence Nodes into the turn-scoped PipelineContext."""
 
     _scopes = {"core", "subagent"}
-
-    @classmethod
-    def enabled(cls, ctx: ToolContext) -> bool:
-        return unified_loop_serving()
 
     @property
     def name(self) -> str:

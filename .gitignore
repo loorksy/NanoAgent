@@ -105,3 +105,8 @@ exp/
 bridge/node_modules/
 webui/.verify-*
 .playwright-cli/
+
+# JS workspaces
+mobile/node_modules/
+packages/*/node_modules/
+mobile/.expo/

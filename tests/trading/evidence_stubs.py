@@ -91,7 +91,7 @@ def install_evidence_stubs(monkeypatch: Any, *, gate_allowed: bool = True) -> di
         async def _allowed(*_a, **_k):
             return allowed
 
-        monkeypatch.setattr("nanobot.trading.orchestrator.run_gate_chain", _allowed)
+        monkeypatch.setattr("nanobot.trading.kernel.run_gate_chain", _allowed)
 
         async def _no_reprice(chain, gates, plan, rec):
             return chain, plan, rec

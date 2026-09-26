@@ -11,10 +11,9 @@ from nanobot.trading.agents.apply_model_decision import (
 )
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.drawings.plan import build_drawing_plan
-from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.kernel import run_trading_kernel
 from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from nanobot.trading.recommendations.tradability import assess_plan_tradability
-from nanobot.trading.turn_planner import plan_turn
 from nanobot.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
@@ -187,13 +186,6 @@ def test_scenario_path_pins_to_target_and_stop() -> None:
     assert "alternative_scenario_path" in kinds
 
 
-def test_plan_turn_followup_when_live() -> None:
-    turn = plan_turn("اعطيني توصية", active_recommendation_live=True)
-    assert turn.mode == "recommendation_supersede"
-    assert turn.requested_new_plan is True
-    assert turn.tools.run_full_pipeline is False
-
-
 @pytest.mark.asyncio
 async def test_synthesizer_uses_fake_llm_not_selected_candidate() -> None:
     async def fake_complete(_messages):
@@ -326,15 +318,11 @@ async def test_live_plan_followup_does_not_call_synthesizer(tmp_path, monkeypatc
         called["n"] += 1
         raise AssertionError("synthesizer must not run on follow-up")
 
-    result = await run_unified_chart_agent(
-        store=True,
-        session_key="chat:1",
-        followup_only=True,
-        complete=boom,
-    )
+    from nanobot.trading.kernel import LivePlanActive
+
+    with pytest.raises(LivePlanActive):
+        await run_trading_kernel(store=True, session_key="chat:1", complete=boom)
     assert called["n"] == 0
-    assert "متابعة" in result.decision.summary or "follow-up" in result.decision.summary.lower()
-    assert result.team_mode == "followup"
 
 
 @pytest.mark.asyncio

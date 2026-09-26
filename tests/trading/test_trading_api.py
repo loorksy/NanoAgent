@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -170,7 +169,7 @@ async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     )
     seen: dict[str, object] = {}
 
-    async def fake_core(*, interval: str, team_mode: str, visual_capture=None):
+    async def fake_core(*, interval: str, team_mode: str, visual_capture=None, **_kwargs):
         ctx = current_request_context()
         seen["runtime"] = ctx.runtime if ctx else None
         seen["team_mode"] = team_mode
@@ -178,7 +177,7 @@ async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
         seen["visual_capture"] = visual_capture
         return _fake_final(decision="wait", confidence=0.0)
 
-    monkeypatch.setattr("nanobot.webui.trading_api.run_unified_chart_agent", fake_core)
+    monkeypatch.setattr("nanobot.trading.kernel.run_trading_kernel", fake_core)
     response = await handle_trading_analyze(
         _request("/api/trading/analyze?interval=15m&team_mode=core"),
     )

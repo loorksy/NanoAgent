@@ -108,27 +108,22 @@ class RunTradingTeamTool(Tool):
         except Exception as exc:
             return ToolResult.error(f"Swarm preset failed: {exc}")
 
-        from nanobot.trading.config import unified_loop_serving
+        from nanobot.trading.kernel import run_trading_kernel
+        from nanobot.trading.policy_guard import PolicyViolation
 
-        if unified_loop_serving():
-            from nanobot.trading.kernel import run_trading_kernel
-            from nanobot.trading.policy_guard import PolicyViolation
-
-            try:
-                final = await run_trading_kernel(
-                    interval=interval,
-                    team_mode=f"swarm:{preset_name}",
-                    gather_missing=True,
-                    team_briefing=swarm.get("team_briefing"),
-                    present_ui=publish_ui,
-                    emit=publisher.sync_emit if publish_ui else None,
-                )
-            except PolicyViolation as exc:
-                return ToolResult.error(str(exc.reason))
-            except Exception as exc:
-                return ToolResult.error(f"Swarm preset failed: {exc}")
-        else:
-            final = swarm.get("final")
+        try:
+            final = await run_trading_kernel(
+                interval=interval,
+                team_mode=f"swarm:{preset_name}",
+                gather_missing=True,
+                team_briefing=swarm.get("team_briefing"),
+                present_ui=publish_ui,
+                emit=publisher.sync_emit if publish_ui else None,
+            )
+        except PolicyViolation as exc:
+            return ToolResult.error(str(exc.reason))
+        except Exception as exc:
+            return ToolResult.error(f"Swarm preset failed: {exc}")
         if final is None:
             return ToolResult.error("Swarm produced no final analysis")
 

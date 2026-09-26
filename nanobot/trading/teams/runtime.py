@@ -1,4 +1,9 @@
-"""YAML DAG swarm executor with real team subagents."""
+"""YAML DAG swarm executor with real team subagents.
+
+Teams are invoked only as tools by the agent (``run_trading_team`` /
+``analyze_gold(team_mode=swarm)``). They produce briefs; ``run_trading_kernel``
+is the only path that turns a brief into a BUY/SELL decision.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +17,7 @@ import yaml
 
 from nanobot.trading.agents.macro_drivers import format_team_briefing, run_macro_drivers
 from nanobot.trading.agents.market_data import run_market_data_agent
-from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.i18n import tr
 from nanobot.trading.stage_events import emit_stage
 from nanobot.trading.teams.evidence_text import format_market_evidence
 from nanobot.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
@@ -65,7 +70,7 @@ def _format_swarm_briefing(
     task_summaries: dict[str, str],
     macro_briefing: str,
 ) -> str:
-    lines = [f"Swarm preset: {preset_name}"]
+    lines = [tr("team.swarm_preset", preset=preset_name)]
     for task_id, summary in task_summaries.items():
         lines.append(f"- {task_id}: {summary[:500]}")
     if macro_briefing:
@@ -86,8 +91,12 @@ async def run_swarm(
     interval: str = "15m",
     emit: Any | None = None,
     visual_capture: Any = None,
-    brief_only: bool | None = None,
 ) -> dict[str, Any]:
+    """Run every role of a preset and return their briefs (never a BUY/SELL).
+
+    ``emit`` and ``visual_capture`` are accepted for call-site compatibility; the
+    caller passes the returned ``team_briefing`` to ``run_trading_kernel``.
+    """
     preset = load_preset(preset_name)
     vars_ = {"target": "XAUUSD", "market": "forex", **(variables or {})}
     summaries: dict[str, str] = {}
@@ -106,12 +115,14 @@ async def run_swarm(
             )
             agent = next((a for a in preset.agents if a.id == task.agent_id), None)
             role = agent.role if agent else task.agent_id
+            system_prompt = agent.system_prompt if agent else ""
             prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
             summary = await run_team_role(
                 agent_id=task.agent_id,
                 role=role,
                 task_text=prompt,
                 evidence_text=evidence_text,
+                system_prompt=system_prompt,
                 manager=subagent_manager,
                 publisher=publisher,
                 layer=layer_index,
@@ -131,43 +142,13 @@ async def run_swarm(
     )
     macro_briefing = format_team_briefing(verdicts)
     team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
-
-    from nanobot.trading.config import unified_loop_serving
-
-    briefs_only = brief_only if brief_only is not None else unified_loop_serving()
-    if briefs_only:
-        duration_ms = int((time.time() - started) * 1000)
-        return {
-            "preset": preset_name,
-            "task_summaries": summaries,
-            "macro_drivers": [item.to_wire() for item in verdicts],
-            "team_briefing": team_briefing,
-            "team_agents": list(collector.agents),
-            "final": None,
-            "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
-        }
-
-    stage_emit = emit
-    if publisher is not None and stage_emit is None:
-        stage_emit = publisher.sync_emit
-
-    final = await run_unified_chart_agent(
-        interval=interval,
-        team_mode=f"swarm:{preset_name}",
-        team_briefing=team_briefing,
-        emit=stage_emit,
-        visual_capture=visual_capture,
-    )
-    final.team_agents = list(collector.agents)
-    final.macro_drivers = [item.to_wire() for item in verdicts]
     duration_ms = int((time.time() - started) * 1000)
-    final.stages = list(final.stages or [])
-    final.stages.append(
-        emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()
-    )
     return {
         "preset": preset_name,
         "task_summaries": summaries,
-        "macro_drivers": final.macro_drivers,
-        "final": final,
+        "macro_drivers": [item.to_wire() for item in verdicts],
+        "team_briefing": team_briefing,
+        "team_agents": list(collector.agents),
+        "final": None,
+        "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
     }

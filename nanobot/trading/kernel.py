@@ -1,8 +1,9 @@
-"""Privileged trading kernel — synthesizer + G1–G20 gates + store.
+"""Privileged trading kernel — the single BUY/SELL entry.
 
-Call sites (HTTP analyze, supersede approve, analyze_gold, run_trading_kernel tool)
-must go through this function when LONORA_UNIFIED_LOOP is on. Does not import
-or call MT5 execution helpers.
+``run_trading_kernel`` is the only function that runs the structured decision
+call (synthesizer), the G1–G20 gates, and the recommendation store. Every
+caller (analyze_gold / run_trading_kernel tools, run_trading_team, HTTP analyze,
+supersede approve) goes through it. Does not import or call MT5 execution helpers.
 """
 
 from __future__ import annotations
@@ -15,7 +16,6 @@ from nanobot.agent.tools.context import current_request_context
 from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
 from nanobot.trading.cards.artifacts import apply_result_artifacts
 from nanobot.trading.cards.derive import derive_cards
-from nanobot.trading.config import unified_loop_mode
 from nanobot.trading.drawings.plan import build_drawing_plan
 from nanobot.trading.evidence.context import PipelineContext
 from nanobot.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
@@ -26,7 +26,6 @@ from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gold import DATA_SYMBOL, require_gold
 from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.intel.postmortem import refuse_repeat_error
-from nanobot.trading.intent_router import route_intent
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.observability import log_gate_observability
@@ -49,8 +48,41 @@ from nanobot.trading.unified_evidence import fetch_evidence_nodes, record_market
 StageEmitter = Callable[[StageEvent], None]
 
 
+class LivePlanActive(PolicyViolation):
+    """One live recommendation per conversation: the kernel refuses a second plan.
+
+    Tools turn this into a structured ``{"ok": false, "reason_key": ...}`` result.
+    """
+
+    reason_key = "trading.live_plan_active"
+
+    def __init__(self, live: dict[str, Any]) -> None:
+        super().__init__(
+            "This conversation already has a live recommendation. "
+            "Use get_live_recommendation for status, manage_trading_plan to close it, "
+            "or pass force_new_plan=true once the operator confirms a new plan."
+        )
+        self.live = live
+
+
+class PlanCloseFailed(PolicyViolation):
+    """The live plan could not be archived before issuing a replacement."""
+
+    reason_key = "trading.plan_close_failed"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Could not close the active plan. Use manage_trading_plan with "
+            "action=close_plan first."
+        )
+
+
 def _noop_emit(_: StageEvent) -> None:
     return None
+
+
+def _intent_kind_for(team_mode: str) -> str:
+    return "team_swarm" if team_mode and team_mode != "core" else "recommendation"
 
 
 def _wait_decision(summary: str, reason: str, interval: str = "15m") -> FinalDecisionResult:
@@ -107,7 +139,11 @@ async def run_trading_kernel(
     reevaluate: bool = False,
     force_new_plan: bool = False,
 ) -> AgentFinalResult:
-    """Run synthesizer + G1–G20 gates. Never places broker orders."""
+    """Run evidence gathering + synthesizer + G1–G20 gates. Never places broker orders.
+
+    Raises ``LivePlanActive`` when the conversation already has a live plan and
+    neither ``reevaluate`` nor ``force_new_plan`` was requested.
+    """
     require_gold(symbol)
     symbol = DATA_SYMBOL
     emit_fn = emit or _noop_emit
@@ -116,9 +152,6 @@ async def run_trading_kernel(
     turn = current_turn_session() or require_turn_session()
     turn.session_key = key or turn.session_key
     turn.interval = interval
-
-    if unified_loop_mode() == "shadow":
-        store = False
 
     if key:
         sync_session_live_plan(key)
@@ -130,11 +163,7 @@ async def run_trading_kernel(
 
     live = latest_live_recommendation(key) if key else None
     if live and not reevaluate and not force_new_plan:
-        raise PolicyViolation(
-            "This conversation already has a live recommendation. "
-            "Use get_live_recommendation or pass force_new_plan=true.",
-            plan=None,
-        )
+        raise LivePlanActive(live)
     if live and force_new_plan and key:
         closed = close_plan_for_session(
             key,
@@ -143,7 +172,7 @@ async def run_trading_kernel(
             category="modified",
         )
         if not closed.get("ok"):
-            raise PolicyViolation("Could not close the active plan.", plan=None)
+            raise PlanCloseFailed()
         live = None
     if reevaluate and live and issued_side is None:
         issued_side = str(live.get("direction") or "") or None
@@ -164,14 +193,17 @@ async def run_trading_kernel(
     if missing:
         if not gather_missing:
             raise PolicyViolation(
-                "Missing synthesis evidence nodes: " + ", ".join(missing),
-                plan=None,
+                "Missing synthesis evidence nodes: " + ", ".join(missing)
             )
+        wanted = set(SYNTHESIS_REQUIRED_NODES)
+        if visual_capture is not None:
+            wanted.add("visual_capture")
         await fetch_evidence_nodes(
-            list(SYNTHESIS_REQUIRED_NODES),
+            sorted(wanted),
             interval=interval,
             session=turn,
             visual_capture=visual_capture,
+            track=track,
         )
         ctx = turn.ensure_pipeline(interval=interval)
         turn.adjustments.append("injected_required_nodes:" + ",".join(missing))
@@ -400,12 +432,11 @@ async def run_trading_kernel(
     if present_ui:
         operator = _operator_text()
         locale = locale_from_text(operator)
-        intent = route_intent(operator)
         result.cards = derive_cards(result, locale=locale)
         apply_result_artifacts(
             result,
             operator_text=operator,
-            intent_kind=intent.kind,
+            intent_kind=_intent_kind_for(team_mode),
             locale=locale,
         )
     _record_plan_prices(result)
