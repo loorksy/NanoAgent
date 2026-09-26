@@ -2,6 +2,7 @@
 	import { onMount, getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
+	import ProviderMark from './ProviderMark.svelte';
 
 	const i18n = getContext<{ language?: string }>('i18n');
 
@@ -77,11 +78,6 @@
 
 	function labelOf(provider: Provider): string {
 		return provider.label || provider.name;
-	}
-
-	function mark(provider: Provider): string {
-		const source = labelOf(provider).trim();
-		return (source[0] || '?').toUpperCase();
 	}
 
 	function liftToBody(node: HTMLElement) {
@@ -380,9 +376,7 @@
 				on:click={() => openProvider(provider)}
 			>
 				<span class="flex min-w-0 items-center gap-3">
-					<span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs font-semibold dark:bg-gray-800">
-						{mark(provider)}
-					</span>
+					<ProviderMark name={provider.name} label={labelOf(provider)} />
 					<span class="min-w-0">
 						<span class="block truncate text-sm">{labelOf(provider)}</span>
 						{#if provider.name === 'claude_code_cli'}
@@ -408,11 +402,17 @@
 	</div>
 	{#if adding}
 		<div class="flex max-h-64 flex-col overflow-auto rounded-xl border border-gray-200 dark:border-gray-800">
-			<button type="button" class="px-3 py-2 text-left text-sm" on:click={openCustom}>
+			<button type="button" class="flex items-center gap-3 px-3 py-2 text-left text-sm" on:click={openCustom}>
+				<ProviderMark name="custom" label={text('custom_provider')} />
 				{text('custom_provider')}
 			</button>
 			{#each unconfigured as provider (provider.name)}
-				<button type="button" class="px-3 py-2 text-left text-sm" on:click={() => openProvider(provider)}>
+				<button
+					type="button"
+					class="flex items-center gap-3 px-3 py-2 text-left text-sm"
+					on:click={() => openProvider(provider)}
+				>
+					<ProviderMark name={provider.name} label={labelOf(provider)} />
 					{labelOf(provider)}
 				</button>
 			{/each}
@@ -434,8 +434,12 @@
 			on:click|stopPropagation
 		>
 			<div class="mb-3 flex items-center justify-between gap-3">
-				<h3 class="text-base font-medium">
-					{selected ? labelOf(selected) : text('custom_provider')}
+				<h3 class="flex min-w-0 items-center gap-2 text-base font-medium">
+					<ProviderMark
+						name={selected ? selected.name : 'custom'}
+						label={selected ? labelOf(selected) : text('custom_provider')}
+					/>
+					<span class="truncate">{selected ? labelOf(selected) : text('custom_provider')}</span>
 				</h3>
 				<button type="button" class="text-gray-500" on:click={close} aria-label={text('cancel')}>×</button>
 			</div>
