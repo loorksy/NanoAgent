@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "risk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["risk_pct", "blockers"],
+  "properties": {
+    "risk_pct": {"type": "number", "minimum": 0},
+    "lot": {"type": ["number", "null"], "minimum": 0},
+    "rr": {"type": ["number", "null"], "minimum": 0},
+    "daily_dd_used_pct": {"type": ["number", "null"], "minimum": 0},
+    "open_positions": {"type": ["integer", "null"], "minimum": 0},
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gate", "reason_key"],
+        "properties": {
+          "gate": {"type": "string"},
+          "reason_key": {"type": "string"}
+        }
+      }
+    }
+  }
+}

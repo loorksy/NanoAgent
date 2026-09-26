@@ -19,12 +19,13 @@ async def test_get_gold_quote_unconfigured() -> None:
     with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
         cfg.return_value = MagicMock(oanda_configured=False)
         result = await tool.execute()
-    assert "market data" in result.lower()
+    payload = json.loads(str(result))
+    assert payload["ok"] is False
+    assert payload["reason_key"] == "trading.market_feed_unconfigured"
 
 
 @pytest.mark.asyncio
-async def test_analyze_gold_publishes_result_when_present_ui(monkeypatch) -> None:
-    monkeypatch.setenv("LONORA_AGENT_FIRST", "true")
+async def test_analyze_gold_publishes_result_when_present_ui() -> None:
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
     tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
@@ -56,15 +57,11 @@ async def test_analyze_gold_publishes_result_when_present_ui(monkeypatch) -> Non
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_chart.latest_live_recommendation",
-            return_value=None,
+            "nanobot.agent.tools.trading_chart.run_trading_kernel",
+            new_callable=AsyncMock,
+            return_value=fake_result,
         ):
-            with patch(
-                "nanobot.agent.tools.trading_chart.run_unified_chart_agent",
-                new_callable=AsyncMock,
-                return_value=fake_result,
-            ):
-                raw = await tool.execute(interval="15m", present_ui=True)
+            raw = await tool.execute(interval="15m", present_ui=True)
     payload = json.loads(raw)
     assert payload["decision"] == "wait"
     assert bus.publish_outbound.await_count >= 2

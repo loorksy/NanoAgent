@@ -161,11 +161,11 @@ async def test_message_tool_basic_request_context_and_execute() -> None:
 
     tool = MessageTool(send_callback=send_callback)
     with request_context(
-        RequestContext(channel="telegram", chat_id="chat-123", message_id="msg-456")
+        RequestContext(channel="telegram", chat_id="5969744996", message_id="msg-456")
     ):
         result = await tool.execute(content="hello")
-    assert result == "Message sent to telegram:chat-123"
-    assert seen == [("telegram", "chat-123", "hello")]
+    assert result == "Message sent to telegram:5969744996"
+    assert seen == [("telegram", "5969744996", "hello")]
 
 
 @pytest.mark.asyncio

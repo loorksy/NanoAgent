@@ -8,6 +8,7 @@ from nanobot.trading.geometry.detectors import (
     detect_divergence,
     detect_fair_value_gaps,
     fibonacci_retracement,
+    momentum_score,
 )
 from nanobot.trading.types import Candle, StructureResult
 
@@ -45,5 +46,6 @@ def build_geometry_snapshot(
         "fvg": detect_fair_value_gaps(bars),
         "fibonacci": fibonacci_retracement(structure.swings),
         "divergence": detect_divergence(bars, structure.swings),
+        "momentum_score": momentum_score(bars),
         "source": "deterministic_swings",
     }

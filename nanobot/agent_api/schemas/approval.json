@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["approval_id", "type", "summary", "actions"],
+  "properties": {
+    "approval_id": {"type": "string"},
+    "type": {"type": "string", "enum": ["execution", "modify", "close", "generic"]},
+    "summary": {"type": "string"},
+    "expires_at": {"type": ["integer", "null"]},
+    "actions": {"type": "array", "items": {"type": "string", "enum": ["confirm", "cancel"]}},
+    "permission_level": {"type": ["string", "null"], "enum": ["recommend", "propose", "execute", null]},
+    "status": {"type": ["string", "null"], "enum": ["pending", "confirmed", "cancelled", "expired", "failed", null]},
+    "details": {"type": ["object", "null"]}
+  }
+}

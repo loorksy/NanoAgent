@@ -8,8 +8,10 @@ from dataclasses import dataclass
 
 import httpx
 
-HAWKISH = ("hike", "restrictive", "inflation remains", "higher for longer", "tightening")
-DOVISH = ("cut", "easing", "slowdown", "downside risks", "employment cooling")
+from nanobot.trading.intel import lexicon
+
+HAWKISH = lexicon.load("hawkish")
+DOVISH = lexicon.load("dovish")
 
 
 @dataclass(frozen=True)

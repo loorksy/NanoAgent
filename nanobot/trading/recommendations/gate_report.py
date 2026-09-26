@@ -74,11 +74,11 @@ def build_gate_report_result(
             decision="wait",
             confidence=0.0,
             summary=tr("followup.no_live_plan", loc),
-            key_reasons=["no live plan"],
+            key_reasons=[tr("followup.no_live_plan_reason", loc)],
             risk_warnings=[],
             recommendation=AgentRecommendation(action="wait"),
             execution_state="blocked",
-            refusal_summary="no live plan",
+            refusal_summary=tr("followup.no_live_plan_reason", loc),
         )
         return AgentFinalResult(decision=decision, team_mode="gate_report")
 
@@ -96,7 +96,7 @@ def build_gate_report_result(
         confidence=float(row.get("confidence") or 0.5),
         summary=summary,
         key_reasons=[str(row.get("summary") or "")],
-        risk_warnings=["Gate report from stored recommendation — synthesizer not called"],
+        risk_warnings=[tr("gate_report.synth_not_called", loc)],
         recommendation=AgentRecommendation(
             action=direction if direction in ("buy", "sell") else "wait",
             entry=float(row["entry"]) if row.get("entry") is not None else None,

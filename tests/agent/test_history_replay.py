@@ -86,7 +86,7 @@ async def test_process_message_hands_complete_replay_to_runner(tmp_path: Path) -
 
 @pytest.mark.asyncio
 async def test_runner_checkpoint_keeps_current_user_as_replay_boundary(tmp_path: Path) -> None:
-    loop = _make_loop(tmp_path, context_window_tokens=8_000)
+    loop = _make_loop(tmp_path, context_window_tokens=10_000)
     loop.provider.chat_stream_with_retry = AsyncMock(
         return_value=LLMResponse(content="ok", tool_calls=[], usage=None)
     )

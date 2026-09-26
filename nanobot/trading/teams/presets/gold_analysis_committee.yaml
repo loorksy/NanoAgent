@@ -5,14 +5,19 @@ description: Parallel macro/structure/liquidity analysts then risk and lead
 agents:
   - id: macro_analyst
     role: Macro Analyst
+    system_prompt: role:macro
   - id: structure_analyst
     role: Structure Analyst
+    system_prompt: role:structure
   - id: liquidity_analyst
     role: Liquidity Analyst
+    system_prompt: role:liquidity
   - id: risk_officer
     role: Risk Officer
+    system_prompt: role:risk
   - id: lead_analyst
     role: Lead Analyst
+    system_prompt: role:lead
 
 tasks:
   - id: task-macro

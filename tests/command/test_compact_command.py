@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from nanobot.agent.loop import AgentLoop
+from nanobot.agent.tools.context import RequestContext
 from nanobot.bus.events import InboundMessage
 from nanobot.bus.outbound_events import ContextCompactionEvent
 from nanobot.bus.queue import MessageBus
@@ -123,9 +124,15 @@ async def test_checkpoint_continues_through_reloaded_session(loop, trigger, summ
     loop.provider.chat_stream_with_retry.assert_awaited_once()
     sent = loop.provider.chat_stream_with_retry.call_args.kwargs["messages"]
     expected_summary = reloaded.metadata["_last_summary"] if summary != "(nothing)" else None
+    request = RequestContext(channel="cli", chat_id="checkpoint-resume", session_key=key)
     assert sent[0] == {
         "role": "system",
-        "content": loop.context.build_system_prompt(channel="cli", session_summary=expected_summary),
+        "content": loop.context.build_system_prompt(
+            channel="cli",
+            session_summary=expected_summary,
+            tool_names=list(loop.tools.tool_names),
+            facts=loop._collect_prompt_facts(request),
+        ),
     }
     assert [message["role"] for message in sent] == ["system", "user", "user"]
     assert sent[1] == {"role": "user", "content": SUMMARY_CONTINUATION_TEXT}

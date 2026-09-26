@@ -1,0 +1,289 @@
+"""Connection / risk / permissions / runtime controls (``/api/v2/connect``, ``/api/v2/control``).
+
+Write paths reuse the WebUI trading-risk actions so both surfaces persist
+through the same validation, derivation and audit code (04 §4, 08).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Literal, cast
+
+from aiohttp import web
+
+from nanobot.agent_api.auth import require_scope
+from nanobot.agent_api.context import services
+from nanobot.agent_api.errors import ApiError
+from nanobot.agent_api.events import JsonObject, notification_data
+from nanobot.agent_api.routes._util import json_body, ok, optional_str, require_str
+
+RuntimeField = Literal["paused", "kill_switch", "paper_mode"]
+CONTROL_SESSION = "system"
+
+
+def _risk_error(exc: BaseException) -> ApiError:
+    status = getattr(exc, "status", 400)
+    message = getattr(exc, "message", str(exc))
+    return ApiError(
+        status if isinstance(status, int) else 400,
+        "trading_risk_error",
+        details={"message": str(message)},
+    )
+
+
+async def _risk_action(
+    request: web.Request,
+    action: str,
+    query: dict[str, list[str]],
+    *,
+    who: str | None = None,
+) -> JsonObject:
+    from nanobot.webui.trading_risk_api import TradingRiskError, trading_risk_action
+
+    svc = services(request)
+    try:
+        result = await asyncio.to_thread(
+            trading_risk_action,
+            action,
+            query,
+            config_path=svc.config_path,
+            who=who,
+        )
+    except TradingRiskError as exc:
+        raise _risk_error(exc) from exc
+    return cast(JsonObject, result)
+
+
+def _risk_payload(request: web.Request) -> JsonObject:
+    from nanobot.webui.trading_risk_api import trading_risk_payload
+
+    return cast(JsonObject, trading_risk_payload(config_path=services(request).config_path))
+
+
+def _permissions_payload(request: web.Request) -> JsonObject:
+    from nanobot.webui.trading_risk_api import mt5_permissions_payload
+
+    return cast(JsonObject, mt5_permissions_payload(config_path=services(request).config_path))
+
+
+def _runtime_state() -> JsonObject:
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    return cast(JsonObject, get_runtime_store().snapshot().to_dict())
+
+
+def _brokers() -> JsonObject:
+    from nanobot.trading.config import load_trading_config
+
+    cfg = load_trading_config()
+    return {
+        "oanda": {
+            "configured": cfg.oanda_configured,
+            "env": cfg.oanda_env,
+            "account_id": cfg.oanda_account_id or "",
+        },
+        "metaapi": cast(JsonObject, cfg.public_metaapi()),
+    }
+
+
+def _risk_state() -> JsonObject:
+    from nanobot.trading.risk_state import get_risk_store
+
+    state = get_risk_store().snapshot()
+    return {
+        "consecutive_losses": state.consecutive_losses,
+        "cooldown_until_ms": state.cooldown_until_ms,
+        "cooldown_reason": state.cooldown_reason,
+        "daily_pnl_pct": state.daily_pnl_pct,
+        "open_positions": state.open_positions,
+        "emergency_lock": state.emergency_lock,
+        "news_day": state.news_day,
+        "holiday": state.holiday,
+        "feature_toggles": dict(state.feature_toggles),
+    }
+
+
+def _connect_snapshot(request: web.Request) -> JsonObject:
+    risk = _risk_payload(request)
+    permissions = _permissions_payload(request)
+    return {
+        "brokers": _brokers(),
+        "runtime_state": _runtime_state(),
+        "risk_state": _risk_state(),
+        "risk": {
+            "profile": risk.get("profile"),
+            "values": risk.get("values"),
+            "groups": risk.get("groups"),
+            "toggles": risk.get("toggles"),
+            "locked_toggles": risk.get("locked_toggles"),
+        },
+        "mt5_permissions": {
+            "permissions": permissions.get("permissions"),
+            "effective": permissions.get("effective"),
+            "levels": permissions.get("levels"),
+            "actions": permissions.get("actions"),
+            "sessions": permissions.get("sessions"),
+        },
+    }
+
+
+# -- handlers -------------------------------------------------------------------
+
+
+async def get_connect(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    snapshot = await asyncio.to_thread(_connect_snapshot, request)
+    return ok(snapshot)
+
+
+async def get_risk(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    return ok(await asyncio.to_thread(_risk_payload, request))
+
+
+async def put_risk_profile(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    body = await json_body(request)
+    name = require_str(body, "name").strip().lower()
+    return ok(await _risk_action(request, "profile", {"name": [name]}))
+
+
+async def put_risk_field(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    body = await json_body(request)
+    if "value" not in body:
+        raise ApiError(400, "invalid_field", details={"field": "value"})
+    field = request.match_info["field"]
+    query: dict[str, list[str]] = {
+        "values": [json.dumps({field: body["value"]}, default=str)],
+    }
+    if body.get("derive", True):
+        query["derive"] = ["1"]
+    return ok(await _risk_action(request, "update", query))
+
+
+async def put_risk(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    body = await json_body(request)
+    query: dict[str, list[str]] = {}
+    values = body.get("values")
+    toggles = body.get("toggles")
+    if isinstance(values, dict):
+        query["values"] = [json.dumps(values, default=str)]
+    if isinstance(toggles, dict):
+        query["toggles"] = [json.dumps(toggles, default=str)]
+    if not query:
+        raise ApiError(400, "invalid_field", details={"field": "values|toggles"})
+    if body.get("derive", True):
+        query["derive"] = ["1"]
+    return ok(await _risk_action(request, "update", query))
+
+
+async def get_permissions(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    return ok(await asyncio.to_thread(_permissions_payload, request))
+
+
+async def put_permissions(request: web.Request) -> web.Response:
+    principal = require_scope(request, "control")
+    body = await json_body(request)
+    permissions = body.get("permissions", body)
+    if not isinstance(permissions, dict):
+        raise ApiError(400, "invalid_field", details={"field": "permissions"})
+    who = optional_str(body, "who") or f"{principal['kind']}:{principal['client_id']}"
+    result = await _risk_action(
+        request,
+        "mt5-permissions-update",
+        {"permissions": [json.dumps(permissions, default=str)]},
+        who=who,
+    )
+    return ok(result)
+
+
+def _set_runtime(field: RuntimeField, enabled: bool) -> JsonObject:
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    state = get_runtime_store().update(**{field: enabled})
+    from nanobot.trading.policy import invalidate_live_cache
+
+    invalidate_live_cache()
+    return cast(JsonObject, state.to_dict())
+
+
+async def _control(
+    request: web.Request,
+    field: RuntimeField,
+    *,
+    default: bool,
+    label_key: str,
+) -> web.Response:
+    principal = require_scope(request, "control")
+    body = await json_body(request, optional=True)
+    enabled = body.get("enabled", default)
+    if not isinstance(enabled, bool):
+        raise ApiError(400, "invalid_field", details={"field": "enabled"})
+    state = await asyncio.to_thread(_set_runtime, field, enabled)
+    svc = services(request)
+    svc.hub.publish(
+        CONTROL_SESSION,
+        "notification",
+        notification_data(
+            "warning" if enabled and field != "paper_mode" else "info",
+            label_key,
+            f"{label_key}.{'on' if enabled else 'off'}",
+            args={"by": principal["client_id"], "field": field, "enabled": enabled},
+        ),
+    )
+    return ok({"runtime_state": state, "changed": field, "enabled": enabled})
+
+
+async def control_kill(request: web.Request) -> web.Response:
+    return await _control(request, "kill_switch", default=True, label_key="control.kill_switch")
+
+
+async def control_pause(request: web.Request) -> web.Response:
+    return await _control(request, "paused", default=True, label_key="control.pause")
+
+
+async def control_resume(request: web.Request) -> web.Response:
+    principal = require_scope(request, "control")
+    state = await asyncio.to_thread(_set_runtime, "paused", False)
+    services(request).hub.publish(
+        CONTROL_SESSION,
+        "notification",
+        notification_data(
+            "info",
+            "control.pause",
+            "control.pause.off",
+            args={"by": principal["client_id"], "field": "paused", "enabled": False},
+        ),
+    )
+    return ok({"runtime_state": state, "changed": "paused", "enabled": False})
+
+
+async def control_paper_mode(request: web.Request) -> web.Response:
+    return await _control(request, "paper_mode", default=True, label_key="control.paper_mode")
+
+
+async def get_control(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    return ok({"runtime_state": await asyncio.to_thread(_runtime_state)})
+
+
+def register(router: web.UrlDispatcher, prefix: str) -> None:
+    router.add_get(f"{prefix}/connect", get_connect)
+    router.add_get(f"{prefix}/connect/risk", get_risk)
+    router.add_put(f"{prefix}/connect/risk", put_risk)
+    router.add_put(f"{prefix}/connect/risk-profile", put_risk_profile)
+    router.add_put(f"{prefix}/connect/risk/{{field}}", put_risk_field)
+    router.add_get(f"{prefix}/connect/mt5/permissions", get_permissions)
+    router.add_put(f"{prefix}/connect/mt5/permissions", put_permissions)
+    router.add_get(f"{prefix}/control", get_control)
+    router.add_post(f"{prefix}/control/kill", control_kill)
+    router.add_post(f"{prefix}/control/pause", control_pause)
+    router.add_post(f"{prefix}/control/resume", control_resume)
+    router.add_post(f"{prefix}/control/paper-mode", control_paper_mode)
+
+
+__all__ = ["CONTROL_SESSION", "register"]

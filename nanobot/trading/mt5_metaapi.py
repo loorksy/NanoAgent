@@ -35,8 +35,10 @@ class MetaApiTransport(Protocol):
     async def open_positions(self) -> list[dict[str, Any]]: ...
     async def open_orders(self) -> list[dict[str, Any]]: ...
     async def send_market(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+    async def send_pending(self, payload: dict[str, Any]) -> dict[str, Any]: ...
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]: ...
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+    async def close_partial(self, payload: dict[str, Any]) -> dict[str, Any]: ...
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
@@ -83,10 +85,21 @@ class NullTransport:
             "payload": payload,
         }
 
+    async def send_pending(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "ok": False,
+            "error": self.reason,
+            "reason_key": self.reason_key,
+            "payload": payload,
+        }
+
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
+
+    async def close_partial(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": self.reason, "reason_key": self.reason_key}
 
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -162,6 +175,30 @@ class SdkTransport:
             )
         return wrap_sdk_result(result)
 
+    async def send_pending(self, payload: dict[str, Any]) -> dict[str, Any]:
+        rpc = await self._conn()
+        kind = str(payload.get("kind") or "limit")
+        if kind not in {"limit", "stop"}:
+            kind = "limit"
+        side = str(payload.get("side") or "")
+        method_name = f"create_{kind}_{side}_order"
+        fn = getattr(rpc, method_name, None)
+        if fn is None:
+            return {
+                "ok": False,
+                "error": tr("mt5.pending_unsupported"),
+                "reason_key": "mt5.pending_unsupported",
+            }
+        result = await fn(
+            payload["symbol"],
+            payload["lot"],
+            payload["price"],
+            payload.get("stop"),
+            payload.get("take_profit"),
+            {"comment": payload.get("comment") or ""},
+        )
+        return wrap_sdk_result(result)
+
     async def modify_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         result = await rpc.modify_position(
@@ -174,6 +211,18 @@ class SdkTransport:
     async def close_position(self, payload: dict[str, Any]) -> dict[str, Any]:
         rpc = await self._conn()
         result = await rpc.close_position(payload["position_id"])
+        return wrap_sdk_result(result)
+
+    async def close_partial(self, payload: dict[str, Any]) -> dict[str, Any]:
+        rpc = await self._conn()
+        fn = getattr(rpc, "close_position_partially", None)
+        if fn is None:
+            return {
+                "ok": False,
+                "error": tr("mt5.partial_unsupported"),
+                "reason_key": "mt5.partial_unsupported",
+            }
+        result = await fn(payload["position_id"], payload["volume"])
         return wrap_sdk_result(result)
 
     async def cancel_order(self, payload: dict[str, Any]) -> dict[str, Any]:

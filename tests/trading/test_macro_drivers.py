@@ -18,9 +18,7 @@ from nanobot.trading.agents.macro_drivers import (
     run_macro_drivers,
     select_drivers,
 )
-from nanobot.trading.result_wire import result_to_wire
 from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
 
 
 def _friday_ts() -> float:
@@ -150,25 +148,8 @@ async def test_run_macro_drivers_uses_injected_search() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) -> None:
+async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
     reset_macro_cache_for_tests()
-    captured: dict[str, object] = {}
-
-    async def fake_chart_agent(**kwargs):
-        captured.update(kwargs)
-        return AgentFinalResult(
-            decision=FinalDecisionResult(
-                decision="wait",
-                confidence=0.0,
-                summary="stub",
-                key_reasons=[],
-                risk_warnings=[],
-                recommendation=AgentRecommendation(action="wait"),
-            ),
-            team_mode=str(kwargs.get("team_mode") or ""),
-            stages=[],
-        )
-
     async def search(query: str) -> str:
         return "DXY falling, gold ETF inflows, PBOC buying"
 
@@ -188,10 +169,6 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
             )
         return f"summary for {agent_id}"
 
-    monkeypatch.setattr(
-        "nanobot.trading.teams.runtime.run_unified_chart_agent",
-        fake_chart_agent,
-    )
     monkeypatch.setattr("nanobot.trading.teams.runtime.run_team_role", fake_team_role)
     monkeypatch.setattr(
         "nanobot.trading.teams.runtime.run_market_data_agent",
@@ -215,15 +192,12 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
         macro_events=[],
         macro_now=_friday_ts,
     )
-    assert captured["team_mode"] == "swarm:gold_analysis_committee"
-    assert captured["team_briefing"]
-    assert "macroDrivers" in str(captured["team_briefing"])
-    final = swarm["final"]
-    assert final.macro_drivers
-    assert any(stage.get("stage") == "macro_drivers" for stage in final.stages)
-    wire = result_to_wire(final)
-    assert wire["macroDrivers"]
-    assert wire["teamMode"] == "swarm:gold_analysis_committee"
-    # YAML DAG still recorded; it does not replace the unified agent.
+    assert swarm["preset"] == "gold_analysis_committee"
+    assert swarm["team_briefing"]
+    assert "macroDrivers" in str(swarm["team_briefing"])
+    assert swarm["macro_drivers"]
+    assert any(stage.get("stage") == "macro_drivers" for stage in swarm["stages"])
+    # Teams only brief; BUY/SELL authority stays with the kernel's synthesizer.
+    assert swarm["final"] is None
     assert swarm["task_summaries"]
-    assert swarm["final"].team_agents
+    assert swarm["team_agents"]

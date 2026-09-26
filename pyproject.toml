@@ -59,6 +59,7 @@ dependencies = [
     "python-docx>=1.1.0,<2.0.0",
     "openpyxl>=3.1.0,<4.0.0",
     "python-pptx>=1.0.0,<2.0.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]
@@ -149,6 +150,8 @@ include = [
     "nanobot/templates/**/*.md",
     "nanobot/skills/**/*.md",
     "nanobot/skills/**/*.sh",
+    "nanobot/trading/locales/*.json",
+    "nanobot/trading/intel/lexicon/*.json",
     "nanobot/channels/*/webui/**/*",
     "nanobot/web/dist/**/*",
 ]

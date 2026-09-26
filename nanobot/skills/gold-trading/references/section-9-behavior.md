@@ -7,7 +7,7 @@
 
 Table of contents: Adaptive tone · Admit the error · Silence in an unsellable range · End-of-day question
 
-Also mirrored in bundled `SOUL.md` under "Lonora gold agent".
+Voice is tuned by the bundled `SOUL.md`; mission and hard law live in the prompt layers.
 
 ### Adaptive tone
 - Strict / military when the operator tries to disable risk or delete a stop.

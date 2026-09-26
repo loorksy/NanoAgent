@@ -1,0 +1,18 @@
+{% extends "_layout.html" %}
+{% block body %}
+<p><span class="na-badge na-{{ p.verdict }}">{{ L('label.decision.' ~ p.verdict) }}</span>
+{% if p.confidence is not none %}<span class="na-muted">{{ L('label.result.decision.confidence') }} {{ p.confidence | pct }}</span>{% endif %}
+{% if p.permission_level %}<span class="na-badge">{{ L('label.permission.' ~ p.permission_level) }}</span>{% endif %}</p>
+<dl class="na-grid">
+  <div><dt>{{ L('label.result.decision.entry') }}</dt><dd>{{ p.entry | num }}</dd></div>
+  <div><dt>{{ L('label.result.decision.stop') }}</dt><dd>{{ p.stop | num }}</dd></div>
+  <div><dt>{{ L('label.result.decision.targets') }}</dt><dd>{% for t in p.targets or [] %}{{ t | num }}{% if not loop.last %} · {% endif %}{% endfor %}</dd></div>
+</dl>
+{% if p.reasons %}
+<p class="na-muted">{{ L('label.result.decision.reasons') }}</p>
+<ul>{% for r in p.reasons %}<li>{{ L(r) }}</li>{% endfor %}</ul>
+{% endif %}
+{% if p.gates_passed %}
+<p class="na-muted">{{ L('label.result.decision.gates_passed') }}: {% for g in p.gates_passed %}<span class="na-badge">{{ L('label.gate.' ~ g) }}</span> {% endfor %}</p>
+{% endif %}
+{% endblock %}

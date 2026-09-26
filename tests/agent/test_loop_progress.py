@@ -10,7 +10,6 @@ from nanobot.agent.context import TranscriptInput
 from nanobot.agent.hooks import create_file_edit_activity_hook
 from nanobot.agent.loop import AgentLoop
 from nanobot.agent.tools.context import current_request_context
-from nanobot.agent.tools.filesystem import WriteFileTool
 from nanobot.bus.events import InboundMessage
 from nanobot.bus.outbound_events import (
     GoalStatusEvent,
@@ -30,6 +29,25 @@ from nanobot.webui.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
     WEBUI_TURN_METADATA_KEY,
 )
+
+
+class _WriteFileTool:
+    """Minimal stand-in for the removed workspace write tool.
+
+    The file-edit activity hook only needs a tool named ``write_file`` that
+    mutates ``workspace / path`` so before/after snapshots can be diffed.
+    """
+
+    name = "write_file"
+
+    def __init__(self, workspace: Path) -> None:
+        self._workspace = workspace
+
+    async def execute(self, path: str, content: str, **kwargs: object) -> str:
+        target = (self._workspace / path).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return f"Wrote {len(content)} chars to {path}"
 
 
 def _make_loop(tmp_path: Path) -> AgentLoop:
@@ -138,7 +156,7 @@ class TestToolEventProgress:
         ])
         loop.provider.chat_stream_with_retry = AsyncMock(side_effect=lambda *a, **kw: next(calls))
         loop.tools.get_definitions = MagicMock(return_value=[])
-        tool = WriteFileTool(workspace=tmp_path)
+        tool = _WriteFileTool(tmp_path)
         loop.tools.prepare_call = MagicMock(
             return_value=(tool, {"path": "foo.txt", "content": "new\nextra\n"}, None),
         )
@@ -409,7 +427,7 @@ class TestToolEventProgress:
             model="test-model",
             hook_factories=[create_file_edit_activity_hook],
         )
-        tool = WriteFileTool(workspace=tmp_path)
+        tool = _WriteFileTool(tmp_path)
         loop.tools.get_definitions = MagicMock(return_value=[
             {"type": "function", "function": {"name": "write_file"}},
         ])

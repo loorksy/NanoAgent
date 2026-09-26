@@ -23,8 +23,8 @@ from nanobot.trading.chart_host_token import verify_chart_host_page_token
 from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
+from nanobot.trading.i18n import tr
 from nanobot.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
-from nanobot.trading.orchestrator import run_unified_chart_agent
 from nanobot.trading.paper import record_paper_action
 from nanobot.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
@@ -57,6 +57,10 @@ def _run_async(coro: Any) -> _T:
         return pool.submit(asyncio.run, coro).result()
 
 
+def _locale_of(params: dict[str, list[str]]) -> str | None:
+    return _query_first(params, "locale")
+
+
 def _parse_int(value: str | None) -> int | None:
     if value is None or value == "":
         return None
@@ -68,6 +72,7 @@ def _parse_int(value: str | None) -> int | None:
 
 def handle_trading_klines(request: WsRequest) -> Response:
     params = _parse_query(request.path)
+    locale = _locale_of(params)
     symbol = coerce_to_gold(_query_first(params, "symbol"))
     interval = (_query_first(params, "interval") or "1h").strip()
     limit = _parse_int(_query_first(params, "limit")) or 300
@@ -83,7 +88,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
             "source": "oanda",
             "candles": [],
             "pending": False,
-            "error": "Market data unavailable — OANDA is not configured.",
+            "error": tr("api.candles_unconfigured", locale),
         })
 
     try:
@@ -105,7 +110,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
             "source": "oanda",
             "candles": [],
             "pending": False,
-            "error": f"Failed to fetch candles: {exc}",
+            "error": tr("api.candles_failed", locale, error=exc),
         }, status=502)
 
     return _http_json_response({
@@ -120,6 +125,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
 
 def handle_trading_quote(request: WsRequest) -> Response:
     params = _parse_query(request.path)
+    locale = _locale_of(params)
     symbol = coerce_to_gold(_query_first(params, "symbol"))
 
     config = load_trading_config()
@@ -128,7 +134,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": False,
             "quote": None,
-            "error": "Market data unavailable — OANDA is not configured.",
+            "error": tr("price.feed_unconfigured", locale),
         })
 
     try:
@@ -140,7 +146,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": True,
             "quote": None,
-            "error": f"Failed to fetch quote: {exc}",
+            "error": tr("api.quote_failed", locale, error=exc),
         }, status=502)
 
     if quote is None:
@@ -148,7 +154,7 @@ def handle_trading_quote(request: WsRequest) -> Response:
             "symbol": symbol,
             "configured": True,
             "quote": None,
-            "error": "No quote returned — check OANDA_ACCOUNT_ID.",
+            "error": tr("api.quote_missing", locale),
         })
 
     return _http_json_response({
@@ -191,7 +197,7 @@ def handle_trading_runtime_update(request: WsRequest) -> Response:
 def analyze_request_context() -> RequestContext:
     """Request context with the configured default LLM runtime (same as chat).
 
-    HTTP analyze runs outside AgentLoop, so Lonora's synthesizer otherwise
+    HTTP analyze runs outside AgentLoop, so the synthesizer otherwise
     sees no provider and returns WAIT / "no usable decision".
     """
     existing = current_request_context()
@@ -222,42 +228,11 @@ async def _run_trading_analyze(
         manager = create_trading_subagent_manager()
         publisher = TradingStagePublisher(None, channel="webui", chat_id="trading-analyze")
         visual_capture = resolve_visual_capture(publisher)
-        from nanobot.trading.config import unified_loop_serving
+        from nanobot.trading.kernel import run_trading_kernel
+        from nanobot.trading.turn_session import turn_session_scope
 
-        if unified_loop_serving():
-            from nanobot.trading.kernel import run_trading_kernel
-            from nanobot.trading.turn_session import turn_session_scope
-
-            briefing = None
-            resolved_mode = "core"
-            if team_mode == "debate":
-                debate = await run_debate_crew(
-                    subagent_manager=manager,
-                    publisher=publisher,
-                    interval=interval,
-                    visual_capture=visual_capture,
-                )
-                briefing = debate.briefing
-                resolved_mode = "debate"
-            elif team_mode == "swarm":
-                swarm = await run_swarm(
-                    preset or "gold_analysis_committee",
-                    subagent_manager=manager,
-                    publisher=publisher,
-                    interval=interval,
-                    visual_capture=visual_capture,
-                )
-                briefing = swarm.get("team_briefing")
-                resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
-            with turn_session_scope():
-                return await run_trading_kernel(
-                    interval=interval,
-                    team_mode=resolved_mode,
-                    gather_missing=True,
-                    team_briefing=briefing,
-                    visual_capture=visual_capture,
-                    present_ui=True,
-                )
+        briefing = None
+        resolved_mode = "core"
         if team_mode == "debate":
             debate = await run_debate_crew(
                 subagent_manager=manager,
@@ -265,8 +240,9 @@ async def _run_trading_analyze(
                 interval=interval,
                 visual_capture=visual_capture,
             )
-            return debate.final
-        if team_mode == "swarm":
+            briefing = debate.briefing
+            resolved_mode = "debate"
+        elif team_mode == "swarm":
             swarm = await run_swarm(
                 preset or "gold_analysis_committee",
                 subagent_manager=manager,
@@ -274,12 +250,17 @@ async def _run_trading_analyze(
                 interval=interval,
                 visual_capture=visual_capture,
             )
-            return swarm["final"]
-        return await run_unified_chart_agent(
-            interval=interval,
-            team_mode="core",
-            visual_capture=visual_capture,
-        )
+            briefing = swarm.get("team_briefing")
+            resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
+        with turn_session_scope():
+            return await run_trading_kernel(
+                interval=interval,
+                team_mode=resolved_mode,
+                gather_missing=True,
+                team_briefing=briefing,
+                visual_capture=visual_capture,
+                present_ui=True,
+            )
 
 
 async def handle_trading_analyze(request: WsRequest) -> Response:
@@ -287,16 +268,17 @@ async def handle_trading_analyze(request: WsRequest) -> Response:
     interval = (_query_first(params, "interval") or "15m").strip()
     team_mode = (_query_first(params, "team_mode") or "core").strip()
     preset = _query_first(params, "preset")
+    locale = _locale_of(params)
     if team_mode not in {"", "core", "debate", "swarm"}:
         return _http_error(400, "team_mode must be core, debate, or swarm")
 
     try:
         result = await _run_trading_analyze(interval, team_mode, preset)
         if result is None:
-            return _http_error(500, "Analysis produced no result")
+            return _http_error(500, tr("analysis.no_result", locale))
         return _http_json_response(result_to_wire(result))
     except Exception as exc:
-        return _http_error(500, f"Analysis failed: {exc}")
+        return _http_error(500, tr("analysis.failed", locale, error=exc))
 
 
 def _enrich_recommendation_rows(rows: list[dict]) -> list[dict]:
@@ -501,7 +483,8 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
     return _http_json_response({"ok": True})
 
 
-def handle_trading_briefing(_request: WsRequest) -> Response:
+def handle_trading_briefing(request: WsRequest) -> Response:
+    locale = _locale_of(_parse_query(request.path))
     from nanobot.trading.config import load_trading_config
     from nanobot.trading.oanda import fetch_quote
     from nanobot.trading.recommendations.followup import (
@@ -532,8 +515,9 @@ def handle_trading_briefing(_request: WsRequest) -> Response:
         "openRecommendation": latest,
         "recentRecommendations": recs,
         "summary": (
-            f"Gold {quote.mid:.2f}" if quote and quote.mid is not None
-            else "Gold — quote unavailable"
+            tr("api.gold_summary", locale, price=f"{quote.mid:.2f}")
+            if quote and quote.mid is not None
+            else tr("api.gold_quote_unavailable", locale)
         ),
     })
 
@@ -565,52 +549,20 @@ async def handle_trading_recommendation_transition(request: WsRequest) -> Respon
         return _http_error(409, str(result.get("error") or "transition_failed"))
     if action == "reject_new":
         return _http_json_response(result)
-    from nanobot.bus.events import OUTBOUND_META_AGENT_UI
-    from nanobot.trading.config import unified_loop_serving
+    from nanobot.agent.tools.context import request_context
+    from nanobot.trading.kernel import run_trading_kernel
+    from nanobot.trading.result_wire import result_to_wire
+    from nanobot.trading.turn_session import turn_session_scope
 
-    if unified_loop_serving():
-        from nanobot.agent.tools.context import request_context
-        from nanobot.trading.kernel import run_trading_kernel
-        from nanobot.trading.result_wire import result_to_wire
-        from nanobot.trading.turn_session import turn_session_scope
-
-        with request_context(analyze_request_context()):
-            with turn_session_scope():
-                kernel_result = await run_trading_kernel(
-                    interval="15m",
-                    gather_missing=True,
-                    session_key=session_key,
-                    present_ui=True,
-                )
-        wire = result_to_wire(kernel_result)
-        return _http_json_response({**result, "new_recommendation": wire})
-
-    from nanobot.trading.fast_path import _run_analysis_fast_path
-    from nanobot.trading.intent_router import RoutedIntent
-    from nanobot.trading.turn_planner import FULL_TOOLS, TurnPlan
-
-    turn = TurnPlan(
-        "full_analysis",
-        RoutedIntent(kind="recommendation", confidence=1.0, reason="supersede_approved"),
-        emit_stages=True,
-        reason="supersede_approved",
-        tools=FULL_TOOLS,
-    )
-    parts = session_key.split(":", 1)
-    channel = parts[0] if parts else "websocket"
-    chat_id = parts[1] if len(parts) > 1 else session_key
-    outbound = await _run_analysis_fast_path(
-        turn,
-        "supersede approved new recommendation",
-        channel=channel,
-        chat_id=chat_id,
-        bus=None,
-    )
-    wire = None
-    if outbound and outbound.metadata:
-        agent_ui = outbound.metadata.get("agent_ui") or outbound.metadata.get(OUTBOUND_META_AGENT_UI)
-        if isinstance(agent_ui, dict) and agent_ui.get("kind") == "trading_result":
-            wire = agent_ui.get("data")
+    with request_context(analyze_request_context()):
+        with turn_session_scope():
+            kernel_result = await run_trading_kernel(
+                interval="15m",
+                gather_missing=True,
+                session_key=session_key,
+                present_ui=True,
+            )
+    wire = result_to_wire(kernel_result)
     return _http_json_response({**result, "new_recommendation": wire})
 
 

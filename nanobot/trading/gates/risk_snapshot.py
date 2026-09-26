@@ -18,6 +18,7 @@ class RiskSnapshot:
     last_mid: float | None = None
     current_mid: float | None = None
     open_positions: int = 0
+    open_lots: float = 0.0
     open_buy_losing: bool = False
     open_sell_losing: bool = False
     daily_drawdown_pct: float = 0.0

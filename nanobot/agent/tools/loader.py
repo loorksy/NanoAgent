@@ -33,6 +33,8 @@ _GOLD_AGENT_MODULES = frozenset({
     "trading_evidence",
     "trading_kernel",
     "mt5_execution",
+    "fast_backtest",
+    "propose_strategy",
     "web",
     "message",
     "spawn",

@@ -1,37 +1,75 @@
-"""Focused system prompts for gold trading team subagents."""
+"""Loader for team specialist prompts stored under ``nanobot/agent/prompt/team_roles``."""
 
 from __future__ import annotations
 
-_BASE_RULES = (
-    "You are a specialist on a gold (XAUUSD) analysis team. "
-    "Use ONLY the frozen market evidence provided. "
-    "Do not invent prices, levels, or headlines. "
-    "Do not choose buy/sell — analysis only. "
-    "Reply in 3–6 concise sentences. English only."
+from nanobot.agent.prompt.composer import (
+    DEFAULT_PRODUCT_NAME,
+    DEFAULT_REPLY_LANGUAGE,
+    compose_team_role_prompt,
+    team_role_names,
+)
+
+ROLE_REFERENCE_PREFIX = "role:"
+DEFAULT_ROLE_FILE = "lead"
+
+# Ordered: the first keyword found in the normalised role label wins.
+_ROLE_KEYWORDS: tuple[tuple[str, str], ...] = (
+    ("macro", "macro"),
+    ("structure", "structure"),
+    ("liquidity", "liquidity"),
+    ("scenario", "scenario"),
+    ("event", "event"),
+    ("news", "news"),
+    ("war", "news"),
+    ("mtf", "mtf_synthesizer"),
+    ("synth", "mtf_synthesizer"),
+    ("risk", "risk"),
+    ("officer", "risk"),
+    ("bull", "bull"),
+    ("bear", "bear"),
+    ("lead", "lead"),
+    ("committee", "lead"),
+    ("h1", "timeframe"),
+    ("h4", "timeframe"),
+    ("d1", "timeframe"),
+    ("timeframe", "timeframe"),
 )
 
 
-def role_system_prompt(role: str) -> str:
-    role_key = (role or "").strip().lower()
-    if "macro" in role_key:
-        focus = "Macro drivers, USD, yields, and scheduled events affecting gold."
-    elif "structure" in role_key:
-        focus = "Price structure, trend, swings, and break-of-structure context."
-    elif "liquidity" in role_key:
-        focus = "Equal highs/lows, sweeps, and where stops likely sit."
-    elif "risk" in role_key or "officer" in role_key:
-        focus = "Risk geometry, invalidation, and whether the setup is tradable now."
-    elif "bull" in role_key:
-        focus = "Strongest bullish case using only the evidence."
-    elif "bear" in role_key:
-        focus = "Strongest bearish case using only the evidence."
-    elif "lead" in role_key or "committee" in role_key:
-        focus = "Synthesize upstream specialist notes into one neutral brief."
-    elif "news" in role_key or "war" in role_key:
-        focus = "News and event risk for gold in the next sessions."
-    elif "mtf" in role_key or "h1" in role_key or "h4" in role_key or "d1" in role_key:
-        focus = "Bias and structure on your assigned timeframe."
-    else:
-        focus = f"Your role: {role}."
+def role_file_for(role: str) -> str:
+    """Map a preset role label (``"Bull Advocate"``) to a ``team_roles`` file stem."""
+    key = (role or "").strip().lower()
+    for keyword, file_stem in _ROLE_KEYWORDS:
+        if keyword in key:
+            return file_stem
+    return DEFAULT_ROLE_FILE
 
-    return f"{_BASE_RULES}\n\nFocus: {focus}"
+
+def resolve_role_file(role: str, system_prompt: str = "") -> str:
+    """Honour an explicit ``role:<file>`` reference from a preset before falling back."""
+    reference = (system_prompt or "").strip()
+    if reference.startswith(ROLE_REFERENCE_PREFIX):
+        stem = reference[len(ROLE_REFERENCE_PREFIX):].strip()
+        if stem in team_role_names():
+            return stem
+    return role_file_for(role)
+
+
+def list_role_files() -> list[str]:
+    return team_role_names()
+
+
+def role_system_prompt(
+    role: str,
+    *,
+    system_prompt: str = "",
+    product_name: str = DEFAULT_PRODUCT_NAME,
+    reply_language: str = DEFAULT_REPLY_LANGUAGE,
+) -> str:
+    """Full system prompt for one team role (shared preamble plus the role file)."""
+    return compose_team_role_prompt(
+        resolve_role_file(role, system_prompt),
+        product_name=product_name,
+        reply_language=reply_language,
+        role_label=(role or "").strip() or DEFAULT_ROLE_FILE.title(),
+    )

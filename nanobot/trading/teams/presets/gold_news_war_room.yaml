@@ -5,10 +5,13 @@ description: Scan news, analyze events, plan scenarios
 agents:
   - id: news_scanner
     role: News Scanner
+    system_prompt: role:news
   - id: event_analyst
     role: Event Analyst
+    system_prompt: role:event
   - id: scenario_planner
     role: Scenario Planner
+    system_prompt: role:scenario
 
 tasks:
   - id: task-scan

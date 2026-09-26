@@ -19,7 +19,7 @@ from nanobot.trading.agents.apply_model_decision import (
 )
 from nanobot.trading.agents.macro_drivers import format_team_briefing
 from nanobot.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
-from nanobot.trading.orchestrator import run_unified_chart_agent
+from nanobot.trading.kernel import run_trading_kernel
 from nanobot.trading.types import (
     EvidenceSnapshot,
 )
@@ -132,7 +132,7 @@ def test_parse_and_alignment_helpers() -> None:
 
 
 def _install_specialist_stubs(monkeypatch) -> None:
-    from tests.trading.evidence_stubs import install_evidence_stubs
+    from evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
 
@@ -149,12 +149,12 @@ async def test_unified_agent_opposite_briefings_change_confidence(monkeypatch) -
         assert "macroDrivers" in blob
         return _fixed_model_json()
 
-    bull = await run_unified_chart_agent(
+    bull = await run_trading_kernel(
         store=False,
         team_briefing=_briefing("bullish"),
         complete=complete,
     )
-    bear = await run_unified_chart_agent(
+    bear = await run_trading_kernel(
         store=False,
         team_briefing=_briefing("bearish"),
         complete=complete,

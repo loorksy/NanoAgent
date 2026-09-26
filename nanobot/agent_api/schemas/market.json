@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "market",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["price", "feed_status"],
+  "properties": {
+    "price": {"type": "number"},
+    "spread": {"type": ["number", "null"]},
+    "session": {"type": ["string", "null"]},
+    "dxy": {"type": ["number", "null"]},
+    "yields": {"type": ["number", "null"]},
+    "next_event": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["time", "impact"],
+      "properties": {
+        "time": {"type": "string"},
+        "impact": {"type": "string", "enum": ["low", "medium", "high"]},
+        "title_key": {"type": ["string", "null"]}
+      }
+    },
+    "feed_status": {"type": "string", "enum": ["live", "delayed", "stale", "offline"]},
+    "ts": {"type": ["integer", "null"]}
+  }
+}

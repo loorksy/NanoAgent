@@ -1,4 +1,4 @@
-"""Build chart drawing plan: S/R, zones, and Lonora scenario paths."""
+"""Build chart drawing plan: S/R, zones, and scenario paths."""
 
 from __future__ import annotations
 

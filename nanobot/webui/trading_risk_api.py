@@ -11,22 +11,48 @@ import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import ValidationError
 
 from nanobot.config.loader import load_config, save_config
 from nanobot.config.schema import TradingRiskParameters
 from nanobot.trading.i18n import tr
+from nanobot.trading.permissions.model import (
+    ACTIONS,
+    LEVELS,
+    SESSION_HOURS_UTC,
+    Mt5Permissions,
+)
+from nanobot.trading.permissions.store import get_permission_store
 from nanobot.trading.policy import invalidate_live_cache
+from nanobot.trading.risk_profiles import (
+    DERIVED_FIELDS,
+    PRESET_NAMES,
+    PROFILE_NAMES,
+    PROFILES,
+    SLIDER_FIELDS,
+    SLIDER_RANGES,
+    apply_profile,
+    derive,
+    detect_profile,
+)
 from nanobot.trading.risk_state import DEFAULT_TOGGLES, LOCKED_INTEGRITY_TOGGLES, get_risk_store
 
 QueryParams = dict[str, list[str]]
+FieldTier = Literal["primary", "toggle", "advanced"]
 
 if TYPE_CHECKING:
     from nanobot.webui.settings_services import WebUISettingsConfig
 
-_UPDATE_ACTIONS = {"update"}
+ACTION_UPDATE = "update"
+ACTION_PROFILE = "profile"
+ACTION_PERMISSIONS_GET = "mt5-permissions"
+ACTION_PERMISSIONS_UPDATE = "mt5-permissions-update"
+_UPDATE_ACTIONS = {ACTION_UPDATE, ACTION_PROFILE, ACTION_PERMISSIONS_UPDATE}
+_READ_ACTIONS = {ACTION_PERMISSIONS_GET}
+DEFAULT_ACTOR = "webui"
+_TRUE_FLAGS = {"1", "true", "yes", "on"}
 
 
 class TradingRiskError(Exception):
@@ -45,31 +71,36 @@ class RiskFieldSpec:
     unit: str
     step: float = 1.0
     integer: bool = False
+    tier: FieldTier = "advanced"
 
+
+_P: FieldTier = "primary"
 
 # Operator-facing field catalog. Defaults live on TradingRiskParameters.
+# ``tier="primary"`` marks the seven sliders from 04 §4.2; the rest is advanced.
 RISK_FIELD_SPECS: tuple[RiskFieldSpec, ...] = (
-    RiskFieldSpec("risk_pct_default", "sizing", "%", 0.1),
+    RiskFieldSpec("risk_pct_default", "sizing", "%", 0.25, tier=_P),
     RiskFieldSpec("risk_pct_max", "sizing", "%", 0.1),
     RiskFieldSpec("risk_pct_news_day", "sizing", "%", 0.1),
-    RiskFieldSpec("daily_drawdown_pct", "drawdown", "%", 0.1),
+    RiskFieldSpec("daily_drawdown_pct", "drawdown", "%", 0.5, tier=_P),
     RiskFieldSpec("equity_spike_pct", "drawdown", "%", 0.1),
-    RiskFieldSpec("spread_max_points", "spread", "points", 1),
+    RiskFieldSpec("spread_max_points", "spread", "points", 5, tier=_P),
     RiskFieldSpec("spread_stable_seconds", "spread", "seconds", 1),
     RiskFieldSpec("spread_multiplier_pre_news", "spread", "×", 0.1),
     RiskFieldSpec("spread_pre_news_minutes", "spread", "minutes", 0.5),
     RiskFieldSpec("cooldown_consecutive_losses", "cooldown", "count", 1, integer=True),
-    RiskFieldSpec("cooldown_after_two_losses_minutes", "cooldown", "minutes", 1),
+    RiskFieldSpec("cooldown_after_two_losses_minutes", "cooldown", "minutes", 30, tier=_P),
     RiskFieldSpec("cooldown_after_two_losses_session_minutes", "cooldown", "minutes", 1),
     RiskFieldSpec("cooldown_after_news_stop_minutes", "cooldown", "minutes", 1),
-    RiskFieldSpec("max_open_gold_positions", "positions", "count", 1, integer=True),
-    RiskFieldSpec("min_rr", "positions", "R", 0.1),
+    RiskFieldSpec("max_open_gold_positions", "positions", "count", 1, integer=True, tier=_P),
+    RiskFieldSpec("max_total_lots", "positions", "lots", 0.01),
+    RiskFieldSpec("min_rr", "positions", "R", 0.25, tier=_P),
     RiskFieldSpec("min_rr_live_fill", "positions", "R", 0.1),
     RiskFieldSpec("idea_stale_hours", "pending", "hours", 0.5),
     RiskFieldSpec("pending_ttl_hours", "pending", "hours", 0.5),
     RiskFieldSpec("time_stop_hours", "pending", "hours", 0.5),
     RiskFieldSpec("half_distance_pct", "pending", "%", 1),
-    RiskFieldSpec("news_shield_minutes", "news", "minutes", 1),
+    RiskFieldSpec("news_shield_minutes", "news", "minutes", 5, tier=_P),
     RiskFieldSpec("flat_near_entry_points", "news", "points", 1),
     RiskFieldSpec("pre_news_freeze_minutes", "news", "minutes", 1),
     RiskFieldSpec("post_news_entry_wait_minutes", "news", "minutes", 1),
@@ -191,9 +222,29 @@ def _field_payload(spec: RiskFieldSpec, params: TradingRiskParameters) -> dict[s
         "value": value,
         "type": "integer" if spec.integer else "number",
         "step": spec.step,
+        "tier": spec.tier,
+        "derived": spec.name in DERIVED_FIELDS,
     }
     payload.update(_constraints(spec.name))
+    slider = SLIDER_RANGES.get(spec.name)
+    if slider is not None:
+        low, high, step = slider
+        payload["slider"] = {"min": low, "max": high, "step": step}
     return payload
+
+
+def _profile_payload(params: TradingRiskParameters) -> dict[str, Any]:
+    return {
+        "name": params.risk_profile,
+        "detected": detect_profile(params),
+        "presets": [
+            {"name": name, "label": tr(f"risk.profile.{name}"), "values": dict(PROFILES[name])}
+            for name in PRESET_NAMES
+        ],
+        "names": list(PROFILE_NAMES),
+        "slider_fields": list(SLIDER_FIELDS),
+        "derived_fields": list(DERIVED_FIELDS),
+    }
 
 
 def trading_risk_payload(
@@ -232,6 +283,33 @@ def trading_risk_payload(
         "values": params.model_dump(mode="json"),
         "toggles": _toggle_payload(),
         "locked_toggles": sorted(LOCKED_INTEGRITY),
+        "profile": _profile_payload(params),
+    }
+    if last_action is not None:
+        payload["last_action"] = last_action
+    return payload
+
+
+def mt5_permissions_payload(
+    *,
+    config_path: Path | None = None,
+    last_action: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Current MT5 grant with derived limits, audit trail and UI vocabulary."""
+    config = load_config(config_path) if config_path is not None else load_config()
+    params = config.trading_risk_parameters
+    store = get_permission_store()
+    perms = store.load()
+    payload: dict[str, Any] = {
+        "permissions": perms.model_dump(mode="json"),
+        "effective": perms.with_derived(params).model_dump(mode="json"),
+        "audit": store.audit(limit=20),
+        "levels": [{"name": name, "label": tr(f"permission.level.{name}")} for name in LEVELS],
+        "actions": list(ACTIONS),
+        "sessions": [
+            {"name": name, "start_hour_utc": start, "end_hour_utc": end}
+            for name, (start, end) in SESSION_HOURS_UTC.items()
+        ],
     }
     if last_action is not None:
         payload["last_action"] = last_action
@@ -299,33 +377,40 @@ def _parse_toggle_updates(query: QueryParams) -> dict[str, bool]:
     return updates
 
 
-def trading_risk_action(
-    action: str,
-    query: QueryParams,
-    *,
-    config_path: Path | None = None,
-) -> dict[str, Any]:
-    if action != "update":
-        raise TradingRiskError(tr("risk.api.unknown_action", action=action), status=404)
+def _validation_error(exc: ValidationError) -> TradingRiskError:
+    issue = exc.errors()[0] if exc.errors() else None
+    loc = ".".join(str(part) for part in issue["loc"]) if issue else "value"
+    msg = issue["msg"] if issue else tr("risk.api.invalid_value", loc="value", msg="")
+    return TradingRiskError(tr("risk.api.invalid_value", loc=loc, msg=msg))
 
+
+def _flag(query: QueryParams, key: str) -> bool:
+    raw = _query_first(query, key)
+    return raw is not None and raw.strip().lower() in _TRUE_FLAGS
+
+
+def _update_action(query: QueryParams, *, config_path: Path | None) -> dict[str, Any]:
     config = load_config(config_path) if config_path is not None else load_config()
     toggle_updates = _parse_toggle_updates(query)
     updates = _parse_updates(query, allow_empty=bool(toggle_updates))
     if updates:
         merged = config.trading_risk_parameters.model_dump()
         merged.update(updates)
+        touches_profile = bool(set(updates) & (set(SLIDER_FIELDS) | set(DERIVED_FIELDS)))
+        if touches_profile:
+            merged["risk_profile"] = "custom"
         try:
-            config.trading_risk_parameters = TradingRiskParameters.model_validate(merged)
+            params = TradingRiskParameters.model_validate(merged)
+            if _flag(query, "derive"):
+                params = derive(params)
         except ValidationError as exc:
-            issue = exc.errors()[0] if exc.errors() else None
-            loc = ".".join(str(part) for part in issue["loc"]) if issue else "value"
-            msg = issue["msg"] if issue else tr("risk.api.invalid_value", loc="value", msg="")
-            raise TradingRiskError(tr("risk.api.invalid_value", loc=loc, msg=msg)) from exc
+            raise _validation_error(exc) from exc
+        config.trading_risk_parameters = params
         save_config(config, config_path)
         invalidate_live_cache()
     if toggle_updates:
         get_risk_store().update(feature_toggles=toggle_updates)
-    payload = trading_risk_payload(
+    return trading_risk_payload(
         last_action={
             "ok": True,
             "message": tr("risk.settings.saved"),
@@ -333,7 +418,90 @@ def trading_risk_action(
         },
         config_path=config_path,
     )
-    return payload
+
+
+def _profile_action(query: QueryParams, *, config_path: Path | None) -> dict[str, Any]:
+    name = (_query_first(query, "name") or "").strip().lower()
+    if name not in PROFILE_NAMES:
+        raise TradingRiskError(tr("risk.api.unknown_profile", name=name or "?"))
+    config = load_config(config_path) if config_path is not None else load_config()
+    try:
+        config.trading_risk_parameters = apply_profile(config.trading_risk_parameters, name)
+    except ValidationError as exc:
+        raise _validation_error(exc) from exc
+    save_config(config, config_path)
+    invalidate_live_cache()
+    return trading_risk_payload(
+        last_action={
+            "ok": True,
+            "message": tr("risk.settings.saved"),
+            "profile": name,
+            "updated": sorted(SLIDER_FIELDS + DERIVED_FIELDS) if name != "custom" else [],
+        },
+        config_path=config_path,
+    )
+
+
+def _parse_permission_updates(query: QueryParams) -> dict[str, Any]:
+    raw = _query_first(query, "permissions")
+    parsed = _parse_json_value(raw, fallback=None)
+    if parsed is None:
+        raise TradingRiskError(tr("risk.api.no_updates"))
+    if not isinstance(parsed, dict):
+        raise TradingRiskError(tr("risk.api.permissions_object"))
+    known = set(Mt5Permissions.model_fields)
+    updates: dict[str, Any] = {}
+    for key, value in cast(dict[str, object], parsed).items():
+        name = str(key)
+        if name not in known:
+            raise TradingRiskError(tr("risk.api.unknown_permission", name=name))
+        updates[name] = value
+    return updates
+
+
+def _permissions_update_action(
+    query: QueryParams,
+    *,
+    config_path: Path | None,
+    who: str,
+) -> dict[str, Any]:
+    updates = _parse_permission_updates(query)
+    store = get_permission_store()
+    merged = store.load().model_dump()
+    merged.update(updates)
+    try:
+        perms = Mt5Permissions.model_validate(merged)
+    except ValidationError as exc:
+        raise _validation_error(exc) from exc
+    store.save(perms, who=who)
+    return mt5_permissions_payload(
+        config_path=config_path,
+        last_action={
+            "ok": True,
+            "message": tr("risk.settings.saved"),
+            "updated": sorted(updates),
+            "who": who,
+        },
+    )
+
+
+def trading_risk_action(
+    action: str,
+    query: QueryParams,
+    *,
+    config_path: Path | None = None,
+    who: str | None = None,
+) -> dict[str, Any]:
+    if action == ACTION_UPDATE:
+        return _update_action(query, config_path=config_path)
+    if action == ACTION_PROFILE:
+        return _profile_action(query, config_path=config_path)
+    if action == ACTION_PERMISSIONS_GET:
+        return mt5_permissions_payload(config_path=config_path)
+    if action == ACTION_PERMISSIONS_UPDATE:
+        actor = (who or _query_first(query, "who") or "").strip() or DEFAULT_ACTOR
+        return _permissions_update_action(query, config_path=config_path, who=actor)
+    raise TradingRiskError(tr("risk.api.unknown_action", action=action), status=404)
 
 
 async def trading_risk_settings_action(
@@ -341,16 +509,19 @@ async def trading_risk_settings_action(
     query: QueryParams,
     *,
     config: WebUISettingsConfig | None = None,
+    who: str | None = None,
 ) -> dict[str, Any]:
     """Run a WebUI trading-risk action and persist through the config lock."""
     config_path = config.path if config is not None else None
     if action is None:
         return trading_risk_payload(config_path=config_path)
+    if action in _READ_ACTIONS:
+        return await asyncio.to_thread(trading_risk_action, action, query, config_path=config_path)
     if action not in _UPDATE_ACTIONS:
         raise TradingRiskError(tr("risk.api.unknown_action", action=action), status=404)
     if config is not None:
         return await asyncio.to_thread(
             config.run_serialized,
-            lambda path: trading_risk_action(action, query, config_path=path),
+            lambda path: trading_risk_action(action, query, config_path=path, who=who),
         )
-    return await asyncio.to_thread(trading_risk_action, action, query)
+    return await asyncio.to_thread(trading_risk_action, action, query, who=who)

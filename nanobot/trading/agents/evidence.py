@@ -1,4 +1,4 @@
-"""Frozen evidence JSON for the Lonora synthesizer (modelContext)."""
+"""Frozen evidence JSON for the decision synthesizer (modelContext)."""
 
 from __future__ import annotations
 

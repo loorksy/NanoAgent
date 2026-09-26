@@ -336,25 +336,21 @@ def test_build_skills_summary_keeps_absolute_roots_for_selected_project(tmp_path
     assert str(project.resolve()) not in summary
 
 
-def test_bundled_update_setup_description_is_valid_yaml(tmp_path: Path) -> None:
-    metadata = SkillsLoader(tmp_path).get_skill_metadata("update-setup")
-
-    assert metadata is not None
-    assert metadata["description"].startswith("One-time setup wizard")
-    assert "Triggers:" in metadata["description"]
-
-
 def test_bundled_skills_use_agent_owned_paths(tmp_path: Path) -> None:
     loader = SkillsLoader(tmp_path)
     memory = loader.load_skill("memory")
-    update_setup = loader.load_skill("update-setup")
 
     assert memory is not None
     assert "<history-log-path>" in memory
     assert 'path="memory/history.jsonl"' not in memory
-    assert update_setup is not None
-    assert "<agent-workspace>/skills/update/SKILL.md" in update_setup
-    assert "Never substitute a project-relative" in update_setup
+
+
+def test_bundled_gold_skills_have_valid_frontmatter(tmp_path: Path) -> None:
+    loader = SkillsLoader(tmp_path)
+    for name in ("gold-trading", "risk-guardrails", "mt5-execution", "xauusd-playbook"):
+        metadata = loader.get_skill_metadata(name)
+        assert metadata is not None, name
+        assert metadata["description"].strip(), name
 
 
 def test_disabled_skills_excluded_from_get_always_skills(tmp_path: Path) -> None:

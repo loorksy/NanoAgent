@@ -1,4 +1,4 @@
-"""Deterministic Lonora coercions after the model answers."""
+"""Deterministic decision coercions after the model answers."""
 
 from __future__ import annotations
 
@@ -498,9 +498,13 @@ def apply_model_decision(
                 for item in drivers
                 if str(item.get("bias") or "").lower() in ("bullish", "bearish")
             )
-            note = (
-                f"Macro drivers {alignment:+.2f} alignment ({voted} voted) "
-                f"→ confidence {before:.2f}→{conf:.2f}"
+            note = tr(
+                "macro.alignment_note",
+                locale,
+                alignment=f"{alignment:+.2f}",
+                voted=voted,
+                before=f"{before:.2f}",
+                after=f"{conf:.2f}",
             )
             reasons = [*reasons[:5], note]
 

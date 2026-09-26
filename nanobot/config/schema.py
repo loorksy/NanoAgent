@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 from pydantic import AliasChoices, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from nanobot.agent_api.config import AgentApiConfig
 from nanobot.config.timezone import detect_system_timezone
 from nanobot.config_base import Base
 from nanobot.cron.types import CronSchedule
@@ -155,6 +156,10 @@ class AgentDefaults(Base):
         ge=0,
     )  # Minimum interval in seconds between scans for idle sessions
     dream: DreamConfig = Field(default_factory=DreamConfig)
+    product_name: str = "NanoAgent"  # Persona/product label injected into prompts and UI
+    reply_language: Literal["auto", "ar", "en"] = "auto"
+    tone_profile: Literal["professional", "concise", "friendly"] = "professional"
+    daily_wrap_enabled: bool = True  # End-of-day reflective wrap-up task (T-9.4)
 
     @model_validator(mode="before")
     @classmethod
@@ -365,6 +370,39 @@ class TradingMetaApiConfig(Base):
             "configured": bool(self.token and self.account_id),
         }
 
+    def effective_token(self) -> str:
+        """Config token when set, else the encrypted secret store (``metaapi_token``)."""
+        from nanobot.security.secret_store import resolve_secret
+
+        return resolve_secret(self.token, "metaapi_token")
+
+
+class TradingOandaConfig(Base):
+    """OANDA v20 credentials (env ``OANDA_*`` still override at runtime)."""
+
+    api_token: str = Field(
+        default="",
+        repr=False,
+        validation_alias=AliasChoices("apiToken", "api_token"),
+    )
+    account_id: str = Field(default="", validation_alias=AliasChoices("accountId", "account_id"))
+    env: Literal["practice", "live"] = "practice"
+
+    def public_view(self) -> dict[str, str | bool]:
+        """Operator-safe snapshot — never includes the token."""
+        return {
+            "account_id": self.account_id,
+            "env": self.env,
+            "token_set": bool(self.api_token),
+            "configured": bool(self.api_token),
+        }
+
+    def effective_token(self) -> str:
+        """Config token when set, else the encrypted secret store (``oanda_api_token``)."""
+        from nanobot.security.secret_store import resolve_secret
+
+        return resolve_secret(self.api_token, "oanda_api_token")
+
 
 class TradingRiskParameters(Base):
     """Operator-editable gold risk / execution thresholds.
@@ -437,6 +475,7 @@ class TradingRiskParameters(Base):
     pre_news_freeze_minutes: float = Field(default=15.0, ge=0)  # news 1
     news_blackout_before_minutes: float = Field(default=30.0, ge=0)  # G1
     news_blackout_after_minutes: float = Field(default=15.0, ge=0)  # G1
+    news_gate_mode: Literal["warn", "strict", "off"] = "warn"  # G1 severity
     news_void_seconds: float = Field(default=60.0, ge=0)  # news 35
     first_minute_dead: float = Field(default=60.0, ge=0)  # news 35
 
@@ -456,6 +495,10 @@ class TradingRiskParameters(Base):
     g7_max_slippage_atr: float = Field(default=0.5, ge=0)  # G7
     lot_dual_check_high: float = Field(default=2.0, ge=0)  # playbook 188
     lot_dual_check_low: float = Field(default=0.5, ge=0)  # playbook 188
+
+    # Phase 0 (04 §4.7) — preset selection and aggregate exposure cap
+    risk_profile: Literal["conservative", "balanced", "aggressive", "custom"] = "balanced"
+    max_total_lots: float = Field(default=0.0, ge=0)  # T-3.5; 0 = no cap
 
 
 class ApiConfig(Base):
@@ -558,6 +601,11 @@ class Config(BaseSettings):
     transcription: TranscriptionConfig = Field(default_factory=TranscriptionConfig)
     providers: ProvidersConfig = Field(default_factory=ProvidersConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
+    agent_api: AgentApiConfig = Field(
+        default_factory=AgentApiConfig,
+        validation_alias=AliasChoices("agentApi", "agent_api"),
+        serialization_alias="agentApi",
+    )
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     trading_metaapi: TradingMetaApiConfig = Field(
         default_factory=TradingMetaApiConfig,
@@ -566,6 +614,10 @@ class Config(BaseSettings):
     trading_risk_parameters: TradingRiskParameters = Field(
         default_factory=TradingRiskParameters,
         validation_alias=AliasChoices("tradingRiskParameters", "trading_risk_parameters"),
+    )
+    trading_oanda: TradingOandaConfig = Field(
+        default_factory=TradingOandaConfig,
+        validation_alias=AliasChoices("tradingOanda", "trading_oanda"),
     )
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     model_presets: dict[str, ModelPresetConfig] = Field(

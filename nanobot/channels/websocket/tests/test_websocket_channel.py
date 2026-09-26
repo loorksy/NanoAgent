@@ -1362,7 +1362,7 @@ async def test_webui_persists_sidebar_state_larger_than_http_request_line(
     monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
     channel = _ch(bus)
     conn = AsyncMock()
-    conn.request = SimpleNamespace(headers=Headers())
+    conn.request = SimpleNamespace(path="/ws", headers=Headers())
     channel._webui_connections.add(conn)
     session_order = [f"websocket:{index:04d}-{'x' * 48}" for index in range(160)]
     request_id = "sidebar-large-state"
@@ -1400,7 +1400,7 @@ async def test_webui_sidebar_state_update_broadcasts_workbench_to_other_devices(
     monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
     channel = _ch(bus)
     source = AsyncMock()
-    source.request = SimpleNamespace(headers=Headers())
+    source.request = SimpleNamespace(path="/ws", headers=Headers())
     other_device = AsyncMock()
     channel._webui_connections.update({source, other_device})
     channel._register_connection_outbound(other_device)
@@ -4137,7 +4137,7 @@ async def test_settings_api_returns_safe_subset_and_updates_whitelist(
         workspace_path = body["runtime"]["workspace_path"].replace("\\", "/")
         assert workspace_path.endswith("/.nanobot/workspace")
         assert body["runtime"]["gateway_port"] == 18790
-        assert body["advanced"]["exec_enabled"] is True
+        assert body["advanced"]["exec_enabled"] is False
         assert body["advanced"]["webui_allow_local_service_access"] is True
         assert body["advanced"]["webui_default_access_mode"] == "default"
         assert body["advanced"]["private_service_protection_enabled"] is True

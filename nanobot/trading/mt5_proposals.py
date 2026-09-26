@@ -27,6 +27,8 @@ class OrderProposal:
     confirmed: bool = False
     executed: bool = False
     position_id: str | None = None
+    confirmed_by: str = ""
+    auto_confirmed: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_public(self) -> dict[str, Any]:
@@ -77,12 +79,20 @@ class ProposalStore:
         with self._lock:
             return self._items.get(proposal_id)
 
-    def mark_confirmed(self, proposal_id: str) -> OrderProposal | None:
+    def mark_confirmed(
+        self,
+        proposal_id: str,
+        *,
+        confirmed_by: str = "",
+        auto_confirmed: bool = False,
+    ) -> OrderProposal | None:
         with self._lock:
             item = self._items.get(proposal_id)
             if item is None:
                 return None
             item.confirmed = True
+            item.confirmed_by = confirmed_by
+            item.auto_confirmed = auto_confirmed
             return item
 
     def mark_executed(self, proposal_id: str, position_id: str) -> OrderProposal | None:

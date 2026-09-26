@@ -152,6 +152,10 @@ class MultiTimeframeResult:
     higher_bias: Bias
     daily_bias: Bias
     conflict: bool
+    m15_bias: Bias = "unknown"
+    h1_bias: Bias = "unknown"
+    h4_bias: Bias = "unknown"
+    aligned: bool = False
 
 
 @dataclass

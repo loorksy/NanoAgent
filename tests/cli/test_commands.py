@@ -3445,7 +3445,22 @@ def test_gateway_local_trigger_queue_submits_agent_turns(
     turn_delivery_factory = agent_kwargs["turn_delivery_factory"]
     assert isinstance(turn_delivery_factory, TurnDeliveryFactory)
     assert turn_delivery_factory.bus is bus
-    assert seen["cron_reconciliation"] == ["remove:dream", "remove:heartbeat", "status"]
+    assert seen["cron_reconciliation"] == [
+        "remove:dream",
+        "remove:heartbeat",
+        "remove:gold_scan",
+        "remove:gold_news",
+        "remove:gold_rec_followup",
+        "remove:morning_briefing",
+        "remove:scorecard",
+        "remove:daily_wrap",
+        "remove:trade_management",
+        "remove:tradability_calibration",
+        "remove:event_monitor",
+        "remove:opportunity_scan",
+        "remove:cot_refresh",
+        "status",
+    ]
     assert isinstance(turn_delivery_factory.route_policy, WebuiTurnRoutePolicy)
     assert turn_delivery_factory.route_policy.sessions is agent.sessions
 

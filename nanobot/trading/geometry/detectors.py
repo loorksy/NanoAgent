@@ -13,6 +13,33 @@ from nanobot.trading.types import (
 )
 
 
+def momentum_score(candles: list[Candle], lookback: int = 20) -> float:
+    """Tick-volume momentum in ``[0, 1]``. Missing volume yields 0."""
+    volumes = [float(c.volume) for c in candles if c.volume is not None and c.volume > 0]
+    if len(volumes) < 2:
+        return 0.0
+    recent = volumes[-1]
+    base = volumes[-lookback:-1] or volumes[:-1]
+    average = sum(base) / len(base)
+    if average <= 0:
+        return 0.0
+    return max(0.0, min(1.0, (recent / average) / 2.0))
+
+
+def momentum_is_weak(candles: list[Candle], *, direction: str, floor: float = 0.4) -> bool:
+    """T-4.6 — two opposing M5 candles plus a faded tick-volume score."""
+    if len(candles) < 2:
+        return False
+    older, newer = candles[-2], candles[-1]
+    if direction == "buy":
+        reversed_pair = newer.close < newer.open and older.close < older.open
+    elif direction == "sell":
+        reversed_pair = newer.close > newer.open and older.close > older.open
+    else:
+        return False
+    return reversed_pair and momentum_score(candles) < floor
+
+
 def compute_atr(candles: list[Candle], period: int = 14) -> float:
     if len(candles) < 2:
         return 0.0

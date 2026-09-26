@@ -26,7 +26,7 @@ Built-in directories are auto-discovered from this folder (`SKILL.md` required).
 
 | Skill | Description |
 |-------|-------------|
-| `gold-trading` | Lonora constitution (gold-only, recs vs HITL, tools) |
+| `gold-trading` | Gold agent constitution (gold-only, recs vs HITL, tools) |
 | `technical-analysis` | Technical and price action (FVG, MTF, sweeps, BOS/CHoCH) |
 | `macro-radar` | Macro radar (calendar, DXY, tone, geopolitics) |
 | `risk-guardrails` | Risk guardrails around `policy.live()` |

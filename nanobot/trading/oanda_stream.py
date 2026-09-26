@@ -30,6 +30,7 @@ class StreamTick:
 _listeners: dict[str, set[TickListener]] = {}
 _task: asyncio.Task[None] | None = None
 _stop = False
+_last_tick_ms: int | None = None
 
 
 def _stream_base_url(config: TradingConfig) -> str:
@@ -72,7 +73,28 @@ def _stop_stream() -> None:
         _task = None
 
 
+def note_tick(time_ms: int) -> None:
+    """Record the latest pricing tick (tests and the stream dispatcher)."""
+    global _last_tick_ms
+    _last_tick_ms = int(time_ms)
+
+
+def feed_health(now_ms: int | None = None) -> dict[str, Any]:
+    """T-6.6 — disconnected when the last tick is older than the disconnect alert."""
+    from nanobot.trading.policy import live
+
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    limit_ms = int(live().DISCONNECT_ALERT_SECONDS * 1000)
+    if _last_tick_ms is None:
+        return {"ok": False, "state": "feed_disconnected", "age_ms": None, "limit_ms": limit_ms}
+    age = now - _last_tick_ms
+    if age > limit_ms:
+        return {"ok": False, "state": "feed_disconnected", "age_ms": age, "limit_ms": limit_ms}
+    return {"ok": True, "state": "live", "age_ms": age, "limit_ms": limit_ms}
+
+
 def _dispatch(tick: StreamTick) -> None:
+    note_tick(tick.time or int(time.time() * 1000))
     payload = {
         "symbol": tick.symbol,
         "bid": tick.bid,

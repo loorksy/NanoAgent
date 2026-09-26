@@ -1,4 +1,4 @@
-"""Evidence graph runtime — Phase H of the Lonora hybrid architecture."""
+"""Evidence graph runtime — layered evidence nodes feeding the trading kernel."""
 
 from nanobot.trading.evidence.context import PipelineContext
 from nanobot.trading.evidence.executor import run_evidence_graph, stage_sequence_from_graph

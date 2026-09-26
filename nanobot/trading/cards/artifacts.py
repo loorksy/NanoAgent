@@ -6,15 +6,11 @@ from typing import Any
 
 from nanobot.trading.cards.format import format_price, translate_reason
 from nanobot.trading.i18n import artifact_title, gate_label
-from nanobot.trading.intent_router import IntentKind
 from nanobot.trading.locale import normalize_locale
-from nanobot.trading.operator_keywords import (
-    _GATE_KEYWORDS,
-    _LEVEL_KEYWORDS,
-    _STATUS_KEYWORDS,
-)
 from nanobot.trading.recommendations.followup import grade_outcome_status
 from nanobot.trading.types import AgentFinalResult
+
+ResultKind = str
 
 _ANALYSIS_INTENTS = frozenset({"gold_analysis", "recommendation", "team_swarm", "recommendation_followup"})
 
@@ -35,37 +31,6 @@ ARTIFACT_TYPES = frozenset(
         "plan_status",
     }
 )
-
-def infer_operator_artifacts(
-    operator_text: str,
-    intent_kind: IntentKind | str,
-    *,
-    followup: bool = False,
-    has_live_plan: bool = False,
-) -> list[str]:
-    """Infer artifact picks for non-synthesizer paths (price, follow-up, specialist)."""
-    text = operator_text or ""
-
-    if intent_kind == "price_query":
-        return ["price_quote"]
-
-    if intent_kind == "chart_image":
-        return ["chart_snapshot"]
-
-    if followup or intent_kind == "recommendation_followup" or (
-        has_live_plan and intent_kind in ("gold_analysis", "recommendation")
-    ):
-        if _LEVEL_KEYWORDS.search(text):
-            return ["level_map", "plan_status"]
-        if _STATUS_KEYWORDS.search(text):
-            return ["plan_status", "tracked_plan"]
-        return ["plan_status", "level_map"]
-
-    if _GATE_KEYWORDS.search(text):
-        return ["gate_report", "decision"]
-
-    return []
-
 
 def parse_artifacts_requested(raw: Any) -> list[str]:
     """Normalize LLM artifact picks to a deduped list of allowed types."""
@@ -110,7 +75,7 @@ def build_price_quote_artifacts(
 def _build_artifact_pool(
     result: AgentFinalResult,
     *,
-    intent_kind: IntentKind | str = "gold_analysis",
+    intent_kind: ResultKind = "gold_analysis",
     locale: str = "en",
     quote_data: dict[str, Any] | None = None,
     plan_row: dict[str, Any] | None = None,
@@ -312,7 +277,7 @@ def _build_artifact_pool(
 def _default_artifact_order(
     pool: dict[str, dict[str, Any]],
     *,
-    intent_kind: IntentKind | str = "gold_analysis",
+    intent_kind: ResultKind = "gold_analysis",
 ) -> list[str]:
     """Deterministic fallback order (legacy behavior when the LLM picks nothing valid)."""
     order: list[str] = []
@@ -340,7 +305,7 @@ def _resolve_selection(
     pool: dict[str, dict[str, Any]],
     *,
     requested: list[str] | None,
-    intent_kind: IntentKind | str,
+    intent_kind: ResultKind,
     decision: str,
 ) -> list[str]:
     """Merge LLM picks with mandatory fallbacks; fall back to deterministic order."""
@@ -371,7 +336,7 @@ def _resolve_selection(
 def emit_trading_artifacts(
     result: AgentFinalResult,
     *,
-    intent_kind: IntentKind | str = "gold_analysis",
+    intent_kind: ResultKind = "gold_analysis",
     locale: str = "en",
     chart_only: bool = False,
     requested: list[str] | None = None,
@@ -409,7 +374,7 @@ def apply_result_artifacts(
     result: AgentFinalResult,
     *,
     operator_text: str,
-    intent_kind: IntentKind | str,
+    intent_kind: ResultKind,
     locale: str,
     followup: bool = False,
     quote_data: dict[str, Any] | None = None,
@@ -417,15 +382,11 @@ def apply_result_artifacts(
     plan_status: str | None = None,
     live_price: float | None = None,
 ) -> None:
-    """Attach artifacts using synthesizer picks or operator-intent inference."""
+    """Attach artifacts from the synthesizer's picks (default order when none)."""
+    del operator_text
     requested = list(result.decision.artifacts_requested or [])
-    if not requested:
-        requested = infer_operator_artifacts(
-            operator_text,
-            intent_kind,
-            followup=followup,
-            has_live_plan=bool(result.recommendation_id or plan_row),
-        )
+    if not requested and (followup or intent_kind == "recommendation_followup"):
+        requested = ["plan_status", "level_map", "tracked_plan"]
     result.artifacts = emit_trading_artifacts(
         result,
         intent_kind=intent_kind,

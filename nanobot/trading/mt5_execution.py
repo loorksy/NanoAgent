@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from nanobot.config.schema import TradingRiskParameters
 from nanobot.trading.broker_result import (
     broker_error_message,
     broker_send_succeeded,
@@ -14,17 +15,21 @@ from nanobot.trading.gates.drawdown_breaker import flatten_required_reason
 from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
 from nanobot.trading.gates.position_sizing import lot_from_balance
 from nanobot.trading.gates.risk_snapshot import RiskSnapshot
-from nanobot.trading.gates.trade_management import management_snapshot
+from nanobot.trading.gates.trade_management import management_snapshot, stop_would_widen
 from nanobot.trading.i18n import tr
 from nanobot.trading.intel.tickets import TicketStore
 from nanobot.trading.mt5_metaapi import get_transport
 from nanobot.trading.mt5_proposals import OrderProposal, get_proposal_store
+from nanobot.trading.permissions.evaluate import PermissionContext, evaluate_permission
+from nanobot.trading.permissions.model import Mt5Permissions, PermissionDecision
+from nanobot.trading.permissions.store import get_permission_store
 from nanobot.trading.policy import GOLD_POINT, MAGIC_SCALP, MAGIC_SWING
 from nanobot.trading.risk_state import get_risk_store
 from nanobot.trading.runtime_state import get_runtime_store
 from nanobot.trading.types import EntryPlan
 
 GOLD_SYMBOL = "XAUUSD"
+OPERATOR_ACTOR = "operator"
 
 
 def _fail(*, key: str, executed: bool = False, **extra: Any) -> dict[str, Any]:
@@ -92,6 +97,81 @@ def _position_open_ms(row: dict[str, Any]) -> int | None:
     if value < 10_000_000_000:
         value *= 1000
     return int(value)
+
+
+def _row_lots(row: dict[str, Any]) -> float:
+    for key in ("volume", "lot", "lots"):
+        raw: object = row.get(key)
+        if isinstance(raw, bool):
+            continue
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        if isinstance(raw, str):
+            try:
+                return float(raw)
+            except ValueError:
+                continue
+    return 0.0
+
+
+def _open_lots(rows: list[dict[str, Any]]) -> float:
+    return sum(_row_lots(row) for row in rows)
+
+
+def _load_permissions() -> Mt5Permissions:
+    return get_permission_store().load()
+
+
+def _risk_params() -> TradingRiskParameters:
+    try:
+        from nanobot.config.loader import load_config
+
+        return load_config().trading_risk_parameters
+    except Exception:
+        return TradingRiskParameters()
+
+
+def _permission_context(
+    perms: Mt5Permissions,
+    *,
+    now_ms: int,
+    requested_lot: float | None = None,
+    open_lots: float = 0.0,
+) -> PermissionContext:
+    runtime = get_runtime_store().snapshot()
+    stored = get_risk_store().snapshot()
+    return PermissionContext(
+        permissions=perms,
+        now_ms=now_ms,
+        risk_params=_risk_params(),
+        kill_switch=runtime.kill_switch,
+        paused=runtime.paused,
+        paper_mode=runtime.paper_mode,
+        daily_loss_pct=max(0.0, -float(stored.daily_pnl_pct or 0.0)),
+        news_window_active=bool(stored.news_day),
+        requested_lot=requested_lot,
+        open_lots=open_lots,
+    )
+
+
+def _permission_actor(perms: Mt5Permissions) -> str:
+    return f"permission:{perms.granted_by or 'unknown'}"
+
+
+def _with_permission(
+    payload: dict[str, Any],
+    decision: PermissionDecision,
+    perms: Mt5Permissions,
+    *,
+    auto_confirmed: bool | None = None,
+) -> dict[str, Any]:
+    payload["permission_level"] = perms.level
+    payload["permission"] = decision.to_dict()
+    if auto_confirmed is not None:
+        payload["auto_confirmed"] = auto_confirmed
+        if auto_confirmed:
+            payload["confirmed_by"] = _permission_actor(perms)
+    return payload
 
 
 def _plan_from_proposal(p: OrderProposal) -> EntryPlan:
@@ -202,7 +282,8 @@ async def mt5_propose_order(
     order_type: str = "market",
     style: str = "swing",
 ) -> dict[str, Any]:
-    account = await get_transport().account_snapshot()
+    transport = get_transport()
+    account = await transport.account_snapshot()
     info = account.get("account") if isinstance(account.get("account"), dict) else account
     balance = float((info or {}).get("balance") or 0) if isinstance(info, dict) else 0.0
     sized = lot
@@ -210,34 +291,67 @@ async def mt5_propose_order(
         sized = lot_from_balance(balance, entry, stop)
     if sized is None:
         sized = 0.0
+    now = int(time.time() * 1000)
+    perms = _load_permissions()
+    open_lots = 0.0
+    if perms.level == "execute":
+        open_lots = _open_lots(_gold_rows(await transport.open_positions()))
+    pending = order_type.strip().lower() not in {"", "market"}
+    decision = evaluate_permission(
+        "place_pending" if pending else "open",
+        _permission_context(
+            perms, now_ms=now, requested_lot=float(sized), open_lots=open_lots
+        ),
+    )
+    if decision.mode == "deny":
+        return _with_permission(_fail(key=decision.reason_key), decision, perms)
+    final_lot = decision.adjusted_lot if decision.adjusted_lot is not None else float(sized)
     magic = MAGIC_SWING if style != "scalp" else MAGIC_SCALP
-    note = comment or "MANUAL_CONFIRM"
+    note = comment or ("AUTO_PERMISSION" if decision.mode == "execute" else "MANUAL_CONFIRM")
     proposal = get_proposal_store().create(
         symbol=GOLD_SYMBOL,
         side=side.lower(),
-        lot=float(sized),
+        lot=final_lot,
         entry=entry,
         stop=stop,
         targets=targets,
         comment=note,
         order_type=order_type,
-        extra={"magic": magic},
+        extra={"magic": magic, "requested_lot": float(sized)},
     )
-    return {
-        "ok": True,
-        "status": "proposed",
-        "executed": False,
-        "proposal": proposal.to_public(),
-        "operator_must_confirm": True,
-        "display": {
-            "symbol": GOLD_SYMBOL,
-            "side": proposal.side,
-            "lot": proposal.lot,
-            "entry": proposal.entry,
-            "stop": proposal.stop,
-            "targets": proposal.targets,
-        },
+    display = {
+        "symbol": GOLD_SYMBOL,
+        "side": proposal.side,
+        "lot": proposal.lot,
+        "entry": proposal.entry,
+        "stop": proposal.stop,
+        "targets": proposal.targets,
     }
+    if decision.mode == "execute":
+        confirmed = await mt5_confirm_order(
+            proposal_id=proposal.id,
+            confirm=True,
+            permission_mode=decision.mode,
+            confirmed_by=_permission_actor(perms),
+        )
+        executed = bool(confirmed.get("executed"))
+        payload: dict[str, Any] = dict(confirmed)
+        payload["status"] = "executed" if executed else "blocked"
+        payload["operator_must_confirm"] = not executed
+        payload["display"] = display
+        return _with_permission(payload, decision, perms, auto_confirmed=executed)
+    return _with_permission(
+        {
+            "ok": True,
+            "status": "proposed",
+            "executed": False,
+            "proposal": proposal.to_public(),
+            "operator_must_confirm": True,
+            "display": display,
+        },
+        decision,
+        perms,
+    )
 
 
 def _blocked(name: str, check: Any, proposal: OrderProposal | None = None) -> dict[str, Any]:
@@ -254,7 +368,13 @@ def _blocked(name: str, check: Any, proposal: OrderProposal | None = None) -> di
     return payload
 
 
-async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[str, Any]:
+async def mt5_confirm_order(
+    *,
+    proposal_id: str,
+    confirm: bool = False,
+    permission_mode: str | None = None,
+    confirmed_by: str = OPERATOR_ACTOR,
+) -> dict[str, Any]:
     store = get_proposal_store()
     proposal = store.get(proposal_id)
     if proposal is None:
@@ -273,23 +393,34 @@ async def mt5_confirm_order(*, proposal_id: str, confirm: bool = False) -> dict[
         proposal_created_ms=proposal.created_ms,
         proposed_price=proposal.entry,
         operator_confirmed=bool(confirm),
+        permission_mode=permission_mode,
     )
     blocker = first_blocker(checks)
     if blocker is not None:
         name, check = blocker
         return _blocked(name, check, proposal)
-    store.mark_confirmed(proposal_id)
-    tp = proposal.targets[0] if proposal.targets else None
-    sent = await transport.send_market(
-        {
-            "symbol": proposal.symbol,
-            "side": proposal.side,
-            "lot": proposal.lot,
-            "stop": proposal.stop,
-            "take_profit": tp,
-            "comment": proposal.comment,
-        }
+    store.mark_confirmed(
+        proposal_id,
+        confirmed_by=confirmed_by,
+        auto_confirmed=permission_mode == "execute" and confirmed_by != OPERATOR_ACTOR,
     )
+    tp = proposal.targets[0] if proposal.targets else None
+    pending_kind = proposal.order_type.strip().lower()
+    order_payload = {
+        "symbol": proposal.symbol,
+        "side": proposal.side,
+        "lot": proposal.lot,
+        "stop": proposal.stop,
+        "take_profit": tp,
+        "comment": proposal.comment,
+    }
+    if pending_kind not in {"", "market"}:
+        kind = "stop" if pending_kind == "stop" else "limit"
+        order_payload["kind"] = kind
+        order_payload["price"] = proposal.entry
+        sent = await transport.send_pending(order_payload)
+    else:
+        sent = await transport.send_market(order_payload)
     if not broker_send_succeeded(sent, require_ticket=True):
         refreshed = store.get(proposal_id)
         return {
@@ -339,7 +470,13 @@ async def mt5_modify_order(
     take_profit: float | None = None,
     confirm: bool = False,
 ) -> dict[str, Any]:
-    if not confirm:
+    perms = _load_permissions()
+    if perms.level == "recommend":
+        decision = evaluate_permission(
+            "modify_sl_tp", _permission_context(perms, now_ms=int(time.time() * 1000))
+        )
+        return _with_permission(_fail(key=decision.reason_key), decision, perms)
+    if not confirm and perms.level != "execute":
         return _fail(key="mt5.confirm_required_modify")
     if get_runtime_store().snapshot().kill_switch:
         return _fail(key="mt5.kill_switch")
@@ -354,13 +491,34 @@ async def mt5_modify_order(
         None,
     )
     plan = _plan_from_position(row) if row else None
-    if plan is not None and stop is not None:
+    current_stop: float | None = None
+    if plan is not None and row is not None:
+        current_stop = float(row.get("stopLoss") or row.get("stop_loss") or plan.stop_loss)
+    decision: PermissionDecision | None = None
+    if not confirm:
+        action = "modify_sl_tp"
+        if (
+            plan is not None
+            and stop is not None
+            and current_stop is not None
+            and stop_would_widen(plan, current_stop=current_stop, requested_stop=stop)
+        ):
+            action = "widen_stop"
+        decision = evaluate_permission(
+            action, _permission_context(perms, now_ms=int(time.time() * 1000))
+        )
+        if decision.mode == "deny":
+            return _with_permission(_fail(key=decision.reason_key), decision, perms)
+        if decision.mode != "execute":
+            return _with_permission(
+                _fail(key="mt5.confirm_required_modify"), decision, perms, auto_confirmed=False
+            )
+    if plan is not None and row is not None and stop is not None and current_stop is not None:
         quote = await transport.quote(GOLD_SYMBOL)
         account = await transport.account_snapshot()
         risk = _risk_from_account(account, quote)
         live = risk.current_mid or plan.entry
         now = int(time.time() * 1000)
-        current_stop = float(row.get("stopLoss") or row.get("stop_loss") or plan.stop_loss)
         favorable = abs(live - plan.entry) >= abs(plan.entry - plan.stop_loss) * 0.3
         checks = collect_execution_checks(
             plan,
@@ -372,6 +530,7 @@ async def mt5_modify_order(
             favorable_progress=favorable,
             current_stop=current_stop,
             requested_stop=stop,
+            permission_mode=decision.mode if decision is not None else None,
         )
         blocker = first_blocker(checks)
         if blocker is not None:
@@ -388,7 +547,10 @@ async def mt5_modify_order(
             "error": tr("mt5.broker_modify_failed", detail=broker_error_message(sent)),
             "send": sent,
         }
-    return {"ok": True, "executed": True, "send": sent}
+    result: dict[str, Any] = {"ok": True, "executed": True, "send": sent}
+    if decision is not None:
+        return _with_permission(result, decision, perms, auto_confirmed=True)
+    return result
 
 
 async def mt5_cancel_order(*, order_id: str, confirm: bool = False) -> dict[str, Any]:
@@ -412,10 +574,36 @@ async def mt5_close_position(
     confirm: bool = False,
     flatten_all: bool = False,
 ) -> dict[str, Any]:
+    perms = _load_permissions()
+    is_all = flatten_all or position_id in {"ALL", "*"}
+    action = "close_all" if is_all else "partial_close"
+    decision: PermissionDecision | None = None
+    if perms.level == "recommend":
+        decision = evaluate_permission(
+            action, _permission_context(perms, now_ms=int(time.time() * 1000))
+        )
+        return _with_permission(_fail(key=decision.reason_key), decision, perms)
     if not confirm:
-        return _fail(key="mt5.confirm_required_close")
+        if perms.level != "execute":
+            return _fail(key="mt5.confirm_required_close")
+        decision = evaluate_permission(
+            action, _permission_context(perms, now_ms=int(time.time() * 1000))
+        )
+        if decision.mode == "deny":
+            return _with_permission(_fail(key=decision.reason_key), decision, perms)
+        if decision.mode != "execute":
+            return _with_permission(
+                _fail(key="mt5.confirm_required_close"), decision, perms, auto_confirmed=False
+            )
+    result = await _close_positions(position_id, flatten_all=is_all)
+    if decision is not None and result.get("ok"):
+        return _with_permission(result, decision, perms, auto_confirmed=True)
+    return result
+
+
+async def _close_positions(position_id: str, *, flatten_all: bool) -> dict[str, Any]:
     transport = get_transport()
-    if flatten_all or position_id in {"ALL", "*"}:
+    if flatten_all:
         closed: list[dict[str, Any]] = []
         cancelled: list[dict[str, Any]] = []
         failures: list[dict[str, Any]] = []

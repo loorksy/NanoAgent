@@ -12,7 +12,6 @@ from nanobot.agent.tools.context import (
     current_request_session_key,
 )
 from nanobot.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
-from nanobot.trading.config import unified_loop_serving
 from nanobot.trading.kernel import run_trading_kernel
 from nanobot.trading.locale import locale_from_text
 from nanobot.trading.policy_guard import PolicyViolation
@@ -56,10 +55,6 @@ class RunTradingKernelTool(Tool):
     def __init__(self, bus: Any | None, subagent_manager: Any | None) -> None:
         self._bus = bus
         self._subagent_manager = subagent_manager
-
-    @classmethod
-    def enabled(cls, ctx: ToolContext) -> bool:
-        return unified_loop_serving()
 
     @classmethod
     def create(cls, ctx: ToolContext) -> Tool:
@@ -108,10 +103,6 @@ class GetGateReportTool(Tool):
     """Stored gate report for the live recommendation — never runs the synthesizer."""
 
     _scopes = {"core"}
-
-    @classmethod
-    def enabled(cls, ctx: ToolContext) -> bool:
-        return unified_loop_serving()
 
     @property
     def name(self) -> str:

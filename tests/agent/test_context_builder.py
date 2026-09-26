@@ -207,33 +207,36 @@ class TestIsTemplateContent:
 
 
 class TestBundledToolContract:
-    def test_tool_contract_balances_general_and_coding_workflows(self):
-        from importlib.resources import files as pkg_files
+    def test_tool_contract_layer_covers_every_tool_family(self):
+        from nanobot.agent.prompt.composer import load_layer
 
-        tpl = pkg_files("nanobot") / "templates" / "agent" / "tool_contract.md"
-        content = tpl.read_text(encoding="utf-8")
+        content = load_layer("40_tool_contracts.md")
 
-        assert "## General Tool Contract" in content
-        assert "Use the narrowest structured tool" in content
-        assert "Do not use `exec` as a universal workaround" in content
-        assert "## File and Coding Workflows" in content
-        assert "`grep` returns matches with five context lines by default" in content
-        assert "apply_patch" in content
-        assert "acceptance criteria into concrete checks" in content
-        assert "visual evidence reaches the model" in content
-        assert "clear user request as authorization" in content
-        assert "Never invent missing records or measurements" in content
-        assert "## Web and External Information" in content
-        assert "## Messaging and Media" in content
-        assert "## Scheduling and Background Work" in content
+        assert "## General contract" in content
+        assert "Use the narrowest tool" in content
+        assert "clear operator request as authorization" in content
+        assert "## Execution permission levels" in content
+        assert "## Teams and debate" in content
+        assert "## Scheduling and goals" in content
+        assert "## Memory" in content
+        assert "## Messaging" in content
 
     def test_tool_contract_is_injected_without_workspace_file(self, tmp_path):
         builder = _builder(tmp_path)
         prompt = builder.build_system_prompt()
 
-        assert "# Tool Usage Notes" in prompt
-        assert "## General Tool Contract" in prompt
-        assert "Do not use `exec` as a universal workaround" in prompt
+        assert "# Tool contracts" in prompt
+        assert "## General contract" in prompt
+        assert "| `get_gold_quote` |" in prompt
+
+    def test_tool_contract_table_follows_registered_tools(self, tmp_path):
+        builder = _builder(tmp_path)
+        prompt = builder.build_system_prompt(tool_names=["get_gold_quote", "message"])
+
+        assert "| `get_gold_quote` |" in prompt
+        assert "| `message` |" in prompt
+        assert "`mt5_propose_order`" not in prompt
+        assert "`run_trading_team`" not in prompt
 
 
 # ---------------------------------------------------------------------------

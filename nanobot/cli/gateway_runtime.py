@@ -285,6 +285,42 @@ def _gateway_readiness_payload(channels: Any) -> tuple[bool, dict[str, object]]:
     }
 
 
+def _build_agent_api_server(
+    config: Config,
+    agent: AgentLoop,
+    *,
+    bus: Any,
+    cron: Any,
+    session_manager: Any,
+    config_path: Path,
+) -> Any | None:
+    """Create the ``/api/v2`` + ``/ws/v2`` listener, or ``None`` when disabled."""
+    api_config = config.agent_api
+    if not api_config.enabled:
+        return None
+    from nanobot.agent_api.app import AgentApiDeps, build_server
+
+    deps = AgentApiDeps(
+        cron=cron,
+        session_manager=session_manager,
+        subscribe_runtime_events=bus.subscribe,
+        timezone=config.agents.defaults.timezone,
+        config_path=config_path,
+    )
+    return build_server(agent, api_config, config.workspace_path, deps)
+
+
+async def _serve_agent_api(server: Any) -> None:
+    await server.start()
+    console.print(
+        f"[green]✓[/green] Agent API: {server.url}/api/v2 (ws: {server.url}/ws/v2)",
+    )
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await server.stop()
+
+
 async def _close_gateway_runtime(
     agent: AgentLoop,
     mcp_provider: MCPProvider,
@@ -618,19 +654,10 @@ def _run_gateway(
                 prune_dream_sessions(agent.sessions)
             return None
 
-        if job.name in {"gold_scan", "gold_news", "gold_rec_followup"}:
-            from nanobot.trading.cron import (
-                run_gold_followup_job,
-                run_gold_news_job,
-                run_gold_scan_job,
-            )
+        from nanobot.trading.cron import TRADING_CRON_JOB_IDS, run_trading_cron_job
 
-            if job.name == "gold_news":
-                alert = await run_gold_news_job()
-            elif job.name == "gold_rec_followup":
-                alert = await run_gold_followup_job()
-            else:
-                alert = await run_gold_scan_job()
+        if job.name in TRADING_CRON_JOB_IDS:
+            alert = await run_trading_cron_job(job.name)
             if not alert:
                 return None
             channel, chat_id = _pick_heartbeat_target()
@@ -1013,6 +1040,19 @@ def _run_gateway(
                 tasks.append(asyncio.create_task(
                     _health_server(config.gateway.host, port),
                     name="nanobot-health-server",
+                ))
+            agent_api_server = _build_agent_api_server(
+                config,
+                agent,
+                bus=bus,
+                cron=cron,
+                session_manager=session_manager,
+                config_path=Path(config_path),
+            )
+            if agent_api_server is not None:
+                tasks.append(asyncio.create_task(
+                    _serve_agent_api(agent_api_server),
+                    name="nanobot-agent-api",
                 ))
             if open_browser_url:
                 tasks.append(asyncio.create_task(

@@ -1,0 +1,46 @@
+{
+  "name": "@nanoagent/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the NanoAgent Agent Gateway (REST + SSE + WS) with a framework-free event store and optional React hooks.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./react": {
+      "types": "./src/react/index.ts",
+      "default": "./src/react/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "react",
+    "dist"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/react": "~19.1.0",
+    "react": "19.1.0",
+    "typescript": "~5.9.0"
+  }
+}

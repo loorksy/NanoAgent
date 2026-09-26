@@ -592,9 +592,9 @@ class MemoryStore:
 
         tools = ToolRegistry()
         editable_files = (self.memory_file, self.soul_file, self.user_file)
-        tools.register(DreamReadFileTool(allowed_files=editable_files))
-        tools.register(DreamEditFileTool(allowed_files=editable_files))
-        tools.register(DreamWriteFileTool(allowed_files=editable_files))
+        tools.register(DreamReadFileTool(allowed_files=editable_files, workspace=self.workspace))
+        tools.register(DreamEditFileTool(allowed_files=editable_files, workspace=self.workspace))
+        tools.register(DreamWriteFileTool(allowed_files=editable_files, workspace=self.workspace))
         return tools
 
     @staticmethod

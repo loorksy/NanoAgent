@@ -74,11 +74,7 @@ async def test_runner_persists_large_tool_results_for_follow_up_calls(tmp_path):
     persisted_path = tmp_path / ".nanobot" / "tool-results" / "test_runner" / "call_big.txt"
     assert persisted_path.read_text(encoding="utf-8") == "x" * 20_000
 
-    from nanobot.agent.tools.filesystem import ReadFileTool
-
-    readback = await ReadFileTool(workspace=tmp_path).execute(
-        path=".nanobot/tool-results/test_runner/call_big.txt"
-    )
+    readback = (tmp_path / ".nanobot/tool-results/test_runner/call_big.txt").read_text(encoding="utf-8")
     assert "x" * 20_000 in readback
 
     loop = AgentLoop.__new__(AgentLoop)
@@ -352,13 +348,10 @@ async def test_runner_keeps_going_when_tool_result_persistence_fails():
 async def test_mixed_tool_text_survives_model_save_replay(tmp_path):
     from nanobot.agent.context_governance import ContextGovernanceConfig, ContextGovernor
     from nanobot.agent.loop import AgentLoop
-    from nanobot.agent.tools.filesystem import ReadFileTool
     from nanobot.agent.tools.registry import ToolRegistry
     from nanobot.session.manager import Session
 
     tools = ToolRegistry()
-    reader = ReadFileTool(workspace=tmp_path, allowed_dir=tmp_path)
-    tools.register(reader)
     config = ContextGovernanceConfig(
         provider=MagicMock(), model="test", tools=tools, workspace=tmp_path,
         session_key="mixed", max_tool_result_chars=2048,
@@ -384,19 +377,16 @@ async def test_mixed_tool_text_survives_model_save_replay(tmp_path):
     replay = governor.prepare_messages_for_model(config, session.get_history())
     assert replay[-1]["content"][0]["text"] == reference
     assert "data:image" not in str(replay[-1]["content"])
-    readback = await reader.execute(path=".nanobot/tool-results/mixed/mixed_text_0.txt")
+    readback = (tmp_path / ".nanobot/tool-results/mixed/mixed_text_0.txt").read_text(encoding="utf-8")
     assert raw in readback
     assert messages[-1]["content"][0]["text"] == raw
 
 
 async def test_tiny_budget_keeps_complete_readable_reference(tmp_path):
     from nanobot.agent.context_governance import ContextGovernanceConfig, ContextGovernor
-    from nanobot.agent.tools.filesystem import ReadFileTool
     from nanobot.agent.tools.registry import ToolRegistry
 
     tools = ToolRegistry()
-    reader = ReadFileTool(workspace=tmp_path, allowed_dir=tmp_path)
-    tools.register(reader)
     session_key = "review-session-0123456789-0123456789"
     call_id = "call_012345678901234567890123456789"
     config = ContextGovernanceConfig(
@@ -407,35 +397,5 @@ async def test_tiny_budget_keeps_complete_readable_reference(tmp_path):
     reference = ContextGovernor.normalize_tool_result(config, call_id, "exec", raw)
     assert reference.startswith("[truncated: ") and reference.endswith("]")
     path = reference.removeprefix("[truncated: ").removesuffix("]")
-    assert raw in await reader.execute(path=path)
     assert ContextGovernor.normalize_tool_result(config, call_id, "exec", reference) == reference
     assert (tmp_path / path).read_text(encoding="utf-8") == raw
-
-
-async def test_result_reference_survives_workspace_switch_without_bypassing_restriction(tmp_path):
-    import re
-
-    from nanobot.agent.tools.filesystem import ReadFileTool
-    from nanobot.security.workspace_access import (
-        bind_workspace_scope,
-        build_workspace_scope,
-        reset_workspace_scope,
-    )
-    from nanobot.utils.helpers import maybe_persist_tool_result
-
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    first.mkdir()
-    second.mkdir()
-    raw = "x" * 20_000
-    reference = maybe_persist_tool_result(first, "session", "call", raw, max_chars=2048)
-    match = re.search(r"workspace path: (.+)", reference)
-    assert match is not None
-    reader = ReadFileTool(workspace=first)
-    for mode, expected in [("full", raw), ("restricted", "Error")]:
-        token = bind_workspace_scope(build_workspace_scope(second, mode))
-        try:
-            result = await reader.execute(path=match[1], force=True)
-            assert expected in result
-        finally:
-            reset_workspace_scope(token)
