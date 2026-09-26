@@ -1,0 +1,154 @@
+# NanoAgent v2 - Phase 4 web client: Open WebUI + Caddy in front of the nanobot Agent API.
+#
+#   Browser ──► caddy (:80/:443, nanoagent.lork.cloud)
+#                 ├── /api/v2/*, /ws/v2*, /v1/*  ──► host:8766  nanobot Agent API (nanobot/agent_api)
+#                 ├── /legacy/*                  ──► host:8765  legacy nanobot React WebUI (prefix stripped)
+#                 └── everything else            ──► open-webui:8080
+#
+#   open-webui ──► host:8766/v1  (OpenAI-compatible connection; the Pipe Function talks to /api/v2)
+#
+# nanobot itself is NOT containerised here: it keeps running on the host (systemd / `nanobot gateway`)
+# and is reached through `host.docker.internal`. On Linux Docker Engine that name only resolves
+# because of the `extra_hosts: host-gateway` entries below; Docker Desktop provides it natively.
+#
+# Copy `.env.example` to `.env` and fill in the secrets before `docker compose up -d`.
+# See docs/deploy/openwebui.md for the full procedure.
+
+name: nanoagent-webui
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: nanoagent-open-webui
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui-data:/app/backend/data
+    expose:
+      - "8080"
+    environment:
+      # ---- identity / URLs ----------------------------------------------------------------
+      WEBUI_NAME: ${WEBUI_NAME:-NanoAgent}
+      WEBUI_URL: ${WEBUI_URL:-https://nanoagent.lork.cloud}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in .env}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-ar-BH}
+      # Environment variables win over values saved from the Admin UI on every start, so this
+      # file stays the single source of truth for the flags below (ENABLE_PERSISTENT_CONFIG).
+      ENABLE_PERSISTENT_CONFIG: "false"
+
+      # ---- authentication -----------------------------------------------------------------
+      WEBUI_AUTH: "true"
+      # First boot: leave ENABLE_SIGNUP=true, create the operator (first user = admin), then set
+      # ENABLE_SIGNUP=false in .env and `docker compose up -d` again. Alternatively set
+      # WEBUI_ADMIN_EMAIL / WEBUI_ADMIN_PASSWORD once: the admin is created headlessly and
+      # sign-up is disabled automatically.
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+      DEFAULT_USER_ROLE: pending
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL:-}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD:-}
+      WEBUI_SESSION_COOKIE_SECURE: "true"
+      WEBUI_AUTH_COOKIE_SECURE: "true"
+      CORS_ALLOW_ORIGIN: ${WEBUI_URL:-https://nanoagent.lork.cloud}
+
+      # ---- model backend: nanobot Agent API, OpenAI-compatible surface ------------------------
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "true"
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://host.docker.internal:8766/v1}
+      OPENAI_API_KEY: ${NANOAGENT_API_TOKEN:?set NANOAGENT_API_TOKEN in .env}
+      # Sends X-OpenWebUI-Chat-Id (and user headers) to the Agent API so that the plain
+      # OpenAI-compatible path can also map chat -> nanobot session.
+      ENABLE_FORWARD_USER_INFO_HEADERS: "true"
+      ENABLE_DIRECT_CONNECTIONS: "false"
+      # The Pipe Function registers as `<function id>.<pipe id>`; when imported with id
+      # `nanoagent` (derived from the frontmatter title) the model id is `nanoagent.nanoagent`.
+      # The bare `nanoagent` id is the text-only OpenAI-connection model from /v1/models.
+      DEFAULT_MODELS: ${NANOAGENT_DEFAULT_MODEL:-nanoagent.nanoagent}
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
+
+      # ---- background LLM tasks (would call the agent for titles/tags; disabled) -------------
+      ENABLE_TITLE_GENERATION: "false"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+      ENABLE_SEARCH_QUERY_GENERATION: "false"
+
+      # ---- features the agent owns (memory, web, images, code) -------------------------------
+      ENABLE_MEMORIES: "false"
+      ENABLE_MEMORY_SYSTEM_CONTEXT: "false"
+      ENABLE_MEMORY_BACKGROUND_REVIEW: "false"
+      USER_PERMISSIONS_FEATURES_MEMORIES: "false"
+      ENABLE_WEB_SEARCH: "false"
+      USER_PERMISSIONS_FEATURES_WEB_SEARCH: "false"
+      ENABLE_IMAGE_GENERATION: "false"
+      USER_PERMISSIONS_FEATURES_IMAGE_GENERATION: "false"
+      ENABLE_CODE_EXECUTION: "false"
+      ENABLE_CODE_INTERPRETER: "false"
+      USER_PERMISSIONS_FEATURES_CODE_INTERPRETER: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_CHANNELS: "false"
+      ENABLE_NOTES: "false"
+      USER_PERMISSIONS_FEATURES_NOTES: "false"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+
+      # ---- chat permissions (single operator; keep the chat surface minimal) -----------------
+      USER_PERMISSIONS_CHAT_CONTROLS: "false"
+      USER_PERMISSIONS_CHAT_VALVES: "false"
+      USER_PERMISSIONS_CHAT_SYSTEM_PROMPT: "false"
+      USER_PERMISSIONS_CHAT_PARAMS: "false"
+      USER_PERMISSIONS_CHAT_FILE_UPLOAD: "true"
+      USER_PERMISSIONS_CHAT_WEB_UPLOAD: "false"
+      USER_PERMISSIONS_CHAT_DELETE: "true"
+      USER_PERMISSIONS_CHAT_EDIT: "false"
+      USER_PERMISSIONS_CHAT_SHARE: "false"  # verify: referenced in docs, no dedicated entry
+      USER_PERMISSIONS_CHAT_EXPORT: "true"
+      USER_PERMISSIONS_CHAT_IMPORT: "false"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "false"
+      USER_PERMISSIONS_CHAT_MULTIPLE_MODELS: "false"
+      USER_PERMISSIONS_CHAT_CONTINUE_RESPONSE: "false"
+      USER_PERMISSIONS_CHAT_REGENERATE_RESPONSE: "true"
+      USER_PERMISSIONS_CHAT_STT: "true"
+      USER_PERMISSIONS_CHAT_TTS: "false"
+      USER_PERMISSIONS_CHAT_CALL: "false"
+      # Workspace (Models/Knowledge/Prompts/Tools) is hidden for non-admins; the admin keeps it.
+      USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_PROMPTS_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_TOOLS_ACCESS: "false"
+
+      # ---- plugins: the NanoAgent Pipe Function needs these ----------------------------------
+      ENABLE_PLUGINS: "true"
+      # httpx + pydantic already ship with the image; nothing is pulled from PyPI at runtime.
+      ENABLE_PIP_INSTALL_FRONTMATTER_REQUIREMENTS: "false"
+      # Structured results arrive as srcdoc iframes (embeds). Restrict them to inline content;
+      # the TradingView chart artifact is an https URL embed and is not affected by this CSP.
+      IFRAME_CSP: "default-src 'self' 'unsafe-inline' data: blob:; connect-src 'none'; frame-src 'none'"
+    # The image ships its own HEALTHCHECK against /health.
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nanoagent-caddy
+    restart: unless-stopped
+    depends_on:
+      - open-webui
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-nanoagent.lork.cloud}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      AGENT_API_UPSTREAM: ${AGENT_API_UPSTREAM:-host.docker.internal:8766}
+      LEGACY_WEBUI_UPSTREAM: ${LEGACY_WEBUI_UPSTREAM:-host.docker.internal:8765}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  open-webui-data:
+  caddy-data:
+  caddy-config:

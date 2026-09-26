@@ -1,0 +1,84 @@
+# Caddy reverse proxy for nanoagent.lork.cloud (NanoAgent v2, Phase 4 dual-run).
+#
+#   /api/v2/*   /ws/v2*   /v1/*   -> nanobot Agent API   (host:8766, aiohttp; SSE + WebSocket)
+#   /legacy/*                     -> legacy React WebUI   (host:8765, prefix stripped)
+#   everything else               -> Open WebUI          (open-webui:8080)
+#
+# Values come from the caddy service environment in docker-compose.yml.
+# Automatic HTTPS (Let's Encrypt) is used for SITE_ADDRESS; the ACME account e-mail is optional.
+
+{
+	email {$ACME_EMAIL}
+	servers {
+		# Keep long-lived SSE / WebSocket connections alive; the Agent API streams for minutes.
+		timeouts {
+			read_body 30s
+			read_header 15s
+			idle 10m
+		}
+	}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# --- nanobot Agent API -------------------------------------------------------------------
+	@agent_api path /api/v2/* /ws/v2 /ws/v2/* /v1/*
+	handle @agent_api {
+		reverse_proxy {$AGENT_API_UPSTREAM} {
+			# SSE: never buffer and never time out the response body.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+				dial_timeout 10s
+			}
+			header_up Host {upstream_hostport}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# --- legacy React WebUI (verification cycle only; removed at cut-over) --------------------
+	# `nanoagent.lork.cloud/legacy/` serves the old UI; the prefix is stripped so nanobot's
+	# gateway on :8765 still sees `/webui`, `/ws`, `/api`, `/auth` at their original paths.
+	redir /legacy /legacy/ permanent
+	handle_path /legacy/* {
+		reverse_proxy {$LEGACY_WEBUI_UPSTREAM} {
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+			header_up X-Forwarded-Prefix /legacy
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# --- Open WebUI (default) ----------------------------------------------------------------
+	handle {
+		reverse_proxy open-webui:8080 {
+			# Open WebUI streams chat completions and uses Socket.IO WebSockets.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
