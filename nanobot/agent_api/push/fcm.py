@@ -9,15 +9,22 @@ import httpx
 from loguru import logger
 
 from nanobot.agent_api.devices import DeviceRecord
+from nanobot.agent_api.labels import Labels
 from nanobot.agent_api.push.base import PushPayload
 from nanobot.security.network import validate_url_target
 
 FCM_ENDPOINT = "https://fcm.googleapis.com/v1/projects/{project}/messages:send"
+ANDROID_CHANNEL_ID = "default"
 AccessTokenProvider = Callable[[], Awaitable[str]]
 
 
 class FcmV1Provider:
-    """Send data-only messages; the app renders localized text from ``title_key``/``body_key``."""
+    """Send key-only ``data`` plus a ``notification`` block localized to the device locale.
+
+    The notification text comes from the label catalog (never prices or levels), so the
+    system tray can show it while the app is in the background; the app re-resolves the
+    keys from ``data`` when the user opens it.
+    """
 
     name = "fcm"
 
@@ -53,7 +60,11 @@ class FcmV1Provider:
             "message": {
                 "token": device["push_token"],
                 "data": data,
-                "android": {"priority": "high"},
+                "notification": localized_notification(payload, device["locale"]),
+                "android": {
+                    "priority": "high",
+                    "notification": {"channel_id": ANDROID_CHANNEL_ID},
+                },
             }
         }
         headers = {
@@ -91,3 +102,9 @@ def _flatten(payload: PushPayload) -> dict[str, object]:
     if payload["approval_id"] is not None:
         out["approval_id"] = payload["approval_id"]
     return out
+
+
+def localized_notification(payload: PushPayload, locale: str | None) -> dict[str, str]:
+    """Resolve ``title_key`` / ``body_key`` through the catalog for the device locale."""
+    labels = Labels(locale)
+    return {"title": labels(payload["title_key"]), "body": labels(payload["body_key"])}
