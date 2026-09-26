@@ -93,6 +93,12 @@ ws = cfg["channels"]["websocket"]
 ws["enabled"] = True
 ws["host"] = "0.0.0.0"
 ws["port"] = web_port
+# The Agent API defaults to 8766, which is the public web UI port. Keep the API
+# on localhost:8767 so this vhost can keep serving the UI on 8766.
+api = cfg.setdefault("agentApi", {})
+api["enabled"] = True
+api["host"] = "127.0.0.1"
+api["port"] = 8767
 existing = ws.get("tokenIssueSecret")
 ws["tokenIssueSecret"] = existing or token
 tools = cfg.setdefault("tools", {})
