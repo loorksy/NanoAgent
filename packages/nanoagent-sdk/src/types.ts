@@ -783,8 +783,11 @@ export type WsServerMessage =
 // Push payload (§7) — no prices or levels ever appear here.
 // ---------------------------------------------------------------------------
 
+/** `kind` values produced by `payload_for` in `nanobot/agent_api/push/router.py`. */
+export type PushKind = "approval" | "notification" | "decision" | "job" | "agent_message";
+
 export interface PushPayload {
-  kind: EventKind | "agent_message";
+  kind: PushKind;
   title_key: string;
   body_key: string;
   args?: Record<string, string | number>;

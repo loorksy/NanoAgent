@@ -155,18 +155,22 @@ interface PollingOptions {
   enabled?: boolean;
 }
 
-interface Resource<T> {
+export interface Resource<T> {
   data: T;
   loading: boolean;
   error: unknown;
   refresh: () => Promise<void>;
+  /** Optimistic local update; the next refresh replaces it with server state. */
+  setData: (updater: (current: T) => T) => void;
 }
+
+export type { PollingOptions };
 
 function usePolledResource<T>(
   loader: () => Promise<T>,
   initial: T,
   options: PollingOptions,
-): Resource<T> & { setData: (updater: (current: T) => T) => void } {
+): Resource<T> {
   const [data, setData] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(undefined);
