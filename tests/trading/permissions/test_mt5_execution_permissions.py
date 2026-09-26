@@ -284,8 +284,11 @@ async def test_paper_mode_note_travels_with_execution(h: Harness) -> None:
     h.runtime.update(paper_mode=True)
     h.grant()
     out = await _propose(lot=0.1)
-    assert out["status"] == "executed"
+    assert out["status"] == "proposed"
+    assert out["executed"] is False
+    assert out["permission"]["downgrade_reason_key"] == "permission.paper_mode"
     assert "permission.paper_mode" in out["permission"]["notes"]
+    assert h.transport.sent == []
 
 
 async def test_execute_still_runs_every_gate(h: Harness) -> None:

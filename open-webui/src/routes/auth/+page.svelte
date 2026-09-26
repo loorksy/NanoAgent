@@ -421,28 +421,6 @@
 													</div>
 												{/if}
 											</button>
-
-											{#if $config?.features.enable_signup && !($config?.onboarding ?? false)}
-												<div class=" mt-4 text-sm text-center">
-													{mode === 'signin'
-														? $i18n.t("Don't have an account?")
-														: $i18n.t('Already have an account?')}
-
-													<button
-														class=" font-normal underline"
-														type="button"
-														on:click={() => {
-															if (mode === 'signin') {
-																mode = 'signup';
-															} else {
-																mode = 'signin';
-															}
-														}}
-													>
-														{mode === 'signin' ? $i18n.t('Sign up') : $i18n.t('Sign in')}
-													</button>
-												</div>
-											{/if}
 										{/if}
 									{/if}
 								</div>

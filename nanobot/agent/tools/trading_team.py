@@ -78,11 +78,11 @@ class RunTradingTeamTool(Tool):
         if ctx is None:
             return ToolResult.error("run_trading_team requires an active chat session")
 
-        from nanobot.trading.locale import locale_from_text
+        from nanobot.trading.locale import active_locale
 
         channel = ctx.channel or ""
         chat_id = ctx.chat_id or ""
-        locale = locale_from_text(ctx.original_user_text or "")
+        locale = active_locale(ctx.original_user_text or "")
         publish_ui = should_publish_trading_ui(present_ui)
         publisher = TradingStagePublisher(
             self._bus,

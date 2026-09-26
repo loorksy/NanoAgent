@@ -106,6 +106,69 @@ def test_partial_and_momentum_exit_respect_grants() -> None:
     assert "secure" not in {item.kind for item in held}
 
 
+async def test_management_cycle_reports_a_rejected_broker_call(monkeypatch) -> None:
+    class _Transport:
+        async def open_positions(self) -> list[dict[str, object]]:
+            return [{
+                "id": "1",
+                "type": "buy",
+                "volume": 0.1,
+                "openPrice": 2650,
+                "stopLoss": 2640,
+                "takeProfit": 2660,
+            }]
+
+        async def quote(self, _symbol: str) -> dict[str, float]:
+            return {"bid": 2662, "ask": 2662.2}
+
+        async def modify_position(self, _payload: dict[str, object]) -> dict[str, object]:
+            return {"ok": False, "error": "rejected"}
+
+        async def close_partial(self, _payload: dict[str, object]) -> dict[str, object]:
+            return {"ok": True}
+
+        async def close_position(self, _payload: dict[str, object]) -> dict[str, object]:
+            return {"ok": True}
+
+    class _Perms:
+        level = "execute"
+        can_modify_sl_tp = True
+        can_partial_close = True
+        can_close_all = True
+
+    class _Store:
+        def load(self) -> _Perms:
+            return _Perms()
+
+    monkeypatch.setattr("nanobot.trading.mt5_metaapi.get_transport", lambda: _Transport())
+    monkeypatch.setattr(
+        "nanobot.trading.permissions.store.get_permission_store",
+        lambda: _Store(),
+    )
+    monkeypatch.setattr(
+        "nanobot.trading.runtime_state.get_runtime_store",
+        lambda: type(
+            "Store",
+            (),
+            {"snapshot": staticmethod(lambda: type("Runtime", (), {
+                "paper_mode": False,
+                "kill_switch": False,
+                "paused": False,
+            })())},
+        )(),
+    )
+    from nanobot.trading.management.engine import run_management_cycle
+
+    summary = await run_management_cycle(
+        live_px=2662,
+        atr=2,
+        minutes_to_news=100,
+        candles=[],
+    )
+    assert summary["ok"] is False
+    assert summary["applied"]
+
+
 def test_scenario_watch_keeps_the_first_trigger() -> None:
     watch = ScenarioWatch(
         ScenarioSpec("primary", "buy", 2660, 2640),
@@ -216,6 +279,9 @@ class _PendingTransport(NullTransport):
 
 @pytest.mark.asyncio
 async def test_limit_confirm_sends_pending_not_market(monkeypatch: pytest.MonkeyPatch) -> None:
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    get_runtime_store().update(paper_mode=False, kill_switch=False, paused=False)
     transport = _PendingTransport()
     set_transport_for_tests(transport)
     monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)

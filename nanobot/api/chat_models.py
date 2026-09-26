@@ -118,15 +118,22 @@ def apply_session_model(agent: Any, session_key: str, model_id: str) -> bool:
     return True
 
 
-def clear_session_model(agent: Any, session_key: str) -> None:
-    """Drop a per-chat override so the next turn uses the settings primary."""
+def clear_session_model(agent: Any, session_key: str) -> bool:
+    """Drop a per-chat override so the next turn uses the settings primary.
+
+    Returns false when the override could not be cleared. Callers must not
+    run the turn on the previous preset after a failed clear.
+    """
     clearer = getattr(agent, "clear_session_model_preset", None)
     if not callable(clearer):
-        return
+        logger.warning("chat model clear unavailable")
+        return False
     try:
         clearer(session_key)
     except Exception:
-        logger.warning("chat model clear failed")
+        logger.warning("chat model clear failed", exc_info=True)
+        return False
+    return True
 
 
 def listed_model_ids(config: Config, alias: str) -> list[str]:

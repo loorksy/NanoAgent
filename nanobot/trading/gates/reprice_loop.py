@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nanobot.trading.gates.build_gates import GateDefinition
+from nanobot.trading.gates.build_gates import GATE_REQUIRED, GateDefinition
 from nanobot.trading.gates.chain import run_gate_chain
 from nanobot.trading.policy import live
 from nanobot.trading.types import AgentRecommendation, EntryPlan, GateChainResult, GateVerdict
@@ -14,10 +14,19 @@ def _merge_gate_chains(first: GateChainResult, second: GateChainResult) -> GateC
         replaced[verdict.id] = verdict
     verdicts = list(replaced.values())
     confidence_delta = sum(v.confidence_delta for v in verdicts)
-    vetoed = next((v for v in verdicts if v.status == "veto"), None)
+    blocked = next(
+        (
+            verdict
+            for verdict in verdicts
+            if verdict.status == "veto"
+            or (verdict.status == "unavailable" and GATE_REQUIRED.get(verdict.id, False))
+        ),
+        None,
+    )
+    vetoed = blocked if blocked is not None and blocked.status == "veto" else None
     return GateChainResult(
         verdicts=verdicts,
-        allowed=vetoed is None,
+        allowed=blocked is None,
         confidence_delta=confidence_delta,
         vetoed_by=vetoed,
     )

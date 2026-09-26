@@ -26,7 +26,7 @@ from nanobot.trading.gates.risk_snapshot import RiskSnapshot
 from nanobot.trading.gold import DATA_SYMBOL, require_gold
 from nanobot.trading.i18n import gate_label, tr
 from nanobot.trading.intel.postmortem import refuse_repeat_error
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.locale import active_locale
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.observability import log_gate_observability
 from nanobot.trading.policy import GOLD_POINT
@@ -108,6 +108,16 @@ def _session_key(explicit: str | None) -> str | None:
 def _operator_text() -> str:
     ctx = current_request_context()
     return (ctx.original_user_text if ctx else "") or ""
+
+
+def _quote_age(quote: object) -> float | None:
+    """Broker clock age. A quote with no timestamp counts as just fetched."""
+    if quote is None:
+        return None
+    from nanobot.trading.gates.stale_quote import broker_quote_age_seconds
+
+    age = broker_quote_age_seconds(getattr(quote, "quoted_at", None))
+    return 0.0 if age is None else age
 
 
 def _record_plan_prices(result: AgentFinalResult) -> None:
@@ -276,7 +286,7 @@ async def run_trading_kernel(
             setup = rec.plan_type
         repeat = refuse_repeat_error(side=rec.action, setup=setup)
         if repeat is not None:
-            loc = locale_from_text(_operator_text())
+            loc = active_locale()
             reason = tr("lesson.repeat", loc, reason=repeat.reason)
             decision.decision = "wait"
             decision.refusal_summary = reason
@@ -326,7 +336,7 @@ async def run_trading_kernel(
         minutes_to, minutes_since = nearest_high_impact(news.upcoming_events, now_ms)
     risk_snap = RiskSnapshot(
         spread_points=spread,
-        quote_age_seconds=0.0 if quote is not None else None,
+        quote_age_seconds=_quote_age(quote),
         bid=quote.bid if quote else None,
         ask=quote.ask if quote else None,
         last_mid=stored.last_mid or None,
@@ -377,7 +387,7 @@ async def run_trading_kernel(
 
     if not gate_chain.allowed:
         veto = gate_chain.vetoed_by
-        loc = locale_from_text(_operator_text())
+        loc = active_locale()
         reason = (veto.reason_ar or veto.reason) if veto else tr("synth.operational_blocker", loc)
         check = gate_label(veto.id, loc) if veto else ""
         decision.decision = "wait"
@@ -431,7 +441,7 @@ async def run_trading_kernel(
     )
     if present_ui:
         operator = _operator_text()
-        locale = locale_from_text(operator)
+        locale = active_locale(operator)
         result.cards = derive_cards(result, locale=locale)
         apply_result_artifacts(
             result,

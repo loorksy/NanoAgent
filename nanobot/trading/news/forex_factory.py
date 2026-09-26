@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.request
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 _GOLD_CURRENCIES = frozenset({"USD", "XAU", "ALL"})
@@ -19,6 +22,7 @@ def fetch_upcoming_events(limit: int = 12) -> list[dict[str, Any]]:
         with urllib.request.urlopen(_CALENDAR_URL, timeout=8) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
     except Exception:
+        logger.warning("forex factory calendar unavailable", exc_info=True)
         return []
 
     events: list[dict[str, Any]] = []
