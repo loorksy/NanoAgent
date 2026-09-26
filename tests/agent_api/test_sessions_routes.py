@@ -7,8 +7,10 @@ import asyncio
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import BOOTSTRAP, FakeAgent, auth, parse_sse
+from nanobot.agent.tools.context import RequestContext, bind_request_context, reset_request_context
 from nanobot.agent_api.context import AgentApiServices
 from nanobot.agent_api.events import AGENT_API_CHANNEL, session_key_for
+from nanobot.trading.locale import active_locale
 
 
 async def test_requires_bearer_token(client: TestClient) -> None:
@@ -147,6 +149,39 @@ async def test_agent_error_ends_run_with_error_outcome(client: TestClient, agent
     assert events[-1]["data"]["outcome"] == "error"
 
 
+async def test_busy_run_does_not_change_the_selected_model(
+    client: TestClient, agent: FakeAgent,
+) -> None:
+    agent.block = asyncio.Event()
+    session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
+    await client.post(f"/api/v2/sessions/{session}/messages", json={"text": "hi"}, headers=auth())
+    await asyncio.sleep(0.05)
+
+    busy = await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "again", "model": None},
+        headers=auth(),
+    )
+    assert busy.status == 409
+    assert agent.cleared == []
+    agent.block.set()
+
+
+async def test_failed_model_clear_does_not_start_the_turn(
+    client: TestClient, agent: FakeAgent,
+) -> None:
+    agent.fail_clear = True
+    session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
+    resp = await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "hi", "model": None},
+        headers=auth(),
+    )
+    assert resp.status == 500
+    assert (await resp.json())["error"]["code"] == "model_clear_failed"
+    assert agent.calls == []
+
+
 async def test_empty_message_rejected(client: TestClient) -> None:
     session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
     resp = await client.post(f"/api/v2/sessions/{session}/messages", json={"text": "  "}, headers=auth())
@@ -202,6 +237,45 @@ async def test_message_attachments_saved_as_media(
     await (await client.get(f"/api/v2/sessions/{session}/events?until_end=1", headers=auth())).text()
     assert agent.calls[0]["media"] == ["/tmp/1.png", "/tmp/2.png"]
     assert saved == ["data:image/p", "data:image/p"]
+
+
+def test_ui_locale_overrides_the_script_of_the_message() -> None:
+    token = bind_request_context(RequestContext(
+        channel="agent_api",
+        chat_id="chat",
+        original_user_text="hello",
+        attributes={"locale": "ar-BH"},
+    ))
+    try:
+        assert active_locale("hello") == "ar"
+    finally:
+        reset_request_context(token)
+    assert active_locale("hello") == "en"
+
+
+async def test_chat_scope_can_cancel_and_locale_reaches_the_turn(
+    client: TestClient, agent: FakeAgent, services: AgentApiServices,
+) -> None:
+    issued = services.tokens.issue("service", scopes=["chat"], label="pipe")
+    headers = auth(issued["token"])
+    session = (await (await client.post("/api/v2/sessions", headers=headers)).json())["id"]
+    posted = await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "hi", "locale": "ar-BH"},
+        headers=headers,
+    )
+    assert posted.status == 202
+    await asyncio.sleep(0.05)
+    assert agent.calls[0]["attributes"] == {"locale": "ar-BH"}
+
+    agent.block = asyncio.Event()
+    await client.post(
+        f"/api/v2/sessions/{session}/messages", json={"text": "again"}, headers=headers,
+    )
+    await asyncio.sleep(0.05)
+    cancelled = await client.post(f"/api/v2/sessions/{session}/cancel", headers=headers)
+    assert cancelled.status == 200
+    assert (await cancelled.json())["cancelled"] is True
 
 
 async def test_openai_compat_routes_share_listener_and_auth(client: TestClient, agent: FakeAgent) -> None:

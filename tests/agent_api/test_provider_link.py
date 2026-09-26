@@ -225,6 +225,50 @@ async def test_provider_model_selection_hides_the_api_key(
     assert sent.status == 202
     assert agent.presets == [("agent_api:chat-models", "gemini-test")]
 
+    prefixed = await client.post(
+        "/api/v2/sessions/chat-models/messages",
+        headers=auth(),
+        json={"content": "hi", "model": "nanoagent.google/gemini-test"},
+    )
+    assert prefixed.status == 202
+    assert agent.presets[-1] == ("agent_api:chat-models", "gemini-test")
+
+    cleared = await client.post(
+        "/api/v2/sessions/chat-models/messages",
+        headers=auth(),
+        json={"content": "hi", "model": None},
+    )
+    assert cleared.status == 202
+    assert agent.cleared == ["agent_api:chat-models"]
+
+    unknown = await client.post(
+        "/api/v2/sessions/chat-models/messages",
+        headers=auth(),
+        json={"content": "hi", "model": "other/not-selected"},
+    )
+    assert unknown.status == 400
+
+    listed = await (await client.get("/v1/models", headers=auth())).json()
+    assert [row["id"] for row in listed["data"]] == ["nanoagent", "google/gemini-test"]
+    compat = await client.post(
+        "/v1/chat/completions",
+        headers={**auth(), "X-OpenWebUI-Chat-Id": "chat-42"},
+        json={
+            "model": "google/gemini-test",
+            "messages": [{"role": "user", "content": "hi"}],
+        },
+    )
+    assert compat.status == 200
+    compat_body = await compat.json()
+    assert compat_body["model"] == "google/gemini-test"
+    assert ("api:chat-42", "gemini-test") in agent.presets
+    rejected = await client.post(
+        "/v1/chat/completions",
+        headers=auth(),
+        json={"model": "other/not-selected", "messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert rejected.status == 400
+
     issued = client.app[SERVICES_KEY].tokens.issue("service", scopes=["read"], label="reader")
     denied = await client.put(
         "/api/v2/settings/providers/openrouter/models",

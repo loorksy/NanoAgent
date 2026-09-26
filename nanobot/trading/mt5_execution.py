@@ -184,6 +184,20 @@ def _plan_from_proposal(p: OrderProposal) -> EntryPlan:
     )
 
 
+def _mt5_quote_age(quote: dict[str, Any] | None, mid: float | None) -> float | None:
+    if mid is None:
+        return None
+    from nanobot.trading.gates.stale_quote import broker_quote_age_seconds
+
+    raw: object = None
+    if quote:
+        body = quote.get("quote") if isinstance(quote.get("quote"), dict) else quote
+        if isinstance(body, dict):
+            raw = body.get("time") or body.get("timestamp") or body.get("time_msc")
+    age = broker_quote_age_seconds(raw)
+    return 0.0 if age is None else age
+
+
 def _risk_from_account(account: dict[str, Any], quote: dict[str, Any] | None) -> RiskSnapshot:
     stored = get_risk_store().snapshot()
     runtime = get_runtime_store().snapshot()
@@ -203,7 +217,7 @@ def _risk_from_account(account: dict[str, Any], quote: dict[str, Any] | None) ->
     margin = info.get("marginLevel") or info.get("margin_level") if isinstance(info, dict) else None
     return RiskSnapshot(
         spread_points=spread,
-        quote_age_seconds=0.0 if mid is not None else None,
+        quote_age_seconds=_mt5_quote_age(quote, mid),
         bid=None if bid is None else float(bid),
         ask=None if ask is None else float(ask),
         current_mid=mid,
@@ -399,6 +413,14 @@ async def mt5_confirm_order(
     if blocker is not None:
         name, check = blocker
         return _blocked(name, check, proposal)
+    if get_runtime_store().snapshot().paper_mode:
+        return {
+            "ok": True,
+            "executed": False,
+            "status": "paper",
+            "reason_key": "permission.paper_mode",
+            "proposal": proposal.to_public(),
+        }
     store.mark_confirmed(
         proposal_id,
         confirmed_by=confirmed_by,
@@ -478,8 +500,11 @@ async def mt5_modify_order(
         return _with_permission(_fail(key=decision.reason_key), decision, perms)
     if not confirm and perms.level != "execute":
         return _fail(key="mt5.confirm_required_modify")
-    if get_runtime_store().snapshot().kill_switch:
+    runtime = get_runtime_store().snapshot()
+    if runtime.kill_switch:
         return _fail(key="mt5.kill_switch")
+    if runtime.paper_mode:
+        return _fail(key="permission.paper_mode")
     transport = get_transport()
     positions = await transport.open_positions()
     row = next(
@@ -556,6 +581,8 @@ async def mt5_modify_order(
 async def mt5_cancel_order(*, order_id: str, confirm: bool = False) -> dict[str, Any]:
     if not confirm:
         return _fail(key="mt5.confirm_required_cancel")
+    if get_runtime_store().snapshot().paper_mode:
+        return _fail(key="permission.paper_mode")
     sent = await get_transport().cancel_order({"order_id": order_id})
     if not broker_send_succeeded(sent):
         return {
@@ -595,6 +622,11 @@ async def mt5_close_position(
             return _with_permission(
                 _fail(key="mt5.confirm_required_close"), decision, perms, auto_confirmed=False
             )
+    if get_runtime_store().snapshot().paper_mode:
+        blocked = _fail(key="permission.paper_mode")
+        if decision is not None:
+            return _with_permission(blocked, decision, perms, auto_confirmed=False)
+        return blocked
     result = await _close_positions(position_id, flatten_all=is_all)
     if decision is not None and result.get("ok"):
         return _with_permission(result, decision, perms, auto_confirmed=True)

@@ -8,12 +8,11 @@ from typing import Any
 from nanobot.agent.tools.base import Tool, ToolResult, tool_parameters
 from nanobot.agent.tools.context import (
     ToolContext,
-    current_request_context,
     current_request_session_key,
 )
 from nanobot.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
 from nanobot.trading.kernel import run_trading_kernel
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.locale import active_locale
 from nanobot.trading.policy_guard import PolicyViolation
 from nanobot.trading.recommendations.gate_report import build_gate_report_result
 from nanobot.trading.recommendations.lifecycle import sync_session_live_plan
@@ -120,9 +119,7 @@ class GetGateReportTool(Tool):
         return True
 
     async def execute(self, **kwargs: Any) -> str:
-        locale = locale_from_text(
-            (current_request_context().original_user_text if current_request_context() else "") or ""
-        )
+        locale = active_locale()
         live = sync_session_live_plan(current_request_session_key())
         result = build_gate_report_result(live, operator_text="", locale=locale)
         return json.dumps(result_to_wire(result), indent=2)

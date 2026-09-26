@@ -86,6 +86,8 @@ class FakeGateway:
         labels: dict[str, str] | None = None,
         html: str | None = "<html><body>card</body></html>",
         html_status: int = 200,
+        message_run_id: str | None = RUN,
+        cancel_status: int = 200,
     ) -> None:
         self.streams = list(streams)
         self.sessions: set[str] = {SESSION} if session_exists else set()
@@ -95,6 +97,8 @@ class FakeGateway:
         self.requests: list[httpx.Request] = []
         self.approvals: list[tuple[str, str]] = []
         self.labels_calls = 0
+        self.message_run_id = message_run_id
+        self.cancel_status = cancel_status
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self.handle)
@@ -131,7 +135,10 @@ class FakeGateway:
                     headers={"content-type": "text/event-stream"},
                 )
             if action == "messages":
-                return httpx.Response(200, json={"run_id": RUN})
+                body = {} if self.message_run_id is None else {"run_id": self.message_run_id}
+                return httpx.Response(200, json=body)
+            if action == "cancel":
+                return httpx.Response(self.cancel_status, json={"ok": self.cancel_status < 400})
             return httpx.Response(200, json={"ok": True})
         match = re.fullmatch(r"/api/v2/approvals/([^/]+)", path)
         if match and request.method == "POST":
@@ -383,6 +390,7 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     payload = json.loads(message_request.content)
     assert payload["content"] == "hello"
     assert payload["locale"] == "en"
+    assert payload["model"] is None
     events_request = gateway.requests[1]
     assert events_request.headers["Accept"] == "text/event-stream"
     assert "after" not in events_request.url.params
@@ -537,6 +545,7 @@ async def test_reconnects_after_transport_error_and_gives_up_after_second_drop()
     events_requests = [r for r in gateway.requests if r.url.path.endswith("/events")]
     assert [r.url.params.get("after") for r in events_requests] == [None, "1"]
     assert harness.statuses()[-1] == ("The event stream ended before the agent finished.", True)
+    assert f"POST /api/v2/sessions/{SESSION}/cancel" in gateway.paths("POST")
 
 
 async def test_client_stop_cancels_the_run() -> None:
@@ -551,6 +560,24 @@ async def test_client_stop_cancels_the_run() -> None:
     blocker.set()
 
     assert gateway.paths("POST")[-1] == f"POST /api/v2/sessions/{SESSION}/cancel"
+
+
+async def test_failed_stop_is_visible_and_still_attempted_without_run_id() -> None:
+    blocker = asyncio.Event()
+    stream = ChunkStream([sse(ev("delta", {"text": "partial"}), "1")], block_after=blocker)
+    gateway = FakeGateway([stream], message_run_id=None, cancel_status=500)
+    harness = Harness(gateway, show_timeline=False)
+
+    generator = harness.generator()
+    assert await generator.__anext__() == "partial"
+    await generator.aclose()
+    blocker.set()
+
+    assert f"POST /api/v2/sessions/{SESSION}/cancel" in gateway.paths("POST")
+    assert harness.statuses()[-1] == (
+        "Stop did not reach the agent. The run may still be active.",
+        True,
+    )
 
 
 async def test_completed_run_is_not_cancelled_on_close() -> None:
@@ -742,6 +769,20 @@ async def test_timeline_is_omitted_when_disabled() -> None:
     assert await harness.run() == ["ok"]
 
 
+async def test_selected_chat_model_is_forwarded() -> None:
+    stream = ChunkStream(
+        [sse(ev("delta", {"text": "ok"}), "1"), sse(ev("end", {"outcome": "ok"}), "2")]
+    )
+    gateway = FakeGateway([stream])
+    harness = Harness(gateway)
+    body = harness.body()
+    body["model"] = "nanoagent.google/gemini-test"
+
+    assert await harness.run(body) == ["ok"]
+    message = next(request for request in gateway.requests if request.url.path.endswith("/messages"))
+    assert json.loads(message.content)["model"] == "google/gemini-test"
+
+
 async def test_background_tasks_do_not_reach_the_agent() -> None:
     gateway = FakeGateway([])
     harness = Harness(gateway)
@@ -799,10 +840,52 @@ def test_pipes_lists_models_chosen_for_the_agent(monkeypatch) -> None:
         {"id": "google/gemini-test", "name": "google/gemini-test"},
     ]
     assert pipe._requested_model({"model": "nanoagent.google/gemini-test"}) == "google/gemini-test"
-    assert pipe._requested_model({"model": "nanoagent.nanoagent"}) == ""
+    assert pipe._requested_model({"model": "nanoagent.nanoagent"}) is None
+    assert pipe._requested_model({"model": "nanoagent"}) is None
+    assert pipe._requested_model({"model": "openai/gpt-4.1"}) == "openai/gpt-4.1"
+    assert pipe._requested_model({"model": "other.google/gemini-test"}) == "google/gemini-test"
     valves = pipe.Valves()
     assert valves.GATEWAY_URL == "http://127.0.0.1:8766"
     assert valves.GATEWAY_TOKEN == ""
     assert valves.DEFAULT_LOCALE == "en"
     assert valves.SHOW_TIMELINE is True
     assert valves.REQUEST_TIMEOUT == 30.0
+
+
+def test_pipe_copies_stay_identical() -> None:
+    root = Path(__file__).resolve().parents[2]
+    deploy = (root / "deploy/openwebui/functions/nanoagent_pipe.py").read_bytes()
+    fork = (root / "open-webui/functions/nanoagent_pipe.py").read_bytes()
+    assert deploy == fork
+
+
+def test_local_chat_reuses_the_openwebui_session_id() -> None:
+    pipe = pipe_mod.Pipe()
+    metadata = {"chat_id": "local", "session_id": "ws1"}
+    assert pipe._session_id(metadata, {}) == "owui-ws1"
+    assert pipe._session_id(metadata, {}) == "owui-ws1"
+
+
+async def test_missing_run_id_is_not_posted_again_after_a_dropped_stream() -> None:
+    first = ChunkStream([sse(ev("delta", {"text": "a"}), "1")], fail_after=True)
+    second = ChunkStream([sse(ev("end", {"outcome": "ok"}), "2")])
+    gateway = FakeGateway([first, second], message_run_id=None)
+    harness = Harness(gateway, show_timeline=False)
+
+    chunks = await harness.run()
+
+    assert "".join(chunks) == "a"
+    posts = [request for request in gateway.requests if request.url.path.endswith("/messages")]
+    assert len(posts) == 1
+
+
+def test_unknown_model_is_not_reported_as_gateway_unreachable() -> None:
+    request = httpx.Request("POST", "http://gateway/api/v2/sessions/s/messages")
+    response = httpx.Response(
+        400,
+        json={"error": {"code": "unknown_model", "details": {"model": "missing-model"}}},
+        request=request,
+    )
+    exc = httpx.HTTPStatusError("bad request", request=request, response=response)
+    text = pipe_mod.Pipe._gateway_failure_text(exc, pipe_mod._Turn("s", "en", {}))
+    assert text == "Unknown model: missing-model"

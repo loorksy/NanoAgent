@@ -71,6 +71,7 @@ DEFAULT_LABELS: dict[str, str] = {
     "timeline.title": "Agent timeline",
     "error.gateway": "The agent gateway is unreachable.",
     "error.stream": "The event stream ended before the agent finished.",
+    "error.cancel": "Stop did not reach the agent. The run may still be active.",
 }
 
 EventEmitter = Callable[[dict[str, object]], Awaitable[None]]
@@ -377,6 +378,7 @@ class GatewayClient:
         text: str,
         attachments: list[Attachment],
         locale: str,
+        model: str | None = None,
     ) -> str:
         payload: dict[str, object] = {
             "role": "user",
@@ -386,6 +388,9 @@ class GatewayClient:
         }
         if attachments:
             payload["attachments"] = attachments
+        # Always send the selector value. null clears a previous override so the
+        # settings primary runs; a catalog id selects that model for this chat.
+        payload["model"] = model
         url = f"{API_PREFIX}/sessions/{session}/messages"
         response = await self._client.post(
             url, json=payload, headers=self._session_headers(session)
@@ -510,6 +515,7 @@ class _Turn:
         self.locale = locale
         self.labels = labels
         self.run_id = ""
+        self.submitted = False
         self.last_event_id: str | None = None
         self.finished = False
         self.timeline: list[str] = []
@@ -535,7 +541,8 @@ class Pipe:
             description="Base URL of the NanoAgent Agent API (no trailing slash).",
         )
         GATEWAY_TOKEN: str = Field(
-            default="", description="Bearer token for the Agent API (scopes: chat, approve)."
+            default="",
+            description="Bearer token for the Agent API (scopes: chat, approve). Stop uses chat.",
         )
         DEFAULT_LOCALE: str = Field(
             default="en",
@@ -555,7 +562,68 @@ class Pipe:
         self._labels_cache: dict[str, dict[str, str]] = {}
 
     def pipes(self) -> list[dict[str, str]]:
-        return [{"id": MODEL_ID, "name": MODEL_NAME}]
+        models = [{"id": MODEL_ID, "name": MODEL_NAME}]
+        seen = {MODEL_ID}
+        for row in self._catalog_models():
+            model_id = row["id"]
+            if model_id in seen:
+                continue
+            seen.add(model_id)
+            models.append({"id": model_id, "name": row["name"] or model_id})
+        return models
+
+    def _catalog_models(self) -> list[dict[str, str]]:
+        token = self.valves.GATEWAY_TOKEN.strip()
+        base = self.valves.GATEWAY_URL.rstrip("/")
+        if not token or not base:
+            return []
+        try:
+            response = httpx.get(
+                f"{base}/api/v2/chat/models",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            payload: object = response.json()
+        except Exception:
+            log.warning("nanoagent pipe: model list unavailable")
+            return []
+        body = _as_dict(payload)
+        rows = body.get("models")
+        found: list[dict[str, str]] = []
+        for raw in _as_list(rows):
+            row = _as_dict(raw)
+            model_id = _as_str(row.get("id")).strip()
+            if not model_id:
+                continue
+            name = _as_str(row.get("name")).strip() or model_id
+            found.append({"id": model_id, "name": name})
+        return found
+
+    def _requested_model(self, body: Mapping[str, object]) -> str | None:
+        """Provider model id from the chat selector, or None for the settings primary.
+
+        Open WebUI names a manifold pipe ``<function id>.<pipe id>``. The
+        installed function id is ``nanoagent``. A provider/model id may itself
+        contain dots (``openai/gpt-4.1``), so only a function-id prefix is
+        stripped.
+        """
+        raw = _as_str(body.get("model")).strip()
+        if not raw or raw == MODEL_ID:
+            return None
+        if raw.startswith(f"{MODEL_ID}."):
+            chosen = raw[len(MODEL_ID) + 1 :].strip()
+            if not chosen or chosen == MODEL_ID:
+                return None
+            return chosen
+        if "." in raw:
+            head, tail = raw.split(".", 1)
+            tail = tail.strip()
+            if head and "/" not in head and "/" in tail:
+                if not tail or tail == MODEL_ID:
+                    return None
+                return tail
+        return raw
 
     # -- wiring -------------------------------------------------------------
 
@@ -572,6 +640,10 @@ class Pipe:
             chat_id = _as_str(candidate)
             if chat_id and chat_id != "local":
                 return chat_id
+        for candidate in (metadata.get("session_id"), body.get("session_id")):
+            session_id = _as_str(candidate).strip()
+            if session_id and session_id != "local":
+                return f"owui-{session_id}"
         return f"owui-{uuid.uuid4().hex}"
 
     def _locale(self, metadata: Mapping[str, object]) -> str:
@@ -626,10 +698,15 @@ class Pipe:
                     # The stream is opened before the message is posted so that no
                     # event emitted between POST and GET is lost.
                     async with gateway.open_events(session, turn.last_event_id) as stream:
-                        if not turn.run_id:
+                        if not turn.submitted:
                             turn.run_id = await gateway.send_message(
-                                session, text, attachments, locale
+                                session,
+                                text,
+                                attachments,
+                                locale,
+                                self._requested_model(body),
                             )
+                            turn.submitted = True
                         events = stream.events()
                         try:
                             async for event in events:
@@ -644,7 +721,7 @@ class Pipe:
                 except httpx.HTTPStatusError:
                     raise
                 except httpx.HTTPError as exc:
-                    if not turn.run_id:
+                    if not turn.submitted:
                         raise
                     log.warning("nanoagent pipe: stream dropped (%s)", exc)
                 if turn.finished:
@@ -657,23 +734,33 @@ class Pipe:
                             "data": {"description": turn.label("error.stream"), "done": True},
                         },
                     )
+                    if (turn.submitted or turn.run_id) and not turn.finished:
+                        await self._cancel_quietly(gateway, session)
                     break
                 attempt += 1
             if self.valves.SHOW_TIMELINE and turn.timeline:
                 yield self._render_timeline(turn)
         except httpx.HTTPError as exc:
             log.error("nanoagent pipe: gateway error: %s", exc)
+            detail = self._gateway_failure_text(exc, turn)
             await self._emit(
                 __event_emitter__,
                 {
                     "type": "status",
-                    "data": {"description": turn.label("error.gateway"), "done": True},
+                    "data": {"description": detail, "done": True},
                 },
             )
-            yield f"\n\n{turn.label('error.gateway')}"
+            yield f"\n\n{detail}"
         except (GeneratorExit, asyncio.CancelledError):
-            if turn.run_id and not turn.finished:
-                await self._cancel_quietly(gateway, session)
+            if (turn.submitted or turn.run_id) and not turn.finished:
+                if not await self._cancel_quietly(gateway, session):
+                    await self._emit(
+                        __event_emitter__,
+                        {
+                            "type": "status",
+                            "data": {"description": turn.label("error.cancel"), "done": True},
+                        },
+                    )
             raise
         finally:
             await gateway.aclose()
@@ -920,6 +1007,28 @@ class Pipe:
     # -- utilities ----------------------------------------------------------
 
     @staticmethod
+    def _gateway_failure_text(exc: httpx.HTTPError, turn: _Turn) -> str:
+        """Prefer the gateway's own error over the generic unreachable message."""
+        response = getattr(exc, "response", None)
+        if response is not None:
+            try:
+                body = response.json()
+            except Exception:
+                body = None
+            if isinstance(body, dict):
+                err = body.get("error")
+                if isinstance(err, dict):
+                    details = err.get("details") if isinstance(err.get("details"), dict) else {}
+                    if str(err.get("code") or "") == "unknown_model":
+                        model = str(details.get("model") or "").strip()
+                        if model:
+                            return f"Unknown model: {model}"
+                    message = err.get("message")
+                    if isinstance(message, str) and message.strip():
+                        return message.strip()
+        return turn.label("error.gateway")
+
+    @staticmethod
     async def _emit(emitter: EventEmitter | None, event: dict[str, object]) -> bool:
         if emitter is None:
             return False
@@ -931,11 +1040,13 @@ class Pipe:
         return True
 
     @staticmethod
-    async def _cancel_quietly(gateway: GatewayClient, session: str) -> None:
+    async def _cancel_quietly(gateway: GatewayClient, session: str) -> bool:
         try:
             await asyncio.wait_for(gateway.cancel(session), timeout=CANCEL_TIMEOUT_SECONDS)
         except BaseException as exc:
             log.warning("nanoagent pipe: cancel for %s failed: %s", session, exc)
+            return False
+        return True
 
     @staticmethod
     def _render_timeline(turn: _Turn) -> str:

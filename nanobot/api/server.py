@@ -327,8 +327,36 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
         logger.exception("Error parsing upload")
         return _error_json(413, "File too large or invalid upload")
 
-    if requested_model and requested_model != model_name:
-        return _error_json(400, f"Only configured model '{model_name}' is available")
+    from nanobot.api.chat_models import (
+        apply_session_model,
+        canonical_chat_model_id,
+        clear_session_model,
+    )
+    from nanobot.config.loader import load_config
+
+    try:
+        try:
+            config = load_config()
+        except Exception:
+            config = None
+        if config is None:
+            if requested_model not in (None, "") and not (
+                isinstance(requested_model, str)
+                and requested_model.strip() in {"", model_name, "nanoagent"}
+            ):
+                raise ValueError(str(requested_model))
+            selected_model = None
+        else:
+            selected_model = canonical_chat_model_id(
+                config,
+                requested_model,
+                alias=model_name,
+            )
+    except ValueError:
+        return _error_json(
+            400,
+            f"Unknown model '{requested_model}'. Choose a model from the selector.",
+        )
 
     # Open WebUI forwards its chat id when ENABLE_FORWARD_USER_INFO_HEADERS is on; use it
     # so the plain OpenAI-compatible path maps one chat to one nanobot session.
@@ -341,6 +369,15 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
         "session_locks",
     )
     session_lock = session_locks.setdefault(session_key, asyncio.Lock())
+    if selected_model is None:
+        if not clear_session_model(agent_loop, session_key):
+            return _error_json(500, "Could not clear the chat model override.")
+    elif not apply_session_model(agent_loop, session_key, selected_model):
+        return _error_json(
+            400,
+            f"Unknown model '{selected_model}'. Choose a model from the selector.",
+        )
+    response_model = selected_model or model_name
 
     logger.info(
         "API request session_key={} media={} text={} stream={}",
@@ -402,16 +439,21 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
                 token = await queue.get()
                 if token is None:
                     break
-                await resp.write(_sse_chunk(token, model_name, chunk_id))
+                await resp.write(_sse_chunk(token, response_model, chunk_id))
         finally:
             if not task.done():
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
 
-        if not stream_failed:
-            await resp.write(_sse_chunk("", model_name, chunk_id, finish_reason="stop"))
-            await resp.write(_SSE_DONE)
+        if stream_failed:
+            await resp.write(
+                b'data: {"error":{"message":"The agent failed before finishing this response.",'
+                b'"type":"server_error","code":"stream_failed"}}\n\n'
+            )
+        else:
+            await resp.write(_sse_chunk("", response_model, chunk_id, finish_reason="stop"))
+        await resp.write(_SSE_DONE)
         return resp
 
     # -- non-streaming path (original logic) --
@@ -444,23 +486,32 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
         return _error_json(500, "Internal server error", err_type="server_error")
 
     return web.json_response(
-        _chat_completion_response(response_text, model_name, usage_capture.usage)
+        _chat_completion_response(response_text, response_model, usage_capture.usage)
     )
 
 
 async def handle_models(request: web.Request) -> web.Response:
-    """GET /v1/models"""
+    """GET /v1/models — the connection alias plus every model the user selected."""
+    from nanobot.api.chat_models import listed_model_ids
+    from nanobot.config.loader import load_config
+
     model_name = _app_value(request.app, _MODEL_NAME_KEY, "model_name", "nanobot")
+    try:
+        model_ids = listed_model_ids(load_config(), model_name)
+    except Exception:
+        logger.debug("chat model catalog unavailable")
+        model_ids = [model_name]
     return web.json_response(
         {
             "object": "list",
             "data": [
                 {
-                    "id": model_name,
+                    "id": model_id,
                     "object": "model",
                     "created": 0,
                     "owned_by": "nanobot",
                 }
+                for model_id in model_ids
             ],
         }
     )

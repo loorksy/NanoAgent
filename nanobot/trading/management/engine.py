@@ -80,6 +80,8 @@ def plan_position_actions(
     can_modify: bool = False,
     can_partial: bool = False,
     can_close: bool = False,
+    news_shield: bool = True,
+    early_exit: bool = True,
 ) -> list[ManagementAction]:
     """Return the next management steps. ``apply`` is true only when the grant allows it."""
     actions: list[ManagementAction] = []
@@ -87,7 +89,8 @@ def plan_position_actions(
     policy = live()
 
     if (
-        minutes_to_news is not None
+        news_shield
+        and minutes_to_news is not None
         and minutes_to_news <= policy.NEWS_SHIELD_MINUTES
         and position.stop != position.entry
     ):
@@ -153,7 +156,7 @@ def plan_position_actions(
             )
         )
 
-    if candles and momentum_is_weak(candles, direction=position.direction):
+    if early_exit and candles and momentum_is_weak(candles, direction=position.direction):
         actions.append(
             ManagementAction(
                 kind="exit",
@@ -230,7 +233,27 @@ async def run_management_cycle(
     from nanobot.trading.permissions.store import get_permission_store
 
     perms = get_permission_store().load()
-    execute = perms.level == "execute"
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    runtime = get_runtime_store().snapshot()
+    # Cron management must honor the same live-trading locks as the order path.
+    execute = (
+        perms.level == "execute"
+        and not runtime.paper_mode
+        and not runtime.kill_switch
+        and not runtime.paused
+    )
+    from nanobot.trading.risk_state import get_risk_store
+
+    toggles = get_risk_store()
+    news_shield = toggles.toggle_enabled("news_shield")
+    early_exit = toggles.toggle_enabled("early_exit")
+    candles, minutes_to_news = _load_cycle_context(
+        candles,
+        minutes_to_news,
+        news_shield=news_shield,
+        early_exit=early_exit,
+    )
     transport = get_transport()
     rows = await transport.open_positions()
     quote_px = live_px if live_px is not None else _quote_mid(await transport.quote("XAUUSD"))
@@ -251,6 +274,8 @@ async def run_management_cycle(
             can_modify=execute and perms.can_modify_sl_tp,
             can_partial=execute and perms.can_partial_close,
             can_close=execute and perms.can_close_all,
+            news_shield=news_shield,
+            early_exit=early_exit,
         )
         actions.extend(planned)
         for action in planned:
@@ -270,8 +295,46 @@ async def run_management_cycle(
                 result = await transport.close_position({"position_id": action.ticket})
                 applied.append({"action": action.to_dict(), "result": result})
     return {
-        "ok": True,
+        "ok": _applied_ok(applied),
         "positions": len(rows),
         "actions": [action.to_dict() for action in actions],
         "applied": applied,
     }
+
+
+def _applied_ok(applied: list[dict[str, Any]]) -> bool:
+    for item in applied:
+        result = item.get("result")
+        if isinstance(result, dict) and result.get("ok") is False:
+            return False
+    return True
+
+
+def _load_cycle_context(
+    candles: list[Candle] | None,
+    minutes_to_news: float | None,
+    *,
+    news_shield: bool,
+    early_exit: bool,
+) -> tuple[list[Candle] | None, float | None]:
+    """Fill the inputs the cron job does not pass, so the toggles can fire."""
+    import logging
+
+    log = logging.getLogger(__name__)
+    resolved_candles = candles
+    resolved_minutes = minutes_to_news
+    if resolved_candles is None and early_exit:
+        try:
+            from nanobot.trading.market_context import build_agent_market_context
+
+            resolved_candles = build_agent_market_context().candles
+        except Exception:
+            log.warning("management market context unavailable", exc_info=True)
+    if resolved_minutes is None and news_shield:
+        try:
+            from nanobot.trading.agents.news_macro import upcoming_minutes_to_high_impact
+
+            resolved_minutes = upcoming_minutes_to_high_impact()
+        except Exception:
+            log.warning("management news calendar unavailable", exc_info=True)
+    return resolved_candles, resolved_minutes

@@ -20,7 +20,7 @@ from nanobot.trading.config import load_trading_config
 from nanobot.trading.crew.debate import run_debate_crew
 from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, require_gold
 from nanobot.trading.kernel import LivePlanActive, run_trading_kernel
-from nanobot.trading.locale import locale_from_text
+from nanobot.trading.locale import active_locale
 from nanobot.trading.oanda import fetch_quote
 from nanobot.trading.policy_guard import PolicyViolation
 from nanobot.trading.recommendations.followup import grade_outcome_status
@@ -143,7 +143,7 @@ def _operator_locale() -> str:
     operator_text = (
         current_request_context().original_user_text if current_request_context() else ""
     ) or ""
-    return locale_from_text(operator_text)
+    return active_locale(operator_text)
 
 
 async def _maybe_publish_artifacts(

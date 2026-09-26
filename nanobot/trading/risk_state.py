@@ -9,6 +9,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 from nanobot.config.paths import get_data_dir
 from nanobot.trading.policy import live
 
@@ -149,8 +151,14 @@ class RiskStateStore:
         try:
             raw = json.loads(self._path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            logger.warning("Risk state at {} is unreadable; emergency lock is on", self._path)
+            with self._lock:
+                self._state.emergency_lock = True
             return
         if not isinstance(raw, dict):
+            logger.warning("Risk state at {} is not an object; emergency lock is on", self._path)
+            with self._lock:
+                self._state.emergency_lock = True
             return
         with self._lock:
             toggles = dict(DEFAULT_TOGGLES)

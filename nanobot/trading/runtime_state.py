@@ -7,6 +7,8 @@ import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from loguru import logger
+
 from nanobot.config.paths import get_data_dir
 
 
@@ -48,8 +50,16 @@ class TradingRuntimeStore:
         try:
             raw = json.loads(self._path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            logger.warning("Trading runtime state at {} is unreadable; trading stays locked", self._path)
+            with self._lock:
+                self._state.kill_switch = True
+                self._state.paused = True
             return
         if not isinstance(raw, dict):
+            logger.warning("Trading runtime state at {} is not an object; trading stays locked", self._path)
+            with self._lock:
+                self._state.kill_switch = True
+                self._state.paused = True
             return
         with self._lock:
             for key in ("paused", "kill_switch", "paper_mode"):

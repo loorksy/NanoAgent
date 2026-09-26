@@ -62,6 +62,7 @@ class OandaQuote:
     ask: float | None
     mid: float | None
     tradeable: bool
+    quoted_at: str | None = None
 
 
 def to_oanda_granularity(interval: str) -> str | None:
@@ -193,12 +194,14 @@ def fetch_quote(
         mid = (bid + ask) / 2
     elif bid is not None or ask is not None:
         mid = bid if bid is not None else ask
+    quoted_at = row.get("time")
     return OandaQuote(
         symbol=DATA_SYMBOL,
         bid=bid,
         ask=ask,
         mid=mid,
         tradeable=row.get("tradeable") is not False,
+        quoted_at=quoted_at if isinstance(quoted_at, str) and quoted_at.strip() else None,
     )
 
 

@@ -904,17 +904,11 @@ async def signup(
     db: AsyncSession = Depends(get_async_session),
 ):
     has_users = await Users.has_users(db=db)
+    if has_users:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
 
-    if WEBUI_AUTH:
-        if has_users:
-            if not await Config.get('ui.enable_signup') or not await Config.get('ui.enable_login_form'):
-                raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
-        # Don't gate the first admin on ENABLE_SIGNUP: it auto-disables and can persist stale across a DB reset.
-        elif not await Config.get('ui.enable_login_form') and not ENABLE_INITIAL_ADMIN_SIGNUP:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
-    else:
-        if has_users:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
+    if WEBUI_AUTH and not await Config.get('ui.enable_login_form') and not ENABLE_INITIAL_ADMIN_SIGNUP:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
 
     if not validate_email_format(form_data.email.lower()):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT)
@@ -1105,62 +1099,8 @@ async def add_user(
     user=Depends(get_admin_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    admin_user = user
-    if not validate_email_format(form_data.email.lower()):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=ERROR_MESSAGES.INVALID_EMAIL_FORMAT)
-
-    if await Users.get_user_by_email(form_data.email.lower(), db=db):
-        raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
-
-    try:
-        try:
-            validate_password(form_data.password)
-        except Exception as e:
-            raise HTTPException(400, detail=str(e))
-
-        hashed = await get_password_hash(form_data.password)
-        user = await Auths.insert_new_auth(
-            form_data.email.lower(),
-            hashed,
-            form_data.name,
-            form_data.profile_image_url,
-            form_data.role,
-            db=db,
-        )
-
-        if user:
-            await apply_default_group_assignment(
-                await Config.get('ui.default_group_id'),
-                user.id,
-                db=db,
-            )
-            await publish_event(
-                request,
-                EVENTS.USER_CREATED,
-                actor=admin_user,
-                subject_id=user.id,
-                source='admin',
-                data={'role': user.role},
-            )
-
-            expires_delta = parse_duration(await Config.get('auth.jwt_expiry'))
-            token = create_token(data={'id': user.id}, expires_delta=expires_delta)
-            return {
-                'token': token,
-                'token_type': 'Bearer',
-                'id': user.id,
-                'email': user.email,
-                'name': user.name,
-                'role': user.role,
-                'profile_image_url': f'/api/v1/users/{user.id}/profile/image',
-            }
-        else:
-            raise HTTPException(500, detail=ERROR_MESSAGES.CREATE_USER_ERROR)
-    except HTTPException:
-        raise
-    except Exception as err:
-        log.error(f'Add user error: {str(err)}')
-        raise HTTPException(500, detail='An internal error occurred while adding the user.')
+    del request, form_data, user, db
+    raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
 
 
 ############################

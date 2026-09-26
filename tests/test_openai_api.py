@@ -246,7 +246,7 @@ async def test_model_mismatch_returns_400() -> None:
     resp = await handle_chat_completions(request)
     assert resp.status == 400
     body = json.loads(resp.body)
-    assert "test-model" in body["error"]["message"]
+    assert "other-model" in body["error"]["message"]
 
 
 @pytest.mark.asyncio
