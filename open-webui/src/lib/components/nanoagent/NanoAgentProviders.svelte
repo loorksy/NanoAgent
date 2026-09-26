@@ -3,6 +3,7 @@
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
 	import ProviderMark from './ProviderMark.svelte';
+	import ProviderModels from './ProviderModels.svelte';
 
 	const i18n = getContext<{ language?: string }>('i18n');
 
@@ -428,7 +429,7 @@
 		on:click={close}
 	>
 		<div
-			class="max-h-[85dvh] w-full max-w-lg overflow-auto rounded-2xl border border-gray-200 bg-white p-4 text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950"
+			class="max-h-[85dvh] w-full max-w-2xl overflow-auto rounded-2xl border border-gray-200 bg-white p-4 text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950"
 			role="dialog"
 			aria-modal="true"
 			on:click|stopPropagation
@@ -635,6 +636,9 @@
 						{text(busy ? 'saving' : 'save_provider')}
 					</button>
 				</div>
+			{/if}
+			{#if selected}
+				<ProviderModels name={selected.name} configured={selected.configured === true} />
 			{/if}
 		</div>
 	</div>

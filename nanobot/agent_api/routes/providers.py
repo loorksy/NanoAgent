@@ -14,9 +14,11 @@ from nanobot.agent_api.provider_settings import (
     claude_connect,
     create_custom_provider,
     provider_document,
+    provider_models_document,
     provider_oauth,
     save_api_provider,
     save_claude_token,
+    save_provider_models,
 )
 from nanobot.agent_api.routes._util import json_body, ok
 from nanobot.webui.settings_services import WebUIOAuthFlowRegistry
@@ -50,6 +52,29 @@ async def update_provider(request: web.Request) -> web.Response:
     path = services(request).config_path
     name = request.match_info["name"]
     return ok(await asyncio.to_thread(save_api_provider, name, body, config_path=path))
+
+
+async def list_provider_models(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    path = services(request).config_path
+    name = request.match_info["name"]
+    query = request.query.get("q", "")
+    return ok(
+        await asyncio.to_thread(
+            provider_models_document,
+            name,
+            config_path=path,
+            query=query,
+        )
+    )
+
+
+async def update_provider_models(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    body = await json_body(request)
+    path = services(request).config_path
+    name = request.match_info["name"]
+    return ok(await asyncio.to_thread(save_provider_models, name, body, config_path=path))
 
 
 async def oauth_provider(request: web.Request) -> web.Response:
@@ -97,6 +122,8 @@ def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_get(f"{prefix}/settings/providers", list_providers)
     router.add_post(f"{prefix}/settings/providers", create_provider)
     router.add_put(f"{prefix}/settings/providers/{{name}}", update_provider)
+    router.add_get(f"{prefix}/settings/providers/{{name}}/models", list_provider_models)
+    router.add_put(f"{prefix}/settings/providers/{{name}}/models", update_provider_models)
     router.add_post(f"{prefix}/settings/providers/{{name}}/oauth", oauth_provider)
     router.add_get(f"{prefix}/settings/claude-code", claude_status)
     router.add_post(f"{prefix}/settings/claude-code", claude_save)

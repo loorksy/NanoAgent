@@ -2327,6 +2327,113 @@ def test_provider_models_payload_fetches_orcarouter_catalog(
         "orcarouter/auto",
         "anthropic/claude-sonnet-4.6",
     ]
+    claude = payload["models"][1]
+    assert claude["input_modalities"] == ["text", "image"]
+    assert claude["output_modalities"] == ["text"]
+
+
+def test_provider_models_payload_reads_price_modalities_and_release(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "config.json"
+    config = Config()
+    config.providers.openrouter.api_key = "sk-or-test"
+    save_config(config, config_path)
+    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+
+    def fake_get(url: str, **kwargs):
+        assert url == "https://openrouter.ai/api/v1/models"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "google/gemini-test",
+                        "name": "Gemini Test",
+                        "created": 1787702400,
+                        "context_length": 1_300_000,
+                        "architecture": {
+                            "input_modalities": ["text", "image", "video"],
+                            "output_modalities": ["text"],
+                        },
+                        "pricing": {"prompt": "0.00000004", "completion": "0.0000005"},
+                    },
+                    {
+                        "id": "writer/text-only",
+                        "context_length": 37_000,
+                        "architecture": {"modality": "text->text"},
+                        "pricing": {"prompt": "0.00000015", "completion": "0.0000015"},
+                        "created_at": "2026-09-25T00:00:00Z",
+                    },
+                ]
+            },
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr("nanobot.webui.settings_api.httpx.get", fake_get)
+    payload = provider_models_payload({"provider": ["openrouter"]})
+    rich, plain = payload["models"]
+    assert rich["label"] == "Gemini Test"
+    assert rich["context_window"] == 1_300_000
+    assert rich["input_modalities"] == ["text", "image", "video"]
+    assert rich["output_modalities"] == ["text"]
+    assert rich["price_in"] == 0.04
+    assert rich["price_out"] == 0.5
+    assert rich["released_at"] == 1787702400
+    assert plain["input_modalities"] == ["text"]
+    assert plain["output_modalities"] == ["text"]
+    assert plain["price_in"] == 0.15
+    assert plain["price_out"] == 1.5
+    assert plain["context_window"] == 37_000
+
+
+def test_claude_code_cli_lists_builtin_models_with_vision() -> None:
+    payload = provider_models_payload({"provider": ["claude_code_cli"]})
+    assert payload["status"] == "available"
+    assert payload["catalog_kind"] == "builtin"
+    assert [model["id"] for model in payload["models"]] == ["sonnet", "opus", "haiku"]
+    assert payload["models"][0]["input_modalities"] == ["text", "image"]
+    assert payload["models"][0]["output_modalities"] == ["text"]
+
+
+def test_assign_provider_models_keeps_other_providers(tmp_path, monkeypatch) -> None:
+    from nanobot.webui.settings_models import assign_provider_models, provider_model_selection
+
+    config_path = tmp_path / "config.json"
+    config = Config()
+    config.providers.openrouter.api_key = "sk-or-test"
+    config.model_presets["claude"] = ModelPresetConfig(model="opus", provider="claude_code_cli")
+    config.agents.defaults.model_preset = "claude"
+    save_config(config, config_path)
+    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    loaded = load_config(config_path)
+
+    assign_provider_models(
+        loaded,
+        "openrouter",
+        ["google/gemini-test", "writer/text-only"],
+        primary_model="writer/text-only",
+        oauth_status=lambda _spec: {"configured": False},
+        context_windows={"writer/text-only": 37_000},
+    )
+    selection = provider_model_selection(loaded, "openrouter")
+    assert selection["primary"] == "writer/text-only"
+    assert selection["selected"] == ["writer/text-only", "google/gemini-test"]
+    primary_name = loaded.agents.defaults.model_preset
+    assert primary_name is not None
+    assert loaded.model_presets[primary_name].context_window_tokens == 37_000
+    assert "claude" in loaded.agents.defaults.fallback_models
+
+    assign_provider_models(
+        loaded,
+        "openrouter",
+        [],
+        primary_model=None,
+        oauth_status=lambda _spec: {"configured": False},
+    )
+    assert loaded.agents.defaults.model_preset == "claude"
+    assert provider_model_selection(loaded, "openrouter") == {"selected": [], "primary": None}
 
 
 def test_model_catalog_kind_uses_provider_spec_metadata() -> None:
@@ -2337,6 +2444,7 @@ def test_model_catalog_kind_uses_provider_spec_metadata() -> None:
     assert _model_catalog_kind(find_by_name("openai_codex")) == "hybrid"
     assert _model_catalog_kind(find_by_name("xai_grok")) == "hybrid"
     assert _model_catalog_kind(find_by_name("github_copilot")) == "hybrid"
+    assert _model_catalog_kind(find_by_name("claude_code_cli")) == "builtin"
 
 
 def test_create_model_configuration_accepts_configured_oauth_provider(
