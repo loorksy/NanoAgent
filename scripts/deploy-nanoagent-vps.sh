@@ -59,7 +59,7 @@ fi
 
 cd "$INSTALL_DIR"
 sudo -u "$SERVICE_USER" python3 -m venv .venv
-sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U pip wheel && pip install -e ."
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U pip wheel && pip install -e '.[trading-mt5]'"
 
 # OANDA from foxagent (read-only)
 if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then

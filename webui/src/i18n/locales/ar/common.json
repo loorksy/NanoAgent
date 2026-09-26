@@ -1963,8 +1963,8 @@
       "recentRecommendations": "التوصيات الأخيرة"
     },
     "connect": {
-      "title": "ربط Telegram و WhatsApp",
-      "subtitle": "الصق رمز بوت Telegram من @BotFather، أو امسح رمز QR لـ WhatsApp. هذه شاشة الإعداد الوحيدة — بدون خطوات تثبيت إضافية.",
+      "title": "ربط MT5 و Telegram و WhatsApp",
+      "subtitle": "اربط حساب MT5، أو الصق رمز بوت Telegram من @BotFather، أو امسح رمز QR لـ WhatsApp.",
       "telegram": "Telegram",
       "whatsapp": "WhatsApp",
       "telegramSteps": {

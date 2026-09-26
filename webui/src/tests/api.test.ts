@@ -63,6 +63,9 @@ import {
   updateSkillEnabled,
   updateWebSearchSettings,
   validateChannel,
+  updateTradingMetaapi,
+  testTradingMetaapi,
+  disconnectTradingMetaapi,
 } from "@/lib/api";
 
 const requestMutation = vi.fn();
@@ -587,6 +590,41 @@ describe("webui API helpers", () => {
       20_000,
     );
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends MT5 MetaAPI credentials through the settings mutation", async () => {
+    await updateTradingMetaapi(mutationTransport, {
+      token: "meta-token",
+      login: "77001",
+      password: "broker-pass",
+      server: "Broker-Demo",
+      region: "london",
+      locale: "ar",
+    });
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.trading_metaapi.update",
+      {
+        token: "meta-token",
+        login: "77001",
+        password: "broker-pass",
+        server: "Broker-Demo",
+        region: "london",
+        locale: "ar",
+      },
+      150_000,
+    );
+    await testTradingMetaapi(mutationTransport, "ar");
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.trading_metaapi.test",
+      { locale: "ar" },
+      30_000,
+    );
+    await disconnectTradingMetaapi(mutationTransport, "ar");
+    expect(requestMutation).toHaveBeenCalledWith(
+      "settings.trading_metaapi.disconnect",
+      { locale: "ar" },
+      20_000,
+    );
   });
 
   it("sends Claude Code CLI tokens through the settings mutation", async () => {

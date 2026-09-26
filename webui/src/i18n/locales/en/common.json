@@ -1963,8 +1963,8 @@
       "recentRecommendations": "Recent recommendations"
     },
     "connect": {
-      "title": "Connect Telegram & WhatsApp",
-      "subtitle": "Paste the Telegram bot token from @BotFather, or scan the WhatsApp QR. This is the only setup screen you need — no extra install step.",
+      "title": "Connect MT5, Telegram & WhatsApp",
+      "subtitle": "Link your MT5 account, paste the Telegram bot token from @BotFather, or scan the WhatsApp QR.",
       "telegram": "Telegram",
       "whatsapp": "WhatsApp",
       "telegramSteps": {

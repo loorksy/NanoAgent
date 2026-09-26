@@ -9,6 +9,24 @@ from typing import Any, Protocol
 from nanobot.trading.broker_result import wrap_sdk_result
 from nanobot.trading.config import TradingConfig, load_trading_config
 from nanobot.trading.i18n import tr
+from nanobot.trading.policy import MAGIC_SWING
+
+METAAPI_REGIONS = ("new-york", "london", "singapore", "amsterdam")
+_PUBLIC_ACCOUNT_KEYS = (
+    "login",
+    "name",
+    "server",
+    "broker",
+    "company",
+    "currency",
+    "balance",
+    "equity",
+    "margin",
+    "leverage",
+    "tradeAllowed",
+    "trade_allowed",
+    "platform",
+)
 
 
 class MetaApiTransport(Protocol):
@@ -24,6 +42,10 @@ class MetaApiTransport(Protocol):
 
 def _sdk_available() -> bool:
     return importlib.util.find_spec("metaapi_cloud_sdk") is not None
+
+
+def sdk_available() -> bool:
+    return _sdk_available()
 
 
 @dataclass
@@ -165,6 +187,94 @@ class SdkTransport:
             }
         result = await fn(payload["order_id"])
         return wrap_sdk_result(result)
+
+
+def public_account_information(info: Any) -> dict[str, Any]:
+    """Operator-safe account snapshot — never includes token or passwords."""
+    if not isinstance(info, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key in _PUBLIC_ACCOUNT_KEYS:
+        if key in info and info[key] not in (None, ""):
+            out[key] = info[key]
+    return out
+
+
+def _account_field(account: Any, name: str) -> Any:
+    if isinstance(account, dict):
+        return account.get(name)
+    return getattr(account, name, None)
+
+
+async def provision_mt5_account(
+    *,
+    token: str,
+    region: str,
+    login: str,
+    password: str,
+    server: str,
+    name: str = "Lonora Gold",
+) -> dict[str, Any]:
+    """Create or reuse a MetaAPI MT5 account. Does not persist the MT5 password."""
+    if not _sdk_available():
+        return {
+            "ok": False,
+            "reason_key": "mt5.sdk_missing",
+            "error": tr("mt5.sdk_missing"),
+        }
+    from metaapi_cloud_sdk import MetaApi
+
+    opts: dict[str, Any] = {}
+    if region:
+        opts["region"] = region
+    api = MetaApi(token, **opts) if opts else MetaApi(token)
+    account_api = api.metatrader_account_api
+    listing = getattr(account_api, "get_accounts_with_infinite_scroll_pagination", None)
+    if listing is None:
+        listing = account_api.get_accounts
+    accounts = await listing()
+    existing = None
+    for row in accounts or []:
+        same_login = str(_account_field(row, "login") or "") == login
+        same_server = str(_account_field(row, "server") or "") == server
+        if same_login and same_server:
+            existing = row
+            break
+    account_id = ""
+    try:
+        if existing is None:
+            create = account_api.create_account
+            existing = await create(
+                {
+                    "name": name,
+                    "type": "cloud-g2",
+                    "login": login,
+                    "password": password,
+                    "server": server,
+                    "platform": "mt5",
+                    "magic": MAGIC_SWING,
+                }
+            )
+        account_id = str(_account_field(existing, "id") or "")
+        deploy = getattr(existing, "deploy", None)
+        if callable(deploy):
+            await deploy()
+        wait = getattr(existing, "wait_deployed", None)
+        if callable(wait):
+            await wait(timeout_in_seconds=120)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "reason_key": "mt5.connect.provision_failed",
+            "error": tr("mt5.connect.provision_failed", detail=str(exc)),
+        }
+    if not account_id:
+        return {
+            "ok": False,
+            "reason_key": "mt5.connect.provision_failed",
+            "error": tr("mt5.connect.provision_failed", detail="missing account id"),
+        }
+    return {"ok": True, "account_id": account_id}
 
 
 def build_transport(config: TradingConfig | None = None) -> MetaApiTransport:
