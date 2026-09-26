@@ -66,5 +66,21 @@
   "whatsapp_connected": "واتساب مربوط",
   "whatsapp_start": "إظهار رمز QR",
   "whatsapp_again": "إظهار رمز جديد",
-  "restart_required": "تحتاج البوابة إلى إعادة تشغيل قبل أن تعمل هذه القناة."
+  "restart_required": "تحتاج البوابة إلى إعادة تشغيل قبل أن تعمل هذه القناة.",
+  "chart": "شارت الذهب",
+  "chart_hide": "إخفاء الشارت",
+  "chart_loading": "جار تحميل الشارت",
+  "chart_missing": "مكتبة الشارت غير متاحة على هذا الخادم.",
+  "macro_calendar": "التقويم الاقتصادي",
+  "agent_jobs": "مهام NanoAgent",
+  "job_name": "اسم المهمة",
+  "job_message": "ماذا ينفّذ الوكيل",
+  "job_every_minutes": "كل (دقائق)",
+  "job_create": "إنشاء مهمة",
+  "job_protected": "لا يمكن حذف مهمة النظام هذه",
+  "agent_skills": "مهارات الوكيل",
+  "agent_tools": "أدوات الوكيل",
+  "skill_enabled": "مفعّلة",
+  "skill_disabled": "متوقفة",
+  "permission_saved": "تم حفظ الصلاحية"
 }

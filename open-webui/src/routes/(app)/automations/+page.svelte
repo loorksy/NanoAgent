@@ -23,6 +23,7 @@
 	import fileSaver from 'file-saver';
 
 	import AutomationModal from '$lib/components/AutomationModal.svelte';
+	import NanoAgentJobs from '$lib/components/nanoagent/NanoAgentJobs.svelte';
 	import AutomationListHeaderActions from '$lib/components/automations/AutomationListHeaderActions.svelte';
 	import AutomationMenu from '$lib/components/automations/AutomationMenu.svelte';
 	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
@@ -459,6 +460,7 @@
 
 <div class="h-full overflow-y-auto px-2.5 pb-1">
 	{#if loaded}
+		<NanoAgentJobs />
 		<div class="space-y-1">
 			<div class="flex h-8 flex-1 items-center w-full gap-2">
 				<div class="flex min-w-0 flex-1 items-center">

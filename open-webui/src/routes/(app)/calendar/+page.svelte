@@ -10,6 +10,8 @@
 		type CalendarModel,
 		type CalendarEventModel
 	} from '$lib/apis/calendar';
+	import { gateway } from '$lib/nanoagent/client';
+	import { nanoagentText } from '$lib/nanoagent/text';
 	import CalendarView from '$lib/components/calendar/CalendarView.svelte';
 	import CalendarSidebar from '$lib/components/calendar/CalendarSidebar.svelte';
 	import CalendarEventModal from '$lib/components/calendar/CalendarEventModal.svelte';
@@ -22,6 +24,7 @@
 	import ChevronDown from '$lib/components/icons/ChevronDown.svelte';
 
 	const i18n = getContext('i18n');
+	const MACRO_ID = '__nanoagent_macro__';
 
 	let loaded = false;
 	let calendars: CalendarModel[] = [];
@@ -80,23 +83,83 @@
 		};
 	}
 
+	function macroCalendar(): CalendarModel {
+		return {
+			id: MACRO_ID,
+			user_id: 'nanoagent',
+			name: nanoagentText($i18n?.language, 'macro_calendar'),
+			color: '#d4a017',
+			is_default: false,
+			is_system: true,
+			data: { source: 'nanoagent' },
+			meta: { readonly: true },
+			access_grants: [],
+			created_at: 0,
+			updated_at: 0
+		};
+	}
+
+	function macroEvents(
+		rows: { title?: string; impact?: string; time?: string }[]
+	): CalendarEventModel[] {
+		const out: CalendarEventModel[] = [];
+		for (const row of rows) {
+			const title = (row.title ?? '').trim();
+			const parsed = Date.parse(row.time ?? '');
+			if (!title || !Number.isFinite(parsed)) continue;
+			const start = parsed * 1_000_000;
+			out.push({
+				id: `macro-${parsed}-${title}`,
+				calendar_id: MACRO_ID,
+				user_id: 'nanoagent',
+				title: row.impact ? `${title} (${row.impact})` : title,
+				description: null,
+				start_at: start,
+				end_at: start + 15 * 60 * 1000 * 1_000_000,
+				all_day: false,
+				rrule: null,
+				color: '#d4a017',
+				location: null,
+				data: null,
+				meta: { source: 'nanoagent' },
+				is_cancelled: false,
+				attendees: [],
+				created_at: start,
+				updated_at: start
+			});
+		}
+		return out;
+	}
+
 	async function loadCalendars() {
 		try {
 			calendars = (await getCalendars(localStorage.token)) ?? [];
-			visibleCalendarIds = new Set(calendars.map((c) => c.id));
 		} catch (err) {
 			console.error('loadCalendars', err);
 			calendars = [];
 		}
+		calendars = [...calendars.filter((calendar) => calendar.id !== MACRO_ID), macroCalendar()];
+		visibleCalendarIds = new Set(calendars.map((c) => c.id));
 	}
 
 	async function loadEvents() {
+		let own: CalendarEventModel[] = [];
 		try {
 			const { start, end } = getVisibleRange();
-			events = await getCalendarEvents(localStorage.token, start, end);
+			own = await getCalendarEvents(localStorage.token, start, end);
 		} catch (err) {
 			toast.error(`${err}`);
 		}
+		let extra: CalendarEventModel[] = [];
+		try {
+			const body = (await gateway('log/calendar')) as {
+				events?: { title?: string; impact?: string; time?: string }[];
+			};
+			extra = macroEvents(body.events ?? []);
+		} catch {
+			extra = [];
+		}
+		events = [...own, ...extra];
 	}
 
 	async function refresh() {
@@ -114,6 +177,7 @@
 	}
 
 	async function handleDeleteCalendar(id: string) {
+		if (id === MACRO_ID) return;
 		try {
 			const result = await deleteCalendar(localStorage.token, id);
 			if (result) {
@@ -136,6 +200,7 @@
 
 	function handleEventClick(e: CustomEvent<CalendarEventModel>) {
 		const evt = e.detail;
+		if (evt.calendar_id === MACRO_ID || evt.meta?.source === 'nanoagent') return;
 		if (evt.meta?.automation_id) {
 			if (evt.meta?.chat_id) {
 				goto(`/c/${evt.meta.chat_id}`);

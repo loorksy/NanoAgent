@@ -6,6 +6,7 @@
 
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import { WEBUI_NAME, config, user, models, settings, showSidebar } from '$lib/stores';
+	import { preferNanoagentModel } from '$lib/nanoagent/model';
 	import { chatCompletion } from '$lib/apis/openai';
 
 	import { splitStream } from '$lib/utils';
@@ -108,13 +109,8 @@
 			await goto('/');
 		}
 
-		if ($settings?.models) {
-			selectedModelId = $settings?.models[0];
-		} else if ($config?.default_models) {
-			selectedModelId = $config?.default_models.split(',')[0];
-		} else {
-			selectedModelId = '';
-		}
+		const fallback = $settings?.models?.[0] ?? $config?.default_models?.split(',')[0] ?? '';
+		selectedModelId = preferNanoagentModel($models, fallback);
 		loaded = true;
 	});
 </script>

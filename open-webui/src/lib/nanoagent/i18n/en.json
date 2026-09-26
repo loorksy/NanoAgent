@@ -66,5 +66,21 @@
   "whatsapp_connected": "WhatsApp is connected",
   "whatsapp_start": "Show QR code",
   "whatsapp_again": "Show a new QR code",
-  "restart_required": "The gateway needs a restart before this channel runs."
+  "restart_required": "The gateway needs a restart before this channel runs.",
+  "chart": "Gold chart",
+  "chart_hide": "Hide chart",
+  "chart_loading": "Loading chart",
+  "chart_missing": "The chart library is not available on this server.",
+  "macro_calendar": "Economic calendar",
+  "agent_jobs": "NanoAgent jobs",
+  "job_name": "Job name",
+  "job_message": "What the agent should do",
+  "job_every_minutes": "Every (minutes)",
+  "job_create": "Create job",
+  "job_protected": "This system job cannot be removed",
+  "agent_skills": "Agent skills",
+  "agent_tools": "Agent tools",
+  "skill_enabled": "Enabled",
+  "skill_disabled": "Disabled",
+  "permission_saved": "Permission saved"
 }

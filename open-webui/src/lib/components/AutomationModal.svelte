@@ -11,7 +11,8 @@
 	import DestinationDropdown from '$lib/components/automations/DestinationDropdown.svelte';
 	import { getFolders } from '$lib/apis/folders';
 	import { getChannels } from '$lib/apis/channels';
-	import { channels, folders } from '$lib/stores';
+	import { channels, folders, models } from '$lib/stores';
+	import { preferNanoagentModel } from '$lib/nanoagent/model';
 
 	import {
 		createAutomation,
@@ -134,7 +135,7 @@
 		} else {
 			name = '';
 			prompt = '';
-			model_id = '';
+			model_id = preferNanoagentModel($models, '');
 			folder_id = '';
 			target_type = 'chat';
 			channel_id = '';

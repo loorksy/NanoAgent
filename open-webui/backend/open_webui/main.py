@@ -3065,6 +3065,24 @@ def swagger_ui_html(*args, **kwargs):
 
 applications.get_swagger_ui_html = swagger_ui_html
 
+def _charting_library_dir() -> str | None:
+    """TradingView static files shipped with the legacy WebUI, served on this origin."""
+    configured = os.environ.get('NANOAGENT_CHARTING_LIBRARY', '').strip()
+    candidates = [configured] if configured else []
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    candidates.append(os.path.join(repo_root, 'webui', 'public', 'charting_library'))
+    candidates.append(os.path.join(repo_root, 'nanobot', 'web', 'dist', 'charting_library'))
+    for path in candidates:
+        script = os.path.join(path, 'charting_library.standalone.js')
+        if path and os.path.isdir(path) and os.path.isfile(script):
+            return path
+    return None
+
+
+_chart_dir = _charting_library_dir()
+if _chart_dir:
+    app.mount('/charting_library', StaticFiles(directory=_chart_dir), name='charting_library')
+
 if os.path.exists(FRONTEND_BUILD_DIR):
     pyodide_dir = FRONTEND_BUILD_DIR / 'pyodide'
     if os.path.exists(pyodide_dir):

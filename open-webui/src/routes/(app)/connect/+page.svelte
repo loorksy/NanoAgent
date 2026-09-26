@@ -20,6 +20,9 @@
 	let oanda = '';
 	let broker = '';
 	let level = '';
+	let levels: { name: string; label: string }[] = [];
+	let savingLevel = false;
+	let levelNote = '';
 	let telegram: ChannelRow = {};
 	let whatsapp: ChannelRow = {};
 	let telegramToken = '';
@@ -132,13 +135,17 @@
 					oanda?: { configured?: boolean; env?: string };
 					metaapi?: { configured?: boolean; account_id?: string };
 				};
-				mt5_permissions?: { permissions?: { level?: string } };
+				mt5_permissions?: {
+					permissions?: { level?: string };
+					levels?: { name: string; label: string }[];
+				};
 			};
 			const feed = body.brokers?.oanda;
 			const mt5 = body.brokers?.metaapi;
 			oanda = `${flag(Boolean(feed?.configured))} ${feed?.env ?? ''}`.trim();
 			broker = `${flag(Boolean(mt5?.configured))} ${mt5?.account_id ?? ''}`.trim();
 			level = body.mt5_permissions?.permissions?.level ?? '';
+			levels = body.mt5_permissions?.levels ?? [];
 			await loadChannels();
 		} catch {
 			failed = true;
@@ -146,6 +153,23 @@
 	});
 
 	onDestroy(() => stopWhatsappPoll());
+
+	async function saveLevel() {
+		savingLevel = true;
+		levelNote = '';
+		try {
+			const saved = (await gateway('connect/mt5/permissions', {
+				method: 'PUT',
+				body: JSON.stringify({ permissions: { level } })
+			})) as { permissions?: { level?: string } };
+			level = saved.permissions?.level ?? level;
+			levelNote = nanoagentText($i18n?.language, 'permission_saved');
+		} catch {
+			levelNote = nanoagentText($i18n?.language, 'error');
+		} finally {
+			savingLevel = false;
+		}
+	}
 
 	async function control(path: string, enabled: boolean) {
 		await gateway(path, { method: 'POST', body: JSON.stringify({ enabled }) });
@@ -170,7 +194,23 @@
 		</div>
 		<div class="rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-800">
 			<div class="text-gray-500">{nanoagentText($i18n?.language, 'permissions')}</div>
-			<div>{level}</div>
+			{#if levels.length}
+				<select
+					class="mt-1 w-full rounded-lg border border-gray-300 bg-transparent px-2 py-1 dark:border-gray-700"
+					bind:value={level}
+					on:change={saveLevel}
+					disabled={savingLevel}
+				>
+					{#each levels as option (option.name)}
+						<option value={option.name}>{option.label}</option>
+					{/each}
+				</select>
+			{:else}
+				<div>{level}</div>
+			{/if}
+			{#if levelNote}
+				<p class="mt-1 text-xs text-gray-500">{levelNote}</p>
+			{/if}
 		</div>
 	</div>
 
