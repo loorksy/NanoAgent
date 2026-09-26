@@ -37,8 +37,6 @@
 	} from '$lib/stores/chatList';
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
 	import NanoAgentNav from '$lib/components/nanoagent/NanoAgentNav.svelte';
-	import { NANOAGENT_FORK } from '$lib/nanoagent/mode';
-
 	const i18n: any = getContext('i18n');
 
 	$: canImportChats = $user?.role === 'admin' || ($user?.permissions?.chat?.import ?? true);
@@ -157,12 +155,6 @@
 	$: pinnedItems = $settings?.pinnedMenuItems ?? DEFAULT_PINNED_ITEMS;
 
 	const isMenuItemVisible = (id) => {
-		if (
-			NANOAGENT_FORK &&
-			['notes', 'workspace', 'automations', 'calendar', 'playground'].includes(id)
-		) {
-			return false;
-		}
 		switch (id) {
 			case 'notes':
 				return (
@@ -1321,7 +1313,7 @@
 						</SidebarSection>
 					{/if}
 
-					{#if !NANOAGENT_FORK && ($config?.features?.enable_notes ?? false) && ($user?.role === 'admin' || ($user?.permissions?.features?.notes ?? true)) && $pinnedNotes.length > 0}
+					{#if ($config?.features?.enable_notes ?? false) && ($user?.role === 'admin' || ($user?.permissions?.features?.notes ?? true)) && $pinnedNotes.length > 0}
 						<SidebarSection
 							id="sidebar-pinned-notes"
 							bind:open={showPinnedNotes}
@@ -1339,7 +1331,7 @@
 						</SidebarSection>
 					{/if}
 
-					{#if !NANOAGENT_FORK && $config?.features?.enable_channels && ($user?.role === 'admin' || ($user?.permissions?.features?.channels ?? true))}
+					{#if $config?.features?.enable_channels && ($user?.role === 'admin' || ($user?.permissions?.features?.channels ?? true))}
 						<SidebarSection
 							id="sidebar-channels"
 							bind:open={showChannels}

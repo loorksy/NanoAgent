@@ -2,6 +2,7 @@
 	import { onMount, getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
+	import NanoAgentProviders from './NanoAgentProviders.svelte';
 	import RiskPanel from './RiskPanel.svelte';
 
 	export let tab: string;
@@ -10,7 +11,6 @@
 	let body = '';
 	let failed = false;
 	let devices: { id?: string; platform?: string; label?: string }[] = [];
-	let providers: { name?: string; configured?: boolean }[] = [];
 	let capabilities: { key?: string; enabled?: boolean }[] = [];
 	let trading: string[] = [];
 	let system: {
@@ -25,20 +25,17 @@
 		overview: 'settings/overview',
 		capabilities: 'settings/capabilities',
 		system: 'settings/system',
-		channels: 'devices',
-		models: 'settings/models'
+		channels: 'devices'
 	};
 
 	onMount(async () => {
+		if (tab === 'models') return;
 		const path = paths[tab];
 		if (!path) return;
 		try {
 			const payload = (await gateway(path)) as Record<string, unknown>;
 			if (tab === 'channels' && Array.isArray(payload.devices)) {
 				devices = payload.devices as { id?: string; platform?: string; label?: string }[];
-			}
-			if (tab === 'models' && Array.isArray(payload.providers)) {
-				providers = payload.providers as { name?: string; configured?: boolean }[];
 			}
 			if (tab === 'capabilities') {
 				capabilities = Array.isArray(payload.items)
@@ -70,10 +67,7 @@
 		<RiskPanel mode="advanced" />
 	{:else if tab === 'models'}
 		<p class="text-sm text-gray-500">{nanoagentText($i18n?.language, 'models_hint')}</p>
-		<h3 class="text-sm font-medium">{nanoagentText($i18n?.language, 'providers')}</h3>
-		{#each providers as provider (`${provider.name}`)}
-			<p class="text-sm">{provider.name} · {nanoagentText($i18n?.language, provider.configured ? 'yes' : 'no')}</p>
-		{/each}
+		<NanoAgentProviders />
 	{:else if failed}
 		<p class="text-sm text-red-500">{nanoagentText($i18n?.language, 'error')}</p>
 	{:else if tab === 'capabilities'}

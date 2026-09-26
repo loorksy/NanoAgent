@@ -15,6 +15,7 @@
 
 	import { WEBUI_VERSION, WEBUI_API_BASE_URL } from '$lib/constants';
 	import NanoAgentStatus from '$lib/components/nanoagent/NanoAgentStatus.svelte';
+	import NanoAgentChartSheet from '$lib/components/nanoagent/NanoAgentChartSheet.svelte';
 	import { compareVersion } from '$lib/utils';
 
 	import {
@@ -447,6 +448,7 @@
 				<AccountPending />
 			{:else}
 				<NanoAgentStatus />
+				<NanoAgentChartSheet />
 				<Sidebar />
 
 				{#if loaded}

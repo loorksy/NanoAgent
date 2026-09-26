@@ -116,6 +116,8 @@
 	import InputModal from '../common/InputModal.svelte';
 	import Expand from '../icons/Expand.svelte';
 	import QueuedMessageItem from './MessageInput/QueuedMessageItem.svelte';
+	import { chartOpen } from '$lib/nanoagent/chart';
+	import { nanoagentText } from '$lib/nanoagent/text';
 	import TaskList from './Messages/ResponseMessage/TaskList.svelte';
 
 	const i18n: any = getContext('i18n');
@@ -2291,6 +2293,21 @@
 											<PlusAlt className="size-5" />
 										</button>
 									</InputMenu>
+
+									<button
+										type="button"
+										id="nanoagent-chart-button"
+										class="bg-transparent hover:bg-gray-100 text-gray-700 dark:text-white dark:hover:bg-gray-800 rounded-full size-[1.875rem] flex justify-center items-center outline-hidden shrink-0 {$chartOpen
+											? 'bg-gray-100 dark:bg-gray-800'
+											: ''}"
+										aria-label={nanoagentText($i18n?.language, $chartOpen ? 'chart_hide' : 'chart')}
+										aria-pressed={$chartOpen}
+										on:click={() => chartOpen.update((open) => !open)}
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="size-4" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M4 19h16M7 16V9m5 7V5m5 11v-4" />
+										</svg>
+									</button>
 
 									{#if showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton || showToolsButton || showSkillsButton || (toggleFilters && toggleFilters.length > 0)}
 										<div

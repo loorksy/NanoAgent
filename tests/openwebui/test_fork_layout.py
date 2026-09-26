@@ -40,7 +40,21 @@ def test_fork_pages_proxy_and_sidebar() -> None:
         encoding="utf-8"
     )
     assert "NanoAgentNav" in sidebar
-    assert "NANOAGENT_FORK" in sidebar
+    assert "nanoagent-chart-button" in (
+        ROOT / "open-webui/src/lib/components/chat/MessageInput.svelte"
+    ).read_text(encoding="utf-8")
+    assert "nanoagent-claude-connect" in (
+        ROOT / "open-webui/src/lib/components/nanoagent/NanoAgentProviders.svelte"
+    ).read_text(encoding="utf-8")
+    assert "no-cache, no-store, must-revalidate" in main
+    brands = (ROOT / "open-webui/src/lib/nanoagent/provider-brand.ts").read_text(encoding="utf-8")
+    assert "claude_code_cli: 'anthropic'" in brands
+    assert "openrouter:" in brands
+    assert "anthropic:" in brands
+    assert (ROOT / "open-webui/src/routes/(app)/workspace/agent/+page.svelte").is_file()
+    assert "__nanoagent_macro__" in (
+        ROOT / "open-webui/src/routes/(app)/calendar/+page.svelte"
+    ).read_text(encoding="utf-8")
     settings = (ROOT / "open-webui/src/lib/components/chat/SettingsModal.svelte").read_text(
         encoding="utf-8"
     )

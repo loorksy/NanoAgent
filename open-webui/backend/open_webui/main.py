@@ -299,16 +299,29 @@ async def emit_chat_list_event(metadata: dict, chat_id: str):
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except (HTTPException, StarletteHTTPException) as ex:
             if ex.status_code == 404:
                 if path.endswith('.js'):
                     # Return 404 for javascript files
                     raise ex
-                else:
-                    return await super().get_response('index.html', scope)
+                response = await super().get_response('index.html', scope)
             else:
                 raise ex
+        _set_spa_cache(path, response)
+        return response
+
+
+def _set_spa_cache(path: str, response) -> None:
+    """The app shell must revalidate. Hashed bundles can stay cached."""
+    media = response.headers.get('content-type', '')
+    if 'text/html' in media or path.endswith('.html') or path in {'', '.'}:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return
+    if path.startswith('_app/immutable/') or '/_app/immutable/' in path:
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
 
 
 class CORSStaticFiles(StaticFiles):
@@ -3064,6 +3077,24 @@ def swagger_ui_html(*args, **kwargs):
 
 
 applications.get_swagger_ui_html = swagger_ui_html
+
+def _charting_library_dir() -> str | None:
+    """TradingView static files shipped with the legacy WebUI, served on this origin."""
+    configured = os.environ.get('NANOAGENT_CHARTING_LIBRARY', '').strip()
+    candidates = [configured] if configured else []
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    candidates.append(os.path.join(repo_root, 'webui', 'public', 'charting_library'))
+    candidates.append(os.path.join(repo_root, 'nanobot', 'web', 'dist', 'charting_library'))
+    for path in candidates:
+        script = os.path.join(path, 'charting_library.standalone.js')
+        if path and os.path.isdir(path) and os.path.isfile(script):
+            return path
+    return None
+
+
+_chart_dir = _charting_library_dir()
+if _chart_dir:
+    app.mount('/charting_library', StaticFiles(directory=_chart_dir), name='charting_library')
 
 if os.path.exists(FRONTEND_BUILD_DIR):
     pyodide_dir = FRONTEND_BUILD_DIR / 'pyodide'

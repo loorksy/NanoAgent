@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from aiohttp import web
 
@@ -59,6 +60,8 @@ class AgentApiServices:
     connections: ConnectionTracker = field(default_factory=ConnectionTracker)
     # Root nanobot config file; ``None`` means "use the process default path".
     config_path: Path | None = None
+    # In-memory OAuth attempts for provider connect. Never persisted.
+    oauth_flows: Any = None
 
 
 SERVICES_KEY = web.AppKey[AgentApiServices]("agent_api_services")

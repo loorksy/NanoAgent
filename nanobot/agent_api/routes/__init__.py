@@ -6,12 +6,15 @@ from aiohttp import web
 
 from nanobot.agent_api.routes import (
     approvals,
+    catalog,
     connect,
     devices,
     jobs,
     labels,
     log,
+    market,
     me,
+    providers,
     recommendations,
     results,
     sessions,
@@ -36,4 +39,7 @@ def setup_routes(app: web.Application) -> None:
     log.register(router, API_PREFIX)
     devices.register(router, API_PREFIX)
     settings.register(router, API_PREFIX)
+    providers.register(router, API_PREFIX)
+    market.register(router, API_PREFIX)
+    catalog.register(router, API_PREFIX)
     ws.register(router, WS_PATH)
