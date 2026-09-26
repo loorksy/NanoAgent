@@ -8,6 +8,7 @@
 	const dispatch = createEventDispatcher();
 
 	import { config, models, settings, theme, user } from '$lib/stores';
+	import { NANOAGENT_FORK } from '$lib/nanoagent/mode';
 
 	const i18n: any = getContext('i18n');
 
@@ -278,7 +279,7 @@
 			{/if}
 		</UserSettingSection>
 
-		{#if canEditSystemPrompt}
+		{#if canEditSystemPrompt && !NANOAGENT_FORK}
 			<UserSettingSection title={$i18n.t('settings.personal.general.sections.systemPrompt.title')}>
 				<UserSettingField
 					description={$i18n.t('settings.personal.general.sections.systemPrompt.description')}
@@ -293,7 +294,7 @@
 			</UserSettingSection>
 		{/if}
 
-		{#if canEditParams}
+		{#if canEditParams && !NANOAGENT_FORK}
 			<UserSettingSection
 				title={$i18n.t('settings.personal.general.sections.advancedParameters.title')}
 			>

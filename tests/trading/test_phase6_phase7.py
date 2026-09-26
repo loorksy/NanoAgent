@@ -145,6 +145,18 @@ async def test_management_cycle_reports_a_rejected_broker_call(monkeypatch) -> N
         "nanobot.trading.permissions.store.get_permission_store",
         lambda: _Store(),
     )
+    monkeypatch.setattr(
+        "nanobot.trading.runtime_state.get_runtime_store",
+        lambda: type(
+            "Store",
+            (),
+            {"snapshot": staticmethod(lambda: type("Runtime", (), {
+                "paper_mode": False,
+                "kill_switch": False,
+                "paused": False,
+            })())},
+        )(),
+    )
     from nanobot.trading.management.engine import run_management_cycle
 
     summary = await run_management_cycle(
@@ -267,6 +279,9 @@ class _PendingTransport(NullTransport):
 
 @pytest.mark.asyncio
 async def test_limit_confirm_sends_pending_not_market(monkeypatch: pytest.MonkeyPatch) -> None:
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    get_runtime_store().update(paper_mode=False, kill_switch=False, paused=False)
     transport = _PendingTransport()
     set_transport_for_tests(transport)
     monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)

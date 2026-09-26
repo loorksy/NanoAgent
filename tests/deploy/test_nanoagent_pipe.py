@@ -855,3 +855,15 @@ async def test_missing_run_id_is_not_posted_again_after_a_dropped_stream() -> No
     assert "".join(chunks) == "a"
     posts = [request for request in gateway.requests if request.url.path.endswith("/messages")]
     assert len(posts) == 1
+
+
+def test_unknown_model_is_not_reported_as_gateway_unreachable() -> None:
+    request = httpx.Request("POST", "http://gateway/api/v2/sessions/s/messages")
+    response = httpx.Response(
+        400,
+        json={"error": {"code": "unknown_model", "details": {"model": "missing-model"}}},
+        request=request,
+    )
+    exc = httpx.HTTPStatusError("bad request", request=request, response=response)
+    text = pipe_mod.Pipe._gateway_failure_text(exc, pipe_mod._Turn("s", "en", {}))
+    assert text == "Unknown model: missing-model"

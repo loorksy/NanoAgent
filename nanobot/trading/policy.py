@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 # Gold quoting: $1.00 move = 100 points (playbook 134).
 GOLD_POINT = 0.01
 USD_PER_POINT_PER_LOT = 1.0  # standard XAUUSD contract scaling
@@ -384,4 +386,5 @@ def live(config_path: Path | None = None) -> LiveRiskPolicy:
         _live_cache = (key, mtime, snapshot)
         return snapshot
     except Exception:
+        logger.warning("Trading risk config could not be loaded; using built-in defaults")
         return _defaults()

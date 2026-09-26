@@ -446,9 +446,14 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
 
-        if not stream_failed:
+        if stream_failed:
+            await resp.write(
+                b'data: {"error":{"message":"The agent failed before finishing this response.",'
+                b'"type":"server_error","code":"stream_failed"}}\n\n'
+            )
+        else:
             await resp.write(_sse_chunk("", response_model, chunk_id, finish_reason="stop"))
-            await resp.write(_SSE_DONE)
+        await resp.write(_SSE_DONE)
         return resp
 
     # -- non-streaming path (original logic) --

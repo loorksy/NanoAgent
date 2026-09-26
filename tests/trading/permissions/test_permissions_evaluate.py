@@ -98,7 +98,8 @@ def test_paper_mode_note_is_attached() -> None:
     d = evaluate_permission("open", _ctx(Mt5Permissions(), paper_mode=True))
     assert REASON_PAPER_MODE in d.notes
     e = evaluate_permission("open", _ctx(_exec(), paper_mode=True))
-    assert e.mode == "execute"
+    assert e.mode == "propose"
+    assert e.downgrade_reason_key == REASON_PAPER_MODE
     assert REASON_PAPER_MODE in e.notes
     assert REASON_PAPER_MODE not in evaluate_permission("open", _ctx(_exec())).notes
 
@@ -257,7 +258,9 @@ def test_downgrade_precedence_kill_switch_first() -> None:
 
 
 def test_default_risk_params_when_none_given() -> None:
-    ctx = PermissionContext(permissions=_exec(), now_ms=LONDON_NY_MS, requested_lot=0.5)
+    ctx = PermissionContext(
+        permissions=_exec(), now_ms=LONDON_NY_MS, requested_lot=0.5, paper_mode=False
+    )
     d = evaluate_permission("open", ctx)
     assert d.mode == "execute"
     assert d.adjusted_lot == 0.2

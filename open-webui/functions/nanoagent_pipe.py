@@ -740,14 +740,15 @@ class Pipe:
                 yield self._render_timeline(turn)
         except httpx.HTTPError as exc:
             log.error("nanoagent pipe: gateway error: %s", exc)
+            detail = self._gateway_failure_text(exc, turn)
             await self._emit(
                 __event_emitter__,
                 {
                     "type": "status",
-                    "data": {"description": turn.label("error.gateway"), "done": True},
+                    "data": {"description": detail, "done": True},
                 },
             )
-            yield f"\n\n{turn.label('error.gateway')}"
+            yield f"\n\n{detail}"
         except (GeneratorExit, asyncio.CancelledError):
             if turn.run_id and not turn.finished:
                 await self._cancel_quietly(gateway, session)
@@ -995,6 +996,28 @@ class Pipe:
             turn.timeline.append(f"{turn.label('job.update')}: {' '.join(parts)}")
 
     # -- utilities ----------------------------------------------------------
+
+    @staticmethod
+    def _gateway_failure_text(exc: httpx.HTTPError, turn: _Turn) -> str:
+        """Prefer the gateway's own error over the generic unreachable message."""
+        response = getattr(exc, "response", None)
+        if response is not None:
+            try:
+                body = response.json()
+            except Exception:
+                body = None
+            if isinstance(body, dict):
+                err = body.get("error")
+                if isinstance(err, dict):
+                    details = err.get("details") if isinstance(err.get("details"), dict) else {}
+                    if str(err.get("code") or "") == "unknown_model":
+                        model = str(details.get("model") or "").strip()
+                        if model:
+                            return f"Unknown model: {model}"
+                    message = err.get("message")
+                    if isinstance(message, str) and message.strip():
+                        return message.strip()
+        return turn.label("error.gateway")
 
     @staticmethod
     async def _emit(emitter: EventEmitter | None, event: dict[str, object]) -> bool:

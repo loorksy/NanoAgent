@@ -138,6 +138,16 @@ def evaluate_permission(action: str, ctx: PermissionContext) -> PermissionDecisi
         return _propose(
             action, perms, downgrade=downgrade, notes=notes, warnings=_lot_warnings(action, ctx)
         )
+    # Paper mode is a simulation. A granted execute level must not become a live
+    # broker order while it is on; the operator confirms a proposal instead.
+    if ctx.paper_mode:
+        return _propose(
+            action,
+            perms,
+            downgrade=REASON_PAPER_MODE,
+            notes=notes,
+            warnings=_lot_warnings(action, ctx),
+        )
 
     adjusted: float | None = None
     reason = REASON_EXECUTED

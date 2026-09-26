@@ -233,7 +233,16 @@ async def run_management_cycle(
     from nanobot.trading.permissions.store import get_permission_store
 
     perms = get_permission_store().load()
-    execute = perms.level == "execute"
+    from nanobot.trading.runtime_state import get_runtime_store
+
+    runtime = get_runtime_store().snapshot()
+    # Cron management must honor the same live-trading locks as the order path.
+    execute = (
+        perms.level == "execute"
+        and not runtime.paper_mode
+        and not runtime.kill_switch
+        and not runtime.paused
+    )
     from nanobot.trading.risk_state import get_risk_store
 
     toggles = get_risk_store()
