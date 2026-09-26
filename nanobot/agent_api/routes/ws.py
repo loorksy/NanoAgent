@@ -1,23 +1,25 @@
 """WebSocket multiplex (``/ws/v2``): one socket per client, many sessions.
 
-Client → server frames (JSON objects):
+Client → server frames (JSON objects; ``type`` is accepted as an alias of ``op``,
+matching ``@nanoagent/sdk``):
 
 * ``{"op": "subscribe", "session": "...", "after": "<event_id>"?}``
 * ``{"op": "unsubscribe", "session": "..."}``
-* ``{"op": "send", "session": "...", "text": "...", "media": [...]?}``
+* ``{"op": "send", "session": "...", "text": "...", "parts": [...]?, "media": [...]?}``
 * ``{"op": "cancel", "session": "..."}``
 * ``{"op": "approve", "approval_id": "...", "decision": "confirm"|"cancel"}``
 * ``{"op": "ping"}``
 
-Every frame may carry ``"req"`` (client correlation id) which is echoed back.
+Every frame may carry ``"req"`` / ``"request_id"`` (client correlation id) which is
+echoed back on the matching ack/error.
 
 Server → client frames:
 
 * ``{"type": "hello", "client_id", "scopes", "server_time"}``
 * ``{"type": "event", "event": <GatewayEvent>}`` — same shape as SSE ``data``
-* ``{"type": "ack", "op", "req"?, ...result}``
-* ``{"type": "error", "op"?, "req"?, "error": {"code", "message_key", "details"}}``
-* ``{"type": "pong", "req"?}``
+* ``{"type": "ack", "op", "req"?, "request_id"?, ...result}``
+* ``{"type": "error", "op"?, "req"?, "request_id"?, "error": {"code", "message_key", "details"}}``
+* ``{"type": "pong", "req"?, "request_id"?}``
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from nanobot.agent_api.context import AgentApiServices, services
 from nanobot.agent_api.errors import ApiError
 from nanobot.agent_api.events import GatewayEvent, JsonObject, now_ms
 from nanobot.agent_api.hub import Subscription
+from nanobot.agent_api.routes.sessions import media_paths, message_text
 
 WS_HEARTBEAT_SECONDS = 20.0
 _MAX_FRAME_BYTES = 1 << 20
@@ -42,6 +45,11 @@ _OUTGOING_LIMIT = 4000
 
 def _dumps(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _correlation(req: object) -> JsonObject:
+    """Echo the client's correlation id under both accepted names."""
+    return {"req": req, "request_id": req}
 
 
 class WsClient:
@@ -129,8 +137,8 @@ class WsClient:
     # -- ops -----------------------------------------------------------------
 
     async def handle(self, frame: JsonObject) -> None:
-        op = frame.get("op")
-        req = frame.get("req")
+        op = frame.get("op", frame.get("type"))
+        req = frame.get("req", frame.get("request_id"))
         if not isinstance(op, str):
             self._error(None, req, ApiError(400, "invalid_frame", details={"field": "op"}))
             return
@@ -144,14 +152,14 @@ class WsClient:
             self._error(op, req, ApiError(500, "internal_error", details={"error": str(exc)}))
             return
         if op == "ping":
-            self.enqueue({"type": "pong", "req": req, "server_time": now_ms()})
+            self.enqueue({"type": "pong", **_correlation(req), "server_time": now_ms()})
             return
-        ack: JsonObject = {"type": "ack", "op": op, "req": req}
+        ack: JsonObject = {"type": "ack", "op": op, **_correlation(req)}
         ack.update(result)
         self.enqueue(ack)
 
     def _error(self, op: str | None, req: object, exc: ApiError) -> None:
-        body: JsonObject = {"type": "error", "op": op, "req": req}
+        body: JsonObject = {"type": "error", "op": op, **_correlation(req)}
         body.update(cast(JsonObject, exc.envelope()))
         self.enqueue(body)
 
@@ -180,17 +188,12 @@ class WsClient:
         if op == "send":
             require_scope(self.request, "chat")
             session = self._session(frame)
-            text = frame.get("text") or frame.get("content") or ""
-            media_raw = frame.get("media")
-            media = (
-                [item for item in cast(list[object], media_raw) if isinstance(item, str)]
-                if isinstance(media_raw, list)
-                else []
-            )
+            text = message_text(frame)
+            media = media_paths(frame)
             self.svc.sessions.ensure(session)
             if session not in self._subs:
                 self.subscribe(session, None)
-            run_id = self.svc.sessions.submit(session, str(text), media=media)
+            run_id = self.svc.sessions.submit(session, text, media=media)
             return {"session": session, "run_id": run_id}
         if op == "cancel":
             require_scope(self.request, "control")

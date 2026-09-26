@@ -24,7 +24,38 @@ def sse_frame(event: GatewayEvent) -> bytes:
     return f"id: {event['id']}\nevent: {event['kind']}\ndata: {payload}\n\n".encode()
 
 
-def _media_paths(body: JsonObject) -> list[str]:
+def _part_data_url(part: dict[str, object]) -> str | None:
+    """SDK ``MessageContentPart`` → data URL (``url`` may already be one, or ``base64``+``mime``)."""
+    if part.get("type") not in ("image", "audio"):
+        return None
+    url = part.get("url")
+    if isinstance(url, str) and url.startswith("data:"):
+        return url
+    base64_payload = part.get("base64")
+    mime = part.get("mime")
+    if isinstance(base64_payload, str) and base64_payload and isinstance(mime, str) and mime:
+        return f"data:{mime};base64,{base64_payload}"
+    return None
+
+
+def message_text(body: JsonObject) -> str:
+    """Text from ``text`` / ``content`` or the ``text`` parts of ``parts``."""
+    for field in ("text", "content"):
+        value = body.get(field)
+        if isinstance(value, str) and value.strip():
+            return value
+    parts = body.get("parts")
+    if isinstance(parts, list):
+        texts = [
+            str(cast(dict[str, object], part).get("text") or "")
+            for part in cast(list[object], parts)
+            if isinstance(part, dict) and cast(dict[str, object], part).get("type") == "text"
+        ]
+        return "\n".join(text for text in texts if text.strip())
+    return ""
+
+
+def media_paths(body: JsonObject) -> list[str]:
     """Persist base64 data URLs (image/audio) the same way the OpenAI-compatible API does."""
     from nanobot.api.server import _save_base64_data_url
     from nanobot.config.paths import get_media_dir
@@ -34,6 +65,13 @@ def _media_paths(body: JsonObject) -> list[str]:
         value = body.get(field)
         if isinstance(value, str) and value.startswith("data:"):
             urls.append(value)
+    parts = body.get("parts")
+    if isinstance(parts, list):
+        for raw in cast(list[object], parts):
+            if isinstance(raw, dict):
+                data_url = _part_data_url(cast(dict[str, object], raw))
+                if data_url is not None:
+                    urls.append(data_url)
     media = body.get("media")
     if isinstance(media, list):
         urls.extend(
@@ -97,8 +135,8 @@ async def post_message(request: web.Request) -> web.Response:
     svc = services(request)
     session_id = request.match_info["id"]
     body = await json_body(request)
-    text = optional_str(body, "text") or optional_str(body, "content") or ""
-    media = _media_paths(body)
+    text = message_text(body)
+    media = media_paths(body)
     run_id = svc.sessions.submit(session_id, text, media=media)
     return ok({"run_id": run_id, "session": session_id}, status=202)
 

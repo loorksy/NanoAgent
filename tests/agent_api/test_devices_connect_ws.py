@@ -270,3 +270,22 @@ async def test_ws_cancel_and_approve(
     frames = await _collect_until(ws, lambda f: f.get("type") == "ack" and f["op"] == "approve")
     assert frames[-1]["approval"]["status"] == "cancelled"
     await ws.close()
+
+
+async def test_ws_accepts_sdk_frame_shape(client: TestClient, agent: FakeAgent) -> None:
+    """``@nanoagent/sdk`` sends ``type`` instead of ``op`` and ``request_id`` for correlation."""
+    ws = await client.ws_connect("/ws/v2", headers=auth())
+    await ws.receive_json()
+    await ws.send_json({
+        "type": "send",
+        "session": "s-sdk",
+        "parts": [{"type": "text", "text": "from parts"}],
+        "request_id": "q-1",
+    })
+    frames = await _collect_until(ws, lambda f: f.get("type") == "ack")
+    assert frames[-1]["request_id"] == "q-1" and frames[-1]["req"] == "q-1"
+    await _collect_until(ws, lambda f: f.get("type") == "event" and f["event"]["kind"] == "end")
+    assert agent.calls[0]["content"] == "from parts"
+    await ws.send_json({"type": "ping", "ts": 1})
+    assert (await ws.receive_json())["type"] == "pong"
+    await ws.close()
