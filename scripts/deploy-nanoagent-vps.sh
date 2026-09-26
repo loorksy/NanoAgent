@@ -148,26 +148,118 @@ systemctl daemon-reload
 systemctl enable nanoagent-gateway.service
 systemctl restart nanoagent-gateway.service
 
-# Do not replace a vhost that already serves Open WebUI. Rewriting it would
-# point the public site at the gateway port and hide the current client.
+# Public site is the Open WebUI fork on 127.0.0.1:8080.
+# The legacy React client is not published. Agent API stays on 127.0.0.1:8767.
+# Leave an existing Open WebUI vhost in place so Certbot's 443 block survives.
 if [[ -f /etc/nginx/sites-available/nanoagent.lork.cloud ]] && grep -q '127.0.0.1:8080' /etc/nginx/sites-available/nanoagent.lork.cloud; then
   echo "nginx already serves Open WebUI; leaving the vhost in place"
 else
 cat > /etc/nginx/sites-available/nanoagent.lork.cloud <<NGX
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+map \$http_referer \$nanoagent_shared_upstream {
+    default http://127.0.0.1:8080;
+}
+
 server {
     listen 80;
     server_name $DOMAIN;
+    client_max_body_size 50m;
 
-    location / {
-        proxy_pass http://127.0.0.1:$WEB_PORT;
+    location /api/v2 {
+        proxy_pass http://127.0.0.1:8767;
         proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
         proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /ws/v2 {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /v1/ {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api/ {
+        proxy_pass \$nanoagent_shared_upstream;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /ws {
+        proxy_pass \$nanoagent_shared_upstream;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /manifest.json {
+        proxy_pass \$nanoagent_shared_upstream;
+        proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_buffering off;
         proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 NGX
@@ -196,6 +288,6 @@ OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterv
 
 echo "$OUT"
 echo ""
-echo "WebUI: https://${DOMAIN}/#/connect"
+echo "WebUI: https://${DOMAIN}/"
 ISSUED=$(printf '%s\n' "$OUT" | awk -F= '/^ISSUED_TOKEN=/{print $2}' | tail -1)
 echo "Bootstrap token (save this): ${ISSUED:-$WEB_TOKEN}"
