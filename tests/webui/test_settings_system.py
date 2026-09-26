@@ -53,15 +53,15 @@ def test_system_domain_validates_channel_field_values() -> None:
 
 def test_channel_secret_is_cleared_only_by_explicit_null() -> None:
     config = Config.model_validate({
-        "channels": {"matrix": {"password": "saved-password"}},
+        "channels": {"telegram": {"webhookSecretToken": "saved-secret"}},
     })
 
     saved = save_channel_config_values(
         config,
-        "matrix",
-        {"channels.matrix.password": None},
+        "telegram",
+        {"channels.telegram.webhookSecretToken": None},
         load_channel_plugin=load_channel_plugin,
     )
 
-    assert saved == ["channels.matrix.password"]
-    assert config.channels.matrix["password"] == ""
+    assert saved == ["channels.telegram.webhookSecretToken"]
+    assert config.channels.telegram["webhookSecretToken"] == ""

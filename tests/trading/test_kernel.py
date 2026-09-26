@@ -6,6 +6,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from evidence_stubs import fake_market, install_evidence_stubs
 
 from nanobot.agent.tools.trading_chart import GetGoldQuoteTool
 from nanobot.trading.kernel import run_trading_kernel
@@ -21,7 +22,6 @@ from nanobot.trading.types import (
     MarketSync,
 )
 from nanobot.trading.unified_evidence import fetch_evidence_nodes
-from tests.trading.evidence_stubs import fake_market, install_evidence_stubs
 
 
 def _buy_decision() -> FinalDecisionResult:

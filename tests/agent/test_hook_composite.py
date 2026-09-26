@@ -14,6 +14,7 @@ from nanobot.agent.hook import (
     AgentTurnHookContext,
     CompositeHook,
 )
+from nanobot.agent.tools.base import Tool
 from nanobot.agent.tools.context import RequestContext
 from nanobot.utils.progress_events import output_events
 
@@ -410,6 +411,17 @@ async def test_composite_can_wrap_another_composite():
 # ---------------------------------------------------------------------------
 
 
+class _ProbeTool(Tool):
+    """Minimal registered tool so tool-call bookkeeping runs the real path."""
+
+    name = "probe"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    description = "probe"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    parameters = {"type": "object", "properties": {}}  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+
+    async def execute(self, **kwargs):
+        return "ok"
+
+
 def _make_loop(tmp_path, hooks=None, hook_factories=None):
     from nanobot.agent.loop import AgentLoop
     from nanobot.bus.queue import MessageBus
@@ -569,7 +581,7 @@ async def test_agent_loop_extra_hooks_do_not_swallow_loop_hook_errors(tmp_path):
     loop = _make_loop(tmp_path, hooks=[AgentHook()])
     loop.provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
         content="working",
-        tool_calls=[ToolCallRequest(id="c1", name="list_dir", arguments={"path": "."})],
+        tool_calls=[ToolCallRequest(id="c1", name="get_gold_quote", arguments={})],
         usage=None,
     ))
     loop.tools.get_definitions = MagicMock(return_value=[])
@@ -594,10 +606,10 @@ async def test_agent_loop_no_hooks_backward_compat(tmp_path):
     loop = _make_loop(tmp_path)
     loop.provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
         content="working",
-        tool_calls=[ToolCallRequest(id="c1", name="list_dir", arguments={"path": "."})],
+        tool_calls=[ToolCallRequest(id="c1", name="probe", arguments={})],
     ))
+    loop.tools.register(_ProbeTool())
     loop.tools.get_definitions = MagicMock(return_value=[])
-    loop.tools.execute = AsyncMock(return_value="ok")
     loop.max_iterations = 2
 
     result = await loop._run_agent_loop(
@@ -608,4 +620,4 @@ async def test_agent_loop_no_hooks_backward_compat(tmp_path):
         "I reached the maximum number of tool call iterations (2) "
         "without completing the task. You can try breaking the task into smaller steps."
     )
-    assert result.tools_used == ["list_dir", "list_dir"]
+    assert result.tools_used == ["probe", "probe"]

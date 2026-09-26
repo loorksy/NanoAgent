@@ -132,7 +132,7 @@ def test_parse_and_alignment_helpers() -> None:
 
 
 def _install_specialist_stubs(monkeypatch) -> None:
-    from tests.trading.evidence_stubs import install_evidence_stubs
+    from evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
 

@@ -47,7 +47,7 @@ def test_stage_sequence_skips_silent_nodes():
 
 @pytest.mark.asyncio
 async def test_run_evidence_graph_full_analysis(monkeypatch):
-    from tests.trading.evidence_stubs import install_evidence_stubs
+    from evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch, gate_allowed=False)
     ctx = PipelineContext(symbol="XAUUSD", interval="15m")
@@ -109,8 +109,9 @@ async def test_market_data_failure_aborts_graph(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_orchestrator_uses_evidence_graph(monkeypatch):
+    from evidence_stubs import install_evidence_stubs
+
     from nanobot.trading.kernel import run_trading_kernel
-    from tests.trading.evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
     result = await run_trading_kernel(store=False)
@@ -123,10 +124,11 @@ async def test_orchestrator_uses_evidence_graph(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
+    from evidence_stubs import install_evidence_stubs
+
     from nanobot.trading.intel.postmortem import LossRecord
     from nanobot.trading.kernel import run_trading_kernel
     from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
-    from tests.trading.evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
 

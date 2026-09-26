@@ -682,7 +682,7 @@ async def test_subagent_max_iterations_announces_existing_fallback(tmp_path, mon
     provider.get_default_model.return_value = "test-model"
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
         content="working",
-        tool_calls=[ToolCallRequest(id="call_1", name="list_dir", arguments={"path": "."})],
+        tool_calls=[ToolCallRequest(id="call_1", name="web_fetch", arguments={"url": "https://example.com"})],
     ))
     mgr = SubagentManager(
         workspace=tmp_path,
@@ -695,7 +695,7 @@ async def test_subagent_max_iterations_announces_existing_fallback(tmp_path, mon
     async def fake_execute(self, **kwargs):
         return "tool result"
 
-    monkeypatch.setattr("nanobot.agent.tools.filesystem.ListDirTool.execute", fake_execute)
+    monkeypatch.setattr("nanobot.agent.tools.web.WebFetchTool.execute", fake_execute)
 
     status = SubagentStatus(task_id="sub-1", label="label", task_description="do task", started_at=time.monotonic())
     await mgr._run_subagent(

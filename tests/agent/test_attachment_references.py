@@ -8,7 +8,6 @@ import pytest
 from nanobot.agent.context import TranscriptInput
 from nanobot.agent.loop import AgentLoop, TurnContext, TurnKind
 from nanobot.agent.tools.context import RequestContext
-from nanobot.agent.tools.filesystem import ReadFileTool
 from nanobot.bus.events import InboundMessage
 from nanobot.bus.queue import MessageBus
 from nanobot.config.schema import ChannelsConfig
@@ -76,12 +75,7 @@ async def test_document_attachment_is_referenced_and_read_on_demand(
     assert ctx.msg.content == f"import this report\n\n[Attachment: {csv_path}]"
     assert "name,value" not in ctx.msg.content
     assert ctx.msg.media == []
-
-    read_tool = ReadFileTool(workspace=workspace, allowed_dir=workspace)
-    result = await read_tool.execute(path=str(csv_path))
-
-    assert "1| name,value" in result
-    assert "2| nanobot,1" in result
+    assert csv_path.read_text(encoding="utf-8") == "name,value\nnanobot,1"
 
 
 @pytest.mark.asyncio

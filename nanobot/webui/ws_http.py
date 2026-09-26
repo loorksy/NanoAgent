@@ -44,6 +44,9 @@ from nanobot.webui.http_utils import (
     accepts_gzip as _accepts_gzip,
 )
 from nanobot.webui.http_utils import (
+    bearer_token as _bearer_token,
+)
+from nanobot.webui.http_utils import (
     case_insensitive_header as _case_insensitive_header,
 )
 from nanobot.webui.http_utils import (
@@ -70,9 +73,6 @@ from nanobot.webui.http_utils import (
 from nanobot.webui.http_utils import is_loopback_host as _is_loopback_host
 from nanobot.webui.http_utils import (
     is_trusted_proxy_authenticated_request as _is_trusted_proxy_authenticated_request,
-)
-from nanobot.webui.http_utils import (
-    bearer_token as _bearer_token,
 )
 from nanobot.webui.http_utils import (
     issue_route_secret_matches as _issue_route_secret_matches,
@@ -116,7 +116,6 @@ from nanobot.webui.sidebar_state import (
     read_webui_sidebar_state,
     write_webui_sidebar_state,
 )
-from nanobot.webui.trading_api import dispatch_trading_route
 from nanobot.webui.skills_api import (
     SkillManagementError,
     delete_webui_skill,
@@ -132,6 +131,7 @@ from nanobot.webui.skills_marketplace import (
     trending_marketplace_skills,
 )
 from nanobot.webui.thread_disk import delete_webui_thread
+from nanobot.webui.trading_api import dispatch_trading_route
 from nanobot.webui.transcript import build_webui_thread_response
 from nanobot.webui.workspaces import WebUIWorkspaceController
 

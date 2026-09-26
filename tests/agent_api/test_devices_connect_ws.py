@@ -9,9 +9,9 @@ from typing import Any
 from aiohttp import WSMsgType
 from aiohttp.test_utils import TestClient
 
+from agent_api.conftest import FakeAgent, auth
 from nanobot.agent_api.context import AgentApiServices
 from nanobot.agent_api.push.base import LoggingPushProvider
-from tests.agent_api.conftest import FakeAgent, auth
 
 # ---------------------------------------------------------------------------
 # devices

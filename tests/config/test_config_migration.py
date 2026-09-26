@@ -26,10 +26,9 @@ def test_onboard_refresh_backfills_missing_channel_fields(tmp_path, monkeypatch)
         json.dumps(
             {
                 "channels": {
-                    "qq": {
+                    "telegram": {
                         "enabled": False,
-                        "appId": "",
-                        "secret": "",
+                        "token": "",
                         "allowFrom": [],
                     }
                 }
@@ -42,7 +41,7 @@ def test_onboard_refresh_backfills_missing_channel_fields(tmp_path, monkeypatch)
     monkeypatch.setattr("nanobot.cli.commands.get_workspace_path", lambda _workspace=None: workspace)
     monkeypatch.setattr(
         "nanobot.channels.registry.discover_plugins",
-        lambda: {"qq": load_channel_package("qq")},
+        lambda: {"telegram": load_channel_package("telegram")},
     )
     monkeypatch.setattr(
         "nanobot.channels.registry.discover_all",
@@ -57,7 +56,9 @@ def test_onboard_refresh_backfills_missing_channel_fields(tmp_path, monkeypatch)
 
     assert result.exit_code == 0
     saved = json.loads(config_path.read_text(encoding="utf-8"))
-    assert saved["channels"]["qq"]["msgFormat"] == "plain"
+    assert saved["channels"]["telegram"]["mode"] == "polling"
+    assert saved["channels"]["telegram"]["groupPolicy"] == "mention"
+    assert saved["channels"]["telegram"]["token"] == ""
 
 
 def test_load_config_migrates_legacy_my_tool_keys(tmp_path) -> None:

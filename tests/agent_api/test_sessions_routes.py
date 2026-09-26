@@ -6,9 +6,9 @@ import asyncio
 
 from aiohttp.test_utils import TestClient
 
+from agent_api.conftest import BOOTSTRAP, FakeAgent, auth, parse_sse
 from nanobot.agent_api.context import AgentApiServices
 from nanobot.agent_api.events import AGENT_API_CHANNEL, session_key_for
-from tests.agent_api.conftest import BOOTSTRAP, FakeAgent, auth, parse_sse
 
 
 async def test_requires_bearer_token(client: TestClient) -> None:

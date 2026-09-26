@@ -73,7 +73,7 @@ def test_loop_registers_default_tools_in_injected_registry(tmp_path: Path) -> No
     )
 
     assert loop.tools is registry
-    assert registry.has("read_file")
+    assert registry.has("analyze_gold")
 
 
 def _config_for_loop(tmp_path: Path) -> Config:
@@ -102,7 +102,7 @@ def test_loop_from_config_uses_caller_owned_registry(tmp_path: Path) -> None:
     )
 
     assert loop.tools is registry
-    assert loop.tools.has("read_file")
+    assert loop.tools.has("analyze_gold")
 
 
 @pytest.mark.asyncio

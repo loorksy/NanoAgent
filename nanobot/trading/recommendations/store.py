@@ -12,6 +12,7 @@ from nanobot.config.paths import get_data_dir
 from nanobot.trading.recommendations.tradability import assess_plan_tradability
 from nanobot.trading.types import AgentMarketContext, ChartDrawing, FinalDecisionResult
 
+
 def _db_path() -> Path:
     return get_data_dir() / "trading" / "recommendations.db"
 

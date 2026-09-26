@@ -6,10 +6,10 @@ import json
 
 from aiohttp.test_utils import TestClient
 
+from agent_api.conftest import FakeAgent, auth
 from nanobot.agent.tools.context import RequestContext
 from nanobot.agent_api.context import AgentApiServices
 from nanobot.agent_api.events import session_key_for, tool_data
-from tests.agent_api.conftest import FakeAgent, auth
 
 DECISION = {
     "verdict": "buy",

@@ -58,6 +58,9 @@ def _isolate_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     set_permission_store_for_tests(PermissionStore(SecretStore(tmp_path / "secrets.enc")))
     monkeypatch.setattr("nanobot.trading.runtime_state._STORE", None)
     monkeypatch.setattr("nanobot.trading.risk_state._STORE", None)
+    # ``/approvals`` syncs pending MT5 proposals from this process-global store, so
+    # proposals left behind by other test modules in the same xdist worker must not leak in.
+    monkeypatch.setattr("nanobot.trading.mt5_proposals._STORE", None)
     invalidate_live_cache()
     yield
     set_permission_store_for_tests(None)

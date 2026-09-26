@@ -16,8 +16,40 @@ from nanobot.bus.outbound_events import (
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.base import BaseChannel
 from nanobot.channels.manager import ChannelManager
-from nanobot.channels.mattermost.runtime import MattermostChannel
-from nanobot.config.schema import Config
+from nanobot.config.schema import Base, Config
+
+
+class _TypedChannelConfig(Base):
+    """Pydantic channel config that ships its own progress defaults."""
+
+    enabled: bool = False
+    send_progress: bool = True
+    send_tool_hints: bool = True
+
+
+class TypedConfigChannel(BaseChannel):
+    """Channel whose config model declares progress defaults, like real channels."""
+
+    name = "typed"
+    display_name = "Typed"
+
+    @classmethod
+    def default_config(cls):
+        return _TypedChannelConfig().model_dump(by_alias=True)
+
+    def __init__(self, config, bus):
+        if isinstance(config, dict):
+            config = _TypedChannelConfig.model_validate(config)
+        super().__init__(config, bus)
+
+    async def start(self):
+        pass
+
+    async def stop(self):
+        pass
+
+    async def send(self, msg):
+        pass
 
 
 class MockChannel(BaseChannel):
@@ -322,8 +354,8 @@ class TestProgressFiltering:
         manager.bus = bus
 
         channel = manager._build_channel(
-            "mattermost",
-            MattermostChannel,
+            "typed",
+            TypedConfigChannel,
             {"enabled": True},
         )
 
@@ -331,8 +363,8 @@ class TestProgressFiltering:
         assert channel.send_tool_hints is False
 
         opted_in = manager._build_channel(
-            "mattermost",
-            MattermostChannel,
+            "typed",
+            TypedConfigChannel,
             {
                 "enabled": True,
                 "sendProgress": True,

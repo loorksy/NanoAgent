@@ -1,6 +1,7 @@
 """Tests for runner progress hooks and provider event routing."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -9,12 +10,43 @@ from agent.runner_helpers import make_run_spec
 from nanobot.agent.hooks import FileEditActivityHook
 from nanobot.agent.progress_hook import AgentProgressHook
 from nanobot.agent.runner import AgentRunner
-from nanobot.agent.tools.filesystem import EditFileTool, WriteFileTool
 from nanobot.config.schema import AgentDefaults
 from nanobot.providers.base import LLMResponse, ToolCallRequest
 from nanobot.utils.progress_events import output_events
 
 _MAX_TOOL_RESULT_CHARS = AgentDefaults().max_tool_result_chars
+
+
+class _WriteFileTool:
+    """Minimal stand-in for the removed workspace write tool."""
+
+    name = "write_file"
+
+    def __init__(self, workspace: Path) -> None:
+        self._workspace = workspace
+
+    async def execute(self, path: str, content: str, **kwargs: object) -> str:
+        target = (self._workspace / path).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return f"Wrote {len(content)} chars to {path}"
+
+
+class _EditFileTool:
+    """Minimal stand-in for the removed exact-replacement edit tool."""
+
+    name = "edit_file"
+
+    def __init__(self, workspace: Path) -> None:
+        self._workspace = workspace
+
+    async def execute(self, path: str, old_text: str, new_text: str, **kwargs: object) -> str:
+        target = (self._workspace / path).resolve()
+        current = target.read_text(encoding="utf-8")
+        if old_text not in current:
+            raise ValueError("old_text not found")
+        target.write_text(current.replace(old_text, new_text, 1), encoding="utf-8")
+        return f"Edited {path}"
 
 
 @pytest.mark.asyncio
@@ -177,7 +209,7 @@ async def test_runner_emits_write_file_diff_from_tool_execution_snapshots(tmp_pa
         if file_edit_events:
             progress_events.extend(file_edit_events)
 
-    tool = WriteFileTool(workspace=tmp_path)
+    tool = _WriteFileTool(tmp_path)
 
     class Tools:
         def get_definitions(self):
@@ -243,7 +275,7 @@ async def test_runner_emits_edit_file_diff_from_tool_execution_snapshots(tmp_pat
         if file_edit_events:
             progress_events.extend(file_edit_events)
 
-    tool = EditFileTool(workspace=tmp_path)
+    tool = _EditFileTool(tmp_path)
 
     class Tools:
         def get_definitions(self):
@@ -309,7 +341,7 @@ async def test_runner_marks_file_edit_activity_failed_when_tool_errors(tmp_path)
         if file_edit_events:
             progress_events.extend(file_edit_events)
 
-    tool = WriteFileTool(workspace=tmp_path)
+    tool = _WriteFileTool(tmp_path)
 
     class Tools:
         def get_definitions(self):
@@ -367,13 +399,13 @@ async def test_runner_marks_file_edit_activity_failed_when_cancelled(tmp_path):
         if file_edit_events:
             progress_events.extend(file_edit_events)
 
-    class SlowWriteTool(WriteFileTool):
+    class SlowWriteTool(_WriteFileTool):
         async def execute(self, path=None, content=None, **kwargs):
             executing.set()
             await asyncio.sleep(60)
             return "ok"
 
-    tool = SlowWriteTool(workspace=tmp_path)
+    tool = SlowWriteTool(tmp_path)
 
     class Tools:
         def get_definitions(self):

@@ -14,29 +14,12 @@ from nanobot.channels.plugin import ChannelPlugin, load_channel_package
 from nanobot.channels.registry import channel_default_enabled, discover_plugins
 
 EXPECTED_CHANNELS = {
-    "dingtalk",
-    "discord",
-    "email",
-    "feishu",
-    "matrix",
-    "mattermost",
-    "mochat",
-    "msteams",
-    "napcat",
-    "qq",
-    "signal",
-    "slack",
     "telegram",
     "websocket",
-    "wecom",
-    "weixin",
     "whatsapp",
 }
 
 INTERNAL_CHANNEL_FIELDS = {
-    "feishu": {"instanceId", "identityKey"},
-    "signal": {"allowFrom"},
-    "weixin": {"token"},
     "whatsapp": {"databasePath", "lidMappings"},
     # nanobot WebUI owns this transport and intentionally has no channel dialog.
     "websocket": {
@@ -75,77 +58,51 @@ def _flatten_channel_fields(value: object, prefix: str = "") -> set[str]:
 
 
 def test_channel_setup_spec_derives_route_and_secret_metadata() -> None:
-    slack = channel_setup_spec("slack")
+    telegram = channel_setup_spec("telegram")
 
-    assert slack is not None
-    assert slack.secrets == {"appToken", "botToken"}
-    assert slack.route_field_types["appToken"] == "secret"
-    assert slack.route_field_types["botToken"] == "secret"
-    assert slack.route_field_types["groupPolicy"] == (
+    assert telegram is not None
+    assert telegram.secrets == {"token", "webhookSecretToken"}
+    assert telegram.route_field_types["token"] == "secret"
+    assert telegram.route_field_types["webhookSecretToken"] == "secret"
+    assert telegram.route_field_types["groupPolicy"] == (
         "enum",
         {"mention", "open", "allowlist"},
     )
-    assert slack.simple_required_fields == ("appToken", "botToken")
-    assert slack.fields["groupPolicy"].default == "mention"
+    assert telegram.simple_required_fields == ("token",)
+    assert telegram.fields["groupPolicy"].default == "mention"
     group_policy = next(
         field
-        for field in slack.to_public_dict("slack")["fields"]
+        for field in telegram.to_public_dict("telegram")["fields"]
         if field["field"] == "groupPolicy"
     )
     assert group_policy["default_value"] == "mention"
 
 
-def test_matrix_setup_requires_one_complete_login_method() -> None:
-    matrix = channel_setup_spec("matrix")
-
-    assert matrix is not None
-    base = {
-        "homeserver": "https://matrix.example",
-        "userId": "@nanobot:matrix.example",
-    }
-    assert matrix.is_configured(base | {"password": "secret"})
-    assert matrix.is_configured(base | {"accessToken": "token", "deviceId": "DEVICE"})
-    assert not matrix.is_configured(base | {"accessToken": "token"})
-
-
 def test_channel_setup_spec_separates_writable_and_snapshot_fields() -> None:
-    matrix = channel_setup_spec("matrix")
-    discord = channel_setup_spec("discord")
-
-    assert matrix is not None
-    assert discord is not None
-    assert "allowFrom" in matrix.route_field_types
-    assert "allowFrom" in matrix.snapshot_fields
-    assert "allowFrom" in discord.route_field_types
-    assert "allowFrom" not in discord.snapshot_fields
-
-
-def test_webui_forms_have_writable_mattermost_and_whatsapp_contracts() -> None:
-    mattermost = channel_setup_spec("mattermost")
+    telegram = channel_setup_spec("telegram")
     whatsapp = channel_setup_spec("whatsapp")
 
-    assert mattermost is not None
+    assert telegram is not None
     assert whatsapp is not None
-    assert mattermost.route_field_types["serverUrl"] == "string"
-    assert mattermost.route_field_types["token"] == "secret"
+    assert "allowFrom" in telegram.route_field_types
+    assert "allowFrom" in telegram.snapshot_fields
+    assert "allowFrom" in whatsapp.route_field_types
+    assert "allowFrom" not in whatsapp.snapshot_fields
+
+
+def test_webui_forms_have_writable_telegram_and_whatsapp_contracts() -> None:
+    telegram = channel_setup_spec("telegram")
+    whatsapp = channel_setup_spec("whatsapp")
+
+    assert telegram is not None
+    assert whatsapp is not None
+    assert telegram.route_field_types["proxy"] == "string"
+    assert telegram.route_field_types["token"] == "secret"
     assert whatsapp.route_field_types["proxy"] == "string"
     assert whatsapp.route_field_types["allowFrom"] == "list"
     assert whatsapp.route_field_types["groupPolicy"] == (
         "enum",
         {"mention", "open"},
-    )
-
-
-def test_weixin_token_is_managed_only_by_qr_login() -> None:
-    weixin = channel_setup_spec("weixin")
-
-    assert weixin is not None
-    assert weixin.simple_required_fields == ("token",)
-    assert "token" not in weixin.route_field_types
-    assert "token" not in weixin.snapshot_fields
-    assert all(
-        field["field"] != "token"
-        for field in weixin.to_public_dict("weixin")["fields"]
     )
 
 
@@ -245,25 +202,15 @@ def test_channel_manifests_only_import_contract_modules() -> None:
         assert not unexpected, f"{name} imports runtime dependencies: {unexpected}"
 
 
-def test_feishu_package_manifest_owns_runtime_and_webui_metadata() -> None:
-    plugin = load_channel_package("feishu")
+def test_telegram_package_manifest_owns_runtime_and_webui_metadata() -> None:
+    plugin = load_channel_package("telegram")
 
     assert plugin is not None
-    assert plugin.runtime == "nanobot.channels.feishu.runtime:FeishuChannel"
-    assert plugin.dependencies == ("lark-oapi>=1.5.0,<2.0.0",)
-    assert plugin.connector == "nanobot.channels.feishu.connect:FeishuConnectStore"
-    assert plugin.management.multi_instance is True
-    assert plugin.webui == "webui/index.tsx"
-
-
-def test_weixin_package_manifest_owns_runtime_and_webui_metadata() -> None:
-    plugin = load_channel_package("weixin")
-
-    assert plugin is not None
-    assert plugin.runtime == "nanobot.channels.weixin.runtime:WeixinChannel"
-    assert plugin.dependencies == ("qrcode[pil]>=8.0", "pycryptodome>=3.20.0")
-    assert plugin.connector == "nanobot.channels.weixin.connect:WeixinConnectStore"
-    assert plugin.webui == "webui/index.tsx"
+    assert plugin.runtime == "nanobot.channels.telegram.runtime:TelegramChannel"
+    assert plugin.dependencies[0].startswith("python-telegram-bot")
+    assert plugin.setup is not None
+    assert plugin.setup.verifies_connection is True
+    assert plugin.webui == "webui/index.ts"
 
 
 def test_whatsapp_package_manifest_owns_browser_connector() -> None:
@@ -272,16 +219,6 @@ def test_whatsapp_package_manifest_owns_browser_connector() -> None:
     assert plugin is not None
     assert plugin.connector == "nanobot.channels.whatsapp.connect:WhatsAppConnectStore"
     assert plugin.webui == "webui/index.tsx"
-
-
-def test_mochat_package_manifest_exposes_required_setup() -> None:
-    plugin = load_channel_package("mochat")
-
-    assert plugin is not None
-    assert plugin.webui == "webui/index.ts"
-    assert plugin.settings_visible is True
-    assert plugin.setup is not None
-    assert plugin.setup.simple_required_fields == ("clawToken",)
 
 
 def test_package_manifests_do_not_import_runtimes() -> None:

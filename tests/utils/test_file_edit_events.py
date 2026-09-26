@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nanobot.agent.tools.apply_patch import ApplyPatchTool
-from nanobot.agent.tools.filesystem import EditFileTool, WriteFileTool
 from nanobot.utils.file_edit_events import (
     build_file_edit_end_event,
     build_file_edit_start_event,
@@ -12,18 +10,6 @@ from nanobot.utils.file_edit_events import (
     prepare_file_edit_trackers,
     read_file_snapshot,
 )
-
-
-def _write_tool(workspace: Path) -> WriteFileTool:
-    return WriteFileTool(workspace=workspace)
-
-
-def _edit_tool(workspace: Path) -> EditFileTool:
-    return EditFileTool(workspace=workspace)
-
-
-def _patch_tool(workspace: Path) -> ApplyPatchTool:
-    return ApplyPatchTool(workspace=workspace)
 
 
 def test_line_diff_stats_counts_replacements_insertions_and_deletions() -> None:
@@ -46,7 +32,7 @@ def test_write_file_start_tracks_snapshot_and_end_emits_exact_diff(tmp_path: Pat
     trackers = prepare_file_edit_trackers(
         call_id="call-write",
         tool_name="write_file",
-        tool=_write_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params=params,
     )
@@ -104,7 +90,7 @@ def test_binary_file_is_reported_but_not_counted(tmp_path: Path) -> None:
     trackers = prepare_file_edit_trackers(
         call_id="call-bin",
         tool_name="edit_file",
-        tool=_edit_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params={"path": "data.bin", "old_text": "before", "new_text": "after"},
     )
@@ -123,7 +109,7 @@ def test_binary_before_file_is_reported_but_not_counted(tmp_path: Path) -> None:
     trackers = prepare_file_edit_trackers(
         call_id="call-bin",
         tool_name="write_file",
-        tool=_write_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params={"path": "data.bin", "content": "after\n"},
     )
@@ -148,7 +134,7 @@ def test_apply_patch_prepares_trackers_for_each_touched_file(tmp_path: Path) -> 
     trackers = prepare_file_edit_trackers(
         call_id="call-patch",
         tool_name="apply_patch",
-        tool=_patch_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params={"edits": edits},
     )
@@ -175,7 +161,7 @@ def test_apply_patch_trackers_use_normalized_patch_paths(tmp_path: Path) -> None
     trackers = prepare_file_edit_trackers(
         call_id="call-patch",
         tool_name="apply_patch",
-        tool=_patch_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params={
             "edits": [
@@ -195,7 +181,7 @@ def test_apply_patch_dry_run_does_not_prepare_file_edit_trackers(tmp_path: Path)
     trackers = prepare_file_edit_trackers(
         call_id="call-patch",
         tool_name="apply_patch",
-        tool=_patch_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params={
             "dry_run": True,
@@ -214,7 +200,7 @@ def test_oversized_file_is_reported_but_not_counted(tmp_path: Path) -> None:
     trackers = prepare_file_edit_trackers(
         call_id="call-large",
         tool_name="write_file",
-        tool=_write_tool(tmp_path),
+        tool=None,
         workspace=tmp_path,
         params=params,
     )
