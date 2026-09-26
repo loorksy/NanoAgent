@@ -10,12 +10,14 @@
 	let body = '';
 	let failed = false;
 	let devices: { id?: string; platform?: string; label?: string }[] = [];
+	let providers: { name?: string; configured?: boolean }[] = [];
 
 	const paths: Record<string, string> = {
 		overview: 'settings/overview',
 		capabilities: 'settings/overview',
 		system: 'health',
-		channels: 'devices'
+		channels: 'devices',
+		models: 'settings/models'
 	};
 
 	onMount(async () => {
@@ -25,6 +27,9 @@
 			const payload = (await gateway(path)) as Record<string, unknown>;
 			if (tab === 'channels' && Array.isArray(payload.devices)) {
 				devices = payload.devices as { id?: string; platform?: string; label?: string }[];
+			}
+			if (tab === 'models' && Array.isArray(payload.providers)) {
+				providers = payload.providers as { name?: string; configured?: boolean }[];
 			}
 			body = JSON.stringify(payload, null, 2);
 		} catch {
@@ -41,6 +46,10 @@
 		<RiskPanel mode="advanced" />
 	{:else if tab === 'models'}
 		<p class="text-sm text-gray-500">{nanoagentText($i18n?.language, 'models_hint')}</p>
+		<h3 class="text-sm font-medium">{nanoagentText($i18n?.language, 'providers')}</h3>
+		{#each providers as provider (`${provider.name}`)}
+			<p class="text-sm">{provider.name} · {nanoagentText($i18n?.language, provider.configured ? 'yes' : 'no')}</p>
+		{/each}
 	{:else if failed}
 		<p class="text-sm text-red-500">{nanoagentText($i18n?.language, 'error')}</p>
 	{:else if tab === 'channels'}

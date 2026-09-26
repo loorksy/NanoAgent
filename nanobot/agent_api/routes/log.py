@@ -12,7 +12,9 @@ Merges three sources into one time-ordered list of ``{ts, kind, source, data}``:
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Literal, cast
 
 from aiohttp import web
@@ -188,5 +190,43 @@ async def get_log(request: web.Request) -> web.Response:
     return ok({"entries": entries[:limit], "kinds": list(kinds), "count": min(len(entries), limit)})
 
 
+def _journal_path() -> Path:
+    from nanobot.config.paths import get_data_dir
+
+    return get_data_dir() / "memory" / "journal.jsonl"
+
+
+async def get_journal(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    path = _journal_path()
+    entries: list[JsonObject] = []
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            parsed: object = json.loads(line)
+            if isinstance(parsed, dict):
+                entries.append(cast(JsonObject, parsed))
+    return ok({"entries": entries[-50:]})
+
+
+async def get_calendar(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from nanobot.trading.intel.calendar_view import rows_from_events
+
+    def _load() -> list[dict[str, str]]:
+        try:
+            from nanobot.trading.news.forex_factory import fetch_upcoming_events
+
+            return rows_from_events(list(fetch_upcoming_events()))
+        except Exception:
+            return []
+
+    rows = await asyncio.to_thread(_load)
+    return ok({"events": rows})
+
+
 def register(router: web.UrlDispatcher, prefix: str) -> None:
+    router.add_get(f"{prefix}/log/journal", get_journal)
+    router.add_get(f"{prefix}/log/calendar", get_calendar)
     router.add_get(f"{prefix}/log", get_log)

@@ -460,5 +460,15 @@
   "behaviour.daily_wrap": "What would you change about today's gold decisions?",
   "backtest.not_enough_bars": "Not enough candles to replay.",
   "distribution.android": "Android build metadata.",
-  "gate.positions.total_lots": "Open lots plus this order exceed the total lot cap."
+  "gate.positions.total_lots": "Open lots plus this order exceed the total lot cap.",
+  "closed_market.weekend": "Weekend: wait for the Monday London open. No new gold entries.",
+  "lesson.evidence": "A past loss is evidence for the next read, not a hard block.",
+  "circuit.safe_mode": "This strategy is in safe mode after consecutive losses.",
+  "strategy.proposed": "Replay proposal only. This is not an order.",
+  "cot.bias_bullish": "Large speculators are net long.",
+  "cot.bias_bearish": "Large speculators are net short.",
+  "cot.bias_neutral": "Large-speculator positioning is flat.",
+  "tradability.blocked": "Spread or news blocks a fresh entry.",
+  "tradability.clear": "Spread and news leave room for a fresh look.",
+  "calendar.soon": "An event is inside the news shield."
 }

@@ -36,6 +36,7 @@ PUBLIC_PATHS: frozenset[str] = frozenset({
     "/api/v2/health",
     "/api/v2/devices/pair",
     "/api/v2/distribution/version",
+    "/api/v2/distribution/apk",
 })
 
 

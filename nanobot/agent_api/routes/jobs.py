@@ -74,8 +74,21 @@ def _announce(
     )
 
 
+async def task_desk(request: web.Request) -> web.Response:
+    """Approvals inbox companion: circuits and the weekend plan (R5, R7, R15)."""
+    require_scope(request, "read")
+    from datetime import UTC, datetime
+
+    from nanobot.trading.bots.circuit import get_circuit
+    from nanobot.trading.closed_market import closed_market_plan
+
+    plan = closed_market_plan(now=datetime.now(tz=UTC), last_close=0.0, friday_close=0.0, atr=0.0)
+    return ok({"circuits": get_circuit().snapshot(), "closed_market": plan})
+
+
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     # ``tasks`` is the Open WebUI path from design 04 §3.2. Same handlers as jobs.
+    router.add_get(f"{prefix}/tasks/desk", task_desk)
     for collection in ("jobs", "tasks"):
         router.add_get(f"{prefix}/{collection}", list_jobs)
         router.add_post(f"{prefix}/{collection}", create_job)

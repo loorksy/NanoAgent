@@ -17,6 +17,9 @@ MORNING_BRIEFING_JOB_ID = "morning_briefing"
 SCORECARD_JOB_ID = "scorecard"
 DAILY_WRAP_JOB_ID = "daily_wrap"
 TRADE_MANAGEMENT_JOB_ID = "trade_management"
+TRADABILITY_JOB_ID = "tradability_calibration"
+EVENT_MONITOR_JOB_ID = "event_monitor"
+OPPORTUNITY_SCAN_JOB_ID = "opportunity_scan"
 
 TRADING_CRON_JOB_IDS = (
     GOLD_SCAN_JOB_ID,
@@ -26,6 +29,9 @@ TRADING_CRON_JOB_IDS = (
     SCORECARD_JOB_ID,
     DAILY_WRAP_JOB_ID,
     TRADE_MANAGEMENT_JOB_ID,
+    TRADABILITY_JOB_ID,
+    EVENT_MONITOR_JOB_ID,
+    OPPORTUNITY_SCAN_JOB_ID,
 )
 
 
@@ -59,6 +65,9 @@ def register_trading_cron_jobs(
         SCORECARD_JOB_ID: CronSchedule(kind="cron", expr="0 21 * * 5", tz=timezone),
         DAILY_WRAP_JOB_ID: CronSchedule(kind="cron", expr="0 21 * * 1-5", tz=timezone),
         TRADE_MANAGEMENT_JOB_ID: CronSchedule(kind="every", every_ms=60 * 1000, tz=timezone),
+        TRADABILITY_JOB_ID: CronSchedule(kind="every", every_ms=30 * 60 * 1000, tz=timezone),
+        EVENT_MONITOR_JOB_ID: CronSchedule(kind="every", every_ms=15 * 60 * 1000, tz=timezone),
+        OPPORTUNITY_SCAN_JOB_ID: CronSchedule(kind="every", every_ms=30 * 60 * 1000, tz=timezone),
     }
     for job_id in TRADING_CRON_JOB_IDS:
         register(
@@ -176,7 +185,40 @@ async def run_trading_cron_job(name: str) -> str | list[dict[str, object]] | Non
         return await run_daily_wrap_job()
     if name == TRADE_MANAGEMENT_JOB_ID:
         return await run_trade_management_job()
+    if name == TRADABILITY_JOB_ID:
+        return await run_tradability_job()
+    if name == EVENT_MONITOR_JOB_ID:
+        return await run_event_monitor_job()
+    if name == OPPORTUNITY_SCAN_JOB_ID:
+        return await run_opportunity_scan_job()
     return None
+
+
+async def run_tradability_job() -> str:
+    from nanobot.trading.bots.opportunity import tradability
+
+    state = tradability(spread_points=0.0, max_spread=60.0, news_risk="low")
+    return f"Tradability: {state['notice_key']}"
+
+
+async def run_event_monitor_job() -> str | None:
+    from datetime import UTC, datetime
+
+    from nanobot.trading.bots.opportunity import imminent_events
+
+    soon = imminent_events([], now=datetime.now(tz=UTC), within_minutes=30)
+    if not soon:
+        return None
+    return "Event monitor: calendar.soon"
+
+
+async def run_opportunity_scan_job() -> str | None:
+    from nanobot.trading.bots.opportunity import scan_opportunities
+
+    names = scan_opportunities(price=None, atr=0.0, compressed=True)
+    if not names:
+        return None
+    return "Opportunity scan: " + ", ".join(names)
 
 
 async def run_gold_scan_job() -> str | None:

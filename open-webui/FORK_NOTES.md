@@ -11,7 +11,9 @@ that to `NANOAGENT_GATEWAY_URL` (`/api/v2/...`) with `NANOAGENT_API_TOKEN`.
 ## Added
 
 - Sidebar sections: Agent (`/`), Tasks (`/tasks`), Recommendations (`/recommendations`), Connect (`/connect`), Log (`/log`).
-- Tasks calls `/api/v2/tasks`, an alias of `/api/v2/jobs` (list, pause, resume, cancel).
+- Tasks calls `/api/v2/tasks`, an alias of `/api/v2/jobs` (list, pause, resume, cancel), plus pending approvals and `GET /api/v2/tasks/desk`.
+- Log adds journal and calendar sections (`/api/v2/log/journal`, `/api/v2/log/calendar`).
+- Settings → Models reads `GET /api/v2/settings/models` (provider names only, no API keys).
 - Connect shows feed and broker cards, a two-step kill switch, pause/resume, and the seven risk sliders. Labels on those sliders come from the gateway payload.
 - Settings tabs: Overview, Models, Channels, Capabilities, System, Advanced, Risk. Appearance is the Open WebUI Interface tab. About keeps the upstream page plus the branding limit below.
 - Pipe Function source: `functions/nanoagent_pipe.py` (install from Admin → Functions, or rely on the copy in `deploy/openwebui/functions/`).

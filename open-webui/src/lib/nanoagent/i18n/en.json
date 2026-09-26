@@ -29,5 +29,10 @@
   "price_feed": "Price feed",
   "broker": "Broker",
   "permissions": "MT5 permission",
+  "approvals": "Approvals",
+  "journal": "Journal",
+  "calendar": "Calendar",
+  "desk": "Bot desk",
+  "providers": "Providers",
   "about_license": "A custom product name is allowed for deployments of at most 50 users in any 30-day period. Larger deployments keep the Open WebUI name unless an enterprise license says otherwise."
 }

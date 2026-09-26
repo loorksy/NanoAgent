@@ -27,13 +27,16 @@ def distribution_document() -> dict[str, object]:
         "server_version": __version__,
         "notes_key": "distribution.android",
     }
+    apk = _VERSION_FILE.parent / "nanoagent.apk"
+    if apk.is_file():
+        payload["apk_url"] = "/api/v2/distribution/apk"
     if _VERSION_FILE.is_file():
         raw: object = json.loads(_VERSION_FILE.read_text(encoding="utf-8"))
         if isinstance(raw, dict):
             mapping = cast(dict[str, object], raw)
             for key in ("version", "min_version", "apk_url", "notes_key"):
                 value = mapping.get(key)
-                if isinstance(value, str):
+                if isinstance(value, str) and (key != "apk_url" or value.strip()):
                     payload[key] = value
     return payload
 
@@ -58,7 +61,61 @@ async def overview(request: web.Request) -> web.Response:
             },
             "metaapi": cfg.public_metaapi(),
         },
+        "usage": _usage_snapshot(),
     })
+
+
+def public_models(providers: dict[str, object], default_model: str) -> dict[str, object]:
+    """Provider list for Settings → Models. Never includes API keys."""
+    rows: list[dict[str, object]] = []
+    for name in sorted(providers):
+        raw = providers[name]
+        if not isinstance(raw, dict):
+            continue
+        fields = cast(dict[str, object], raw)
+        key = fields.get("api_key")
+        base = fields.get("api_base")
+        rows.append({
+            "name": name,
+            "configured": bool(isinstance(key, str) and key.strip()),
+            "api_base": base if isinstance(base, str) else "",
+        })
+    return {
+        "default_model": default_model,
+        "pipe_model": "nanoagent.nanoagent",
+        "providers": rows,
+    }
+
+
+def _usage_snapshot() -> dict[str, object]:
+    try:
+        from nanobot.llm_usage import llm_usage_payload
+
+        payload = llm_usage_payload(days=7)
+    except Exception:
+        return {}
+    if isinstance(payload, dict):
+        return cast(dict[str, object], payload)
+    return {}
+
+
+async def models_settings(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from nanobot.config.loader import load_config
+
+    config = load_config()
+    dumped = cast(dict[str, object], config.providers.model_dump())
+    return ok(public_models(dumped, config.agents.defaults.model))
+
+
+async def distribution_apk(request: web.Request) -> web.Response:
+    del request
+    path = _VERSION_FILE.parent / "nanoagent.apk"
+    if not path.is_file():
+        from nanobot.agent_api.errors import ApiError
+
+        raise ApiError(404, "apk_missing")
+    return web.FileResponse(path)
 
 
 async def distribution(request: web.Request) -> web.Response:
@@ -67,4 +124,6 @@ async def distribution(request: web.Request) -> web.Response:
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_get(f"{prefix}/settings/overview", overview)
+    router.add_get(f"{prefix}/settings/models", models_settings)
     router.add_get(f"{prefix}/distribution/version", distribution)
+    router.add_get(f"{prefix}/distribution/apk", distribution_apk)
