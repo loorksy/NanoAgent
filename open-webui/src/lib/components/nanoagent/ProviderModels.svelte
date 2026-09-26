@@ -1,10 +1,13 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { createEventDispatcher, getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
 
 	export let name: string;
 	export let configured = false;
+	export let lead = false;
+
+	const dispatch = createEventDispatcher<{ saved: { selected: string[]; primary: string } }>();
 
 	type Model = {
 		id: string;
@@ -198,6 +201,7 @@
 			selectedIds = Array.isArray(saved.selected) ? saved.selected : selectedIds;
 			primaryId = saved.primary || selectedIds[0] || '';
 			notice = selectedIds.length ? text('model_saved') : text('model_cleared');
+			dispatch('saved', { selected: selectedIds, primary: primaryId });
 		} catch (err) {
 			notice = noteFrom(err);
 		} finally {
@@ -222,7 +226,7 @@
 	];
 </script>
 
-<section class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
+<section class={lead ? '' : 'mt-4 border-t border-gray-200 pt-4 dark:border-gray-800'}>
 	<div class="mb-2 flex items-center justify-between gap-3">
 		<h4 class="text-sm font-medium">{text('model_pick')}</h4>
 		{#if selectedIds.length}

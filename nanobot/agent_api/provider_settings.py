@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from nanobot.agent_api.errors import ApiError
 from nanobot.agent_api.events import JsonObject
 from nanobot.agent_api.tool_ref import refresh_bound_runtime
 from nanobot.config.loader import load_config, save_config
+from nanobot.config.schema import Config
 from nanobot.webui.claude_code_oauth import apply_claude_code_oauth_token, public_status
 from nanobot.webui.claude_code_oauth_flow import complete_connect, start_connect_payload
 from nanobot.webui.settings_api import (
@@ -273,16 +274,38 @@ def save_provider_models(
     )
 
 
+def _selection_fields(config: Config, name: str) -> dict[str, Any]:
+    selection = provider_model_selection(config, name)
+    raw = selection.get("selected")
+    chosen: list[str] = []
+    if isinstance(raw, list):
+        for entry in cast(list[object], raw):
+            if isinstance(entry, str) and entry not in chosen:
+                chosen.append(entry)
+            if len(chosen) == 12:
+                break
+    fields: dict[str, Any] = {"selected_models": chosen}
+    primary = selection.get("primary")
+    if isinstance(primary, str) and primary:
+        fields["primary_model"] = primary
+    return fields
+
+
 def provider_document(config_path: Path | None = None) -> dict[str, Any]:
     """Configured and available providers. No API keys and no OAuth token."""
     config = load_config(config_path) if config_path is not None else load_config()
     payload = model_settings_payload(config, oauth_status=oauth_provider_status)
     rows = payload.get("providers")
-    providers = [
-        _public_row(row)
-        for row in rows
-        if isinstance(row, dict)
-    ] if isinstance(rows, list) else []
+    providers: list[dict[str, Any]] = []
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            public = _public_row(row)
+            name = public.get("name")
+            if isinstance(name, str):
+                public.update(_selection_fields(config, name))
+            providers.append(public)
     return {"providers": providers, "claude_code": public_status()}
 
 

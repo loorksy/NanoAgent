@@ -20,6 +20,8 @@
 		cli_oauth_hint?: string | null;
 		oauth_account?: string | null;
 		oauth_login_supported?: boolean;
+		selected_models?: string[];
+		primary_model?: string | null;
 	};
 
 	type Flow = {
@@ -52,6 +54,7 @@
 	let flow: Flow | null = null;
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
 	let polling = false;
+	let dialogTab: 'models' | 'connection' = 'models';
 
 	function text(key: string, vars: Record<string, string> = {}): string {
 		let value = nanoagentText($i18n?.language, key);
@@ -84,6 +87,21 @@
 
 	function labelOf(provider: Provider): string {
 		return provider.label || provider.name;
+	}
+
+	function chosenModel(provider: Provider): string {
+		return provider.primary_model || provider.selected_models?.[0] || '';
+	}
+
+	function rememberModels(event: CustomEvent<{ selected: string[]; primary: string }>) {
+		if (!selected) return;
+		const next: Provider = {
+			...selected,
+			selected_models: event.detail.selected,
+			primary_model: event.detail.primary || null
+		};
+		selected = next;
+		providers = providers.map((item) => (item.name === next.name ? { ...item, ...next } : item));
 	}
 
 	function liftToBody(node: HTMLElement) {
@@ -150,10 +168,11 @@
 		}
 	}
 
-	function openProvider(provider: Provider) {
+	function openProvider(provider: Provider, tab: 'models' | 'connection' = 'connection') {
 		creating = false;
 		adding = false;
 		selected = provider;
+		dialogTab = provider.configured ? tab : 'connection';
 		apiKey = '';
 		apiBase = provider.api_base || '';
 		displayName = provider.label || '';
@@ -466,24 +485,43 @@
 	{/if}
 	<div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
 		{#each configured as provider (provider.name)}
-			<button
-				type="button"
-				class="flex w-full items-center justify-between gap-3 border-b border-gray-200 px-3 py-2.5 text-left last:border-b-0 dark:border-gray-800"
-				on:click={() => openProvider(provider)}
+			<div
+				class="flex w-full flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2.5 last:border-b-0 dark:border-gray-800"
 			>
-				<span class="flex min-w-0 items-center gap-3">
+				<button
+					type="button"
+					class="flex min-w-0 flex-1 items-center gap-3 text-left"
+					on:click={() => openProvider(provider, 'models')}
+				>
 					<ProviderMark name={provider.name} label={labelOf(provider)} />
 					<span class="min-w-0">
 						<span class="block truncate text-sm">{labelOf(provider)}</span>
-						{#if provider.name === 'claude_code_cli'}
+						{#if chosenModel(provider)}
+							<span class="block truncate text-xs text-gray-500">{chosenModel(provider)}</span>
+						{:else if provider.name === 'claude_code_cli'}
 							<span class="block truncate text-xs text-gray-500">
 								{text('claude_connected', { hint: provider.cli_oauth_hint || '••••' })}
 							</span>
 						{/if}
 					</span>
+				</button>
+				<span class="flex shrink-0 items-center gap-2">
+					<button
+						type="button"
+						class="rounded-full border border-gray-900 px-3 py-1 text-xs dark:border-gray-100"
+						on:click={() => openProvider(provider, 'models')}
+					>
+						{text('choose_models')}
+					</button>
+					<button
+						type="button"
+						class="text-xs text-gray-500"
+						on:click={() => openProvider(provider, 'connection')}
+					>
+						{text('configure')}
+					</button>
 				</span>
-				<span class="shrink-0 text-xs text-gray-500">{text('configure')}</span>
-			</button>
+			</div>
 		{/each}
 		{#if !selected && !creating}
 			<button
@@ -540,7 +578,37 @@
 				<button type="button" class="text-gray-500" on:click={close} aria-label={text('cancel')}>×</button>
 			</div>
 
-			{#if claude && selected}
+			{#if selected}
+				<div class="mb-3 flex flex-wrap gap-2">
+					<button
+						type="button"
+						class="rounded-full border px-3 py-1.5 {dialogTab === 'models'
+							? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950'
+							: 'border-gray-300 dark:border-gray-700'}"
+						on:click={() => (dialogTab = 'models')}
+					>
+						{text('choose_models')}
+					</button>
+					<button
+						type="button"
+						class="rounded-full border px-3 py-1.5 {dialogTab === 'connection'
+							? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950'
+							: 'border-gray-300 dark:border-gray-700'}"
+						on:click={() => (dialogTab = 'connection')}
+					>
+						{text('provider_connection')}
+					</button>
+				</div>
+			{/if}
+
+			{#if selected && dialogTab === 'models'}
+				<ProviderModels
+					name={selected.name}
+					configured={selected.configured === true}
+					lead
+					on:saved={rememberModels}
+				/>
+			{:else if claude && selected}
 				<div class="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
 					<p class="font-medium">{text('claude_account')}</p>
 					<p class="mt-1 text-xs text-gray-500">
@@ -750,9 +818,6 @@
 						{text(busy ? 'saving' : 'save_provider')}
 					</button>
 				</div>
-			{/if}
-			{#if selected}
-				<ProviderModels name={selected.name} configured={selected.configured === true} />
 			{/if}
 		</div>
 	</div>

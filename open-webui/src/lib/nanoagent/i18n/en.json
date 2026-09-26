@@ -118,6 +118,8 @@
   "oauth_device_waiting": "Waiting for the code to be entered",
   "open_sign_in": "Open sign-in page",
   "provider_fields_required": "Name and API base are required",
+  "choose_models": "Choose models",
+  "provider_connection": "Connection",
   "model_pick": "Models from this provider",
   "model_pick_help": "Choose one model, or several from this provider. The primary model is called first. The others are fallbacks. Each card shows modalities, price per million tokens, context, and release date when the provider publishes them.",
   "model_search": "Search models",

@@ -201,6 +201,14 @@ async def test_provider_model_selection_hides_the_api_key(
     assert body["selected"] == ["google/gemini-test"]
     assert body["primary"] == "google/gemini-test"
 
+    listed_providers = await client.get("/api/v2/settings/providers", headers=auth())
+    assert listed_providers.status == 200
+    providers = await listed_providers.json()
+    row = next(item for item in providers["providers"] if item["name"] == "openrouter")
+    assert row["selected_models"] == ["google/gemini-test"]
+    assert row["primary_model"] == "google/gemini-test"
+    assert secret not in _wire(providers)
+
     issued = client.app[SERVICES_KEY].tokens.issue("service", scopes=["read"], label="reader")
     denied = await client.put(
         "/api/v2/settings/providers/openrouter/models",
