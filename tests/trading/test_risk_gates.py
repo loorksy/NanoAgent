@@ -160,6 +160,17 @@ def test_stale_quote():
     assert evaluate_stale_quote(RiskSnapshot(quote_age_seconds=1)).status == "pass"
 
 
+def test_broker_quote_age_uses_the_broker_clock():
+    from nanobot.trading.gates.stale_quote import broker_quote_age_seconds
+
+    now = 1_700_000_000.0
+    iso = datetime.fromtimestamp(now, tz=UTC).isoformat()
+    assert broker_quote_age_seconds(iso, now=now) == 0
+    assert broker_quote_age_seconds(now - 30, now=now) == 30
+    assert broker_quote_age_seconds(int((now - 30) * 1000), now=now) == 30
+    assert broker_quote_age_seconds(None, now=now) is None
+
+
 def test_pending_ttl_and_half_distance():
     now = _noon_ms()
     plan = _plan(2.0)

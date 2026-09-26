@@ -6,11 +6,16 @@ export async function gateway(path: string, init: RequestInit = {}): Promise<unk
 		headers.set('Content-Type', 'application/json');
 	}
 	const response = await fetch(`/api/v1/nanoagent/${path.replace(/^\//, '')}`, {
-		credentials: 'include',
 		...init,
+		credentials: 'include',
 		headers
 	});
-	const payload: unknown = await response.json().catch(() => ({}));
+	let payload: unknown;
+	try {
+		payload = await response.json();
+	} catch {
+		throw new Error(response.ok ? 'gateway response was not JSON' : `gateway ${response.status}`);
+	}
 	if (!response.ok) {
 		const details =
 			payload &&

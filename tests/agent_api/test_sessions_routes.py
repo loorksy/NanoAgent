@@ -147,6 +147,39 @@ async def test_agent_error_ends_run_with_error_outcome(client: TestClient, agent
     assert events[-1]["data"]["outcome"] == "error"
 
 
+async def test_busy_run_does_not_change_the_selected_model(
+    client: TestClient, agent: FakeAgent,
+) -> None:
+    agent.block = asyncio.Event()
+    session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
+    await client.post(f"/api/v2/sessions/{session}/messages", json={"text": "hi"}, headers=auth())
+    await asyncio.sleep(0.05)
+
+    busy = await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "again", "model": None},
+        headers=auth(),
+    )
+    assert busy.status == 409
+    assert agent.cleared == []
+    agent.block.set()
+
+
+async def test_failed_model_clear_does_not_start_the_turn(
+    client: TestClient, agent: FakeAgent,
+) -> None:
+    agent.fail_clear = True
+    session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
+    resp = await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "hi", "model": None},
+        headers=auth(),
+    )
+    assert resp.status == 500
+    assert (await resp.json())["error"]["code"] == "model_clear_failed"
+    assert agent.calls == []
+
+
 async def test_empty_message_rejected(client: TestClient) -> None:
     session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
     resp = await client.post(f"/api/v2/sessions/{session}/messages", json={"text": "  "}, headers=auth())

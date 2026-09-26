@@ -139,6 +139,11 @@ async def post_message(request: web.Request) -> web.Response:
     body = await json_body(request)
     text = message_text(body)
     media = media_paths(body)
+    if not text.strip() and not media:
+        raise ApiError(400, "empty_message")
+    in_flight = svc.sessions.busy_run(session_id)
+    if in_flight:
+        raise ApiError(409, "run_in_progress", details={"run": in_flight})
     if "model" in body:
         model = body.get("model")
         if model is not None and not isinstance(model, str):
@@ -148,7 +153,8 @@ async def post_message(request: web.Request) -> web.Response:
         except ValueError as exc:
             raise ApiError(400, "unknown_model", details={"model": str(exc)}) from exc
         if selected is None:
-            svc.sessions.clear_model(session_id)
+            if not svc.sessions.clear_model(session_id):
+                raise ApiError(500, "model_clear_failed", details={"session": session_id})
         elif not svc.sessions.use_model(session_id, selected):
             raise ApiError(400, "unknown_model", details={"model": selected})
     run_id = svc.sessions.submit(session_id, text, media=media)

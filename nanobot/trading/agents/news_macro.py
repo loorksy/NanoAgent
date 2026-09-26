@@ -33,6 +33,19 @@ def _wire_events(events: list[dict]) -> list[EconomicEvent]:
     return wired
 
 
+def upcoming_minutes_to_high_impact() -> float | None:
+    """Minutes until the next high-impact event, or None when none is known."""
+    import time
+
+    from nanobot.trading.gates.news_window import nearest_high_impact
+
+    minutes_to, _minutes_since = nearest_high_impact(
+        _wire_events(fetch_upcoming_events()),
+        int(time.time() * 1000),
+    )
+    return minutes_to
+
+
 def run_news_macro_agent() -> NewsMacroResult:
     if not news_provider_configured():
         return NewsMacroResult(

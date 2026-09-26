@@ -22,25 +22,12 @@
 	type Toggle = { name: string; label: string; enabled: boolean };
 	type Preset = { name: string; label: string };
 
-	const GROUPS: { keys: string[] }[] = [
-		{ keys: ['news_shield', 'early_exit'] },
-		{ keys: ['drawdown_breaker'] },
-		{ keys: ['cooldown_lock'] },
-		{ keys: ['spread_guard'] },
-		{ keys: ['session_lock', 'holiday_lock'] }
-	];
-	const ALWAYS_ON = new Set(['rr_filter', 'max_positions']);
-
 	let fields: Field[] = [];
 	let toggles: Toggle[] = [];
 	let presets: Preset[] = [];
 	let profile = '';
 	let failed = false;
 	let busy = false;
-
-	function grouped(name: string): boolean {
-		return GROUPS.some((group) => group.keys.includes(name));
-	}
 
 	async function load() {
 		const body = (await gateway('connect/risk')) as {
@@ -65,12 +52,7 @@
 	$: visible = fields.filter((field) =>
 		mode === 'primary' ? field.tier === 'primary' : field.tier !== 'primary'
 	);
-	$: visibleToggles =
-		mode === 'primary'
-			? GROUPS
-			: toggles
-					.filter((toggle) => !grouped(toggle.name) || ALWAYS_ON.has(toggle.name))
-					.map((toggle) => ({ keys: [toggle.name] }));
+	$: visibleToggles = toggles.map((toggle) => ({ keys: [toggle.name] }));
 
 	function bounds(field: Field): { min: number; max: number; step: number } {
 		return {

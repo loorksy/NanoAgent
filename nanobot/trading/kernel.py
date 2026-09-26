@@ -110,6 +110,16 @@ def _operator_text() -> str:
     return (ctx.original_user_text if ctx else "") or ""
 
 
+def _quote_age(quote: object) -> float | None:
+    """Broker clock age. A quote with no timestamp counts as just fetched."""
+    if quote is None:
+        return None
+    from nanobot.trading.gates.stale_quote import broker_quote_age_seconds
+
+    age = broker_quote_age_seconds(getattr(quote, "quoted_at", None))
+    return 0.0 if age is None else age
+
+
 def _record_plan_prices(result: AgentFinalResult) -> None:
     turn = current_turn_session()
     if turn is None:
@@ -326,7 +336,7 @@ async def run_trading_kernel(
         minutes_to, minutes_since = nearest_high_impact(news.upcoming_events, now_ms)
     risk_snap = RiskSnapshot(
         spread_points=spread,
-        quote_age_seconds=0.0 if quote is not None else None,
+        quote_age_seconds=_quote_age(quote),
         bid=quote.bid if quote else None,
         ask=quote.ask if quote else None,
         last_mid=stored.last_mid or None,

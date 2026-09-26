@@ -514,6 +514,7 @@ class _Turn:
         self.locale = locale
         self.labels = labels
         self.run_id = ""
+        self.submitted = False
         self.last_event_id: str | None = None
         self.finished = False
         self.timeline: list[str] = []
@@ -637,6 +638,10 @@ class Pipe:
             chat_id = _as_str(candidate)
             if chat_id and chat_id != "local":
                 return chat_id
+        for candidate in (metadata.get("session_id"), body.get("session_id")):
+            session_id = _as_str(candidate).strip()
+            if session_id and session_id != "local":
+                return f"owui-{session_id}"
         return f"owui-{uuid.uuid4().hex}"
 
     def _locale(self, metadata: Mapping[str, object]) -> str:
@@ -691,7 +696,7 @@ class Pipe:
                     # The stream is opened before the message is posted so that no
                     # event emitted between POST and GET is lost.
                     async with gateway.open_events(session, turn.last_event_id) as stream:
-                        if not turn.run_id:
+                        if not turn.submitted:
                             turn.run_id = await gateway.send_message(
                                 session,
                                 text,
@@ -699,6 +704,7 @@ class Pipe:
                                 locale,
                                 self._requested_model(body),
                             )
+                            turn.submitted = True
                         events = stream.events()
                         try:
                             async for event in events:
@@ -713,7 +719,7 @@ class Pipe:
                 except httpx.HTTPStatusError:
                     raise
                 except httpx.HTTPError as exc:
-                    if not turn.run_id:
+                    if not turn.submitted:
                         raise
                     log.warning("nanoagent pipe: stream dropped (%s)", exc)
                 if turn.finished:
@@ -726,6 +732,8 @@ class Pipe:
                             "data": {"description": turn.label("error.stream"), "done": True},
                         },
                     )
+                    if turn.run_id and not turn.finished:
+                        await self._cancel_quietly(gateway, session)
                     break
                 attempt += 1
             if self.valves.SHOW_TIMELINE and turn.timeline:

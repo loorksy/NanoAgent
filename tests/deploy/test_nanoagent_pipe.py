@@ -86,6 +86,7 @@ class FakeGateway:
         labels: dict[str, str] | None = None,
         html: str | None = "<html><body>card</body></html>",
         html_status: int = 200,
+        message_run_id: str | None = RUN,
     ) -> None:
         self.streams = list(streams)
         self.sessions: set[str] = {SESSION} if session_exists else set()
@@ -95,6 +96,7 @@ class FakeGateway:
         self.requests: list[httpx.Request] = []
         self.approvals: list[tuple[str, str]] = []
         self.labels_calls = 0
+        self.message_run_id = message_run_id
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self.handle)
@@ -131,7 +133,8 @@ class FakeGateway:
                     headers={"content-type": "text/event-stream"},
                 )
             if action == "messages":
-                return httpx.Response(200, json={"run_id": RUN})
+                body = {} if self.message_run_id is None else {"run_id": self.message_run_id}
+                return httpx.Response(200, json=body)
             return httpx.Response(200, json={"ok": True})
         match = re.fullmatch(r"/api/v2/approvals/([^/]+)", path)
         if match and request.method == "POST":
@@ -538,6 +541,7 @@ async def test_reconnects_after_transport_error_and_gives_up_after_second_drop()
     events_requests = [r for r in gateway.requests if r.url.path.endswith("/events")]
     assert [r.url.params.get("after") for r in events_requests] == [None, "1"]
     assert harness.statuses()[-1] == ("The event stream ended before the agent finished.", True)
+    assert f"POST /api/v2/sessions/{SESSION}/cancel" in gateway.paths("POST")
 
 
 async def test_client_stop_cancels_the_run() -> None:
@@ -824,3 +828,30 @@ def test_pipes_lists_models_chosen_for_the_agent(monkeypatch) -> None:
     assert valves.DEFAULT_LOCALE == "en"
     assert valves.SHOW_TIMELINE is True
     assert valves.REQUEST_TIMEOUT == 30.0
+
+
+def test_pipe_copies_stay_identical() -> None:
+    root = Path(__file__).resolve().parents[2]
+    deploy = (root / "deploy/openwebui/functions/nanoagent_pipe.py").read_bytes()
+    fork = (root / "open-webui/functions/nanoagent_pipe.py").read_bytes()
+    assert deploy == fork
+
+
+def test_local_chat_reuses_the_openwebui_session_id() -> None:
+    pipe = pipe_mod.Pipe()
+    metadata = {"chat_id": "local", "session_id": "ws1"}
+    assert pipe._session_id(metadata, {}) == "owui-ws1"
+    assert pipe._session_id(metadata, {}) == "owui-ws1"
+
+
+async def test_missing_run_id_is_not_posted_again_after_a_dropped_stream() -> None:
+    first = ChunkStream([sse(ev("delta", {"text": "a"}), "1")], fail_after=True)
+    second = ChunkStream([sse(ev("end", {"outcome": "ok"}), "2")])
+    gateway = FakeGateway([first, second], message_run_id=None)
+    harness = Harness(gateway, show_timeline=False)
+
+    chunks = await harness.run()
+
+    assert "".join(chunks) == "a"
+    posts = [request for request in gateway.requests if request.url.path.endswith("/messages")]
+    assert len(posts) == 1

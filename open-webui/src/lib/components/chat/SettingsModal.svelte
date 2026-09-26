@@ -906,7 +906,9 @@
 					}}
 				/>
 			{:else if selectedTab.startsWith('nanoagent:')}
-				<NanoAgentSettings tab={selectedTab.slice('nanoagent:'.length)} />
+				{#key selectedTab}
+					<NanoAgentSettings tab={selectedTab.slice('nanoagent:'.length)} />
+				{/key}
 			{:else if selectedTab === 'about'}
 				<About />
 				{#if NANOAGENT_FORK}

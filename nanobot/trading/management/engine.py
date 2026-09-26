@@ -239,6 +239,12 @@ async def run_management_cycle(
     toggles = get_risk_store()
     news_shield = toggles.toggle_enabled("news_shield")
     early_exit = toggles.toggle_enabled("early_exit")
+    candles, minutes_to_news = _load_cycle_context(
+        candles,
+        minutes_to_news,
+        news_shield=news_shield,
+        early_exit=early_exit,
+    )
     transport = get_transport()
     rows = await transport.open_positions()
     quote_px = live_px if live_px is not None else _quote_mid(await transport.quote("XAUUSD"))
@@ -280,8 +286,46 @@ async def run_management_cycle(
                 result = await transport.close_position({"position_id": action.ticket})
                 applied.append({"action": action.to_dict(), "result": result})
     return {
-        "ok": True,
+        "ok": _applied_ok(applied),
         "positions": len(rows),
         "actions": [action.to_dict() for action in actions],
         "applied": applied,
     }
+
+
+def _applied_ok(applied: list[dict[str, Any]]) -> bool:
+    for item in applied:
+        result = item.get("result")
+        if isinstance(result, dict) and result.get("ok") is False:
+            return False
+    return True
+
+
+def _load_cycle_context(
+    candles: list[Candle] | None,
+    minutes_to_news: float | None,
+    *,
+    news_shield: bool,
+    early_exit: bool,
+) -> tuple[list[Candle] | None, float | None]:
+    """Fill the inputs the cron job does not pass, so the toggles can fire."""
+    import logging
+
+    log = logging.getLogger(__name__)
+    resolved_candles = candles
+    resolved_minutes = minutes_to_news
+    if resolved_candles is None and early_exit:
+        try:
+            from nanobot.trading.market_context import build_agent_market_context
+
+            resolved_candles = build_agent_market_context().candles
+        except Exception:
+            log.warning("management market context unavailable", exc_info=True)
+    if resolved_minutes is None and news_shield:
+        try:
+            from nanobot.trading.agents.news_macro import upcoming_minutes_to_high_impact
+
+            resolved_minutes = upcoming_minutes_to_high_impact()
+        except Exception:
+            log.warning("management news calendar unavailable", exc_info=True)
+    return resolved_candles, resolved_minutes

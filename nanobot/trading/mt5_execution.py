@@ -184,6 +184,20 @@ def _plan_from_proposal(p: OrderProposal) -> EntryPlan:
     )
 
 
+def _mt5_quote_age(quote: dict[str, Any] | None, mid: float | None) -> float | None:
+    if mid is None:
+        return None
+    from nanobot.trading.gates.stale_quote import broker_quote_age_seconds
+
+    raw: object = None
+    if quote:
+        body = quote.get("quote") if isinstance(quote.get("quote"), dict) else quote
+        if isinstance(body, dict):
+            raw = body.get("time") or body.get("timestamp") or body.get("time_msc")
+    age = broker_quote_age_seconds(raw)
+    return 0.0 if age is None else age
+
+
 def _risk_from_account(account: dict[str, Any], quote: dict[str, Any] | None) -> RiskSnapshot:
     stored = get_risk_store().snapshot()
     runtime = get_runtime_store().snapshot()
@@ -203,7 +217,7 @@ def _risk_from_account(account: dict[str, Any], quote: dict[str, Any] | None) ->
     margin = info.get("marginLevel") or info.get("margin_level") if isinstance(info, dict) else None
     return RiskSnapshot(
         spread_points=spread,
-        quote_age_seconds=0.0 if mid is not None else None,
+        quote_age_seconds=_mt5_quote_age(quote, mid),
         bid=None if bid is None else float(bid),
         ask=None if ask is None else float(ask),
         current_mid=mid,

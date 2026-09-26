@@ -937,6 +937,8 @@ class AgentLoop:
         self._discarding_sessions.add(key)
         try:
             self.sessions.invalidate(key)
+            self.clear_session_model_preset(key)
+            self.sessions.invalidate(key)
             await self._cancel_active_tasks(key)
         finally:
             self.discard_session_file_state(key)

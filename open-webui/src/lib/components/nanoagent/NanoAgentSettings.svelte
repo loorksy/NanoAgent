@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { getContext } from 'svelte';
 	import { gateway } from '$lib/nanoagent/client';
 	import { nanoagentText } from '$lib/nanoagent/text';
 	import NanoAgentProviders from './NanoAgentProviders.svelte';
@@ -28,22 +28,32 @@
 		channels: 'devices'
 	};
 
-	onMount(async () => {
-		if (tab === 'models') return;
-		const path = paths[tab];
+	let requestId = 0;
+
+	async function loadTab(next: string) {
+		const mine = ++requestId;
+		failed = false;
+		body = '';
+		devices = [];
+		capabilities = [];
+		trading = [];
+		system = null;
+		if (next === 'models' || next === 'risk' || next === 'advanced') return;
+		const path = paths[next];
 		if (!path) return;
 		try {
 			const payload = (await gateway(path)) as Record<string, unknown>;
-			if (tab === 'channels' && Array.isArray(payload.devices)) {
+			if (mine !== requestId) return;
+			if (next === 'channels' && Array.isArray(payload.devices)) {
 				devices = payload.devices as { id?: string; platform?: string; label?: string }[];
 			}
-			if (tab === 'capabilities') {
+			if (next === 'capabilities') {
 				capabilities = Array.isArray(payload.items)
 					? (payload.items as { key?: string; enabled?: boolean }[])
 					: [];
 				trading = Array.isArray(payload.trading) ? (payload.trading as string[]) : [];
 			}
-			if (tab === 'system') {
+			if (next === 'system') {
 				system = payload as {
 					timezone?: string;
 					host?: string;
@@ -54,9 +64,15 @@
 			}
 			body = JSON.stringify(payload, null, 2);
 		} catch {
-			failed = true;
+			if (mine === requestId) failed = true;
 		}
-	});
+	}
+
+	let seenTab = '';
+	$: if (tab !== seenTab) {
+		seenTab = tab;
+		void loadTab(tab);
+	}
 </script>
 
 <div class="flex h-full flex-col gap-3 overflow-auto">

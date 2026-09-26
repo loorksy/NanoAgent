@@ -370,7 +370,8 @@ async def handle_chat_completions(request: web.Request) -> web.Response | web.St
     )
     session_lock = session_locks.setdefault(session_key, asyncio.Lock())
     if selected_model is None:
-        clear_session_model(agent_loop, session_key)
+        if not clear_session_model(agent_loop, session_key):
+            return _error_json(500, "Could not clear the chat model override.")
     elif not apply_session_model(agent_loop, session_key, selected_model):
         return _error_json(
             400,

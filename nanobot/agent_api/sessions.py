@@ -292,7 +292,7 @@ class SessionService:
             try:
                 await cast(Callable[[str], Awaitable[None]], discard)(session_key_for(session_id))
             except Exception:
-                logger.debug("agent_api discard_session failed", exc_info=True)
+                logger.warning("agent_api discard_session failed", exc_info=True)
         return True
 
     def _record(self, row: dict[str, object]) -> SessionRecord:
@@ -323,11 +323,18 @@ class SessionService:
 
         return apply_session_model(self._agent, session_key_for(session_id), model_id)
 
-    def clear_model(self, session_id: str) -> None:
+    def busy_run(self, session_id: str) -> str | None:
+        """Run id when this session already has a task that has not finished."""
+        task = self._runs.get(session_id)
+        if task is not None and not task.done():
+            return self._run_ids.get(session_id)
+        return None
+
+    def clear_model(self, session_id: str) -> bool:
         """Use the settings primary for the next turn of this chat."""
         from nanobot.api.chat_models import clear_session_model
 
-        clear_session_model(self._agent, session_key_for(session_id))
+        return clear_session_model(self._agent, session_key_for(session_id))
 
     # -- runs --------------------------------------------------------------
 
@@ -344,8 +351,9 @@ class SessionService:
         if not text.strip() and not media:
             raise ApiError(400, "empty_message")
         self.ensure(session_id)
-        if session_id in self._runs and not self._runs[session_id].done():
-            raise ApiError(409, "run_in_progress", details={"run": self._run_ids.get(session_id)})
+        in_flight = self.busy_run(session_id)
+        if in_flight:
+            raise ApiError(409, "run_in_progress", details={"run": in_flight})
         run_id = new_id("r_")
         self._run_ids[session_id] = run_id
         self.hub.run_started(session_id, run_id)
