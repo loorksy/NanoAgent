@@ -312,7 +312,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	{#if channel?.type === 'dm'}
 		<title
 			>{channel?.name.trim() ||

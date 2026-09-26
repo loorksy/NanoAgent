@@ -1,5 +1,5 @@
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
-<!-- LICENSE covers this Mokli search identifier. Do not alter, remove, obscure, or replace it except as LICENSE permits: https://docs.openwebui.com/license. -->
+<!-- LICENSE covers this Mokli search identifier. Do not alter, remove, obscure, or replace it except as LICENSE permits: https://github.com/loorksy/NanoAgent/license. -->
 <ShortName>Mokli</ShortName>
 <Description>Search Mokli</Description>
 <InputEncoding>UTF-8</InputEncoding>

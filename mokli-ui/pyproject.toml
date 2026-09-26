@@ -2,7 +2,7 @@
 name = "mokli-ui"
 description = "Mokli"
 authors = [
-    { name = "Timothy Jaeryang Baek", email = "tim@mokliui.com" }
+    { name = "Mokli" }
 ]
 license = { file = "LICENSE" }
 dependencies = [

@@ -2,7 +2,7 @@
 
 This offer applies to the native mokli TUI executable distributed in the same release archive.
 
-For at least three years after the release date, HKUDS offers any third party a
+For at least three years after the release date, Mokli offers any third party a
 complete machine-readable copy of the corresponding source and relinking materials required for
 the LGPL-covered libraries incorporated through Bun, for no more than the reasonable physical
 cost of conveying that copy.
@@ -11,5 +11,5 @@ The mokli application source, lockfile, build scripts, notices, and relinking in
 already included in this archive. Exact upstream revisions are listed in `RELINKING.md`.
 
 To request any additional corresponding-source material, open an issue at
-<https://github.com/HKUDS/nanobot/issues> or email <xubinrencs@gmail.com> and identify the mokli
+<https://github.com/loorksy/NanoAgent/issues> and identify the mokli
 release tag and target platform shown in `THIRD_PARTY_NOTICES.txt`.

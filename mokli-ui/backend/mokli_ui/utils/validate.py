@@ -22,7 +22,6 @@ _SAFE_DATA_URI_RE = re.compile(rf'^data:image/({_mime_suffixes});base64,', re.IG
 # against internal endpoints when rendered as ``<img>`` sources.
 # LICENSE covers the Mokli favicon fallback paths below. Do not alter,
 # remove, obscure, or replace them except as LICENSE permits:
-# https://docs.openwebui.com/license.
 _SAFE_STATIC_PATHS = frozenset(
     {
         '/user.png',

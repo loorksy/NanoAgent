@@ -486,7 +486,6 @@
 											on:error={(e) => {
 												// LICENSE covers this Mokli fallback logo.
 												// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-												// https://docs.openwebui.com/license.
 												e.target.src = '/favicon.png';
 											}}
 										/>

@@ -43,8 +43,7 @@ def search_yandex(
         headers = {
             # LICENSE covers this Mokli user-agent identifier.
             # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-            # https://docs.openwebui.com/license.
-            'User-Agent': 'Mokli (https://github.com/open-webui/open-webui) RAG Bot',
+            'User-Agent': 'Mokli (https://github.com/loorksy/NanoAgent) RAG Bot',
             'Authorization': f'Api-Key {yandex_search_api_key}',
         }
 

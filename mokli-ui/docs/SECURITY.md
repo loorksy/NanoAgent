@@ -29,7 +29,7 @@ We need not decide whether you discovered the issue independently — we cannot,
 
 ## Good-faith reports that aren't vulnerabilities
 
-If you've found something that you know is **not strictly a vulnerability under our policy** — but where public disclosure would still be irresponsible (e.g. an urgent dependency bump needed because of a downstream vuln, or similar) — you may **still report it privately** via [GitHub Security Advisories](https://github.com/open-webui/open-webui/security/advisories/new). We will handle it responsibly.
+If you've found something that you know is **not strictly a vulnerability under our policy** — but where public disclosure would still be irresponsible (e.g. an urgent dependency bump needed because of a downstream vuln, or similar) — you may **still report it privately** via [GitHub Security Advisories](https://github.com/loorksy/NanoAgent/security/advisories/new). We will handle it responsibly.
 
 In line with the CVE rules, we will **not** publish an advisory or mint a CVE for these — but we **will** act on them (e.g. ship the bump) and keep the report confidential until handled.
 <ins>**Where a fix lands as a result of your report and you'd like credit, we'll try to acknowledge you (e.g. as a co-author on the change).**</ins>
@@ -52,7 +52,7 @@ The **CVE Program rules** (and CNA operational rules) are the **baseline** for a
 
 ## Reporting Channel
 
-We accept vulnerability reports **only** through [GitHub Security Advisories](https://github.com/open-webui/open-webui/security/advisories/new). Reports submitted through **any** other platform — including but not limited to third-party vulnerability reporting platforms, vulnerability brokers, social media, email, Discord, or Reddit — will not be processed.
+We accept vulnerability reports **only** through [GitHub Security Advisories](https://github.com/loorksy/NanoAgent/security/advisories/new). Reports submitted through **any** other platform — including but not limited to third-party vulnerability reporting platforms, vulnerability brokers, social media, email, Discord, or Reddit — will not be processed.
 
 This is not a procedural preference. Our security process is built around the same transparency as the rest of our work, and GitHub Security Advisories is the single authoritative channel where that process lives. We do not and cannot monitor or engage with external reporting platforms, and reports arriving through them will be closed without review.
 
@@ -60,7 +60,7 @@ A report filed on another platform has no standing here: it confers no priority,
 
 ## Foreign CNAs and Vendor Disposition
 
-[Based on multiple precedents of foreign CNAs minting CVEs without communicating the report to us prior to publication and/or minting CVEs that do not withstand any scrutiny](https://docs.openwebui.com/security/vendor-dispositions/), this rule was established.
+[Based on multiple precedents of foreign CNAs minting CVEs without communicating the report to us prior to publication and/or minting CVEs that do not withstand any scrutiny](https://github.com/loorksy/NanoAgent/security/vendor-dispositions/), this rule was established.
 When a report is filed via GitHub Security Advisories and the maintainers close it as out-of-scope per this policy, that closure is the **vendor's disposition** of the issue. A CVE Numbering Authority (CNA) that mints a CVE for such an issue without reflecting that vendor disposition in the resulting record is acting against vendor disposition.
 
 We respond to such records by:
@@ -133,7 +133,7 @@ Your remediation guidance can include, for example:
 10. **Tools & Functions Code Execution Is Intended Behavior:** Mokli's Tools and Functions feature is **designed** to execute user-provided Python code on the server. This is core, intentional functionality — not a vulnerability (see also 'Threat Model Understanding'). Function creation is **restricted to administrators only**. Tool creation is controlled by the `workspace.tools` permission, which is **disabled by default** for non-admin users and should only be granted to fully trusted users who are equivalent to system administrators in terms of trust. <ins>**Granting a user the ability to create Tools is equivalent to giving them shell access to the server**</ins>. If an administrator grants this permission to untrusted users, this constitutes intentional misconfiguration and is additionally covered by 'Admin Actions Are Out of Scope'. Deployments that do not need `workspace.tools` or Functions plugin execution can set `ENABLE_PLUGINS=false`. More generally, **reports describing ANY attack chain that involves Tools or Functions — including but not limited to code execution, file access, network requests, or environment variable access — will be closed as not a vulnerability / intended behavior.** This applies to both direct code execution and frontmatter-based package installation (`pip install`).
 
 > [!IMPORTANT]
-> **For administrators:** Treat the `workspace.tools` permission as **root-equivalent access**. Only grant it to users you would trust with direct access to your server. If you enable this permission for untrusted users, you are accepting the risk of arbitrary code execution on your host. For more details, see our [Plugin Security documentation](https://docs.openwebui.com/features/extensibility/plugin/).
+> **For administrators:** Treat the `workspace.tools` permission as **root-equivalent access**. Only grant it to users you would trust with direct access to your server. If you enable this permission for untrusted users, you are accepting the risk of arbitrary code execution on your host. For more details, see our [Plugin Security documentation](https://github.com/loorksy/NanoAgent/features/extensibility/plugin/).
 
 11. **Legacy Code Paths Are Out of Scope:** Mokli maintains some code paths that are explicitly marked as legacy in the official documentation, which is authoritative as to what is legacy. Legacy paths remain available — sometimes still the default — purely for backwards-compatibility reasons, not because they are the supported or maintained surface. The supported replacement is the migration target, and security and functional work happens on the replacement, not the legacy path. Reports describing a security boundary issue on a legacy code path that does not also reproduce on the supported replacement are usually out of scope under this rule.
 
@@ -147,7 +147,7 @@ Your remediation guidance can include, for example:
 
 12. **AI report transparency:** Due to a spike in vulnerability reports **you must disclose if AI was used in any capacity** - whether for writing the report, generating the PoC, or identifying the vulnerability. If AI helped you in any way shape or form in the creation of the report, PoC or finding the vulnerability, you must disclose it. Note that AI-aided vulnerability reports **will not be rejected by us by default** but reports not declaring AI use, yet appear AI-aided will undergo severely more scrutiny.
 
-13. **Self-Affecting Issues Are Not Vulnerabilities:** A vulnerability requires crossing a security boundary that affects **a party other than the reporter**. Crossing one of the security boundaries only against the reporter's own data, account, session, or environment is **not a vulnerability** - it is a bug, and belongs in the [Issue Tracker](https://github.com/open-webui/open-webui/issues), not in a security report.
+13. **Self-Affecting Issues Are Not Vulnerabilities:** A vulnerability requires crossing a security boundary that affects **a party other than the reporter**. Crossing one of the security boundaries only against the reporter's own data, account, session, or environment is **not a vulnerability** - it is a bug, and belongs in the [Issue Tracker](https://github.com/loorksy/NanoAgent/issues), not in a security report.
 
 > [!NOTE]
 > This rule is about **who is harmed**, not about severity. A user modifying or deleting their own data, impairing their own session, observing their own configuration, or disabling security controls on their own account is out of scope under this rule, regardless of impact.
@@ -193,16 +193,16 @@ This confidential, responsible disclosure process exists to give us time to fix 
 
 You can use the following channels:
 
-- **Documentation issues/improvement ideas:** Open an issue on our [Documentation Repository](https://github.com/open-webui/docs)
-- **Feature requests:** Create a discussion in [GitHub Discussions - Ideas](https://github.com/open-webui/open-webui/discussions/) to discuss with the community if this feature request is wanted by multiple people
-- **Configuration help:** Ask the community for help and guidance on our [Discord Server](https://discord.gg/5rJgQTnV4s) or on [Reddit](https://www.reddit.com/r/OpenWebUI/)
-- **General issues:** Use our [Issue Tracker](https://github.com/open-webui/open-webui/issues)
-- **Bugs:** Report bugs to our [Issue Tracker](https://github.com/open-webui/open-webui/issues)
-- **Best-practice guidance:** Help expand the [Documentation](https://github.com/open-webui/docs).
+- **Documentation issues/improvement ideas:** Open an issue on our [Documentation Repository](https://github.com/loorksy/NanoAgent)
+- **Feature requests:** Create a discussion in [GitHub Discussions - Ideas](https://github.com/loorksy/NanoAgent/discussions/) to discuss with the community if this feature request is wanted by multiple people
+- **Configuration help:** Ask the community for help and guidance on our [Discord Server](https://discord.gg/MnCvHqpUGB) or on [Reddit](https://github.com/loorksy/NanoAgent/discussions)
+- **General issues:** Use our [Issue Tracker](https://github.com/loorksy/NanoAgent/issues)
+- **Bugs:** Report bugs to our [Issue Tracker](https://github.com/loorksy/NanoAgent/issues)
+- **Best-practice guidance:** Help expand the [Documentation](https://github.com/loorksy/NanoAgent).
 
 We regularly audit our internal processes and system architecture for vulnerabilities using a combination of automated and manual testing techniques. We are also planning to implement SAST and SCA scans in our project soon.
 
-For any other immediate concerns and questions, please create an issue in our [issue tracker](https://github.com/open-webui/open-webui/issues) or contact our team on [Discord](https://discord.gg/5rJgQTnV4s).
+For any other immediate concerns and questions, please create an issue in our [issue tracker](https://github.com/loorksy/NanoAgent/issues) or contact our team on [Discord](https://discord.gg/MnCvHqpUGB).
 
 ---
 

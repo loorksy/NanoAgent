@@ -92,7 +92,6 @@ def get_license_data(app, key):
             if k == 'resources':
                 # LICENSE covers these Mokli branding assets.
                 # Do not alter, remove, obscure, or replace them except as LICENSE permits:
-                # https://docs.openwebui.com/license.
                 for p, c in v.items():
                     globals().get('override_static', lambda a, b: None)(p, c)
             elif k == 'count':
@@ -100,7 +99,6 @@ def get_license_data(app, key):
             elif k == 'name':
                 # LICENSE covers this Mokli product name.
                 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                # https://docs.openwebui.com/license.
                 setattr(app.state, 'MOKLI_NAME', v)
             elif k == 'metadata':
                 setattr(app.state, 'LICENSE_METADATA', v)
@@ -125,8 +123,8 @@ def get_license_data(app, key):
 
     if key:
         us = [
-            'https://api.openwebui.com',
-            'https://licenses.api.openwebui.com',
+            'https://github.com/loorksy/NanoAgent',
+            'https://github.com/loorksy/NanoAgent',
         ]
         try:
             for u in us:

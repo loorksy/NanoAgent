@@ -343,7 +343,7 @@ if LOG_FORMAT != 'json':
 
 v{VERSION} - building the best AI user interface.
 {f'Commit: {MOKLI_BUILD_HASH}' if MOKLI_BUILD_HASH != 'dev-build' else ''}
-https://github.com/open-webui/open-webui
+https://github.com/loorksy/NanoAgent
 """
     try:
         print(banner)
@@ -351,8 +351,7 @@ https://github.com/open-webui/open-webui
         # Stdout can't encode the box-drawing banner (Windows cp1252, redirected/headless stdout); fall back to ASCII.
         # LICENSE covers this Mokli CLI identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
-        print(f'Mokli v{VERSION} - building the best AI user interface.\nhttps://github.com/open-webui/open-webui')
+        print(f'Mokli v{VERSION} - building the best AI user interface.\nhttps://github.com/loorksy/NanoAgent')
 
 
 @asynccontextmanager
@@ -516,7 +515,6 @@ apply_orjson_http_json()
 
 # LICENSE covers this Mokli API metadata identifier.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 app = FastAPI(
     title='Mokli',
     docs_url='/docs' if ENV == 'dev' else None,
@@ -548,7 +546,6 @@ app.state.redis = None
 # LICENSE covers this Mokli branding surface, including name, logo,
 # visual, textual, symbolic identifiers, metadata, and surrounding UI.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 app.state.MOKLI_NAME = MOKLI_NAME
 app.state.LICENSE_METADATA = None
 app.state.USER_COUNT = None
@@ -2618,7 +2615,7 @@ async def get_app_latest_release_version(user=Depends(get_verified_user)):
         timeout = aiohttp.ClientTimeout(total=1)
         async with aiohttp.ClientSession(timeout=timeout, trust_env=True) as session:
             async with session.get(
-                'https://api.github.com/repos/open-webui/open-webui/releases/latest',
+                'https://api.github.com/repos/loorksy/NanoAgent/releases/latest',
                 ssl=AIOHTTP_CLIENT_SESSION_SSL,
             ) as response:
                 response.raise_for_status()
@@ -2890,7 +2887,6 @@ async def get_manifest_json():
         # LICENSE covers this install-time Mokli branding surface, including
         # names, logos, manifests, metadata, and surrounding UI.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         session = await get_session()
         async with session.get(
             external_pwa_manifest_url,
@@ -2902,7 +2898,6 @@ async def get_manifest_json():
         # LICENSE covers this generated Mokli install branding surface,
         # including names, logos, manifests, metadata, and surrounding UI.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         return {
             'name': app.state.MOKLI_NAME,
             'short_name': app.state.MOKLI_NAME,
@@ -2913,7 +2908,6 @@ async def get_manifest_json():
             'icons': [
                 # LICENSE covers this Mokli install icon.
                 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                # https://docs.openwebui.com/license.
                 {
                     'src': '/static/logo.png',
                     'type': 'image/png',
@@ -2940,7 +2934,6 @@ async def get_opensearch_xml():
     mokli_url = await Config.get('mokli.url')
     # LICENSE covers this Mokli search identifier.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     xml_content = rf"""
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
     <ShortName>{app.state.MOKLI_NAME}</ShortName>

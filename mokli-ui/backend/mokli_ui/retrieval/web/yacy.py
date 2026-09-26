@@ -61,8 +61,7 @@ def search_yacy(
         headers={
             # LICENSE covers this Mokli user-agent identifier.
             # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-            # https://docs.openwebui.com/license.
-            'User-Agent': 'Mokli (https://github.com/open-webui/open-webui) RAG Bot',
+            'User-Agent': 'Mokli (https://github.com/loorksy/NanoAgent) RAG Bot',
             'Accept': 'text/html',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.5',

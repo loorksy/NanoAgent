@@ -342,7 +342,7 @@ class TestToolHintMaxLength:
 
 
 class TestToolHintMalformedCalls:
-    """Malformed tool calls must not crash hint formatting (see HKUDS/nanobot)."""
+    """Malformed tool calls must not crash hint formatting (see loorksy/NanoAgent)."""
 
     def test_none_name_is_skipped(self):
         """A tool call with name=None should be skipped, not raise AttributeError."""

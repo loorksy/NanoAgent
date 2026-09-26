@@ -6,4 +6,4 @@ Mokli branding in this directory includes assets, filenames, metadata, manifests
 
 Do not alter, remove, obscure, or replace Mokli branding except as permitted by `LICENSE`.
 
-See also: https://docs.openwebui.com/license.
+See also: https://github.com/loorksy/NanoAgent/license.

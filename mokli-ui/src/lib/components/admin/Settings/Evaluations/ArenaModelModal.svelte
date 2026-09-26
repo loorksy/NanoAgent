@@ -45,7 +45,6 @@
 
 	// LICENSE covers this Mokli fallback logo.
 	// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	// https://docs.openwebui.com/license.
 	let profileImageUrl = `${MOKLI_BASE_URL}/favicon.png`;
 	let description = '';
 
@@ -111,7 +110,6 @@
 		id = '';
 		// LICENSE covers this Mokli fallback logo.
 		// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		// https://docs.openwebui.com/license.
 		profileImageUrl = `${MOKLI_BASE_URL}/favicon.png`;
 		description = '';
 		modelIds = [];

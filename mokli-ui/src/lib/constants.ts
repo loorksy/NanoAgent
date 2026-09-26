@@ -3,7 +3,6 @@
 // LICENSE covers this Mokli branding surface, including name, logo,
 // visual, textual, symbolic identifiers, metadata, and surrounding UI.
 // Do not alter, remove, obscure, or replace it except as LICENSE permits:
-// https://docs.openwebui.com/license.
 export const APP_NAME = 'Mokli';
 
 export const MOKLI_HOSTNAME = '';
@@ -17,8 +16,7 @@ export const IMAGES_API_BASE_URL = `${MOKLI_BASE_URL}/api/v1/images`;
 export const RETRIEVAL_API_BASE_URL = `${MOKLI_BASE_URL}/api/v1/retrieval`;
 
 export const COMMUNITY_ORIGINS = [
-	'https://openwebui.com',
-	'https://www.openwebui.com',
+	'https://github.com/loorksy/NanoAgent',
 	'http://localhost:9999'
 ];
 

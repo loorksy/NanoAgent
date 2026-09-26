@@ -9,7 +9,7 @@ Important checks for contributors:
 
 **Do not open a code pull request unless a maintainer has explicitly requested it or the change is limited to i18n/localization.**
 
-The most useful way to help is to give us a clear understanding of the problem: report reproducible bugs in [Issues](https://github.com/open-webui/open-webui/issues) and share proposals in [Discussions](https://github.com/open-webui/open-webui/discussions). We use that context to evaluate solutions and refine the implementation internally, accounting for the broader codebase and ongoing work. External implementations usually require substantial reworking to fit the project's standards, and coordinating those revisions usually takes more effort than developing the solution internally. Please follow this process before investing time in a pull request. PRs opened outside these guidelines are generally closed without review.
+The most useful way to help is to give us a clear understanding of the problem: report reproducible bugs in [Issues](https://github.com/loorksy/NanoAgent/issues) and share proposals in [Discussions](https://github.com/loorksy/NanoAgent/discussions). We use that context to evaluate solutions and refine the implementation internally, accounting for the broader codebase and ongoing work. External implementations usually require substantial reworking to fit the project's standards, and coordinating those revisions usually takes more effort than developing the solution internally. Please follow this process before investing time in a pull request. PRs opened outside these guidelines are generally closed without review.
 
 ## Maintainer Request
 
@@ -17,7 +17,7 @@ Link the maintainer's request for this PR, or state that the change is limited t
 
 ## Checklist
 
-- [ ] I have read and I understand the [contribution policy](https://docs.openwebui.com/contributing/#submit-code).
+- [ ] I have read and I understand the [contribution policy](https://github.com/loorksy/NanoAgent/contributing/#submit-code).
 - [ ] This PR targets the `dev` branch.
 - [ ] This PR links to a well-described, confirmed Issue or active Discussion: `Closes #___` / `Relates to #___`.
 - [ ] A maintainer explicitly asked me to open this PR, or this PR only updates i18n/localization.
@@ -25,7 +25,7 @@ Link the maintainer's request for this PR, or state that the change is limited t
 - [ ] I matched nearby code patterns and avoided unnecessary new settings, abstractions, or dependencies.
 - [ ] I manually tested the changed workflow and any nearby behavior that could be affected.
 - [ ] I have not added or rewritten automated tests, fixtures, snapshots, or testing infrastructure unless a maintainer explicitly requested them.
-- [ ] I updated relevant docs, including the [Mokli Docs Repository](https://github.com/open-webui/docs), if needed.
+- [ ] I updated relevant docs, including the [Mokli Docs Repository](https://github.com/loorksy/NanoAgent), if needed.
 - [ ] I added screenshots for UI changes, and a recording when motion or interaction matters.
 - [ ] I reviewed any AI-generated code before submitting it.
 - [ ] The PR title uses one of the prefixes listed below.

@@ -76,7 +76,7 @@
 		>
 			<!-- LICENSE covers this Mokli footer identifier.
 			Do not alter, remove, obscure, or replace it except as LICENSE permits:
-			https://docs.openwebui.com/license. -->
+			-->
 			{$MOKLI_NAME} ‧ v{MOKLI_VERSION}
 		</div>
 	{/if}

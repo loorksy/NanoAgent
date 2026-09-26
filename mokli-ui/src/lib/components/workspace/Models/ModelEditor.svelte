@@ -98,7 +98,6 @@
 		meta: {
 			// LICENSE covers this Mokli fallback logo.
 			// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-			// https://docs.openwebui.com/license.
 			profile_image_url: `${MOKLI_BASE_URL}/static/favicon.png`,
 			background_image_url: null as string | null,
 			description: '',
@@ -713,7 +712,7 @@
 								<div class="flex min-w-0 flex-1 items-center gap-3">
 									<!-- LICENSE covers this Mokli fallback logo.
 									Do not alter, remove, obscure, or replace it except as LICENSE permits:
-									https://docs.openwebui.com/license. -->
+									-->
 									<div class="group relative size-12 shrink-0 md:size-14">
 										<button
 											class="group relative flex size-full items-center overflow-hidden rounded-xl {info

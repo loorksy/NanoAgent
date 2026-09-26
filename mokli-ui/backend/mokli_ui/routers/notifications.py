@@ -96,7 +96,6 @@ async def test_notification_target(request: Request, target_id: str, user=Depend
     try:
         # LICENSE covers this Mokli notification identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         app_name = getattr(request.app.state, 'MOKLI_NAME', 'Mokli')
         return await test_target(user.id, target_id, app_name)
     except ValueError as e:

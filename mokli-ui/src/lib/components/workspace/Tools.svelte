@@ -190,10 +190,9 @@
 
 		// LICENSE covers this Mokli Community wordmark.
 		// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		// https://docs.openwebui.com/license.
 		toast.success($i18n.t('Redirecting you to Mokli Community'));
 
-		const url = 'https://openwebui.com';
+		const url = 'https://github.com/loorksy/NanoAgent';
 
 		const tab = await window.open(`${url}/tools/create`, '_blank');
 
@@ -297,7 +296,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>
 		{$i18n.t('Tools')} / {$MOKLI_NAME}
 	</title>
@@ -636,7 +635,7 @@
 
 	{#if $config?.features.enable_community_sharing}
 		<CommunityDiscover
-			href="https://openwebui.com/tools"
+			href="https://github.com/loorksy/NanoAgent/tools"
 			title={$i18n.t('Discover a tool')}
 			description={$i18n.t('Discover, download, and explore custom tools')}
 		/>

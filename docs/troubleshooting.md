@@ -79,7 +79,7 @@ Use the same Python command for install checks and module fallback. On macOS/Lin
 | `No module named mokli` | You are running a different Python than the one used for installation. Run `python -m pip show mokli-ai`, `python3 -m pip show mokli-ai`, or `py -m pip show mokli-ai`, matching the command that installed mokli. |
 | `pip is not available` | When the installer uses a virtual environment, it tries `python -m ensurepip --upgrade`. If that fails, install pip for that Python, or use a Python installer/distribution that includes pip. |
 | `externally-managed-environment` | Your system Python blocks global pip installs. Use the one-command installer, `uv tool install mokli-ai`, `pipx install mokli-ai`, or create a virtual environment; do not add `--break-system-packages` for mokli. |
-| Installer chose the wrong Python | Set `PYTHON` before running the installer, such as `curl -fsSL https://raw.githubusercontent.com/HKUDS/nanobot/main/scripts/install.sh | PYTHON=python3 sh` or `$env:PYTHON="py"` before the PowerShell command. |
+| Installer chose the wrong Python | Set `PYTHON` before running the installer, such as `curl -fsSL https://raw.githubusercontent.com/loorksy/NanoAgent/main/scripts/install.sh | PYTHON=python3 sh` or `$env:PYTHON="py"` before the PowerShell command. |
 | Editable source install does not update | From the repo root, run `python -m pip install -e .` again with the Python command used for development, then check `python -m mokli --version` or `mokli --version`. |
 | Mokli build tools missing | They are only needed for Mokli development. Packaged installs already include the Mokli bundle. |
 
@@ -337,4 +337,4 @@ When opening an issue or asking for help, include:
 
 Never paste real API keys, bot tokens, OAuth tokens, or private chat IDs into public issues.
 
-If you find a docs mistake, outdated command, or confusing step, please open an issue: <https://github.com/HKUDS/nanobot/issues>.
+If you find a docs mistake, outdated command, or confusing step, please open an issue: <https://github.com/loorksy/NanoAgent/issues>.

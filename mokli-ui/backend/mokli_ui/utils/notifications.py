@@ -345,7 +345,6 @@ def _notification_webhook_content(event: Any) -> tuple[str, str, dict[str, Any],
 
 # LICENSE covers this Mokli notification identifier.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 async def test_target(user_id: str, target_id: str, app_name: str = 'Mokli') -> dict[str, Any]:
     notifications = await _load_notifications(user_id)
     target = _find_target(notifications, target_id)
@@ -356,7 +355,6 @@ async def test_target(user_id: str, target_id: str, app_name: str = 'Mokli') -> 
         target,
         # LICENSE covers this Mokli notification copy.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         'This is a test notification from Mokli.',
         {'action': 'test', 'user_id': user_id},
         'Test notification',
@@ -366,7 +364,6 @@ async def test_target(user_id: str, target_id: str, app_name: str = 'Mokli') -> 
 
 # LICENSE covers this Mokli notification identifier.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 async def notify_target(
     user_id: str,
     message: str,
@@ -398,7 +395,6 @@ async def dispatch_notification_event(app: Any, event: Any) -> None:
 
     # LICENSE covers this Mokli notification identifier.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     app_name = getattr(getattr(app, 'state', None), 'MOKLI_NAME', 'Mokli')
     for user_id in event_user_ids(event):
         try:

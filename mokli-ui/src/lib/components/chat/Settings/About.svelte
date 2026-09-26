@@ -56,7 +56,7 @@
 	<div class="flex-1 min-h-0 overflow-y-auto scrollbar-hover pr-1.5">
 		<!-- LICENSE covers this Mokli About identifier.
 		Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		https://docs.openwebui.com/license. -->
+		-->
 		<UserSettingSection
 			title={`${$MOKLI_NAME} ${$i18n.t('settings.personal.about.sections.version.title')}`}
 			first
@@ -73,7 +73,7 @@
 								<span>{$i18n.t('Could not check for updates')}</span>
 							{:else}
 								<a
-									href="https://github.com/open-webui/open-webui/releases/tag/v{version.latest}"
+									href="https://github.com/loorksy/NanoAgent/releases/tag/v{version.latest}"
 									target="_blank"
 								>
 									{updateAvailable === null
@@ -121,7 +121,7 @@
 			{#if $config?.license_metadata}
 				<!-- LICENSE covers this Mokli license attribution.
 				Do not alter, remove, obscure, or replace it except as LICENSE permits:
-				https://docs.openwebui.com/license. -->
+				-->
 				<div class="text-xs text-gray-600 dark:text-gray-400">
 					{#if !$MOKLI_NAME.includes('Mokli')}
 						<span>{$MOKLI_NAME}</span> -
@@ -135,17 +135,17 @@
 				<div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-gray-600">
 					<a
 						class="hover:text-gray-700 dark:hover:text-gray-400"
-						href="https://discord.gg/5rJgQTnV4s"
+						href="https://discord.gg/MnCvHqpUGB"
 						target="_blank">Discord</a
 					>
 					<a
 						class="hover:text-gray-700 dark:hover:text-gray-400"
-						href="https://twitter.com/OpenWebUI"
+						href="https://x.com/mokli_project"
 						target="_blank">X</a
 					>
 					<a
 						class="hover:text-gray-700 dark:hover:text-gray-400"
-						href="https://github.com/open-webui/open-webui"
+						href="https://github.com/loorksy/NanoAgent"
 						target="_blank">GitHub</a
 					>
 				</div>
@@ -162,16 +162,9 @@
 			<div class="text-xs text-gray-400 dark:text-gray-500">
 				{$i18n.t('Copyright (c)')}
 				{new Date().getFullYear()}
-				<a href="https://openwebui.com" target="_blank" class="underline">Mokli</a>
-				<a href="https://github.com/open-webui/open-webui/blob/main/LICENSE" target="_blank"
+				<a href="https://github.com/loorksy/NanoAgent" target="_blank" class="underline">Mokli</a>
+				<a href="https://github.com/loorksy/NanoAgent/blob/main/LICENSE" target="_blank"
 					>{$i18n.t('All rights reserved.')}</a
-				>
-			</div>
-
-			<div class="text-xs text-gray-400 dark:text-gray-500">
-				{$i18n.t('Created by')}
-				<a class="text-gray-500 dark:text-gray-400" href="https://github.com/tjbck" target="_blank"
-					>Tim J. Baek</a
 				>
 			</div>
 		</UserSettingSection>

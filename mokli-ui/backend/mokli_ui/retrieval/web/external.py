@@ -23,8 +23,7 @@ def search_external(
         headers = {
             # LICENSE covers this Mokli user-agent identifier.
             # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-            # https://docs.openwebui.com/license.
-            'User-Agent': 'Mokli (https://github.com/open-webui/open-webui) RAG Bot',
+            'User-Agent': 'Mokli (https://github.com/loorksy/NanoAgent) RAG Bot',
             'Authorization': f'Bearer {external_api_key}',
         }
         headers = include_user_info_headers(headers, user)

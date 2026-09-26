@@ -96,7 +96,7 @@
 	>
 		<!-- LICENSE covers this Mokli fallback logo.
 		Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		https://docs.openwebui.com/license. -->
+		-->
 		<img
 			src={imageSrc || `${MOKLI_BASE_URL}/static/favicon.png`}
 			class="rounded-full size-8 object-cover flex-shrink-0"
@@ -133,7 +133,7 @@
 				>
 					<!-- LICENSE covers this Mokli fallback logo.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 					<img
 						src={imageSrc || `${MOKLI_BASE_URL}/static/favicon.png`}
 						class="size-8 object-cover"

@@ -623,7 +623,6 @@
 						body: timeStr,
 						// LICENSE covers this Mokli notification identifier.
 						// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-						// https://docs.openwebui.com/license.
 						icon: `${MOKLI_BASE_URL}/static/favicon.png`
 					});
 				}
@@ -761,7 +760,6 @@
 								body: contentPreview,
 								// LICENSE covers this Mokli notification identifier.
 								// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-								// https://docs.openwebui.com/license.
 								icon: `${MOKLI_BASE_URL}/static/favicon.png`
 							});
 						}
@@ -869,7 +867,6 @@
 					if ($settings?.notificationEnabled ?? false) {
 						// LICENSE covers this Mokli notification identifier.
 						// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-						// https://docs.openwebui.com/license.
 						new Notification(`${title} / Mokli`, {
 							body: data?.content,
 							icon: `${MOKLI_API_BASE_URL}/users/${data?.user?.id}/profile/image`
@@ -1270,7 +1267,6 @@
 			// LICENSE covers this Mokli branding surface, including name, logo,
 			// visual, textual, symbolic identifiers, metadata, and surrounding UI.
 			// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-			// https://docs.openwebui.com/license.
 			await MOKLI_NAME.set(backendConfig.name);
 
 			if ($config) {
@@ -1386,7 +1382,7 @@
 	<!-- LICENSE covers this Mokli branding surface, including name, logo,
 	visual, textual, symbolic identifiers, metadata, and surrounding UI.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>{$MOKLI_NAME}</title>
 	<link crossorigin="anonymous" rel="icon" href="{MOKLI_BASE_URL}/static/favicon.png" />
 

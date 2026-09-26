@@ -42,7 +42,7 @@
 		<div class="fixed top-6 left-6 z-50 sm:top-10 sm:left-10">
 			<!-- LICENSE covers this Mokli onboarding logo.
 			Do not alter, remove, obscure, or replace it except as LICENSE permits:
-			https://docs.openwebui.com/license. -->
+			-->
 			<img
 				id="logo"
 				crossorigin="anonymous"
@@ -73,7 +73,7 @@
 				<div class="max-w-3xl">
 					<!-- LICENSE covers this Mokli welcome identifier.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 					<div class="mb-4 text-[0.6875rem] font-medium tracking-[0.18em] uppercase opacity-35">
 						Mokli
 					</div>
@@ -111,7 +111,7 @@
 
 						<a
 							class="inline-flex items-center text-sm text-white/60 transition hover:text-white"
-							href="https://docs.openwebui.com/"
+							href="https://github.com/loorksy/NanoAgent/"
 							target="_blank"
 							rel="noopener noreferrer"
 						>

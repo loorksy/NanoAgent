@@ -14,7 +14,7 @@
 	<div class="mb-0.5 text-[0.6875rem] font-normal text-gray-400 dark:text-gray-600">
 		<!-- LICENSE covers this Mokli Community wordmark.
 		Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		https://docs.openwebui.com/license. -->
+		-->
 		{$i18n.t('Made by Mokli Community')}
 	</div>
 

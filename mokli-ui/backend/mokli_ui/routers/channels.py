@@ -1829,7 +1829,6 @@ async def get_webhook_profile_image(
         # Return default favicon if webhook not found
         # LICENSE covers this Mokli fallback logo.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         return FileResponse(f'{STATIC_DIR}/favicon.png')
 
     channel = await Channels.get_channel_by_id(webhook.channel_id, db=db)
@@ -1870,7 +1869,6 @@ async def get_webhook_profile_image(
     # Return default favicon if no profile image
     # LICENSE covers this Mokli fallback logo.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     return FileResponse(f'{STATIC_DIR}/favicon.png')
 
 

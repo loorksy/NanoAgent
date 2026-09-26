@@ -32,8 +32,7 @@ class ExternalWebLoader(BaseLoader):
                     headers={
                         # LICENSE covers this Mokli user-agent identifier.
                         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                        # https://docs.openwebui.com/license.
-                        'User-Agent': 'Mokli (https://github.com/open-webui/open-webui) External Web Loader',
+                        'User-Agent': 'Mokli (https://github.com/loorksy/NanoAgent) External Web Loader',
                         'Authorization': f'Bearer {self.external_api_key}',
                     },
                     json={
