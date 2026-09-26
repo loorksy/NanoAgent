@@ -10,6 +10,7 @@
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 
 	import { user, settings } from '$lib/stores';
+	import { NANOAGENT_FORK } from '$lib/nanoagent/mode';
 	export let models = [];
 	export let chatFiles = [];
 	export let params = {};
@@ -106,7 +107,7 @@
 				</Collapsible>
 			{/if}
 
-			{#if $user?.role === 'admin' || ($user?.permissions.chat?.system_prompt ?? true)}
+			{#if !NANOAGENT_FORK && ($user?.role === 'admin' || ($user?.permissions.chat?.system_prompt ?? true))}
 				<Collapsible
 					title={$i18n.t('System Prompt')}
 					bind:open={showSystemPrompt}
@@ -128,7 +129,7 @@
 				</Collapsible>
 			{/if}
 
-			{#if $user?.role === 'admin' || ($user?.permissions.chat?.params ?? true)}
+			{#if !NANOAGENT_FORK && ($user?.role === 'admin' || ($user?.permissions.chat?.params ?? true))}
 				<Collapsible
 					title={$i18n.t('Advanced Params')}
 					bind:open={showAdvancedParams}

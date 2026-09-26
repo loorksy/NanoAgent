@@ -383,6 +383,7 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     payload = json.loads(message_request.content)
     assert payload["content"] == "hello"
     assert payload["locale"] == "en"
+    assert payload["model"] is None
     events_request = gateway.requests[1]
     assert events_request.headers["Accept"] == "text/event-stream"
     assert "after" not in events_request.url.params
@@ -742,6 +743,20 @@ async def test_timeline_is_omitted_when_disabled() -> None:
     assert await harness.run() == ["ok"]
 
 
+async def test_selected_chat_model_is_forwarded() -> None:
+    stream = ChunkStream(
+        [sse(ev("delta", {"text": "ok"}), "1"), sse(ev("end", {"outcome": "ok"}), "2")]
+    )
+    gateway = FakeGateway([stream])
+    harness = Harness(gateway)
+    body = harness.body()
+    body["model"] = "nanoagent.google/gemini-test"
+
+    assert await harness.run(body) == ["ok"]
+    message = next(request for request in gateway.requests if request.url.path.endswith("/messages"))
+    assert json.loads(message.content)["model"] == "google/gemini-test"
+
+
 async def test_background_tasks_do_not_reach_the_agent() -> None:
     gateway = FakeGateway([])
     harness = Harness(gateway)
@@ -799,7 +814,10 @@ def test_pipes_lists_models_chosen_for_the_agent(monkeypatch) -> None:
         {"id": "google/gemini-test", "name": "google/gemini-test"},
     ]
     assert pipe._requested_model({"model": "nanoagent.google/gemini-test"}) == "google/gemini-test"
-    assert pipe._requested_model({"model": "nanoagent.nanoagent"}) == ""
+    assert pipe._requested_model({"model": "nanoagent.nanoagent"}) is None
+    assert pipe._requested_model({"model": "nanoagent"}) is None
+    assert pipe._requested_model({"model": "openai/gpt-4.1"}) == "openai/gpt-4.1"
+    assert pipe._requested_model({"model": "other.google/gemini-test"}) == "google/gemini-test"
     valves = pipe.Valves()
     assert valves.GATEWAY_URL == "http://127.0.0.1:8766"
     assert valves.GATEWAY_TOKEN == ""

@@ -80,6 +80,8 @@ def plan_position_actions(
     can_modify: bool = False,
     can_partial: bool = False,
     can_close: bool = False,
+    news_shield: bool = True,
+    early_exit: bool = True,
 ) -> list[ManagementAction]:
     """Return the next management steps. ``apply`` is true only when the grant allows it."""
     actions: list[ManagementAction] = []
@@ -87,7 +89,8 @@ def plan_position_actions(
     policy = live()
 
     if (
-        minutes_to_news is not None
+        news_shield
+        and minutes_to_news is not None
         and minutes_to_news <= policy.NEWS_SHIELD_MINUTES
         and position.stop != position.entry
     ):
@@ -153,7 +156,7 @@ def plan_position_actions(
             )
         )
 
-    if candles and momentum_is_weak(candles, direction=position.direction):
+    if early_exit and candles and momentum_is_weak(candles, direction=position.direction):
         actions.append(
             ManagementAction(
                 kind="exit",
@@ -231,6 +234,11 @@ async def run_management_cycle(
 
     perms = get_permission_store().load()
     execute = perms.level == "execute"
+    from nanobot.trading.risk_state import get_risk_store
+
+    toggles = get_risk_store()
+    news_shield = toggles.toggle_enabled("news_shield")
+    early_exit = toggles.toggle_enabled("early_exit")
     transport = get_transport()
     rows = await transport.open_positions()
     quote_px = live_px if live_px is not None else _quote_mid(await transport.quote("XAUUSD"))
@@ -251,6 +259,8 @@ async def run_management_cycle(
             can_modify=execute and perms.can_modify_sl_tp,
             can_partial=execute and perms.can_partial_close,
             can_close=execute and perms.can_close_all,
+            news_shield=news_shield,
+            early_exit=early_exit,
         )
         actions.extend(planned)
         for action in planned:

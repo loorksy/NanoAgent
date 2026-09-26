@@ -93,6 +93,18 @@ def test_partial_and_momentum_exit_respect_grants() -> None:
     assert by_kind["partial"].apply is False
     assert by_kind["exit"].apply is False
 
+    held = plan_position_actions(
+        position,
+        live_px=2662,
+        atr=2,
+        minutes_to_news=5,
+        candles=candles,
+        news_shield=False,
+        early_exit=False,
+    )
+    assert "exit" not in {item.kind for item in held}
+    assert "secure" not in {item.kind for item in held}
+
 
 def test_scenario_watch_keeps_the_first_trigger() -> None:
     watch = ScenarioWatch(

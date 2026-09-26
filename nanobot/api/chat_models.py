@@ -55,13 +55,52 @@ def preset_for_chat_model(config: Config, model_id: str) -> str | None:
     return None
 
 
-def apply_session_model(agent: Any, session_key: str, model_id: str) -> None:
-    """Point one chat session at the preset for ``model_id`` when it is known."""
+def canonical_chat_model_id(
+    config: Config,
+    requested: object,
+    *,
+    alias: str = "nanoagent",
+) -> str | None:
+    """Map a selector value to the provider model id that should run.
+
+    ``None`` means the settings primary (no per-chat override). A returned id
+    is one the user selected in settings. Any other non-empty value is rejected
+    so the call cannot silently keep a different model.
+    """
+    if requested is None:
+        return None
+    if not isinstance(requested, str):
+        raise ValueError("model")
+    chosen = requested.strip()
+    if not chosen or chosen == alias or chosen == "nanoagent":
+        return None
+    if chosen.startswith("nanoagent."):
+        chosen = chosen[len("nanoagent.") :].strip()
+        if not chosen or chosen == "nanoagent":
+            return None
+    elif "." in chosen:
+        head, tail = chosen.split(".", 1)
+        tail = tail.strip()
+        if head and "/" not in head and "/" in tail:
+            chosen = tail
+            if not chosen or chosen == "nanoagent":
+                return None
+    if preset_for_chat_model(config, chosen) is None:
+        raise ValueError(chosen)
+    return chosen
+
+
+def apply_session_model(agent: Any, session_key: str, model_id: str) -> bool:
+    """Point one chat session at the preset for ``model_id``.
+
+    Returns false when ``model_id`` is not one of the models the user selected,
+    so callers can refuse the turn instead of running a different model.
+    """
     from nanobot.config.loader import load_config
 
     preset = preset_for_chat_model(load_config(), model_id)
     if preset is None:
-        return
+        return False
     refresh = getattr(agent, "refresh_runtime_config", None)
     if callable(refresh):
         try:
@@ -70,8 +109,34 @@ def apply_session_model(agent: Any, session_key: str, model_id: str) -> None:
             logger.warning("chat model refresh failed")
     setter = getattr(agent, "set_session_model_preset", None)
     if not callable(setter):
-        return
+        return False
     try:
         setter(session_key, preset)
     except Exception:
         logger.warning("chat model selection failed")
+        return False
+    return True
+
+
+def clear_session_model(agent: Any, session_key: str) -> None:
+    """Drop a per-chat override so the next turn uses the settings primary."""
+    clearer = getattr(agent, "clear_session_model_preset", None)
+    if not callable(clearer):
+        return
+    try:
+        clearer(session_key)
+    except Exception:
+        logger.warning("chat model clear failed")
+
+
+def listed_model_ids(config: Config, alias: str) -> list[str]:
+    """Selector ids: the connection alias, then each model the user chose."""
+    ids = [alias]
+    seen = {alias}
+    for row in public_chat_models(config):
+        model_id = row["id"]
+        if model_id in seen:
+            continue
+        seen.add(model_id)
+        ids.append(model_id)
+    return ids

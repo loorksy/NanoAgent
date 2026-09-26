@@ -591,6 +591,14 @@ class AgentLoop:
         self.sessions.save(session)
         return runtime
 
+    def clear_session_model_preset(self, session_key: str) -> None:
+        """Forget a per-chat preset so later turns follow the settings primary."""
+        session = self.sessions.get_or_create(session_key)
+        if SESSION_MODEL_PRESET_METADATA_KEY not in session.metadata:
+            return
+        session.metadata.pop(SESSION_MODEL_PRESET_METADATA_KEY, None)
+        self.sessions.save(session)
+
     def _publish_runtime_selection(
         self,
         runtime: LLMRuntime,

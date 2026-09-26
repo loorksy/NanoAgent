@@ -314,11 +314,20 @@ class SessionService:
                 "UPDATE api_sessions SET updated_at = ? WHERE id = ?", (now_ms(), session_id),
             )
 
-    def use_model(self, session_id: str, model_id: str) -> None:
-        """Select the provider model for the next turn of this chat."""
+    def use_model(self, session_id: str, model_id: str) -> bool:
+        """Select the provider model for the next turn of this chat.
+
+        Returns false when ``model_id`` is not a model the user selected.
+        """
         from nanobot.api.chat_models import apply_session_model
 
-        apply_session_model(self._agent, session_key_for(session_id), model_id)
+        return apply_session_model(self._agent, session_key_for(session_id), model_id)
+
+    def clear_model(self, session_id: str) -> None:
+        """Use the settings primary for the next turn of this chat."""
+        from nanobot.api.chat_models import clear_session_model
+
+        clear_session_model(self._agent, session_key_for(session_id))
 
     # -- runs --------------------------------------------------------------
 

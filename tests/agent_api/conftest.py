@@ -30,6 +30,7 @@ class FakeAgent:
         self.tools = ToolRegistry()
         self.calls: list[dict[str, Any]] = []
         self.presets: list[tuple[str, str]] = []
+        self.cleared: list[str] = []
         self.reply = "hello from agent"
         self.block: asyncio.Event | None = None
         self.raise_error = False
@@ -37,6 +38,9 @@ class FakeAgent:
 
     def set_session_model_preset(self, session_key: str, name: str) -> None:
         self.presets.append((session_key, name))
+
+    def clear_session_model_preset(self, session_key: str) -> None:
+        self.cleared.append(session_key)
 
     async def process_direct(self, **kwargs: Any) -> Any:
         self.calls.append(kwargs)

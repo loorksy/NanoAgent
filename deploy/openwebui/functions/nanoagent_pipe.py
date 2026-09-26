@@ -377,7 +377,7 @@ class GatewayClient:
         text: str,
         attachments: list[Attachment],
         locale: str,
-        model: str = "",
+        model: str | None = None,
     ) -> str:
         payload: dict[str, object] = {
             "role": "user",
@@ -387,8 +387,9 @@ class GatewayClient:
         }
         if attachments:
             payload["attachments"] = attachments
-        if model:
-            payload["model"] = model
+        # Always send the selector value. null clears a previous override so the
+        # settings primary runs; a catalog id selects that model for this chat.
+        payload["model"] = model
         url = f"{API_PREFIX}/sessions/{session}/messages"
         response = await self._client.post(
             url, json=payload, headers=self._session_headers(session)
@@ -596,15 +597,30 @@ class Pipe:
             found.append({"id": model_id, "name": name})
         return found
 
-    def _requested_model(self, body: Mapping[str, object]) -> str:
-        raw = _as_str(body.get("model"))
-        prefix = f"{MODEL_ID}."
-        if not raw.startswith(prefix):
-            return ""
-        chosen = raw[len(prefix):].strip()
-        if not chosen or chosen == MODEL_ID:
-            return ""
-        return chosen
+    def _requested_model(self, body: Mapping[str, object]) -> str | None:
+        """Provider model id from the chat selector, or None for the settings primary.
+
+        Open WebUI names a manifold pipe ``<function id>.<pipe id>``. The
+        installed function id is ``nanoagent``. A provider/model id may itself
+        contain dots (``openai/gpt-4.1``), so only a function-id prefix is
+        stripped.
+        """
+        raw = _as_str(body.get("model")).strip()
+        if not raw or raw == MODEL_ID:
+            return None
+        if raw.startswith(f"{MODEL_ID}."):
+            chosen = raw[len(MODEL_ID) + 1 :].strip()
+            if not chosen or chosen == MODEL_ID:
+                return None
+            return chosen
+        if "." in raw:
+            head, tail = raw.split(".", 1)
+            tail = tail.strip()
+            if head and "/" not in head and "/" in tail:
+                if not tail or tail == MODEL_ID:
+                    return None
+                return tail
+        return raw
 
     # -- wiring -------------------------------------------------------------
 

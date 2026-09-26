@@ -14,6 +14,8 @@ from nanobot.agent_api.context import services
 from nanobot.agent_api.errors import ApiError
 from nanobot.agent_api.events import GatewayEvent, JsonObject
 from nanobot.agent_api.routes._util import json_body, ok, optional_str, query_int
+from nanobot.api.chat_models import canonical_chat_model_id
+from nanobot.config.loader import load_config
 
 SSE_KEEPALIVE_SECONDS = 15.0
 MEDIA_SUBDIR = "agent_api"
@@ -137,9 +139,18 @@ async def post_message(request: web.Request) -> web.Response:
     body = await json_body(request)
     text = message_text(body)
     media = media_paths(body)
-    model = body.get("model")
-    if isinstance(model, str) and model.strip():
-        svc.sessions.use_model(session_id, model.strip())
+    if "model" in body:
+        model = body.get("model")
+        if model is not None and not isinstance(model, str):
+            raise ApiError(400, "invalid_field", details={"field": "model"})
+        try:
+            selected = canonical_chat_model_id(load_config(), model)
+        except ValueError as exc:
+            raise ApiError(400, "unknown_model", details={"model": str(exc)}) from exc
+        if selected is None:
+            svc.sessions.clear_model(session_id)
+        elif not svc.sessions.use_model(session_id, selected):
+            raise ApiError(400, "unknown_model", details={"model": selected})
     run_id = svc.sessions.submit(session_id, text, media=media)
     return ok({"run_id": run_id, "session": session_id}, status=202)
 
