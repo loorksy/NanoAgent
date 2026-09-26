@@ -22,7 +22,6 @@
 
 	import EditUserModal from '$lib/components/admin/Users/UserList/EditUserModal.svelte';
 	import UserChatsModal from '$lib/components/admin/Users/UserList/UserChatsModal.svelte';
-	import AddUserModal from '$lib/components/admin/Users/UserList/AddUserModal.svelte';
 
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 
@@ -50,7 +49,6 @@
 	let selectedUser = null;
 
 	let showDeleteConfirmDialog = false;
-	let showAddUserModal = false;
 
 	let showUserChatsModal = false;
 	let showEditUserModal = false;
@@ -140,13 +138,6 @@
 	}}
 />
 
-<AddUserModal
-	bind:show={showAddUserModal}
-	on:save={async () => {
-		getUserList();
-	}}
-/>
-
 <EditUserModal
 	bind:show={showEditUserModal}
 	{selectedUser}
@@ -209,15 +200,6 @@
 					</div>
 				{/if}
 			</div>
-
-			<button
-				class="ml-1 shrink-0 rounded-lg bg-gray-50 px-2.5 py-1 text-xs text-gray-900 transition ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-850 dark:text-gray-100 dark:ring-gray-800 dark:hover:bg-gray-800"
-				on:click={() => {
-					showAddUserModal = !showAddUserModal;
-				}}
-			>
-				{$i18n.t('Add User')}
-			</button>
 		</div>
 	</div>
 

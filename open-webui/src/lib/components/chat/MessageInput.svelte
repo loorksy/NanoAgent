@@ -1302,11 +1302,6 @@
 					e.stopPropagation();
 					return;
 				} else if (data.type === 'model' && data.id) {
-					// Find the model from the store and set as @-selected model
-					const model = $models.find((m) => m.id === data.id);
-					if (model) {
-						atSelectedModel = model;
-					}
 					dragged = false;
 					e.stopPropagation();
 					return;
@@ -1371,13 +1366,7 @@
 				char: '@',
 				render: getSuggestionRenderer(CommandSuggestionList, {
 					i18n,
-					onSelect: (e) => {
-						const { type, data } = e;
-
-						if (type === 'model') {
-							atSelectedModel = data;
-						}
-
+					onSelect: () => {
 						focus({ preventScroll: true });
 					},
 
@@ -1480,13 +1469,7 @@
 					onSettings: () => showSettings.set(true),
 					onTemporary: temporaryHandler,
 					onCreateSkill: createSkillHandler,
-					onSelect: (e) => {
-						const { type, data } = e;
-
-						if (type === 'model') {
-							atSelectedModel = data;
-						}
-
+					onSelect: () => {
 						focus({ preventScroll: true });
 					},
 
@@ -1518,13 +1501,7 @@
 				char: '#',
 				render: getSuggestionRenderer(CommandSuggestionList, {
 					i18n,
-					onSelect: (e) => {
-						const { type, data } = e;
-
-						if (type === 'model') {
-							atSelectedModel = data;
-						}
-
+					onSelect: () => {
 						focus({ preventScroll: true });
 					},
 

@@ -111,8 +111,15 @@ class AuthsTable:
         oauth: dict | None = None,
         db: AsyncSession | None = None,
     ) -> UserModel | None:
-        """Create an Auth + User pair inside a single transaction."""
+        """Create an Auth + User pair inside a single transaction.
+
+        This deployment is one operator. After the first account exists, every
+        later insert is refused, including signup, admin add, and OAuth.
+        """
         async with get_async_db_context(db) as session:
+            if await Users.has_users(db=session):
+                log.info('refusing extra account; one operator only')
+                return None
             log.info('insert_new_auth')
 
             new_id = str(uuid.uuid4())
