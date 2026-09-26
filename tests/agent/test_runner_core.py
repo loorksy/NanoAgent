@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from agent.runner_helpers import make_run_spec
-from nanobot.agent.context import TranscriptInput
-from nanobot.agent.context_governance import ContextWindowExceededError
-from nanobot.config.schema import AgentDefaults
-from nanobot.providers.base import (
+from mokli.agent.context import TranscriptInput
+from mokli.agent.context_governance import ContextWindowExceededError
+from mokli.config.schema import AgentDefaults
+from mokli.providers.base import (
     LLMProvider,
     LLMResponse,
     LLMUsage,
@@ -35,7 +35,7 @@ def _make_usage_spec(provider, tools):
 
 
 def test_initial_transcript_is_built_from_structured_turn_input() -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     transcript_input = TranscriptInput(
@@ -67,16 +67,16 @@ def test_initial_transcript_is_built_from_structured_turn_input() -> None:
 
 
 def test_usage_or_estimate_replaces_reported_zero_for_content(monkeypatch) -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.runner.estimate_prompt_tokens_chain",
+        "mokli.agent.runner.estimate_prompt_tokens_chain",
         lambda provider, model, messages, definitions: (12, "test"),
     )
-    monkeypatch.setattr("nanobot.agent.runner.estimate_message_tokens", lambda message: 7)
+    monkeypatch.setattr("mokli.agent.runner.estimate_message_tokens", lambda message: 7)
     response = LLMResponse(
         content="answer",
         usage=LLMUsage.reported(input_tokens=0, output_tokens=0),
@@ -100,14 +100,14 @@ def test_usage_or_estimate_replaces_reported_zero_for_content(monkeypatch) -> No
 
 
 def test_usage_or_estimate_counts_tool_call_output_for_reported_zero(monkeypatch) -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     tools = MagicMock()
     tools.get_definitions.return_value = []
     captured_message: dict = {}
     monkeypatch.setattr(
-        "nanobot.agent.runner.estimate_prompt_tokens_chain",
+        "mokli.agent.runner.estimate_prompt_tokens_chain",
         lambda provider, model, messages, definitions: (13, "test"),
     )
 
@@ -115,14 +115,14 @@ def test_usage_or_estimate_counts_tool_call_output_for_reported_zero(monkeypatch
         captured_message.update(message)
         return 9
 
-    monkeypatch.setattr("nanobot.agent.runner.estimate_message_tokens", estimate_output)
+    monkeypatch.setattr("mokli.agent.runner.estimate_message_tokens", estimate_output)
     response = LLMResponse(
         content=None,
         tool_calls=[
             ToolCallRequest(
                 id="call_1",
                 name="lookup",
-                arguments={"query": "nanobot"},
+                arguments={"query": "mokli"},
             )
         ],
         finish_reason="tool_calls",
@@ -149,7 +149,7 @@ def test_usage_or_estimate_counts_error_without_estimating_tokens(
     monkeypatch,
     provider_usage: LLMUsage | None,
 ) -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     tools = MagicMock()
@@ -180,7 +180,7 @@ def test_usage_or_estimate_counts_error_without_estimating_tokens(
 
 
 def test_usage_or_estimate_trusts_positive_reported_total(monkeypatch) -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     tools = MagicMock()
@@ -218,7 +218,7 @@ def test_usage_or_estimate_trusts_positive_reported_total(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_runner_preserves_reasoning_fields_and_tool_results():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     captured_second_call: list[dict] = []
@@ -275,7 +275,7 @@ async def test_runner_preserves_reasoning_fields_and_tool_results():
 
 @pytest.mark.asyncio
 async def test_runner_replays_provider_state_without_chat_projection_duplicates():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -373,7 +373,7 @@ async def test_runner_replays_provider_state_without_chat_projection_duplicates(
 
 @pytest.mark.asyncio
 async def test_runner_preserves_tool_result_before_rejecting_unfit_followup():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -445,7 +445,7 @@ async def test_runner_preserves_tool_result_before_rejecting_unfit_followup():
 
 @pytest.mark.asyncio
 async def test_injected_final_response_checkpoint_includes_provider_state():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -496,7 +496,7 @@ async def test_injected_final_response_checkpoint_includes_provider_state():
 
 @pytest.mark.asyncio
 async def test_runner_preserves_last_completed_provider_state_on_model_error():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -539,7 +539,7 @@ async def test_runner_preserves_last_completed_provider_state_on_model_error():
 
 @pytest.mark.asyncio
 async def test_runner_discards_provider_state_on_non_retryable_model_error():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -575,7 +575,7 @@ async def test_runner_discards_provider_state_on_non_retryable_model_error():
 
 @pytest.mark.asyncio
 async def test_runner_returns_max_iterations_fallback():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
@@ -609,7 +609,7 @@ async def test_runner_returns_max_iterations_fallback():
 
 @pytest.mark.asyncio
 async def test_runner_uses_no_tools_finalization_after_max_iterations():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     calls: list[dict] = []
@@ -670,7 +670,7 @@ async def test_runner_uses_no_tools_finalization_after_max_iterations():
 
 @pytest.mark.asyncio
 async def test_runner_replaces_empty_tool_result_with_marker():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     captured_second_call: list[dict] = []
@@ -709,7 +709,7 @@ async def test_runner_replaces_empty_tool_result_with_marker():
 @pytest.mark.asyncio
 async def test_runner_retries_empty_final_response_with_summary_prompt():
     """Empty responses get 2 silent retries before finalization kicks in."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     calls: list[dict] = []
@@ -762,8 +762,8 @@ async def test_runner_retries_empty_final_response_with_summary_prompt():
 async def test_runner_does_not_retry_blank_policy_terminal(
     finish_reason: str,
 ) -> None:
-    from nanobot.agent.runner import AgentRunner
-    from nanobot.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
+    from mokli.agent.runner import AgentRunner
+    from mokli.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
@@ -792,7 +792,7 @@ async def test_runner_does_not_retry_blank_policy_terminal(
 async def test_runner_does_not_auto_continue_goal_after_policy_terminal(
     finish_reason: str,
 ) -> None:
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
@@ -823,8 +823,8 @@ async def test_runner_does_not_auto_continue_goal_after_policy_terminal(
 @pytest.mark.asyncio
 async def test_runner_uses_specific_message_after_empty_finalization_retry():
     """After silent retries + finalization all return empty, stop_reason is empty_final_response."""
-    from nanobot.agent.runner import AgentRunner
-    from nanobot.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
+    from mokli.agent.runner import AgentRunner
+    from mokli.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
 
     provider = MagicMock(spec=LLMProvider)
 
@@ -850,7 +850,7 @@ async def test_runner_uses_specific_message_after_empty_finalization_retry():
 
 @pytest.mark.asyncio
 async def test_empty_finalization_retry_discards_candidate_provider_state():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     candidate = ProviderConversationState(
         kind="openai_responses",
@@ -901,7 +901,7 @@ async def test_empty_finalization_retry_discards_candidate_provider_state():
 @pytest.mark.asyncio
 async def test_runner_length_recovery_returns_all_segments():
     """Recovered output segments are returned together instead of only the tail."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(side_effect=[
@@ -933,7 +933,7 @@ async def test_runner_length_recovery_returns_all_segments():
 @pytest.mark.asyncio
 async def test_runner_length_recovery_preserves_prefix_at_max_iterations():
     """Budget exhaustion must not replace output already produced by recovery."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(
@@ -967,7 +967,7 @@ async def test_runner_length_recovery_preserves_prefix_at_max_iterations():
 @pytest.mark.asyncio
 async def test_runner_length_recovery_does_not_leak_across_tool_calls():
     """A recovered prefix belongs only to its contiguous response chain."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(side_effect=[
@@ -1003,7 +1003,7 @@ async def test_runner_empty_response_does_not_break_tool_chain():
     Sequence: tool_call -> empty -> tool_call -> final text.
     The runner should recover via silent retry and complete normally.
     """
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     call_count = 0
@@ -1058,7 +1058,7 @@ async def test_runner_empty_response_does_not_break_tool_chain():
 @pytest.mark.asyncio
 async def test_runner_accumulates_usage_and_preserves_cache_reads():
     """Runner accumulates usage across iterations, including cache reads."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     call_count = {"n": 0}
@@ -1110,8 +1110,8 @@ async def test_runner_accumulates_usage_and_preserves_cache_reads():
 @pytest.mark.asyncio
 async def test_runner_carries_retry_notifications_in_provider_context():
     """The runner carries a generic scope, not an event-specific callback."""
-    from nanobot.agent.runner import AgentRunner
-    from nanobot.events import EventSink, RetryWaitEvent
+    from mokli.agent.runner import AgentRunner
+    from mokli.events import EventSink, RetryWaitEvent
 
     captured: dict = {}
 
@@ -1153,7 +1153,7 @@ async def test_runner_carries_retry_notifications_in_provider_context():
 @pytest.mark.asyncio
 async def test_runner_passes_temperature_to_provider():
     """temperature from AgentRunSpec should reach provider.chat_stream_with_retry."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     captured: dict = {}
 
@@ -1182,7 +1182,7 @@ async def test_runner_passes_temperature_to_provider():
 @pytest.mark.asyncio
 async def test_runner_passes_max_tokens_to_provider():
     """max_tokens from AgentRunSpec should reach provider.chat_stream_with_retry."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     captured: dict = {}
 
@@ -1211,7 +1211,7 @@ async def test_runner_passes_max_tokens_to_provider():
 @pytest.mark.asyncio
 async def test_runner_passes_reasoning_effort_to_provider():
     """reasoning_effort from AgentRunSpec should reach provider.chat_stream_with_retry."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     captured: dict = {}
 

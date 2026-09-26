@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from nanobot.config.schema import TradingRiskParameters
-from nanobot.trading.permissions.evaluate import (
+from mokli.config.schema import TradingRiskParameters
+from mokli.trading.permissions.evaluate import (
     REASON_DAILY_LOSS,
     REASON_EXECUTED,
     REASON_EXPIRED,
@@ -26,8 +26,8 @@ from nanobot.trading.permissions.evaluate import (
     PermissionContext,
     evaluate_permission,
 )
-from nanobot.trading.permissions.model import ACTIONS, Mt5Permissions
-from nanobot.trading.risk_profiles import apply_profile
+from mokli.trading.permissions.model import ACTIONS, Mt5Permissions
+from mokli.trading.risk_profiles import apply_profile
 
 DAY0_MS = 1_700_006_400_000  # 2023-11-15 00:00 UTC
 HOUR_MS = 3_600_000

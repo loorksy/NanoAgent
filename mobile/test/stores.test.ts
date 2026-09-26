@@ -1,4 +1,4 @@
-import type { GatewayEvent, PairDeviceResponse } from "@nanoagent/sdk";
+import type { GatewayEvent, PairDeviceResponse } from "@mokli/sdk";
 import { describe, expect, test } from "bun:test";
 
 import { getLocale, setLocale } from "../src/i18n";
@@ -94,7 +94,7 @@ describe("inbox store", () => {
     const approval = inboxItemFromEvent(
       event("approval", { approval_id: "ap_1", type: "execution", summary: "Buy", expires_at: null, actions: ["confirm", "cancel"], status: "pending" }),
     );
-    expect(approval).toMatchObject({ kind: "approval", level: "warning", approval_id: "ap_1", deep_link: "nanoagent://approvals/ap_1" });
+    expect(approval).toMatchObject({ kind: "approval", level: "warning", approval_id: "ap_1", deep_link: "mokli://approvals/ap_1" });
     expect(
       inboxItemFromEvent(event("approval", { approval_id: "ap_1", type: "execution", summary: "Buy", expires_at: null, status: "confirmed" })),
     ).toBeUndefined();
@@ -106,7 +106,7 @@ describe("inbox store", () => {
         payload: { verdict: "buy", entry: 1, stop: 1, targets: [], confidence: 0.5, reasons: [], gates_passed: [] },
       }),
     );
-    expect(decision).toMatchObject({ kind: "decision", deep_link: "nanoagent://results/res_1", args: { verdict: "buy", result_id: "res_1" } });
+    expect(decision).toMatchObject({ kind: "decision", deep_link: "mokli://results/res_1", args: { verdict: "buy", result_id: "res_1" } });
     expect(inboxItemFromEvent(event("structured", { type: "market", result_id: "x", payload: {} as never }))).toBeUndefined();
 
     expect(inboxItemFromEvent(event("job", { job_id: "j1", kind: "goal", status: "failed" }))).toMatchObject({ kind: "job", level: "error", body_key: "push.job.failed" });
@@ -121,7 +121,7 @@ describe("inbox store", () => {
       body_key: "push.approval.body",
       args: JSON.stringify({ type: "execution" }),
       approval_id: "ap_1",
-      deep_link: "nanoagent://approvals/ap_1",
+      deep_link: "mokli://approvals/ap_1",
     });
     expect(payload).toEqual({
       kind: "approval",
@@ -129,7 +129,7 @@ describe("inbox store", () => {
       body_key: "push.approval.body",
       args: { type: "execution" },
       approval_id: "ap_1",
-      deep_link: "nanoagent://approvals/ap_1",
+      deep_link: "mokli://approvals/ap_1",
     });
     expect(pushPayloadFromData({ foo: "bar" })).toBeUndefined();
     expect(pushPayloadFromData(null)).toBeUndefined();

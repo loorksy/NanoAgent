@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.prompt import composer
-from nanobot.agent.prompt.composer import (
+from mokli.agent.prompt import composer
+from mokli.agent.prompt.composer import (
     STATIC_LAYERS,
     TEAM_ROLE_COMMON,
     TOOL_CONTRACTS,
@@ -31,8 +31,8 @@ SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 UPDATE_SNAPSHOTS = os.environ.get("UPDATE_PROMPT_SNAPSHOTS") == "1"
 
 ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
-WIRE_ID_RE = re.compile(r"(sess_|webui:|websocket:|telegram:|whatsapp:|cli:|\bG\d{1,2}\b)")
-FORBIDDEN_TERMS = ("lonora", "nanobot 🐈", "🐈")
+WIRE_ID_RE = re.compile(r"(sess_|mokli:|websocket:|telegram:|whatsapp:|cli:|\bG\d{1,2}\b)")
+FORBIDDEN_TERMS = ("lonora", "mokli 🐈", "🐈")
 
 SAMPLE_TOOLS = (
     "get_gold_quote",
@@ -88,7 +88,7 @@ def test_composed_prompt_matches_snapshot(language: str, with_tools: bool) -> No
 
 def test_layer_order_is_fixed() -> None:
     prompt = compose_system_prompt(_ctx("auto", True))
-    headings = ["# NanoAgent", "# Mission", "# Hard law", "# Tool contracts",
+    headings = ["# Mokli", "# Mission", "# Hard law", "# Tool contracts",
                 "# Output contract", "# Behaviour", "# Runtime facts"]
     positions = [prompt.index(heading) for heading in headings]
     assert positions == sorted(positions)
@@ -141,15 +141,15 @@ def test_composed_prompt_has_no_arabic_or_second_persona(language: str) -> None:
     prompt = compose_system_prompt(_ctx(language, True))
     assert not ARABIC_RE.search(prompt)
     assert "lonora" not in prompt.lower()
-    assert "nanobot" not in prompt.lower()
+    assert "mokli" not in prompt.lower()
     assert not WIRE_ID_RE.search(prompt)
-    assert prompt.count("You are NanoAgent") == 1
+    assert prompt.count("You are Mokli") == 1
 
 
 def test_product_name_flows_into_every_persona_mention() -> None:
     ctx = PromptContext(settings=PromptSettings(product_name="GoldDesk"))
     prompt = compose_system_prompt(ctx)
-    assert "NanoAgent" not in prompt
+    assert "Mokli" not in prompt
     assert prompt.startswith("# GoldDesk")
     assert "Present yourself as anything other than GoldDesk." in prompt
 
@@ -253,7 +253,7 @@ def test_settings_from_agent_defaults_reads_defensively() -> None:
         daily_wrap_enabled = True
 
     class Legacy:
-        bot_name = "nanobot"
+        bot_name = "mokli"
 
     settings = PromptSettings.from_agent_defaults(Defaults())
     assert settings == PromptSettings("GoldDesk", "ar", "concise", True)

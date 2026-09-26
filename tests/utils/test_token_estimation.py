@@ -1,7 +1,7 @@
 import json
 
-from nanobot.utils import helpers
-from nanobot.utils.helpers import (
+from mokli.utils import helpers
+from mokli.utils.helpers import (
     estimate_message_tokens,
     estimate_prompt_tokens,
     estimate_prompt_tokens_chain,

@@ -1,4 +1,4 @@
-import type { GatewayClient, Labels } from "@nanoagent/sdk";
+import type { GatewayClient, Labels } from "@mokli/sdk";
 import { createStore } from "zustand/vanilla";
 
 import { label as localLabel, type Locale, type Params } from "../i18n";

@@ -2,19 +2,19 @@ import json
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.providers.base import LLMResponse
-from nanobot.trading.agents.apply_model_decision import (
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.providers.base import LLMResponse
+from mokli.trading.agents.apply_model_decision import (
     apply_model_decision,
     apply_revision,
     entry_print_state,
 )
-from nanobot.trading.agents.synthesizer import run_final_decision_synthesizer
-from nanobot.trading.drawings.plan import build_drawing_plan
-from nanobot.trading.kernel import run_trading_kernel
-from nanobot.trading.recommendations.store import latest_live_recommendation, store_recommendation
-from nanobot.trading.recommendations.tradability import assess_plan_tradability
-from nanobot.trading.types import (
+from mokli.trading.agents.synthesizer import run_final_decision_synthesizer
+from mokli.trading.drawings.plan import build_drawing_plan
+from mokli.trading.kernel import run_trading_kernel
+from mokli.trading.recommendations.store import latest_live_recommendation, store_recommendation
+from mokli.trading.recommendations.tradability import assess_plan_tradability
+from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
     Candle,
@@ -267,14 +267,14 @@ async def test_synthesizer_no_usable_decision_without_provider() -> None:
 
 @pytest.mark.asyncio
 async def test_synthesizer_uses_bound_request_provider() -> None:
-    from nanobot.utils.llm_runtime import LLMRuntime
+    from mokli.utils.llm_runtime import LLMRuntime
 
     class _FakeProvider:
         async def chat(self, **_kwargs):
             return LLMResponse(content=json.dumps(_parsed()))
 
     runtime = LLMRuntime.capture(_FakeProvider(), "test-model", context_window_tokens=128_000)
-    with request_context(RequestContext(channel="webui", chat_id="analyze", runtime=runtime)):
+    with request_context(RequestContext(channel="mokli", chat_id="analyze", runtime=runtime)):
         result = await _synth_default_complete()
     assert result.decision == "sell"
     assert result.confidence > 0
@@ -283,8 +283,8 @@ async def test_synthesizer_uses_bound_request_provider() -> None:
 
 @pytest.mark.asyncio
 async def test_live_plan_followup_does_not_call_synthesizer(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
 
     market = AgentMarketContext(
         symbol="XAUUSD",
@@ -318,7 +318,7 @@ async def test_live_plan_followup_does_not_call_synthesizer(tmp_path, monkeypatc
         called["n"] += 1
         raise AssertionError("synthesizer must not run on follow-up")
 
-    from nanobot.trading.kernel import LivePlanActive
+    from mokli.trading.kernel import LivePlanActive
 
     with pytest.raises(LivePlanActive):
         await run_trading_kernel(store=True, session_key="chat:1", complete=boom)
@@ -327,8 +327,8 @@ async def test_live_plan_followup_does_not_call_synthesizer(tmp_path, monkeypatc
 
 @pytest.mark.asyncio
 async def test_gate_veto_stores_nothing(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
     market = AgentMarketContext(
         symbol="XAUUSD",
         interval="15m",

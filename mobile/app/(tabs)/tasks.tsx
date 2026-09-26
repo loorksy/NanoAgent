@@ -1,5 +1,5 @@
-import type { Approval, ApprovalDecision, Job } from "@nanoagent/sdk";
-import { useApprovals, useJobs } from "@nanoagent/sdk/react";
+import type { Approval, ApprovalDecision, Job } from "@mokli/sdk";
+import { useApprovals, useJobs } from "@mokli/sdk/react";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";

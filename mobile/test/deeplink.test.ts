@@ -19,7 +19,7 @@ describe("normalizeGatewayUrl", () => {
 
 describe("parseDeepLink", () => {
   test("pairing via custom scheme, https pair_url and QR JSON", () => {
-    expect(parseDeepLink("nanoagent://pair?url=https%3A%2F%2Fgw.local%3A8765&code=12345678&label=Phone")).toEqual({
+    expect(parseDeepLink("mokli://pair?url=https%3A%2F%2Fgw.local%3A8765&code=12345678&label=Phone")).toEqual({
       kind: "pair",
       url: "https://gw.local:8765",
       code: "12345678",
@@ -39,14 +39,14 @@ describe("parseDeepLink", () => {
   });
 
   test("push deep links", () => {
-    expect(parseDeepLink("nanoagent://approvals/ap_1")).toEqual({ kind: "approval", id: "ap_1" });
-    expect(parseDeepLink("nanoagent://approvals/ap_1?session=s1")).toEqual({ kind: "approval", id: "ap_1", session: "s1" });
-    expect(parseDeepLink("nanoagent://sessions/s1")).toEqual({ kind: "session", id: "s1" });
-    expect(parseDeepLink("nanoagent://sessions")).toEqual({ kind: "tab", name: "agent" });
-    expect(parseDeepLink("nanoagent://results/r1")).toEqual({ kind: "result", id: "r1" });
-    expect(parseDeepLink("nanoagent://jobs/j1")).toEqual({ kind: "job", id: "j1" });
-    expect(parseDeepLink("nanoagent://connect")).toEqual({ kind: "tab", name: "connect" });
-    expect(parseDeepLink("nanoagent://nope/x")).toBeUndefined();
+    expect(parseDeepLink("mokli://approvals/ap_1")).toEqual({ kind: "approval", id: "ap_1" });
+    expect(parseDeepLink("mokli://approvals/ap_1?session=s1")).toEqual({ kind: "approval", id: "ap_1", session: "s1" });
+    expect(parseDeepLink("mokli://sessions/s1")).toEqual({ kind: "session", id: "s1" });
+    expect(parseDeepLink("mokli://sessions")).toEqual({ kind: "tab", name: "agent" });
+    expect(parseDeepLink("mokli://results/r1")).toEqual({ kind: "result", id: "r1" });
+    expect(parseDeepLink("mokli://jobs/j1")).toEqual({ kind: "job", id: "j1" });
+    expect(parseDeepLink("mokli://connect")).toEqual({ kind: "tab", name: "connect" });
+    expect(parseDeepLink("mokli://nope/x")).toBeUndefined();
     expect(parseDeepLink("not a url")).toBeUndefined();
   });
 

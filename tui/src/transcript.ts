@@ -146,7 +146,7 @@ export class Transcript {
   ) {
     this.codeRailColor = RGBA.fromHex(theme.border)
     this.root = new ScrollBoxRenderable(renderer, {
-      id: "nanobot-tui-transcript",
+      id: "mokli-tui-transcript",
       width: "100%",
       minHeight: 0,
       flexGrow: 0,
@@ -213,7 +213,7 @@ export class Transcript {
       paddingLeft: 1,
       paddingRight: 1,
     })
-    const title = this.createText(`>_  nanobot  v${options.version}`, "text", true)
+    const title = this.createText(`>_  mokli  v${options.version}`, "text", true)
     const context = this.createText([
       "",
       `${options.model}     ${options.access}`,

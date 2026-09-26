@@ -7,7 +7,7 @@ import json
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import auth
-from nanobot.agent_api.context import AgentApiServices
+from mokli.agent_api.context import AgentApiServices
 
 
 async def test_connect_channels_lists_telegram_and_whatsapp(client: TestClient) -> None:
@@ -53,12 +53,12 @@ async def test_whatsapp_qr_is_a_data_url(client: TestClient, monkeypatch) -> Non
             return {
                 "session_id": "sess-1",
                 "status": "pending",
-                "qr_url": "nanobot-whatsapp-pairing",
+                "qr_url": "mokli-whatsapp-pairing",
                 "interval_ms": 2000,
             }
 
     monkeypatch.setattr(
-        "nanobot.agent_api.messaging._connectors",
+        "mokli.agent_api.messaging._connectors",
         {"whatsapp": FakeConnect()},
     )
     response = await client.post(
@@ -71,4 +71,4 @@ async def test_whatsapp_qr_is_a_data_url(client: TestClient, monkeypatch) -> Non
     assert body["session_id"] == "sess-1"
     assert body["status"] == "pending"
     assert body["qr_data_url"].startswith("data:image/png;base64,")
-    assert "nanobot-whatsapp-pairing" not in json.dumps(body)
+    assert "mokli-whatsapp-pairing" not in json.dumps(body)

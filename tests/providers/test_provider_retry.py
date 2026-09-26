@@ -3,8 +3,8 @@ import copy
 
 import pytest
 
-from nanobot.events import RetryStatusEvent
-from nanobot.providers.base import (
+from mokli.events import RetryStatusEvent
+from mokli.providers.base import (
     RETRY_AFTER_BUFFER,
     GenerationSettings,
     LLMProvider,
@@ -55,7 +55,7 @@ async def test_chat_with_retry_retries_transient_error_then_succeeds(monkeypatch
     async def _fake_sleep(delay: int) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -83,7 +83,7 @@ async def test_chat_with_retry_emits_structured_retry_lifecycle(monkeypatch) -> 
     async def _status(status: RetryStatusEvent) -> None:
         statuses.append(status)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -124,7 +124,7 @@ async def test_chat_with_retry_clears_waiting_status_on_terminal_non_transient_e
     async def _status(status: RetryStatusEvent) -> None:
         statuses.append(status)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -147,7 +147,7 @@ async def test_chat_with_retry_does_not_retry_non_transient_error(monkeypatch) -
     async def _fake_sleep(delay: int) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -169,7 +169,7 @@ async def test_chat_with_retry_returns_final_error_after_retries(monkeypatch) ->
     async def _fake_sleep(delay: int) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -202,7 +202,7 @@ async def test_chat_with_retry_emits_terminal_progress_when_standard_retries_exh
     async def _status(status: RetryStatusEvent) -> None:
         statuses.append(status)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -240,7 +240,7 @@ async def test_chat_with_retry_routes_terminal_progress_to_explicit_callback(mon
     async def _terminal_progress(msg: str) -> None:
         terminal_progress.append(msg)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -278,7 +278,7 @@ async def test_chat_stream_with_retry_does_not_retry_after_emitting_content(monk
     async def _on_delta(delta: str) -> None:
         deltas.append(delta)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_stream_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -312,7 +312,7 @@ async def test_chat_stream_with_retry_retries_timeout_after_emitting_content(mon
     async def _on_delta(delta: str) -> None:
         deltas.append(delta)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_stream_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -353,7 +353,7 @@ async def test_chat_stream_with_retry_retries_timeout_in_new_stream_segment(
     async def _on_stream_recover() -> None:
         recoveries.append("recover")
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_stream_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -521,7 +521,7 @@ async def test_image_retry_discards_provider_state_with_images(
         messages=messages,
         provider_context=ProviderCallContext(
             conversation_state=state,
-            session_id="webui:cache-test",
+            session_id="mokli:cache-test",
         ),
     )
 
@@ -529,7 +529,7 @@ async def test_image_retry_discards_provider_state_with_images(
     retry_context = provider.contexts[-1]
     assert isinstance(retry_context, ProviderCallContext)
     assert retry_context.conversation_state is None
-    assert retry_context.session_id == "webui:cache-test"
+    assert retry_context.session_id == "mokli:cache-test"
     public_content = messages[0]["content"]
     if isinstance(public_content, list):
         assert all(block.get("type") != "image_url" for block in public_content)
@@ -599,7 +599,7 @@ async def test_chat_with_retry_uses_retry_after_and_emits_wait_progress(monkeypa
     async def _progress(msg: str) -> None:
         progress.append(msg)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -644,7 +644,7 @@ async def test_chat_with_retry_prefers_structured_retry_after_when_present(monke
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -667,7 +667,7 @@ async def test_chat_with_retry_retries_structured_status_code_without_keyword(mo
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -693,7 +693,7 @@ async def test_chat_with_retry_stops_on_429_quota_exhausted(monkeypatch) -> None
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -720,7 +720,7 @@ async def test_chat_with_retry_retries_429_transient_rate_limit(monkeypatch) -> 
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -744,7 +744,7 @@ async def test_chat_with_retry_retries_structured_timeout_kind(monkeypatch) -> N
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -767,7 +767,7 @@ async def test_chat_with_retry_structured_should_retry_false_disables_retry(monk
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -791,7 +791,7 @@ async def test_chat_with_retry_prefers_structured_retry_after(monkeypatch) -> No
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -810,7 +810,7 @@ async def test_persistent_retry_aborts_after_ten_identical_transient_errors(monk
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -836,7 +836,7 @@ async def test_persistent_retry_emits_terminal_progress_on_identical_error_limit
     async def _progress(msg: str) -> None:
         progress.append(msg)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(
         messages=[{"role": "user", "content": "hello"}],
@@ -886,7 +886,7 @@ async def test_chat_with_retry_retries_zhipu_1302_rate_limit(monkeypatch) -> Non
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 
@@ -912,7 +912,7 @@ async def test_chat_with_retry_retries_zhipu_1302_with_429_status(monkeypatch) -
     async def _fake_sleep(delay: float) -> None:
         delays.append(delay)
 
-    monkeypatch.setattr("nanobot.providers.base.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _fake_sleep)
 
     response = await provider.chat_with_retry(messages=[{"role": "user", "content": "hello"}])
 

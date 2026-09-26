@@ -7,9 +7,9 @@ import json
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import FakeAgent, auth
-from nanobot.agent.tools.context import RequestContext
-from nanobot.agent_api.context import AgentApiServices
-from nanobot.agent_api.events import session_key_for, tool_data
+from mokli.agent.tools.context import RequestContext
+from mokli.agent_api.context import AgentApiServices
+from mokli.agent_api.events import session_key_for, tool_data
 
 DECISION = {
     "verdict": "buy",
@@ -136,8 +136,8 @@ async def test_approvals_flow_waiting_state(client: TestClient, services: AgentA
 async def test_log_merges_gateway_events_and_permission_audit(
     client: TestClient, services: AgentApiServices,
 ) -> None:
-    from nanobot.trading.permissions.model import Mt5Permissions
-    from nanobot.trading.permissions.store import get_permission_store
+    from mokli.trading.permissions.model import Mt5Permissions
+    from mokli.trading.permissions.store import get_permission_store
 
     session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
     services.hub.publish(

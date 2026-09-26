@@ -5,9 +5,9 @@ from dataclasses import fields
 from typing import Any
 from unittest.mock import MagicMock
 
-from nanobot.agent.tools.base import Tool
-from nanobot.agent.tools.context import ToolContext
-from nanobot.agent.tools.loader import _SKIP_MODULES, ToolLoader
+from mokli.agent.tools.base import Tool
+from mokli.agent.tools.context import ToolContext
+from mokli.agent.tools.loader import _SKIP_MODULES, ToolLoader
 
 
 class _MinimalTool(Tool):
@@ -122,7 +122,7 @@ def test_discover_skips_private_classes():
 
 
 async def test_message_tool_create():
-    from nanobot.agent.tools.message import MessageTool
+    from mokli.agent.tools.message import MessageTool
     mock_bus = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", bus=mock_bus)
@@ -131,7 +131,7 @@ async def test_message_tool_create():
 
 
 def test_spawn_tool_create():
-    from nanobot.agent.tools.spawn import SpawnTool
+    from mokli.agent.tools.spawn import SpawnTool
     mock_mgr = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", subagent_manager=mock_mgr)
@@ -140,14 +140,14 @@ def test_spawn_tool_create():
 
 
 def test_cron_tool_enabled_without_service():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", cron_service=None)
     assert CronTool.enabled(ctx) is False
 
 
 def test_cron_tool_enabled_with_service():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_service = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", cron_service=mock_service)
@@ -155,7 +155,7 @@ def test_cron_tool_enabled_with_service():
 
 
 def test_cron_tool_create():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_service = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(
@@ -170,7 +170,7 @@ def test_cron_tool_create():
 
 
 def test_web_tools_config_cls():
-    from nanobot.agent.tools.web import WebFetchTool, WebSearchTool, WebToolsConfig
+    from mokli.agent.tools.web import WebFetchTool, WebSearchTool, WebToolsConfig
     assert WebSearchTool.config_key == "web"
     assert WebSearchTool.config_cls() is WebToolsConfig
     assert WebFetchTool.config_key == "web"
@@ -178,7 +178,7 @@ def test_web_tools_config_cls():
 
 
 def test_web_tools_enabled():
-    from nanobot.agent.tools.web import WebSearchTool
+    from mokli.agent.tools.web import WebSearchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     ctx = ToolContext(config=mock_config, workspace="/tmp")
@@ -188,7 +188,7 @@ def test_web_tools_enabled():
 
 
 def test_web_search_tool_create():
-    from nanobot.agent.tools.web import WebSearchTool
+    from mokli.agent.tools.web import WebSearchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     mock_config.web.search = MagicMock()
@@ -200,7 +200,7 @@ def test_web_search_tool_create():
 
 
 def test_web_fetch_tool_create():
-    from nanobot.agent.tools.web import WebFetchTool
+    from mokli.agent.tools.web import WebFetchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     mock_config.web.fetch = MagicMock()
@@ -215,7 +215,7 @@ def test_web_fetch_tool_create():
 
 
 def test_mcp_wrappers_not_discoverable():
-    from nanobot.agent.tools.mcp import MCPPromptWrapper, MCPResourceWrapper, MCPToolWrapper
+    from mokli.agent.tools.mcp import MCPPromptWrapper, MCPResourceWrapper, MCPToolWrapper
     assert MCPToolWrapper._plugin_discoverable is False
     assert MCPResourceWrapper._plugin_discoverable is False
     assert MCPPromptWrapper._plugin_discoverable is False
@@ -226,9 +226,9 @@ def test_mcp_wrappers_not_discoverable():
 
 def test_loader_registers_gold_agent_tool_set(tmp_path):
     """The loader wires the trading tool set; generic coding tools stay out."""
-    from nanobot.agent.tools.loader import ToolLoader
-    from nanobot.agent.tools.registry import ToolRegistry
-    from nanobot.config.schema import ToolsConfig
+    from mokli.agent.tools.loader import ToolLoader
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.config.schema import ToolsConfig
 
     ctx = ToolContext(
         config=ToolsConfig(),

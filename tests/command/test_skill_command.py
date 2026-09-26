@@ -5,13 +5,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.skills import SkillsLoader
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.command.builtin import cmd_skill, register_builtin_commands
-from nanobot.command.router import CommandContext, CommandRouter
-from nanobot.config.schema import ModelPresetConfig
+from mokli.agent.loop import AgentLoop
+from mokli.agent.skills import SkillsLoader
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.command.builtin import cmd_skill, register_builtin_commands
+from mokli.command.router import CommandContext, CommandRouter
+from mokli.config.schema import ModelPresetConfig
 
 
 def _provider(default_model: str = "test-model") -> MagicMock:

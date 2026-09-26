@@ -1,6 +1,6 @@
-# How to Secure a Local AI Agent with nanobot
+# How to Secure a Local AI Agent with mokli
 
-This guide covers the practical controls to review before letting a nanobot
+This guide covers the practical controls to review before letting a mokli
 agent access files, shell commands, web fetch, chat apps, or remote users.
 
 ## What you will build
@@ -12,15 +12,15 @@ agent access files, shell commands, web fetch, chat apps, or remote users.
 
 ## When to use this
 
-Use this before exposing nanobot to teammates, chat apps, public networks, broad
+Use this before exposing mokli to teammates, chat apps, public networks, broad
 web access, or unattended automations.
 
 ## Install
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
-nanobot agent -m "Hello!"
+python -m pip install mokli-ai
+mokli onboard --wizard
+mokli agent -m "Hello!"
 ```
 
 ## Minimal working example
@@ -50,7 +50,7 @@ Start with workspace restriction:
 - Prefer pairing for DM-capable chat apps, use narrow `allowFrom` lists only
   when static allowlists are intentional, and keep group policy mention-only at
   first.
-- Bind WebUI, WebSocket, and API services to localhost unless remote access is
+- Bind Mokli, WebSocket, and API services to localhost unless remote access is
   intentional.
 
 ## Security notes
@@ -70,7 +70,7 @@ Start with workspace restriction:
 - If local HTTP tools are blocked, review the SSRF whitelist and use a narrow
   CIDR.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Configuration: Security](../configuration.md#security)
 - [Pairing](../configuration.md#pairing)

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 from urllib.request import Request, urlopen
 
-REPOSITORY = "HKUDS/nanobot"
+REPOSITORY = "HKUDS/mokli"
 README = Path(__file__).resolve().parents[1] / "README.md"
 START = "<!-- contributors:start -->"
 END = "<!-- contributors:end -->"
@@ -28,7 +28,7 @@ class Contributor(TypedDict):
 def fetch_contributors() -> list[Contributor]:
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "nanobot-readme",
+        "User-Agent": "mokli-readme",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     if token := os.environ.get("GITHUB_TOKEN"):

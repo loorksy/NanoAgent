@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.automation_turns import AutomationTurnError
-from nanobot.bus.events import InboundMessage, OutboundMessage
-from nanobot.triggers.local_runner import run_local_trigger_queue
-from nanobot.triggers.local_store import LocalTriggerStore, TriggerDisabledError
-from nanobot.triggers.local_types import LocalTrigger, TriggerDelivery
-from nanobot.webui.metadata import WEBUI_MESSAGE_SOURCE_METADATA_KEY, WEBUI_TURN_METADATA_KEY
+from mokli.agent.automation_turns import AutomationTurnError
+from mokli.bus.events import InboundMessage, OutboundMessage
+from mokli.triggers.local_runner import run_local_trigger_queue
+from mokli.triggers.local_store import LocalTriggerStore, TriggerDisabledError
+from mokli.triggers.local_types import LocalTrigger, TriggerDelivery
+from mokli.mokli.metadata import MOKLI_MESSAGE_SOURCE_METADATA_KEY, MOKLI_TURN_METADATA_KEY
 
 
 def _channel_is_enabled(_name: str) -> bool:
@@ -131,7 +131,7 @@ def test_enqueue_writes_trigger_run_record(tmp_path: Path) -> None:
         channel="websocket",
         chat_id="chat-1",
         session_key="websocket:chat-1",
-        origin_metadata={"webui": True},
+        origin_metadata={"mokli": True},
     )
 
     delivery = store.enqueue(trigger.id, "Review PR #4591")
@@ -148,7 +148,7 @@ def test_enqueue_writes_trigger_run_record(tmp_path: Path) -> None:
     assert record["chat_id"] == "chat-1"
     assert record["sender_id"] == "trigger"
     assert record["content"] == "Review PR #4591"
-    assert record["origin_metadata"] == {"webui": True}
+    assert record["origin_metadata"] == {"mokli": True}
     assert record["updated_at_ms"] > 0
     stored = store.get(trigger.id)
     assert stored is not None
@@ -284,7 +284,7 @@ async def test_local_trigger_queue_submits_bound_inbound_message(tmp_path: Path)
         channel="websocket",
         chat_id="chat-1",
         session_key="websocket:chat-1",
-        origin_metadata={"webui": True, WEBUI_TURN_METADATA_KEY: "old-turn"},
+        origin_metadata={"mokli": True, MOKLI_TURN_METADATA_KEY: "old-turn"},
     )
     delivery = store.enqueue(trigger.id, "Review PR #4502")
     submitted: list[InboundMessage] = []
@@ -318,9 +318,9 @@ async def test_local_trigger_queue_submits_bound_inbound_message(tmp_path: Path)
     assert msg.sender_id == "trigger"
     assert msg.content == "Review PR #4502"
     assert msg.session_key_override == "websocket:chat-1"
-    assert msg.metadata[WEBUI_TURN_METADATA_KEY].startswith(f"trigger:{trigger.id}:")
-    assert msg.metadata[WEBUI_TURN_METADATA_KEY] != "old-turn"
-    assert msg.metadata[WEBUI_MESSAGE_SOURCE_METADATA_KEY] == {
+    assert msg.metadata[MOKLI_TURN_METADATA_KEY].startswith(f"trigger:{trigger.id}:")
+    assert msg.metadata[MOKLI_TURN_METADATA_KEY] != "old-turn"
+    assert msg.metadata[MOKLI_MESSAGE_SOURCE_METADATA_KEY] == {
         "kind": "local_trigger",
         "label": "PR review",
     }

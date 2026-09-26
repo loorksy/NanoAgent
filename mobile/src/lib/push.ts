@@ -1,4 +1,4 @@
-import type { ApprovalDecision, GatewayClient, PushPayload } from "@nanoagent/sdk";
+import type { ApprovalDecision, GatewayClient, PushPayload } from "@mokli/sdk";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
@@ -8,8 +8,8 @@ import type { InboxStoreApi } from "../stores/notifications";
 import { pushPayloadFromData } from "../stores/notifications";
 
 export const ANDROID_CHANNEL_ID = "default";
-export const APPROVAL_CATEGORY = "nanoagent.approval";
-export const OPEN_CATEGORY = "nanoagent.open";
+export const APPROVAL_CATEGORY = "mokli.approval";
+export const OPEN_CATEGORY = "mokli.open";
 export const ACTION_CONFIRM = "confirm";
 export const ACTION_CANCEL = "cancel";
 export const ACTION_OPEN = "open";

@@ -1,11 +1,11 @@
-from nanobot.trading.agents.apply_model_decision import apply_model_decision
-from nanobot.trading.cards.artifacts import (
+from mokli.trading.agents.apply_model_decision import apply_model_decision
+from mokli.trading.cards.artifacts import (
     apply_result_artifacts,
     build_price_quote_artifacts,
     emit_trading_artifacts,
     parse_artifacts_requested,
 )
-from nanobot.trading.types import (
+from mokli.trading.types import (
     AgentFinalResult,
     AgentRecommendation,
     EvidenceSnapshot,

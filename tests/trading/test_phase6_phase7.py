@@ -6,20 +6,20 @@ from datetime import UTC, datetime
 
 import pytest
 
-from nanobot.trading.backtest.engine import replay
-from nanobot.trading.delivery import broadcast_channels, silence_blocks
-from nanobot.trading.gates.max_positions import evaluate_max_total_lots
-from nanobot.trading.gates.risk_snapshot import RiskSnapshot
-from nanobot.trading.geometry.detectors import momentum_is_weak, momentum_score
-from nanobot.trading.management.engine import ManagedPosition, plan_position_actions
-from nanobot.trading.mt5_execution import mt5_confirm_order, mt5_propose_order
-from nanobot.trading.mt5_metaapi import NullTransport, set_transport_for_tests
-from nanobot.trading.oanda_stream import feed_health, note_tick
-from nanobot.trading.reports.behaviour import postmortem_artifact, record_daily_wrap_answer
-from nanobot.trading.reports.scorecard import build_scorecard
-from nanobot.trading.scenarios.trigger_engine import ScenarioSpec, ScenarioWatch
-from nanobot.trading.types import Candle
-from nanobot.trading.warehouse import CandleWarehouse
+from mokli.trading.backtest.engine import replay
+from mokli.trading.delivery import broadcast_channels, silence_blocks
+from mokli.trading.gates.max_positions import evaluate_max_total_lots
+from mokli.trading.gates.risk_snapshot import RiskSnapshot
+from mokli.trading.geometry.detectors import momentum_is_weak, momentum_score
+from mokli.trading.management.engine import ManagedPosition, plan_position_actions
+from mokli.trading.mt5_execution import mt5_confirm_order, mt5_propose_order
+from mokli.trading.mt5_metaapi import NullTransport, set_transport_for_tests
+from mokli.trading.oanda_stream import feed_health, note_tick
+from mokli.trading.reports.behaviour import postmortem_artifact, record_daily_wrap_answer
+from mokli.trading.reports.scorecard import build_scorecard
+from mokli.trading.scenarios.trigger_engine import ScenarioSpec, ScenarioWatch
+from mokli.trading.types import Candle
+from mokli.trading.warehouse import CandleWarehouse
 
 SAFE_TS = datetime(2023, 11, 15, 12, 0, tzinfo=UTC).timestamp()
 
@@ -46,7 +46,7 @@ def test_momentum_score_uses_tick_volume() -> None:
 
 def test_max_total_lots_vetoes_aggregate_exposure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "nanobot.trading.gates.max_positions.live",
+        "mokli.trading.gates.max_positions.live",
         lambda: type("P", (), {"MAX_TOTAL_LOTS": 1.0})(),
     )
     blocked = evaluate_max_total_lots(RiskSnapshot(open_lots=0.8, proposed_lot=0.4))
@@ -140,13 +140,13 @@ async def test_management_cycle_reports_a_rejected_broker_call(monkeypatch) -> N
         def load(self) -> _Perms:
             return _Perms()
 
-    monkeypatch.setattr("nanobot.trading.mt5_metaapi.get_transport", lambda: _Transport())
+    monkeypatch.setattr("mokli.trading.mt5_metaapi.get_transport", lambda: _Transport())
     monkeypatch.setattr(
-        "nanobot.trading.permissions.store.get_permission_store",
+        "mokli.trading.permissions.store.get_permission_store",
         lambda: _Store(),
     )
     monkeypatch.setattr(
-        "nanobot.trading.runtime_state.get_runtime_store",
+        "mokli.trading.runtime_state.get_runtime_store",
         lambda: type(
             "Store",
             (),
@@ -157,7 +157,7 @@ async def test_management_cycle_reports_a_rejected_broker_call(monkeypatch) -> N
             })())},
         )(),
     )
-    from nanobot.trading.management.engine import run_management_cycle
+    from mokli.trading.management.engine import run_management_cycle
 
     summary = await run_management_cycle(
         live_px=2662,
@@ -279,13 +279,13 @@ class _PendingTransport(NullTransport):
 
 @pytest.mark.asyncio
 async def test_limit_confirm_sends_pending_not_market(monkeypatch: pytest.MonkeyPatch) -> None:
-    from nanobot.trading.runtime_state import get_runtime_store
+    from mokli.trading.runtime_state import get_runtime_store
 
     get_runtime_store().update(paper_mode=False, kill_switch=False, paused=False)
     transport = _PendingTransport()
     set_transport_for_tests(transport)
-    monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)
-    monkeypatch.setattr("nanobot.trading.mt5_proposals.time.time", lambda: SAFE_TS)
+    monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: SAFE_TS)
+    monkeypatch.setattr("mokli.trading.mt5_proposals.time.time", lambda: SAFE_TS)
     try:
         proposed = await mt5_propose_order(
             side="buy",
@@ -307,10 +307,10 @@ async def test_limit_confirm_sends_pending_not_market(monkeypatch: pytest.Monkey
 
 def test_conversation_scenarios_name_real_tools() -> None:
     """Labeled scenarios name tools. Selection stays with the model, not a keyword router."""
-    from nanobot.agent.tools.context import ToolContext
-    from nanobot.agent.tools.loader import ToolLoader
-    from nanobot.agent.tools.registry import ToolRegistry
-    from nanobot.config.schema import ToolsConfig
+    from mokli.agent.tools.context import ToolContext
+    from mokli.agent.tools.loader import ToolLoader
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.config.schema import ToolsConfig
 
     scenarios = {
         "live_quote": "get_gold_quote",

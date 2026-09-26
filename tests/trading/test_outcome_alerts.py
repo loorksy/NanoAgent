@@ -1,11 +1,11 @@
-from nanobot.trading.recommendations.followup import refresh_recommendation_outcomes
-from nanobot.trading.recommendations.outcome_alerts import (
+from mokli.trading.recommendations.followup import refresh_recommendation_outcomes
+from mokli.trading.recommendations.outcome_alerts import (
     OutcomeTransition,
     format_outcome_alert,
     should_alert_transition,
 )
-from nanobot.trading.recommendations.store import store_recommendation
-from nanobot.trading.types import (
+from mokli.trading.recommendations.store import store_recommendation
+from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
     FinalDecisionResult,
@@ -109,7 +109,7 @@ def test_refresh_recommendation_outcomes_records_transition(monkeypatch):
     assert rec_id
 
     monkeypatch.setattr(
-        "nanobot.trading.recommendations.followup.grade_outcome_status",
+        "mokli.trading.recommendations.followup.grade_outcome_status",
         lambda row, live_price=None: "tp1",
     )
 

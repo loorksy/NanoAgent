@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.trading_team import RunTradingTeamTool
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.trading_team import RunTradingTeamTool
+from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ async def test_run_trading_team_executes_swarm() -> None:
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_team.run_swarm",
+            "mokli.agent.tools.trading_team.run_swarm",
             new_callable=AsyncMock,
             return_value={"final": fake_final, "task_summaries": {"task-macro": "ok"}},
         ):

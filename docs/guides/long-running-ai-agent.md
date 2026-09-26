@@ -1,6 +1,6 @@
-# How to Run a Long-Running AI Agent with nanobot
+# How to Run a Long-Running AI Agent with mokli
 
-nanobot can keep agent work alive across turns through sustained goals,
+mokli can keep agent work alive across turns through sustained goals,
 persistent sessions, scheduled automations, local triggers, and a gateway
 process that stays running.
 
@@ -20,9 +20,9 @@ from scripts and build jobs.
 ## Install
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
-nanobot agent -m "Hello!"
+python -m pip install mokli-ai
+mokli onboard --wizard
+mokli agent -m "Hello!"
 ```
 
 ## Minimal working example
@@ -30,25 +30,25 @@ nanobot agent -m "Hello!"
 Start a gateway:
 
 ```bash
-nanobot gateway
+mokli gateway
 ```
 
-From the WebUI or a chat session, start a sustained goal:
+From the Mokli or a chat session, start a sustained goal:
 
 ```text
 /goal Review this workspace, identify missing tests, and propose the smallest next fix.
 ```
 
 For scheduled or trigger-based runs, create the automation from the target chat
-so nanobot can link it to the correct session and workspace.
+so mokli can link it to the correct session and workspace.
 
 ## Production notes
 
-- Keep the gateway running for chat apps, WebUI sessions, automations, and local
+- Keep the gateway running for chat apps, Mokli sessions, automations, and local
   triggers.
 - Use stable session keys or chat sessions for work that should preserve context.
 - Keep goals bounded and explicit about done-ness.
-- Review Automations in the WebUI before relying on a schedule.
+- Review Automations in the Mokli before relying on a schedule.
 
 ## Security notes
 
@@ -61,13 +61,13 @@ so nanobot can link it to the correct session and workspace.
 - If a goal appears stuck, inspect the active session and gateway logs.
 - If an automation does not run, check that it is linked to a chat/session and
   that the gateway is still running.
-- If a local trigger fails, check the command copied from the WebUI Automations
+- If a local trigger fails, check the command copied from the Mokli Automations
   view.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Automations](../automations.md)
-- [WebUI Automations](../webui.md#automations)
+- [Mokli Automations](../mokli.md#automations)
 - [Chat Commands](../chat-commands.md)
 - [Memory](../memory.md)
 - [Deployment](../deployment.md)

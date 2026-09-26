@@ -2,9 +2,9 @@ import pytest
 from websockets.datastructures import Headers
 from websockets.http11 import Request
 
-from nanobot.trading.chart_host_bridge import get_chart_host_bridge
-from nanobot.trading.chart_host_token import mint_chart_host_page_token
-from nanobot.webui.trading_api import (
+from mokli.trading.chart_host_bridge import get_chart_host_bridge
+from mokli.trading.chart_host_token import mint_chart_host_page_token
+from mokli.mokli.trading_api import (
     handle_trading_chart_host_poll,
     handle_trading_chart_host_submit,
 )
@@ -12,7 +12,7 @@ from nanobot.webui.trading_api import (
 
 @pytest.fixture(autouse=True)
 def chart_host_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NANOBOT_CHART_HOST_TOKEN", "test-chart-host-secret-123456")
+    monkeypatch.setenv("MOKLI_CHART_HOST_TOKEN", "test-chart-host-secret-123456")
 
 
 def _request(path: str, *, token: str | None = None, ws_token: str | None = None) -> Request:
@@ -21,7 +21,7 @@ def _request(path: str, *, token: str | None = None, ws_token: str | None = None
         headers["Authorization"] = f"Bearer {token}"
     request = Request(path, headers)
     if ws_token:
-        setattr(request, "_nanobot_chart_host_ws_token", ws_token)
+        setattr(request, "_mokli_chart_host_ws_token", ws_token)
     return request
 
 
@@ -44,7 +44,7 @@ async def test_chart_host_submit_accepts_ws_token() -> None:
     )
     setattr(
         request,
-        "_nanobot_webui_mutation_payload",
+        "_mokli_mokli_mutation_payload",
         {
             "captureId": capture_id,
             "frames": [{"timeframe": "15m", "image": "aGVsbG8="}],
@@ -69,7 +69,7 @@ async def test_chart_host_submit_accepts_bearer_token() -> None:
     )
     setattr(
         request,
-        "_nanobot_webui_mutation_payload",
+        "_mokli_mokli_mutation_payload",
         {
             "captureId": capture_id,
             "frames": [{"timeframe": "1h", "image": "aGVsbG8="}],

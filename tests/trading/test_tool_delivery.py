@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.trading_chart import (
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.trading_chart import (
     AnalyzeGoldTool,
     GetGoldQuoteTool,
     GetLiveRecommendationTool,
 )
-from nanobot.trading.tool_delivery import should_publish_trading_ui
+from mokli.trading.tool_delivery import should_publish_trading_ui
 
 
 def test_should_publish_trading_ui_requires_opt_in() -> None:
@@ -44,10 +44,10 @@ async def test_get_gold_quote_does_not_publish_by_default() -> None:
     ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:chat-1")
 
     with request_context(ctx):
-        with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
+        with patch("mokli.agent.tools.trading_chart.load_trading_config") as cfg:
             cfg.return_value = MagicMock(oanda_configured=True)
             with patch(
-                "nanobot.agent.tools.trading_chart.fetch_evidence_nodes",
+                "mokli.agent.tools.trading_chart.fetch_evidence_nodes",
                 new_callable=AsyncMock,
                 return_value=_quote_payload(),
             ):
@@ -67,10 +67,10 @@ async def test_get_gold_quote_publishes_when_present_ui() -> None:
     ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:chat-1")
 
     with request_context(ctx):
-        with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
+        with patch("mokli.agent.tools.trading_chart.load_trading_config") as cfg:
             cfg.return_value = MagicMock(oanda_configured=True)
             with patch(
-                "nanobot.agent.tools.trading_chart.fetch_evidence_nodes",
+                "mokli.agent.tools.trading_chart.fetch_evidence_nodes",
                 new_callable=AsyncMock,
                 return_value=_quote_payload(),
             ):
@@ -80,7 +80,7 @@ async def test_get_gold_quote_publishes_when_present_ui() -> None:
 
 @pytest.mark.asyncio
 async def test_analyze_gold_returns_live_plan_error_instead_of_second_plan() -> None:
-    from nanobot.trading.kernel import LivePlanActive
+    from mokli.trading.kernel import LivePlanActive
 
     bus = MagicMock()
     bus.publish_outbound = AsyncMock()
@@ -91,7 +91,7 @@ async def test_analyze_gold_returns_live_plan_error_instead_of_second_plan() -> 
         raise LivePlanActive({"id": "rec-1", "direction": "sell"})
 
     with request_context(ctx):
-        with patch("nanobot.agent.tools.trading_chart.run_trading_kernel", _kernel):
+        with patch("mokli.agent.tools.trading_chart.run_trading_kernel", _kernel):
             result = await tool.execute()
     payload = json.loads(str(result))
     assert payload["ok"] is False
@@ -122,14 +122,14 @@ async def test_get_live_recommendation_returns_plan_and_price() -> None:
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_chart.sync_session_live_plan",
+            "mokli.agent.tools.trading_chart.sync_session_live_plan",
             return_value=live_row,
         ):
-            with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
+            with patch("mokli.agent.tools.trading_chart.load_trading_config") as cfg:
                 cfg.return_value = MagicMock(oanda_configured=True)
-                with patch("nanobot.agent.tools.trading_chart.fetch_quote", return_value=quote):
+                with patch("mokli.agent.tools.trading_chart.fetch_quote", return_value=quote):
                     with patch(
-                        "nanobot.agent.tools.trading_chart.grade_outcome_status",
+                        "mokli.agent.tools.trading_chart.grade_outcome_status",
                         return_value="in_trade",
                     ):
                         raw = await tool.execute()

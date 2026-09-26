@@ -10,7 +10,7 @@ import httpx
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import auth
-from nanobot.agent_api.context import SERVICES_KEY
+from mokli.agent_api.context import SERVICES_KEY
 
 
 def _wire(body: object) -> str:
@@ -75,7 +75,7 @@ async def test_claude_token_round_trip_never_echoes_the_secret(
 ) -> None:
     monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
     env_file = tmp_path / "service.env"
-    monkeypatch.setenv("NANOAGENT_ENV_FILE", str(env_file))
+    monkeypatch.setenv("MOKLI_ENV_FILE", str(env_file))
     token = "sk-ant-oat01-claude-code-secret-IkOw"
 
     saved = await client.post(
@@ -111,14 +111,14 @@ async def test_claude_connect_exchanges_without_returning_the_token(
     client: TestClient, monkeypatch, tmp_path: Path,
 ) -> None:
     monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
-    monkeypatch.setenv("NANOAGENT_ENV_FILE", str(tmp_path / "oauth.env"))
+    monkeypatch.setenv("MOKLI_ENV_FILE", str(tmp_path / "oauth.env"))
     exchanged = "exchanged-claude-token-value-ZZZZ"
 
     def _exchange(**_kwargs: object) -> str:
         return exchanged
 
     monkeypatch.setattr(
-        "nanobot.webui.claude_code_oauth_flow.exchange_authorization_code",
+        "mokli.mokli.claude_code_oauth_flow.exchange_authorization_code",
         _exchange,
     )
     started = await client.post("/api/v2/settings/claude-code/connect", headers=auth(), json={})
@@ -177,7 +177,7 @@ async def test_provider_model_selection_hides_the_api_key(
             request=httpx.Request("GET", url),
         )
 
-    monkeypatch.setattr("nanobot.webui.settings_api.httpx.get", fake_get)
+    monkeypatch.setattr("mokli.mokli.settings_api.httpx.get", fake_get)
     listed = await client.get("/api/v2/settings/providers/openrouter/models", headers=auth())
     assert listed.status == 200
     catalog = await listed.json()
@@ -228,7 +228,7 @@ async def test_provider_model_selection_hides_the_api_key(
     prefixed = await client.post(
         "/api/v2/sessions/chat-models/messages",
         headers=auth(),
-        json={"content": "hi", "model": "nanoagent.google/gemini-test"},
+        json={"content": "hi", "model": "mokli.google/gemini-test"},
     )
     assert prefixed.status == 202
     assert agent.presets[-1] == ("agent_api:chat-models", "gemini-test")
@@ -249,10 +249,10 @@ async def test_provider_model_selection_hides_the_api_key(
     assert unknown.status == 400
 
     listed = await (await client.get("/v1/models", headers=auth())).json()
-    assert [row["id"] for row in listed["data"]] == ["nanoagent", "google/gemini-test"]
+    assert [row["id"] for row in listed["data"]] == ["mokli", "google/gemini-test"]
     compat = await client.post(
         "/v1/chat/completions",
-        headers={**auth(), "X-OpenWebUI-Chat-Id": "chat-42"},
+        headers={**auth(), "X-Mokliui-Chat-Id": "chat-42"},
         json={
             "model": "google/gemini-test",
             "messages": [{"role": "user", "content": "hi"}],

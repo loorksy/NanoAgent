@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from nanobot.trading.stream_hub import TradingStreamHub
+from mokli.trading.stream_hub import TradingStreamHub
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ async def test_stream_hub_broadcasts_oanda_tick(monkeypatch) -> None:
         return lambda: None
 
     monkeypatch.setattr(
-        "nanobot.trading.stream_hub.subscribe_symbol_ticks",
+        "mokli.trading.stream_hub.subscribe_symbol_ticks",
         fake_subscribe,
     )
 

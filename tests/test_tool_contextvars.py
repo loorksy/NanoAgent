@@ -6,15 +6,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.cron import CronTool
-from nanobot.agent.tools.message import MessageTool
-from nanobot.agent.tools.spawn import SpawnTool
-from nanobot.cron.service import CronService
-from nanobot.providers.base import GenerationSettings, LLMProvider
-from nanobot.runtime_context import RUNTIME_CONTEXT_INPUT_META, RuntimeContextBlock
-from nanobot.session.keys import UNIFIED_SESSION_KEY
-from nanobot.utils.llm_runtime import LLMRuntime
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.cron import CronTool
+from mokli.agent.tools.message import MessageTool
+from mokli.agent.tools.spawn import SpawnTool
+from mokli.cron.service import CronService
+from mokli.providers.base import GenerationSettings, LLMProvider
+from mokli.runtime_context import RUNTIME_CONTEXT_INPUT_META, RuntimeContextBlock
+from mokli.session.keys import UNIFIED_SESSION_KEY
+from mokli.utils.llm_runtime import LLMRuntime
 
 
 def _runtime(model: str = "test-model") -> LLMRuntime:
@@ -278,15 +278,15 @@ async def test_cron_tool_basic_request_context_and_execute(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_webui_cron_tool_uses_origin_session_when_unified_enabled(tmp_path) -> None:
-    """WebUI-created cron jobs stay attached to the creating chat."""
+async def test_mokli_cron_tool_uses_origin_session_when_unified_enabled(tmp_path) -> None:
+    """Mokli-created cron jobs stay attached to the creating chat."""
     tool = CronTool(CronService(tmp_path / "jobs.json"))
 
     with request_context(
         RequestContext(
             channel="websocket",
             chat_id="chat-123",
-            metadata={"webui": True},
+            metadata={"mokli": True},
             session_key=UNIFIED_SESSION_KEY,
         )
     ):
@@ -298,12 +298,12 @@ async def test_webui_cron_tool_uses_origin_session_when_unified_enabled(tmp_path
     assert jobs[0].payload.session_key == "websocket:chat-123"
     assert jobs[0].payload.origin_channel == "websocket"
     assert jobs[0].payload.origin_chat_id == "chat-123"
-    assert jobs[0].payload.origin_metadata == {"webui": True}
+    assert jobs[0].payload.origin_metadata == {"mokli": True}
 
 
 @pytest.mark.asyncio
 async def test_cron_tool_snapshots_only_persistable_request_metadata(tmp_path) -> None:
-    """Live runtime context must not poison a persisted WebUI cron job."""
+    """Live runtime context must not poison a persisted Mokli cron job."""
     store_path = tmp_path / "jobs.json"
     service = CronService(store_path)
     tool = CronTool(service)
@@ -314,9 +314,9 @@ async def test_cron_tool_snapshots_only_persistable_request_metadata(tmp_path) -
                 channel="websocket",
                 chat_id="chat-123",
                 metadata={
-                    "webui": True,
+                    "mokli": True,
                     RUNTIME_CONTEXT_INPUT_META: [
-                        RuntimeContextBlock(source="webui_quote", content="quoted reply")
+                        RuntimeContextBlock(source="mokli_quote", content="quoted reply")
                     ],
                     "opaque": object(),
                 },
@@ -328,10 +328,10 @@ async def test_cron_tool_snapshots_only_persistable_request_metadata(tmp_path) -
         assert result.startswith("Created job")
         jobs = service.list_jobs()
         assert len(jobs) == 1
-        assert jobs[0].payload.origin_metadata == {"webui": True}
+        assert jobs[0].payload.origin_metadata == {"mokli": True}
 
         raw = json.loads(store_path.read_text(encoding="utf-8"))
-        assert raw["jobs"][0]["payload"]["originMetadata"] == {"webui": True}
+        assert raw["jobs"][0]["payload"]["originMetadata"] == {"mokli": True}
     finally:
         service.stop()
 

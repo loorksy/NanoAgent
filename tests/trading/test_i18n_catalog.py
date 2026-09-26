@@ -1,4 +1,4 @@
-"""Locale catalogs (``nanobot/trading/locales/*.json``) stay in sync and Arabic stays out of code."""
+"""Locale catalogs (``mokli/trading/locales/*.json``) stay in sync and Arabic stays out of code."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from string import Formatter
 
 import pytest
 
-from nanobot.trading import i18n
-from nanobot.trading.i18n import (
+from mokli.trading import i18n
+from mokli.trading.i18n import (
     CARD_LABELS,
     DECISION_LABELS,
     GATE_LABELS,
@@ -21,8 +21,8 @@ from nanobot.trading.i18n import (
     tr,
 )
 
-LOCALES_DIR = Path("nanobot/trading/locales")
-TRADING_DIR = Path("nanobot/trading")
+LOCALES_DIR = Path("mokli/trading/locales")
+TRADING_DIR = Path("mokli/trading")
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _RAW_GATE = re.compile(r"\bG\d+\b", re.I)
 
@@ -147,6 +147,6 @@ def test_no_arabic_script_in_trading_python_sources() -> None:
     assert offenders == []
 
 
-def test_no_arabic_script_in_trading_webui_api() -> None:
-    text = Path("nanobot/webui/trading_api.py").read_text(encoding="utf-8")
+def test_no_arabic_script_in_trading_mokli_api() -> None:
+    text = Path("mokli/mokli/trading_api.py").read_text(encoding="utf-8")
     assert not _ARABIC.search(text)

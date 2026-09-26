@@ -8,10 +8,10 @@ from typing import Any
 
 import pytest
 
-from nanobot.bus.events import OutboundMessage
-from nanobot.channels._setup import channel_setup_spec
-from nanobot.channels.base import BaseChannel
-from nanobot.channels.contracts import (
+from mokli.bus.events import OutboundMessage
+from mokli.channels._setup import channel_setup_spec
+from mokli.channels.base import BaseChannel
+from mokli.channels.contracts import (
     ChannelActivation,
     ChannelFieldSpec,
     ChannelInstanceSpec,
@@ -27,8 +27,8 @@ from nanobot.channels.contracts import (
     channel_update_instance_config,
     resolve_channel_action_target,
 )
-from nanobot.channels.plugin import ChannelPlugin
-from nanobot.channels.registry import discover_plugins
+from mokli.channels.plugin import ChannelPlugin
+from mokli.channels.registry import discover_plugins
 
 
 class _SingleChannel(BaseChannel):
@@ -127,12 +127,12 @@ def test_contract_module_is_not_discovered_as_a_channel() -> None:
 def test_settings_contract_import_does_not_eagerly_load_runtime_graph() -> None:
     code = """
 import sys
-import nanobot.channels.validation
+import mokli.channels.validation
 
 unexpected = {
-    "nanobot.channels.manager",
-    "nanobot.channels.websocket",
-    "nanobot.webui.gateway_services",
+    "mokli.channels.manager",
+    "mokli.channels.websocket",
+    "mokli.mokli.gateway_services",
 } & sys.modules.keys()
 assert not unexpected, sorted(unexpected)
 """

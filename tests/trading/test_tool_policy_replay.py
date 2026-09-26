@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
-from nanobot.trading.turn_session import TurnSession, turn_session_scope
+from mokli.trading.policy_guard import PolicyViolation, validate_tool_call
+from mokli.trading.turn_session import TurnSession, turn_session_scope
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "unified_replay"
 

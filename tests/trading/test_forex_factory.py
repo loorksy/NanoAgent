@@ -1,4 +1,4 @@
-from nanobot.trading.news.forex_factory import fetch_upcoming_events
+from mokli.trading.news.forex_factory import fetch_upcoming_events
 
 
 def test_forex_factory_disabled_by_default() -> None:

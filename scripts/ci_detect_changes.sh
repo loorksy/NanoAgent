@@ -3,7 +3,7 @@
 set -euo pipefail
 
 python_required=true
-webui_required=true
+mokli_required=true
 tui_required=true
 docker_required=true
 
@@ -29,7 +29,7 @@ if [[ -n "$base_sha" ]] && git cat-file -e "${base_sha}^{commit}" 2>/dev/null; t
   changed_files="$(git diff --name-only --no-renames "$diff_range" || true)"
   if [[ -n "$changed_files" ]]; then
     python_required=false
-    webui_required=false
+    mokli_required=false
     tui_required=false
     docker_required=false
 
@@ -38,15 +38,15 @@ if [[ -n "$base_sha" ]] && git cat-file -e "${base_sha}^{commit}" 2>/dev/null; t
       case "$file" in
         .github/workflows/*)
           python_required=true
-          webui_required=true
+          mokli_required=true
           tui_required=true
           docker_required=true
           ;;
-        webui/*|open-webui/*|nanobot/channels/*/webui/*)
-          webui_required=true
+        mokli/*|mokli-ui/*|mokli/channels/*/mokli/*)
+          mokli_required=true
           docker_required=true
           ;;
-        nanobot/*)
+        mokli/*)
           python_required=true
           docker_required=true
           ;;
@@ -66,11 +66,11 @@ if [[ -n "$base_sha" ]] && git cat-file -e "${base_sha}^{commit}" 2>/dev/null; t
         tui/*)
           tui_required=true
           ;;
-        docs/*|.agent/*|.github/ISSUE_TEMPLATE/*|AGENTS.md|CLAUDE.md|COMMUNICATION.md|CONTRIBUTING.md|README.md|SECURITY.md|webui/README.md|render.yaml)
+        docs/*|.agent/*|.github/ISSUE_TEMPLATE/*|AGENTS.md|CLAUDE.md|COMMUNICATION.md|CONTRIBUTING.md|README.md|SECURITY.md|mokli/README.md|render.yaml)
           ;;
         *)
           python_required=true
-          webui_required=true
+          mokli_required=true
           tui_required=true
           docker_required=true
           ;;
@@ -81,7 +81,7 @@ fi
 
 {
   echo "python_required=$python_required"
-  echo "webui_required=$webui_required"
+  echo "mokli_required=$mokli_required"
   echo "tui_required=$tui_required"
   echo "docker_required=$docker_required"
 } >> "${GITHUB_OUTPUT}"

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
 import {
-  NanobotClient,
+  MokliClient,
   GatewayConnectionError,
   connectionEndpoint,
   fetchAvailableSkills,
@@ -52,7 +52,7 @@ async function waitUntil(predicate: () => boolean, timeout = 1_000): Promise<voi
 
 describe("Desktop attach-only protocol", () => {
   const gatewayId = "4d7d6bea-6d4b-4da1-975f-3d835c986c50"
-  async function fixture(run: (client: NanobotClient, socket: FakeSocket, statuses: ConnectionStatus[], attempts: () => number) => Promise<void>) {
+  async function fixture(run: (client: MokliClient, socket: FakeSocket, statuses: ConnectionStatus[], attempts: () => number) => Promise<void>) {
     const original = globalThis.WebSocket
     let socket: FakeSocket | undefined
     let attempts = 0
@@ -61,7 +61,7 @@ describe("Desktop attach-only protocol", () => {
       configurable: true,
       value: class extends FakeSocket { constructor() { super(); socket = this } },
     })
-    const client = new NanobotClient({
+    const client = new MokliClient({
       expectedGatewayId: gatewayId, reconnect: false, reconnectDelayMs: 1,
       resolveConnection: async () => {
         attempts++
@@ -137,7 +137,7 @@ describe("gateway protocol", () => {
     globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
       headers = new Headers(init?.headers)
       return new Response(JSON.stringify({
-        ws_url: "ws://nanobot.test/ws?mode=local",
+        ws_url: "ws://mokli.test/ws?mode=local",
         token: "socket token",
         api_token: "api-token",
       }))
@@ -145,15 +145,15 @@ describe("gateway protocol", () => {
 
     try {
       const connection = await fetchGatewayConnection(
-        "http://nanobot.test/webui/bootstrap",
+        "http://mokli.test/mokli/bootstrap",
         "bootstrap-secret",
-        "http://nanobot.test",
+        "http://mokli.test",
         "tui-42",
       )
-      expect(headers?.get("X-Nanobot-Auth")).toBe("bootstrap-secret")
+      expect(headers?.get("X-Mokli-Auth")).toBe("bootstrap-secret")
       expect(connection).toEqual({
-        wsUrl: "ws://nanobot.test/ws?mode=local&token=socket+token&client_id=tui-42",
-        apiUrl: "http://nanobot.test",
+        wsUrl: "ws://mokli.test/ws?mode=local&token=socket+token&client_id=tui-42",
+        apiUrl: "http://mokli.test",
         apiToken: "api-token",
       })
     } finally {
@@ -202,9 +202,9 @@ describe("gateway protocol", () => {
 
     try {
       await expect(fetchGatewayConnection(
-        "http://nanobot.test/webui/bootstrap",
+        "http://mokli.test/mokli/bootstrap",
         "bootstrap-secret",
-        "http://nanobot.test",
+        "http://mokli.test",
         "tui-42",
       )).rejects.toMatchObject({
         message: "gateway bootstrap response is invalid",
@@ -226,12 +226,12 @@ describe("gateway protocol", () => {
 
     try {
       await expect(fetchSlashCommands(
-        "http://nanobot.test",
+        "http://mokli.test",
         "expired-api-token",
         async (rejectedApiToken) => {
           expect(rejectedApiToken).toBe("expired-api-token")
           reauthenticationRequests += 1
-          return { apiUrl: "http://nanobot.test", apiToken: "fresh-api-token" }
+          return { apiUrl: "http://mokli.test", apiToken: "fresh-api-token" }
         },
       )).rejects.toMatchObject({ message: "command request failed: HTTP 401" })
       expect(reauthenticationRequests).toBe(1)
@@ -265,7 +265,7 @@ describe("gateway protocol", () => {
     try {
       const connections: string[] = []
       let healthChecks = 0
-      const client = new NanobotClient({
+      const client = new MokliClient({
         resolveConnection: () => new Promise((resolve) => { resolveConnection = resolve }),
         checkHealth: async () => {
           healthChecks += 1
@@ -279,12 +279,12 @@ describe("gateway protocol", () => {
       await Bun.sleep(1)
       expect(requestedUrl).toBe("")
       resolveConnection?.({
-        wsUrl: "ws://nanobot.test/ws?token=fresh",
-        apiUrl: "http://nanobot.test",
+        wsUrl: "ws://mokli.test/ws?token=fresh",
+        apiUrl: "http://mokli.test",
         apiToken: "fresh-api-token",
       })
       await Bun.sleep(1)
-      expect(requestedUrl).toBe("ws://nanobot.test/ws?token=fresh")
+      expect(requestedUrl).toBe("ws://mokli.test/ws?token=fresh")
       expect(connections).toEqual(["fresh-api-token"])
       expect(healthChecks).toBe(0)
       client.close()
@@ -308,13 +308,13 @@ describe("gateway protocol", () => {
     })
 
     try {
-      const client = new NanobotClient({
+      const client = new MokliClient({
         resolveConnection: async () => {
           attempts += 1
           if (attempts === 1) throw new Error("gateway is still starting")
           return {
-            wsUrl: "ws://nanobot.test/ws?token=second",
-            apiUrl: "http://nanobot.test",
+            wsUrl: "ws://mokli.test/ws?token=second",
+            apiUrl: "http://mokli.test",
             apiToken: "second-api-token",
           }
         },
@@ -325,7 +325,7 @@ describe("gateway protocol", () => {
       client.connect()
       for (let index = 0; index < 20 && !requestedUrl; index += 1) await Bun.sleep(2)
       expect(attempts).toBe(2)
-      expect(requestedUrl).toBe("ws://nanobot.test/ws?token=second")
+      expect(requestedUrl).toBe("ws://mokli.test/ws?token=second")
       client.close()
     } finally {
       Object.defineProperty(globalThis, "WebSocket", { configurable: true, value: original })
@@ -335,7 +335,7 @@ describe("gateway protocol", () => {
   test("escalates a refused bootstrap with safe endpoint and retry diagnostics", async () => {
     const original = globalThis.fetch
     const bootstrapUrl = "http://bootstrap-user:bootstrap-pass@127.0.0.1:8769"
-      + "/webui/bootstrap?token=socket-secret"
+      + "/mokli/bootstrap?token=socket-secret"
     const bootstrapSecret = "bootstrap-secret"
     const statuses: Array<{
       status: ConnectionStatus
@@ -351,7 +351,7 @@ describe("gateway protocol", () => {
       },
     )
     globalThis.fetch = (() => Promise.reject(refused)) as unknown as typeof fetch
-    const client = new NanobotClient({
+    const client = new MokliClient({
       resolveConnection: () => fetchGatewayConnection(
         bootstrapUrl,
         bootstrapSecret,
@@ -385,7 +385,7 @@ describe("gateway protocol", () => {
       expect(visible).not.toContain(bootstrapSecret)
       expect(visible).not.toContain("socket-secret")
       expect(visible).not.toContain("api-secret")
-      expect(visible).not.toContain("/webui/bootstrap")
+      expect(visible).not.toContain("/mokli/bootstrap")
     } finally {
       client.close()
       globalThis.fetch = original
@@ -407,7 +407,7 @@ describe("gateway protocol", () => {
         }
       },
     })
-    const client = new NanobotClient({
+    const client = new MokliClient({
       resolveConnection: async () => {
         attempts += 1
         if (!available) {
@@ -462,7 +462,7 @@ describe("gateway protocol", () => {
   test("reports a permanent bootstrap rejection without retrying", async () => {
     let attempts = 0
     const statuses: string[] = []
-    const client = new NanobotClient({
+    const client = new MokliClient({
       resolveConnection: async () => {
         attempts += 1
         throw new GatewayConnectionError("gateway bootstrap failed: HTTP 401", false)
@@ -516,8 +516,8 @@ describe("gateway protocol", () => {
 
     try {
       const events: InboundEvent[] = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         chatId: "terminal",
         initialWorkspaceScope: {
           project_path: "/tmp/project",
@@ -606,8 +606,8 @@ describe("gateway protocol", () => {
     })
 
     try {
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         initialWorkspaceScope: {
           project_path: "/tmp/launch-project",
           access_mode: "restricted",
@@ -667,7 +667,7 @@ describe("gateway protocol", () => {
     }) as typeof fetch
 
     try {
-      expect(await fetchRuntimeControls("http://nanobot.test", "secret")).toEqual({
+      expect(await fetchRuntimeControls("http://mokli.test", "secret")).toEqual({
         modelPresets: [{ name: "Codex", model: "openai-codex/gpt-5.6" }],
         canUseFullAccess: true,
       })
@@ -686,7 +686,7 @@ describe("gateway protocol", () => {
         : new Response("", { status: 404 }),
     )) as typeof fetch
     try {
-      expect(await fetchRuntimeControls("http://nanobot.test", "secret")).toEqual({
+      expect(await fetchRuntimeControls("http://mokli.test", "secret")).toEqual({
         modelPresets: [{ name: "fast", model: "openai/gpt-5.6" }],
         canUseFullAccess: false,
       })
@@ -711,8 +711,8 @@ describe("gateway protocol", () => {
     try {
       const statuses: string[] = []
       const events: InboundEvent[] = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         onEvent: (event) => events.push(event),
         onStatus: (status, detail) => statuses.push(`${status}:${detail || ""}`),
       })
@@ -800,8 +800,8 @@ describe("gateway protocol", () => {
     })
     const events: InboundEvent[] = []
     const statuses: string[] = []
-    const client = new NanobotClient({
-      url: "ws://nanobot.test/ws",
+    const client = new MokliClient({
+      url: "ws://mokli.test/ws",
       onEvent: (event) => events.push(event),
       onStatus: (status, detail) => statuses.push(`${status}:${detail || ""}`),
     })
@@ -850,8 +850,8 @@ describe("gateway protocol", () => {
     try {
       const events: InboundEvent[] = []
       const statuses: string[] = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         onEvent: (event) => events.push(event),
         onStatus: (status, detail) => statuses.push(`${status}:${detail || ""}`),
       })
@@ -901,8 +901,8 @@ describe("gateway protocol", () => {
     try {
       const events: InboundEvent[] = []
       const statuses: string[] = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         onEvent: (event) => events.push(event),
         onStatus: (status, detail) => statuses.push(`${status}:${detail || ""}`),
       })
@@ -982,8 +982,8 @@ describe("gateway protocol", () => {
         detail?: string
         info?: ConnectionStatusInfo
       }> = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         reconnectDelayMs: 1,
         onEvent: () => undefined,
         onStatus: (status, detail, info) => statuses.push({ status, detail, info }),
@@ -1006,7 +1006,7 @@ describe("gateway protocol", () => {
       expect(reconnecting).toMatchObject({
         status: "reconnecting",
         detail: "connection closed",
-        info: { endpoint: "nanobot.test", attempt: 1 },
+        info: { endpoint: "mokli.test", attempt: 1 },
       })
       sockets[1]?.emit("open")
       sockets[1]?.emit("message", {
@@ -1036,8 +1036,8 @@ describe("gateway protocol", () => {
 
     try {
       const statuses: string[] = []
-      const client = new NanobotClient({
-        url: "ws://nanobot.test/ws",
+      const client = new MokliClient({
+        url: "ws://mokli.test/ws",
         onEvent: () => undefined,
         onStatus: (status, detail) => statuses.push(`${status}:${detail || ""}`),
       })
@@ -1051,12 +1051,12 @@ describe("gateway protocol", () => {
         payload: Record<string, string>
       }
       expect(request).toMatchObject({
-        type: "webui_request",
+        type: "mokli_request",
         action: "recovery.continue",
         payload: { chat_id: "chat", recovery_id: "recovery-1" },
       })
       socket.emit("message", { data: JSON.stringify({
-        event: "webui_response",
+        event: "mokli_response",
         request_id: request.request_id,
         ok: true,
         result: { status: "resuming", recovery_id: "recovery-1", attempts: 1 },
@@ -1106,7 +1106,7 @@ describe("gateway protocol", () => {
     }) as typeof fetch
 
     try {
-      const history = await fetchHistory("http://nanobot.test", "token", "chat", "newer-page")
+      const history = await fetchHistory("http://mokli.test", "token", "chat", "newer-page")
       expect(history).toEqual({
         messages: [
           { role: "user", content: "hello", turnId: "turn-1" },
@@ -1157,7 +1157,7 @@ describe("gateway protocol", () => {
       ],
     }), { preconnect: original.preconnect })
     try {
-      const history = await fetchHistory("http://nanobot.test", "token", "chat")
+      const history = await fetchHistory("http://mokli.test", "token", "chat")
       expect(history.messages).toEqual([
         { role: "assistant", content: "before", forkIndex: 0 },
         ...(["started", "succeeded", "failed", "cancelled"] as const).map((phase) => ({
@@ -1197,7 +1197,7 @@ describe("gateway protocol", () => {
     })))) as unknown as typeof fetch
 
     try {
-      expect(await fetchSessionContext("http://nanobot.test", "secret", "chat")).toEqual({
+      expect(await fetchSessionContext("http://mokli.test", "secret", "chat")).toEqual({
         totalMessages: 24,
         archivedMessages: 16,
         replayMessages: 10,
@@ -1246,7 +1246,7 @@ describe("gateway protocol", () => {
     }) as typeof fetch
 
     try {
-      expect(await fetchSlashCommands("http://nanobot.test", "secret")).toEqual([{
+      expect(await fetchSlashCommands("http://mokli.test", "secret")).toEqual([{
         command: "/history",
         title: "History",
         description: "Show recent messages",
@@ -1296,7 +1296,7 @@ describe("gateway protocol", () => {
     }) as typeof fetch
 
     try {
-      expect(await fetchAvailableSkills("http://nanobot.test", "secret")).toEqual([{
+      expect(await fetchAvailableSkills("http://mokli.test", "secret")).toEqual([{
         name: "verify",
         description: "Verify public behavior",
         source: "builtin",
@@ -1319,17 +1319,17 @@ describe("gateway protocol", () => {
     })))) as unknown as typeof fetch
 
     try {
-      expect(await fetchSlashCommands("http://nanobot.test", "secret")).toEqual([])
+      expect(await fetchSlashCommands("http://mokli.test", "secret")).toEqual([])
     } finally {
       globalThis.fetch = original
     }
   })
 
-  test("loads and normalizes WebUI sessions", async () => {
+  test("loads and normalizes Mokli sessions", async () => {
     const original = globalThis.fetch
     globalThis.fetch = ((input: string | URL | Request) => {
       const url = String(input)
-      if (url.endsWith("/api/webui/sidebar-state")) {
+      if (url.endsWith("/api/mokli/sidebar-state")) {
         return Promise.resolve(new Response(JSON.stringify({
           pinned_keys: ["websocket:chat-1"],
           archived_keys: [],
@@ -1347,14 +1347,14 @@ describe("gateway protocol", () => {
             run_started_at: 123,
             model_preset: "Deep Research",
           },
-          { key: "cli:direct", title: "Not a WebUI session" },
+          { key: "cli:direct", title: "Not a Mokli session" },
           { key: 42 },
         ],
       })))
     }) as typeof fetch
 
     try {
-      expect(await fetchSessions("http://nanobot.test", "secret")).toEqual([{
+      expect(await fetchSessions("http://mokli.test", "secret")).toEqual([{
         chatId: "chat-1",
         title: "Pinned release",
         preview: "Prepare the release",
@@ -1397,7 +1397,7 @@ describe("gateway protocol", () => {
     }) as typeof fetch
 
     try {
-      expect(await fetchMentionCandidates("http://nanobot.test", "secret")).toEqual([
+      expect(await fetchMentionCandidates("http://mokli.test", "secret")).toEqual([
         {
           kind: "cli",
           name: "github",

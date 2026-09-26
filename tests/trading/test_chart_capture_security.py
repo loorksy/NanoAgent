@@ -3,7 +3,7 @@ import base64
 
 import pytest
 
-from nanobot.trading.chart_capture import (
+from mokli.trading.chart_capture import (
     ChartCaptureError,
     get_chart_capture_bridge,
     submit_chart_capture,

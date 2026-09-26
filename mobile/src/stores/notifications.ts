@@ -1,9 +1,9 @@
-import type { GatewayEvent, NotificationLevel, PushPayload } from "@nanoagent/sdk";
+import type { GatewayEvent, NotificationLevel, PushPayload } from "@mokli/sdk";
 import { createStore } from "zustand/vanilla";
 
 import type { KeyValueStore } from "../lib/storage";
 
-export const INBOX_KEY = "nanoagent.inbox";
+export const INBOX_KEY = "mokli.inbox";
 export const INBOX_LIMIT = 100;
 
 export type InboxSource = "push" | "event";
@@ -56,7 +56,7 @@ function stringArgs(input: Record<string, unknown> | undefined): Record<string, 
   return out;
 }
 
-/** Mirrors `payload_for` in `nanobot/agent_api/push/router.py` for events seen while connected. */
+/** Mirrors `payload_for` in `mokli/agent_api/push/router.py` for events seen while connected. */
 export function inboxItemFromEvent(event: GatewayEvent): InboxItem | undefined {
   const base = { id: event.id, ts: event.ts, source: "event" as const, session: event.session, read: false };
   switch (event.kind) {
@@ -69,7 +69,7 @@ export function inboxItemFromEvent(event: GatewayEvent): InboxItem | undefined {
         title_key: "push.approval.title",
         body_key: "push.approval.body",
         args: { type: event.data.type },
-        deep_link: `nanoagent://approvals/${event.data.approval_id}`,
+        deep_link: `mokli://approvals/${event.data.approval_id}`,
         approval_id: event.data.approval_id,
       };
     }
@@ -81,7 +81,7 @@ export function inboxItemFromEvent(event: GatewayEvent): InboxItem | undefined {
         title_key: event.data.title,
         body_key: event.data.body,
         args: stringArgs(event.data.args),
-        deep_link: event.data.deep_link ?? `nanoagent://sessions/${event.session}`,
+        deep_link: event.data.deep_link ?? `mokli://sessions/${event.session}`,
       };
     case "structured":
       if (event.data.type !== "decision") return undefined;
@@ -92,7 +92,7 @@ export function inboxItemFromEvent(event: GatewayEvent): InboxItem | undefined {
         title_key: "push.decision.title",
         body_key: "push.decision.body",
         args: { verdict: event.data.payload.verdict, result_id: event.data.result_id },
-        deep_link: `nanoagent://results/${event.data.result_id}`,
+        deep_link: `mokli://results/${event.data.result_id}`,
       };
     case "job":
       if (!["finished", "failed", "error"].includes(event.data.status)) return undefined;
@@ -103,7 +103,7 @@ export function inboxItemFromEvent(event: GatewayEvent): InboxItem | undefined {
         title_key: "push.job.title",
         body_key: `push.job.${event.data.status}`,
         args: { job_id: event.data.job_id, kind: event.data.kind },
-        deep_link: `nanoagent://jobs/${event.data.job_id}`,
+        deep_link: `mokli://jobs/${event.data.job_id}`,
       };
     default:
       return undefined;

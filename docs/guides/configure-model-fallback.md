@@ -1,6 +1,6 @@
-# How to Configure Model Fallback in nanobot
+# How to Configure Model Fallback in mokli
 
-Model fallback lets nanobot try a primary model first, then fall back to one or
+Model fallback lets mokli try a primary model first, then fall back to one or
 more named presets when the primary provider fails or rate-limits.
 
 ## What you will build
@@ -17,16 +17,16 @@ outages, local model downtime, or cost-sensitive routing.
 ## Install
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
-nanobot agent -m "Hello!"
+python -m pip install mokli-ai
+mokli onboard --wizard
+mokli agent -m "Hello!"
 ```
 
 Verify each provider works before adding it as a fallback.
 
 ## Minimal working example
 
-Merge this shape into `~/.nanobot/config.json` and replace provider/model names
+Merge this shape into `~/.mokli/config.json` and replace provider/model names
 with ones you control:
 
 ```json
@@ -67,7 +67,7 @@ for common providers.
   how much context can fit.
 - Put cheaper or faster fallbacks before expensive ones when acceptable.
 - Use `/model <preset>` for runtime switching without editing config.
-- Keep preset names human-readable; the same name appears in the WebUI and `/model`.
+- Keep preset names human-readable; the same name appears in the Mokli and `/model`.
 
 ## Security notes
 
@@ -84,7 +84,7 @@ for common providers.
 - If output is truncated after fallback, review `maxTokens` and
   `contextWindowTokens`.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Providers and Models](../providers.md)
 - [Provider Cookbook: Fallback Presets](../provider-cookbook.md#recipe-fallback-presets)

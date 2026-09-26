@@ -1,6 +1,0 @@
-{
-  "name": "@nanoagent/sdk-react-entry",
-  "private": true,
-  "main": "../src/react/index.ts",
-  "types": "../src/react/index.ts"
-}

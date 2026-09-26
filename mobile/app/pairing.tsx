@@ -1,4 +1,4 @@
-import { GatewayClient } from "@nanoagent/sdk";
+import { GatewayClient } from "@mokli/sdk";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Device from "expo-device";
 import { useLocalSearchParams } from "expo-router";

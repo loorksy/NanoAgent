@@ -1,4 +1,4 @@
-import { LOG_KINDS, type LogEntry, type LogKind } from "@nanoagent/sdk";
+import { LOG_KINDS, type LogEntry, type LogKind } from "@mokli/sdk";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";

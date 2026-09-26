@@ -7,15 +7,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.command import CommandContext
-from nanobot.config.schema import AgentDefaults, Config
-from nanobot.events import NO_EVENTS
-from nanobot.providers.base import LLMResponse
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.command import CommandContext
+from mokli.config.schema import AgentDefaults, Config
+from mokli.events import NO_EVENTS
+from mokli.providers.base import LLMResponse
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _make_loop(
@@ -186,7 +186,7 @@ class TestIdleScanThrottling:
     def test_configured_idle_scan_interval_throttles_checks(self, tmp_path, monkeypatch):
         """The configured interval should reach the loop and gate session scans."""
         ticks = iter((1_000.0, 1_000.0, 1_009.999, 1_010.0))
-        monkeypatch.setattr("nanobot.agent.loop.time.monotonic", lambda: next(ticks))
+        monkeypatch.setattr("mokli.agent.loop.time.monotonic", lambda: next(ticks))
         config = Config.model_validate({
             "agents": {
                 "defaults": {
@@ -214,7 +214,7 @@ class TestIdleScanThrottling:
 
     def test_zero_idle_scan_interval_checks_every_tick(self, tmp_path, monkeypatch):
         """An explicit zero should leave each idle tick eligible to scan."""
-        monkeypatch.setattr("nanobot.agent.loop.time.monotonic", lambda: 1_000.0)
+        monkeypatch.setattr("mokli.agent.loop.time.monotonic", lambda: 1_000.0)
         loop = _make_loop(tmp_path)
         loop.auto_compact.check_expired = MagicMock()
 
@@ -489,7 +489,7 @@ class TestAutoCompactIdleDetection:
 
     @pytest.mark.asyncio
     async def test_shortcut_command_persisted_with_command_flag(self, tmp_path):
-        """Shortcut commands (e.g. /help) are persisted so WebUI can show them,
+        """Shortcut commands (e.g. /help) are persisted so Mokli can show them,
         but tagged with _command so they don't leak into LLM context."""
         loop = _make_loop(tmp_path)
         msg = InboundMessage(channel="cli", sender_id="user", chat_id="test", content="/help")

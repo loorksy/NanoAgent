@@ -1,11 +1,11 @@
-from nanobot.runtime_context import (
+from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     RuntimeContextBlock,
     append_runtime_context,
 )
-from nanobot.session.history_visibility import HIDDEN_HISTORY_META
-from nanobot.session.manager import Session, SessionManager
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.session.history_visibility import HIDDEN_HISTORY_META
+from mokli.session.manager import Session, SessionManager
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _assert_no_orphans(history: list[dict]) -> None:
@@ -485,7 +485,7 @@ def test_public_history_omits_cli_app_breadcrumb():
 def test_fork_session_before_user_index_copies_only_prefix(tmp_path):
     manager = SessionManager(tmp_path)
     source = manager.get_or_create("websocket:source")
-    source.metadata["webui"] = True
+    source.metadata["mokli"] = True
     source.metadata["title"] = "Old title"
     source.metadata["goal_state"] = {"status": "active", "objective": "do not inherit"}
     source.add_message("user", "round1")
@@ -503,7 +503,7 @@ def test_fork_session_before_user_index_copies_only_prefix(tmp_path):
 
     assert forked is not None
     assert [m["content"] for m in forked.messages] == ["round1", "answer1"]
-    assert forked.metadata["webui"] is True
+    assert forked.metadata["mokli"] is True
     assert "title" not in forked.metadata
     assert "goal_state" not in forked.metadata
     saved = manager.read_session_file("websocket:fork")
@@ -655,7 +655,7 @@ def test_get_history_does_not_paste_assistant_media_paths_into_replay():
         {
             "role": "assistant",
             "content": "来了 🎨",
-            "media": ["/home/user/.nanobot/media/generated/img_abc.png"],
+            "media": ["/home/user/.mokli/media/generated/img_abc.png"],
         }
     )
 
@@ -672,7 +672,7 @@ def test_get_history_sanitizes_existing_assistant_replay_artifacts():
             "content": (
                 "[Message Time: 2026-05-09 00:33:48]\n"
                 "来了 🎨\n"
-                "[image: /home/user/.nanobot/media/generated/img_old.png]\n\n"
+                "[image: /home/user/.mokli/media/generated/img_old.png]\n\n"
                 "generate_image(\"16:9\")\n"
                 "message(\"来了 🎨\")"
             ),
@@ -699,7 +699,7 @@ def test_get_history_respects_max_tokens(monkeypatch):
 
     token_map = {"u1": 50, "a1": 50, "u2": 50, "a2": 50, "u3": 50, "a3": 50}
     monkeypatch.setattr(
-        "nanobot.session.manager.estimate_message_tokens",
+        "mokli.session.manager.estimate_message_tokens",
         lambda message: token_map.get(message.get("content"), 0),
     )
 
@@ -719,7 +719,7 @@ def test_get_history_recovers_user_when_token_slice_would_be_assistant_only(monk
     )
     token_map = {"u1": 100, "a1": 100, "u2": 100, "a2": 100}
     monkeypatch.setattr(
-        "nanobot.session.manager.estimate_message_tokens",
+        "mokli.session.manager.estimate_message_tokens",
         lambda message: token_map.get(message.get("content"), 0),
     )
 

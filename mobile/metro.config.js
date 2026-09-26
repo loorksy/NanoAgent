@@ -1,10 +1,10 @@
-// Metro config for a project that consumes `@nanoagent/sdk` from `../packages/nanoagent-sdk`.
+// Metro config for a project that consumes `@mokli/sdk` from `../packages/mokli-sdk`.
 // The SDK is installed via `file:`, so React must always resolve from this app's node_modules.
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
 const projectRoot = __dirname;
-const sdkRoot = path.resolve(projectRoot, "../packages/nanoagent-sdk");
+const sdkRoot = path.resolve(projectRoot, "../packages/mokli-sdk");
 
 const config = getDefaultConfig(projectRoot);
 config.watchFolders = [sdkRoot];

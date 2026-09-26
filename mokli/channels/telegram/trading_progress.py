@@ -1,0 +1,52 @@
+"""Arabic Telegram progress bubble for gold trading stages."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from mokli.trading.stage_events import StageEvent, stage_label
+
+TRADING_PROGRESS_META = "trading_progress"
+TRADING_CARD_SENT_META = "trading_card_sent"
+TELEGRAM_TRADING_PROGRESS = TRADING_PROGRESS_META
+TELEGRAM_TRADING_CARD_SENT = TRADING_CARD_SENT_META
+
+
+@dataclass
+class TelegramStageRow:
+    stage: str
+    status: str
+    notes: list[str] = field(default_factory=list)
+
+
+def render_stage_line(stage: str, status: str, *, locale: str = "en") -> str:
+    mark = "✅" if status == "done" else "❌" if status == "failed" else "⏳"
+    label = stage_label(stage, locale)
+    return f"{mark} {label}"
+
+
+def render_stage_progress(rows: list[TelegramStageRow], *, locale: str = "en") -> str:
+    lines = [render_stage_line(row.stage, row.status, locale=locale) for row in rows]
+    return "\n".join(lines)
+
+
+def render_arabic_progress(rows: list[TelegramStageRow]) -> str:
+    return render_stage_progress(rows, locale="ar")
+
+
+def apply_stage_event(rows: list[TelegramStageRow], event: StageEvent) -> list[TelegramStageRow]:
+    updated = list(rows)
+    for index, row in enumerate(updated):
+        if row.stage == event.stage:
+            updated[index] = TelegramStageRow(
+                stage=event.stage,
+                status=event.status,
+                notes=row.notes,
+            )
+            return updated
+    updated.append(TelegramStageRow(stage=event.stage, status=event.status))
+    return updated
+
+
+def stage_arabic_label(stage: str) -> str:
+    return stage_label(stage, "ar")

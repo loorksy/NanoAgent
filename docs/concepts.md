@@ -1,47 +1,47 @@
 # Concepts
 
-Use this page when you want to understand nanobot before changing advanced settings. It explains the moving parts without requiring you to read the source first.
+Use this page when you want to understand mokli before changing advanced settings. It explains the moving parts without requiring you to read the source first.
 
 If you want source-file ownership and extension points, read [`architecture.md`](./architecture.md) after this page.
 
 ## Runtime Shape
 
-nanobot has one small core loop and several ways to enter it:
+mokli has one small core loop and several ways to enter it:
 
 | Part | What it does |
 |---|---|
 | Agent loop | Builds context, selects the session, calls the provider, runs tools, and publishes replies |
 | Providers | LLM backends such as OpenRouter, Anthropic, OpenAI, Bedrock, Ollama, vLLM, and other OpenAI-compatible APIs |
-| Channels | User-facing transports such as CLI, WebUI/WebSocket, Telegram, Discord, Slack, Feishu, WeChat, Email, Mattermost, and others |
+| Channels | User-facing transports such as CLI, Mokli/WebSocket, Telegram, Discord, Slack, Feishu, WeChat, Email, Mattermost, and others |
 | Tools | Capabilities the model may call, including files, shell, web search/fetch, MCP, cron, image generation, and subagents |
 | Memory | Workspace files and session history that keep useful context across turns |
 | Gateway | Long-running process that connects enabled channels and serves the health endpoint |
 
-The simplest path is `nanobot agent -m "Hello!"`: one inbound message goes through the agent loop and prints the reply in your terminal. The long-running path is `nanobot gateway`: channels receive messages from chat apps or the WebUI, publish them to the same agent loop, and send replies back to the originating channel.
+The simplest path is `mokli agent -m "Hello!"`: one inbound message goes through the agent loop and prints the reply in your terminal. The long-running path is `mokli gateway`: channels receive messages from chat apps or the Mokli, publish them to the same agent loop, and send replies back to the originating channel.
 
 ## Config vs Workspace
 
-The default instance lives under `~/.nanobot/`:
+The default instance lives under `~/.mokli/`:
 
 | Path | Meaning |
 |---|---|
-| `~/.nanobot/config.json` | Instance configuration: providers, model defaults, channels, tools, gateway, API, and runtime options |
-| `~/.nanobot/workspace/` | Agent workspace: memory, heartbeat tasks, cron jobs, skills, and generated artifacts |
-| `~/.nanobot/sessions/<workspace-id>/` | Session history stored outside the agent-accessible workspace; the opaque ID follows workspace moves |
+| `~/.mokli/config.json` | Instance configuration: providers, model defaults, channels, tools, gateway, API, and runtime options |
+| `~/.mokli/workspace/` | Agent workspace: memory, heartbeat tasks, cron jobs, skills, and generated artifacts |
+| `~/.mokli/sessions/<workspace-id>/` | Session history stored outside the agent-accessible workspace; the opaque ID follows workspace moves |
 
 You can override both with command flags:
 
 ```bash
-nanobot onboard --config ./bot-a/config.json --workspace ./bot-a/workspace
-nanobot agent --config ./bot-a/config.json --workspace ./bot-a/workspace -m "Hello"
-nanobot gateway --config ./bot-a/config.json --workspace ./bot-a/workspace
+mokli onboard --config ./bot-a/config.json --workspace ./bot-a/workspace
+mokli agent --config ./bot-a/config.json --workspace ./bot-a/workspace -m "Hello"
+mokli gateway --config ./bot-a/config.json --workspace ./bot-a/workspace
 ```
 
-The config file controls what nanobot may use. The workspace is where nanobot keeps state for that instance.
+The config file controls what mokli may use. The workspace is where mokli keeps state for that instance.
 
 ### Agent Workspace and Project Workspace
 
-The configured workspace is the **agent workspace**. A WebUI chat can also select
+The configured workspace is the **agent workspace**. A Mokli chat can also select
 a different **project workspace** for repository-specific work without moving the
 agent's identity or durable state.
 
@@ -58,9 +58,9 @@ a second agent or relocate the configured agent workspace.
 
 ## Config Format
 
-`config.json` accepts both camelCase and snake_case keys. The docs use camelCase because nanobot writes config back to disk with camelCase aliases, for example `apiKey`, `modelPresets`, `intervalS`, and `maxToolResultChars`.
+`config.json` accepts both camelCase and snake_case keys. The docs use camelCase because mokli writes config back to disk with camelCase aliases, for example `apiKey`, `modelPresets`, `intervalS`, and `maxToolResultChars`.
 
-Most examples are partial snippets. Merge them into the existing file created by `nanobot onboard`; do not replace the whole file unless you want to reset the instance.
+Most examples are partial snippets. Merge them into the existing file created by `mokli onboard`; do not replace the whole file unless you want to reset the instance.
 
 ## One Agent Turn
 
@@ -72,26 +72,26 @@ A normal turn follows this flow:
 4. If the model asks for tools, the runner executes them and feeds results back to the model.
 5. The final reply is saved to the session and sent back through the channel.
 
-That flow is the same whether the message starts in the CLI, WebUI, Telegram, Discord, or another channel.
+That flow is the same whether the message starts in the CLI, Mokli, Telegram, Discord, or another channel.
 
-## CLI, Gateway, API, and WebUI
+## CLI, Gateway, API, and Mokli
 
 | Entry point | Command | Use it for |
 |---|---|---|
-| CLI one-shot | `nanobot agent -m "..."` | First-run checks, scripts, and quick local questions |
-| CLI interactive | `nanobot agent` | Terminal chat with persistent session history |
-| Gateway | `nanobot gateway` | Chat apps, WebUI, heartbeat, Dream, and long-running service mode |
-| OpenAI-compatible API | `nanobot serve` | Programmatic access through `/v1/chat/completions` |
-| WebUI | `nanobot webui` | Prepare the local WebUI, start the gateway, and open the browser workbench |
+| CLI one-shot | `mokli agent -m "..."` | First-run checks, scripts, and quick local questions |
+| CLI interactive | `mokli agent` | Terminal chat with persistent session history |
+| Gateway | `mokli gateway` | Chat apps, Mokli, heartbeat, Dream, and long-running service mode |
+| OpenAI-compatible API | `mokli serve` | Programmatic access through `/v1/chat/completions` |
+| Mokli | `mokli mokli` | Prepare the local Mokli, start the gateway, and open the browser workbench |
 
-The WebUI launcher is the normal browser entry point. Underneath, the gateway keeps the WebSocket channel and other long-running services alive. The gateway health endpoint is on `gateway.port` (`18790` by default); the browser WebUI is served on `8765` by default, not by the health endpoint.
+The Mokli launcher is the normal browser entry point. Underneath, the gateway keeps the WebSocket channel and other long-running services alive. The gateway health endpoint is on `gateway.port` (`18790` by default); the browser Mokli is served on `8765` by default, not by the health endpoint.
 
 ## Provider and Model Selection
 
 The active model should normally come from a named `modelPresets` entry selected by `agents.defaults.modelPreset`. Direct `agents.defaults.provider` and `agents.defaults.model` still form the implicit `default` preset for older or minimal configs. The active provider is resolved in this order:
 
-1. If the active preset provider or implicit default provider is not `"auto"`, nanobot uses that provider.
-2. If provider is `"auto"`, nanobot tries to infer the provider from the model name, configured API keys, local provider base URLs, or gateway providers.
+1. If the active preset provider or implicit default provider is not `"auto"`, mokli uses that provider.
+2. If provider is `"auto"`, mokli tries to infer the provider from the model name, configured API keys, local provider base URLs, or gateway providers.
 3. OAuth providers such as OpenAI Codex and GitHub Copilot require explicit login and explicit provider/model selection inside the active preset.
 
 Pin the provider inside the preset when setting up for the first time. It is easier to debug:
@@ -116,13 +116,13 @@ See [`providers.md`](./providers.md) for practical examples and [`configuration.
 
 ## Channels and Sessions
 
-Each channel maps inbound messages to a session key. That lets independent conversations keep separate history. The WebUI also supports multiple chats and workspace-scoped metadata for project workspaces.
+Each channel maps inbound messages to a session key. That lets independent conversations keep separate history. The Mokli also supports multiple chats and workspace-scoped metadata for project workspaces.
 
 `agents.defaults.unifiedSession` can intentionally share one session across channels for a single-user multi-device setup. Leave it off if you expect separate people, groups, channels, or projects to keep separate context.
 
 ## Memory, Sessions, and Dream
 
-nanobot uses two related stores:
+mokli uses two related stores:
 
 | Store | Location | Purpose |
 |---|---|---|
@@ -131,9 +131,9 @@ nanobot uses two related stores:
 
 Dream is a periodic consolidation job. It reads accumulated history and updates workspace memory so useful context can survive beyond short session replay.
 
-The configured workspace contains a `.nanobot/workspace-id` file. It contains only an
+The configured workspace contains a `.mokli/workspace-id` file. It contains only an
 opaque random identifier—never conversation content or credentials. Keep it with workspace
-backups: it lets nanobot find the same external session namespace after the workspace is
+backups: it lets mokli find the same external session namespace after the workspace is
 renamed, moved, or restored. A live copy opened alongside the original receives a new ID so
 the two workspaces do not share conversations accidentally.
 
@@ -141,7 +141,7 @@ See [`memory.md`](./memory.md) for the detailed design.
 
 ## Apps and Agent Plugins
 
-Agent Plugins are nanobot's common package and activation boundary for
+Agent Plugins are mokli's common package and activation boundary for
 installable capabilities. They organize existing extension types instead of
 replacing them:
 
@@ -151,11 +151,11 @@ replacing them:
 | Skill | Workflow guidance loaded progressively or invoked with `$skill-name` |
 | MCP server | Runtime tools exposed to the agent |
 | CLI App | Locally managed executable whose adapter is packaged and activated like a plugin |
-| Apps | WebUI surface for reviewing and managing these capabilities |
+| Apps | Mokli surface for reviewing and managing these capabilities |
 
 Native providers, channels, built-in tools, standalone workspace skills, and
 directly configured MCP servers keep their existing extension paths. See
-[`webui.md#apps`](./webui.md#apps) for the user-facing flow and
+[`mokli.md#apps`](./mokli.md#apps) for the user-facing flow and
 [`configuration.md#agent-plugins-v1`](./configuration.md#agent-plugins-v1) for
 the package contract.
 
@@ -175,13 +175,13 @@ Security-sensitive controls live in [`configuration.md#security`](./configuratio
 
 ## Background Jobs
 
-When `nanobot gateway` starts, it runs workspace-scoped automations and
+When `mokli gateway` starts, it runs workspace-scoped automations and
 registers system jobs:
 
 - `dream`, when `agents.defaults.dream.enabled` is true;
 - `heartbeat`, when `gateway.heartbeat.enabled` is true.
 
-Heartbeat reads `<workspace>/HEARTBEAT.md`. If the file has tasks under `## Active Tasks`, nanobot executes them and sends only useful/actionable results to the most recently active chat target. Routine "nothing changed" results are suppressed.
+Heartbeat reads `<workspace>/HEARTBEAT.md`. If the file has tasks under `## Active Tasks`, mokli executes them and sends only useful/actionable results to the most recently active chat target. Routine "nothing changed" results are suppressed.
 
 User-created reminders use the same cron service but are not the same as the
 protected heartbeat system job. They run as scheduled turns in their origin
@@ -189,9 +189,9 @@ chat/session and normally deliver the result back to that channel.
 
 Local triggers are also session-bound, but they do not have their own
 schedule. Create one from the target chat with `/trigger <name>`, then call
-`nanobot trigger <id> "<message>"` when a local script or external service wants
-nanobot to respond in that session. Webhook servers, third-party auth, and
-event-to-message formatting stay outside nanobot. Trigger deliveries are stored
+`mokli trigger <id> "<message>"` when a local script or external service wants
+mokli to respond in that session. Webhook servers, third-party auth, and
+event-to-message formatting stay outside mokli. Trigger deliveries are stored
 in the workspace until the linked agent turn finishes successfully. If the
 target session is busy, the trigger waits until that session is idle instead of
 being injected into the active turn. The message is recorded as an automation

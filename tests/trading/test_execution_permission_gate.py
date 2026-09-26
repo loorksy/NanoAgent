@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from nanobot.trading.gates.execution import (
+from mokli.trading.gates.execution import (
     collect_execution_checks,
     evaluate_permission_gate,
     first_blocker,
 )
-from nanobot.trading.gates.position_sizing import lot_from_balance
-from nanobot.trading.gates.risk_snapshot import RiskSnapshot
-from nanobot.trading.types import EntryPlan
+from mokli.trading.gates.position_sizing import lot_from_balance
+from mokli.trading.gates.risk_snapshot import RiskSnapshot
+from mokli.trading.types import EntryPlan
 
 
 def _noon_ms() -> int:

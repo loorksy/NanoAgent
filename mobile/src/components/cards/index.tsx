@@ -13,7 +13,7 @@ import type {
   ScenariosPayload,
   ScorecardPayload,
   StructuredResult,
-} from "@nanoagent/sdk";
+} from "@mokli/sdk";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useLabel, useLocale, useT } from "../../lib/app-context";

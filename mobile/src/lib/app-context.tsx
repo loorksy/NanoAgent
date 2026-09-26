@@ -1,4 +1,4 @@
-import { GatewayClient } from "@nanoagent/sdk";
+import { GatewayClient } from "@mokli/sdk";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useStore } from "zustand";
 

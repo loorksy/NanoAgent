@@ -71,17 +71,17 @@ describe("TUI host integration", () => {
     expect(commands).toEqual([
       [
         "/bin/herdr", "pane", "report-metadata", "w1:p2",
-        "--source", "nanobot:tui:metadata", "--seq", "1",
+        "--source", "mokli:tui:metadata", "--seq", "1",
         "--title", "Fix Herdr integration",
       ],
       [
         "/bin/herdr", "pane", "report-metadata", "w1:p2",
-        "--source", "nanobot:tui:metadata", "--seq", "2",
+        "--source", "mokli:tui:metadata", "--seq", "2",
         "--title", "Review results",
       ],
       [
         "/bin/herdr", "pane", "report-metadata", "w1:p2",
-        "--source", "nanobot:tui:metadata", "--seq", "3", "--clear-title",
+        "--source", "mokli:tui:metadata", "--seq", "3", "--clear-title",
       ],
     ])
     expect(commands.flat()).not.toContain("report-agent")

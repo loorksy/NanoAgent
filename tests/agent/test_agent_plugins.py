@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent import plugins as agent_plugins
-from nanobot.agent.plugins import (
+from mokli.agent import plugins as agent_plugins
+from mokli.agent.plugins import (
     AGENT_PLUGIN_MCP_SCHEMA,
     AGENT_PLUGIN_SCHEMA,
     agent_plugin_mcp_servers,
@@ -14,7 +14,7 @@ from nanobot.agent.plugins import (
     enabled_agent_plugin_skills,
     set_agent_plugin_enabled,
 )
-from nanobot.agent.skills import SkillsLoader
+from mokli.agent.skills import SkillsLoader
 
 
 @pytest.fixture(autouse=True)
@@ -120,7 +120,7 @@ def test_plugin_manifest_boundary(tmp_path: Path, manifest: object, valid: bool)
 
 
 def test_plugin_logo_is_validated_and_contained(tmp_path: Path) -> None:
-    extension = {"extensions": {"dev.nanobot": {"logo": "./assets/icon.png"}}}
+    extension = {"extensions": {"dev.mokli": {"logo": "./assets/icon.png"}}}
     plugin = _plugin(tmp_path, "demo", **extension)
     icon = plugin / "assets" / "icon.png"
     icon.parent.mkdir()

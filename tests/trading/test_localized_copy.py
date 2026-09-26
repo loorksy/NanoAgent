@@ -6,11 +6,11 @@ import re
 
 import pytest
 
-from nanobot.trading.agents.visual_capture import capture_visual_evidence
-from nanobot.trading.i18n import tr
-from nanobot.trading.recommendations import followup
-from nanobot.trading.recommendations.tradability import assess_plan_tradability
-from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
+from mokli.trading.agents.visual_capture import capture_visual_evidence
+from mokli.trading.i18n import tr
+from mokli.trading.recommendations import followup
+from mokli.trading.recommendations.tradability import assess_plan_tradability
+from mokli.trading.types import AgentRecommendation, FinalDecisionResult
 
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 

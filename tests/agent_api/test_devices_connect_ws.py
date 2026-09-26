@@ -10,8 +10,8 @@ from aiohttp import WSMsgType
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import FakeAgent, auth
-from nanobot.agent_api.context import AgentApiServices
-from nanobot.agent_api.push.base import LoggingPushProvider
+from mokli.agent_api.context import AgentApiServices
+from mokli.agent_api.push.base import LoggingPushProvider
 
 # ---------------------------------------------------------------------------
 # devices
@@ -273,7 +273,7 @@ async def test_ws_cancel_and_approve(
 
 
 async def test_ws_accepts_sdk_frame_shape(client: TestClient, agent: FakeAgent) -> None:
-    """``@nanoagent/sdk`` sends ``type`` instead of ``op`` and ``request_id`` for correlation."""
+    """``@mokli/sdk`` sends ``type`` instead of ``op`` and ``request_id`` for correlation."""
     ws = await client.ws_connect("/ws/v2", headers=auth())
     await ws.receive_json()
     await ws.send_json({

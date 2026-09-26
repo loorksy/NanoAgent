@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import re
 
-from nanobot.agent.prompt.composer import decision_contract_template
-from nanobot.trading.agents.apply_model_decision import apply_model_decision
-from nanobot.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT, synth_system_prompt
-from nanobot.trading.agents.synthesizer import _extract_json
-from nanobot.trading.types import EvidenceSnapshot
+from mokli.agent.prompt.composer import decision_contract_template
+from mokli.trading.agents.apply_model_decision import apply_model_decision
+from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT, synth_system_prompt
+from mokli.trading.agents.synthesizer import _extract_json
+from mokli.trading.types import EvidenceSnapshot
 
 ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 
@@ -138,7 +138,7 @@ def test_exported_symbols_and_language_rendering() -> None:
     for prompt in (ar, en, auto):
         assert "{language}" not in prompt
         assert "{product_name}" not in prompt
-        assert "You are NanoAgent" in prompt
+        assert "You are Mokli" in prompt
         assert "# Hard law" in prompt
         assert not ARABIC_RE.search(prompt)
         assert "lonora" not in prompt.lower()

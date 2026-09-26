@@ -1,6 +1,6 @@
 import base64
 
-from nanobot.trading.chart_photo import (
+from mokli.trading.chart_photo import (
     cleanup_chart_snapshot,
     lead_chart_frame,
     write_chart_snapshot_file,

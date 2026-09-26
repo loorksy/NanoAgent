@@ -7,10 +7,10 @@ import asyncio
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import BOOTSTRAP, FakeAgent, auth, parse_sse
-from nanobot.agent.tools.context import RequestContext, bind_request_context, reset_request_context
-from nanobot.agent_api.context import AgentApiServices
-from nanobot.agent_api.events import AGENT_API_CHANNEL, session_key_for
-from nanobot.trading.locale import active_locale
+from mokli.agent.tools.context import RequestContext, bind_request_context, reset_request_context
+from mokli.agent_api.context import AgentApiServices
+from mokli.agent_api.events import AGENT_API_CHANNEL, session_key_for
+from mokli.trading.locale import active_locale
 
 
 async def test_requires_bearer_token(client: TestClient) -> None:
@@ -38,10 +38,10 @@ async def test_me_reports_bootstrap_scopes(client: TestClient) -> None:
 async def test_cors_preflight_echoes_allowed_origin(client: TestClient) -> None:
     resp = await client.options(
         "/api/v2/sessions",
-        headers={"Origin": "http://openwebui.local", "Access-Control-Request-Method": "POST"},
+        headers={"Origin": "http://mokli.local", "Access-Control-Request-Method": "POST"},
     )
     assert resp.status == 204
-    assert resp.headers["Access-Control-Allow-Origin"] == "http://openwebui.local"
+    assert resp.headers["Access-Control-Allow-Origin"] == "http://mokli.local"
     denied = await client.options("/api/v2/sessions", headers={"Origin": "http://evil.example"})
     assert "Access-Control-Allow-Origin" not in denied.headers
 
@@ -216,7 +216,7 @@ async def test_scope_enforced_for_web_token(client: TestClient, services: AgentA
 async def test_message_attachments_saved_as_media(
     client: TestClient, agent: FakeAgent, monkeypatch,
 ) -> None:
-    from nanobot.agent_api.routes import sessions as sessions_routes
+    from mokli.agent_api.routes import sessions as sessions_routes
 
     saved: list[str] = []
 
@@ -224,7 +224,7 @@ async def test_message_attachments_saved_as_media(
         saved.append(url[:12])
         return f"/tmp/{len(saved)}.png"
 
-    monkeypatch.setattr("nanobot.api.server._save_base64_data_url", fake_save)
+    monkeypatch.setattr("mokli.api.server._save_base64_data_url", fake_save)
     assert sessions_routes.MEDIA_SUBDIR == "agent_api"
     session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
     png = "data:image/png;base64,iVBORw0KGgo="
@@ -281,12 +281,12 @@ async def test_chat_scope_can_cancel_and_locale_reaches_the_turn(
 async def test_openai_compat_routes_share_listener_and_auth(client: TestClient, agent: FakeAgent) -> None:
     assert (await client.get("/v1/models")).status == 401
     models = await (await client.get("/v1/models", headers=auth())).json()
-    assert [m["id"] for m in models["data"]] == ["nanoagent"]
+    assert [m["id"] for m in models["data"]] == ["mokli"]
 
     resp = await client.post(
         "/v1/chat/completions",
-        json={"model": "nanoagent", "messages": [{"role": "user", "content": "hi"}]},
-        headers={**auth(), "X-OpenWebUI-Chat-Id": "chat-42"},
+        json={"model": "mokli", "messages": [{"role": "user", "content": "hi"}]},
+        headers={**auth(), "X-Mokliui-Chat-Id": "chat-42"},
     )
     assert resp.status == 200
     body = await resp.json()

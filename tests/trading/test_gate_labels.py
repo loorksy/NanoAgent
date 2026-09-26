@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from typing import get_args
 
-from nanobot.trading.i18n import GATE_LABELS, MESSAGES, gate_label, tr
-from nanobot.trading.types import GateId
+from mokli.trading.i18n import GATE_LABELS, MESSAGES, gate_label, tr
+from mokli.trading.types import GateId
 
 _RAW_GATE = re.compile(r"\bG\d+\b", re.I)
 

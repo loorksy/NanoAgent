@@ -2,14 +2,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import (
+from mokli.agent.loop import AgentLoop
+from mokli.bus.queue import MessageBus
+from mokli.providers.base import (
     GenerationSettings,
     LLMResponse,
     ProviderConversationState,
 )
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _make_loop(

@@ -1,4 +1,4 @@
-"""Team role prompts are loaded from ``nanobot/agent/prompt/team_roles`` for every preset."""
+"""Team role prompts are loaded from ``mokli/agent/prompt/team_roles`` for every preset."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from nanobot.trading.teams import role_prompts
-from nanobot.trading.teams.role_prompts import (
+from mokli.trading.teams import role_prompts
+from mokli.trading.teams.role_prompts import (
     list_role_files,
     resolve_role_file,
     role_file_for,
@@ -89,7 +89,7 @@ def test_language_and_product_name_are_injected() -> None:
     assert prompt.startswith("# GoldDesk — team specialist: Bull Advocate")
     assert "Write in Arabic" in prompt
     default = role_system_prompt("Bull Advocate")
-    assert "You are NanoAgent" in default
+    assert "You are Mokli" in default
     assert "Write in the operator's language" in default
 
 

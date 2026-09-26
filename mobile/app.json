@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "NanoAgent",
-    "slug": "nanoagent",
+    "name": "Mokli",
+    "slug": "mokli",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "nanoagent",
+    "scheme": "mokli",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "backgroundColor": "#0b0f14",
@@ -16,7 +16,7 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "bundleIdentifier": "com.nanoagent.app",
+      "bundleIdentifier": "com.mokli.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Scan the pairing QR code shown in Settings → Channels → Devices.",
@@ -29,7 +29,7 @@
       }
     },
     "android": {
-      "package": "com.nanoagent.app",
+      "package": "com.mokli.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0f14"
@@ -46,7 +46,7 @@
         {
           "action": "VIEW",
           "autoVerify": false,
-          "data": [{ "scheme": "nanoagent" }],
+          "data": [{ "scheme": "mokli" }],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]

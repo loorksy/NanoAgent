@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from nanobot.trading.agents.macro_drivers import (
+from mokli.trading.agents.macro_drivers import (
     DRIVER_DXY,
     DRIVER_GEOPOLITICAL,
     DRIVER_SEASONAL,
@@ -18,7 +18,7 @@ from nanobot.trading.agents.macro_drivers import (
     run_macro_drivers,
     select_drivers,
 )
-from nanobot.trading.teams.runtime import run_swarm
+from mokli.trading.teams.runtime import run_swarm
 
 
 def _friday_ts() -> float:
@@ -38,7 +38,7 @@ def test_select_skips_fresh_cache_unless_calendar_hits() -> None:
     assert DRIVER_GEOPOLITICAL in names
     assert DRIVER_DXY in names
 
-    from nanobot.trading.agents.macro_drivers import MacroVerdict
+    from mokli.trading.agents.macro_drivers import MacroVerdict
 
     cache[DRIVER_GEOPOLITICAL] = (
         now,
@@ -65,7 +65,7 @@ def test_select_skips_fresh_cache_unless_calendar_hits() -> None:
 
 def test_seasonal_dropped_from_default_set() -> None:
     reset_macro_cache_for_tests()
-    from nanobot.trading.agents.macro_drivers import _in_festival_window
+    from mokli.trading.agents.macro_drivers import _in_festival_window
 
     july = datetime(2026, 7, 8, 12, 0, tzinfo=UTC).timestamp()
     selected_july = select_drivers(events=[], now_ts=july, cache={})
@@ -157,7 +157,7 @@ async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
         agent_id = str(kwargs.get("agent_id", "agent"))
         collector = kwargs.get("collector")
         if collector is not None:
-            from nanobot.trading.teams.subagent_runner import TeamAgentEvent
+            from mokli.trading.teams.subagent_runner import TeamAgentEvent
 
             collector.record(
                 TeamAgentEvent(
@@ -169,11 +169,11 @@ async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
             )
         return f"summary for {agent_id}"
 
-    monkeypatch.setattr("nanobot.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
     monkeypatch.setattr(
-        "nanobot.trading.teams.runtime.run_market_data_agent",
+        "mokli.trading.teams.runtime.run_market_data_agent",
         lambda *_a, **_k: __import__(
-            "nanobot.trading.types",
+            "mokli.trading.types",
             fromlist=["AgentMarketContext", "MarketSync"],
         ).AgentMarketContext(
             symbol="XAUUSD",
@@ -182,7 +182,7 @@ async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
             last_close=2650.0,
             atr=5.0,
             sync=__import__(
-                "nanobot.trading.types", fromlist=["MarketSync"]
+                "mokli.trading.types", fromlist=["MarketSync"]
             ).MarketSync(ok=True),
         ),
     )

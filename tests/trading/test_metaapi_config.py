@@ -5,10 +5,10 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from nanobot.config.loader import save_config
-from nanobot.config.schema import Config, TradingMetaApiConfig
-from nanobot.trading.config import load_trading_config
-from nanobot.trading.mt5_metaapi import NullTransport, build_transport, reset_transport
+from mokli.config.loader import save_config
+from mokli.config.schema import Config, TradingMetaApiConfig
+from mokli.trading.config import load_trading_config
+from mokli.trading.mt5_metaapi import NullTransport, build_transport, reset_transport
 
 
 def test_trading_mt5_extra_stays_coinstallable_with_dev() -> None:
@@ -28,7 +28,7 @@ def test_saved_metaapi_reaches_transport_builder(tmp_path, monkeypatch) -> None:
     monkeypatch.delenv("METAAPI_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("METAAPI_REGION", raising=False)
     config_path = tmp_path / "config.json"
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     config = Config(
         trading_metaapi=TradingMetaApiConfig(
             token="secret-token",
@@ -61,7 +61,7 @@ def test_saved_metaapi_reaches_transport_builder(tmp_path, monkeypatch) -> None:
 
 def test_env_overrides_saved_metaapi(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config.json"
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     save_config(
         Config(trading_metaapi=TradingMetaApiConfig(token="saved", account_id="saved-acc")),
         config_path,

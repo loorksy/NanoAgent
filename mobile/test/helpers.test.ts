@@ -1,4 +1,4 @@
-import type { LogEntry, Mt5Permissions, ResultRecord } from "@nanoagent/sdk";
+import type { LogEntry, Mt5Permissions, ResultRecord } from "@mokli/sdk";
 import { describe, expect, test } from "bun:test";
 
 import { t } from "../src/i18n";

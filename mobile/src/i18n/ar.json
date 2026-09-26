@@ -1,5 +1,5 @@
 {
-  "app.name": "NanoAgent",
+  "app.name": "Mokli",
   "common.loading": "جارٍ التحميل…",
   "common.retry": "إعادة المحاولة",
   "common.error_generic": "حدث خطأ ما",
@@ -257,7 +257,7 @@
   "pairing.pair": "إقران",
   "pairing.camera_permission": "يلزم الوصول إلى الكاميرا لمسح رمز الإقران.",
   "pairing.grant_camera": "السماح للكاميرا",
-  "pairing.invalid_qr": "هذا الرمز ليس رمز إقران NanoAgent.",
+  "pairing.invalid_qr": "هذا الرمز ليس رمز إقران Mokli.",
   "pairing.success": "تم الإقران بنجاح",
   "pairing.failed": "فشل الإقران",
   "pairing.invalid_url": "أدخل رابط http(s) صالحاً",

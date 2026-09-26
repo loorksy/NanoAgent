@@ -46,7 +46,7 @@ export class UsagePanel {
 
   constructor(renderer: CliRenderer, private theme: UsagePanelTheme) {
     this.root = new BoxRenderable(renderer, {
-      id: "nanobot-tui-usage-panel",
+      id: "mokli-tui-usage-panel",
       width: "100%",
       maxWidth: 72,
       flexShrink: 0,
@@ -59,7 +59,7 @@ export class UsagePanel {
       visible: false,
     })
     this.body = new TextRenderable(renderer, {
-      id: "nanobot-tui-usage-body",
+      id: "mokli-tui-usage-body",
       width: "100%",
       content: "",
       wrapMode: "none",

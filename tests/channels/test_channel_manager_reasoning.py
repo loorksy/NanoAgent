@@ -20,15 +20,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from nanobot.bus.events import OutboundMessage
-from nanobot.bus.outbound_events import (
+from mokli.bus.events import OutboundMessage
+from mokli.bus.outbound_events import (
     ProgressEvent,
     outbound_message_for_event,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.channels.base import BaseChannel
-from nanobot.channels.manager import ChannelManager
-from nanobot.config.schema import Config
+from mokli.bus.queue import MessageBus
+from mokli.channels.base import BaseChannel
+from mokli.channels.manager import ChannelManager
+from mokli.config.schema import Config
 
 
 class _MockChannel(BaseChannel):
@@ -71,7 +71,7 @@ def manager() -> ChannelManager:
 
 def test_websocket_gateway_uses_configured_workspace_restriction(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "nanobot.webui.workspaces.read_webui_default_access_mode",
+        "mokli.mokli.workspaces.read_mokli_default_access_mode",
         lambda: "default",
     )
     config = Config.model_validate(
@@ -87,7 +87,7 @@ def test_websocket_gateway_uses_configured_workspace_restriction(tmp_path, monke
         }
     )
 
-    mgr = ChannelManager(config, MessageBus(), webui_static_dist=False)
+    mgr = ChannelManager(config, MessageBus(), mokli_static_dist=False)
     channel = mgr.channels["websocket"]
 
     scope = channel.gateway.workspaces.default_scope()

@@ -35,7 +35,7 @@ What landed in the tree is different:
 | One executor | Two paths: `turn_executor.py` "light" vs `orchestrator.py` "full" |
 | Policy Guard wraps a reasoning plan | `validate_turn_plan()` normalizes a static `TurnPlan` |
 
-The Evidence Node graph (`nanobot/trading/evidence/`) is real and should stay.
+The Evidence Node graph (`mokli/trading/evidence/`) is real and should stay.
 The trading kernel (synthesizer, gates, store, state machine) is real and must
 stay frozen. The **routing layers** that pretend to be a planner are what this
 redesign replaces.
@@ -205,7 +205,7 @@ Operator message + session state
         │
         ▼
 ┌───────────────────────────────────────────┐
-│  AgentRunner (existing nanobot loop)      │
+│  AgentRunner (existing mokli loop)      │
 │  model ⇄ tool calls until it stops        │
 │                                           │
 │  Evidence tools  → EvidenceNode / graph   │
@@ -236,7 +236,7 @@ Operator message + session state
 ### 5.1 Core formula (revised)
 
 ```
-Existing nanobot tool-calling loop
+Existing mokli tool-calling loop
     + Evidence Nodes as tools
     + Privileged kernel tool
     + Hard Law policy wrapper
@@ -882,15 +882,15 @@ leave-as-is.
 - Product roadmap: `docs/designs/gold-trading-roadmap.md`
 - Original agent design: `docs/designs/gold-trading-agent.md`
 - Architecture constraints: `.agent/design.md`
-- Evidence graph: `nanobot/trading/evidence/`
-- Current (legacy) planner: `nanobot/trading/turn_planner.py`
-- Current Policy Guard: `nanobot/trading/policy_guard.py`
-- Current light path: `nanobot/trading/turn_executor.py`
-- Current full path: `nanobot/trading/orchestrator.py`
-- Current agent-first tools: `nanobot/agent/tools/trading_chart.py`
-- Agent-first skip of fast-path: `nanobot/agent/loop.py`
+- Evidence graph: `mokli/trading/evidence/`
+- Current (legacy) planner: `mokli/trading/turn_planner.py`
+- Current Policy Guard: `mokli/trading/policy_guard.py`
+- Current light path: `mokli/trading/turn_executor.py`
+- Current full path: `mokli/trading/orchestrator.py`
+- Current agent-first tools: `mokli/agent/tools/trading_chart.py`
+- Agent-first skip of fast-path: `mokli/agent/loop.py`
   (`_dispatch_gold_fast_path`)
-- Kernel store: `nanobot/trading/recommendations/store.py`
-- Kernel FSM: `nanobot/trading/recommendations/state_machine.py`
-- Gates: `nanobot/trading/gates/`
-- Gold skill: `nanobot/skills/gold-trading/SKILL.md`
+- Kernel store: `mokli/trading/recommendations/store.py`
+- Kernel FSM: `mokli/trading/recommendations/state_machine.py`
+- Gates: `mokli/trading/gates/`
+- Gold skill: `mokli/skills/gold-trading/SKILL.md`

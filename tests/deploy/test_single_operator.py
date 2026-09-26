@@ -12,13 +12,13 @@ def _text(path: str) -> str:
 
 
 def test_second_account_is_refused_at_the_auth_insert() -> None:
-    source = _text("open-webui/backend/open_webui/models/auths.py")
+    source = _text("mokli-ui/backend/mokli_ui/models/auths.py")
     assert "if await Users.has_users(db=session):" in source
     assert "one operator only" in source
 
 
 def test_signup_and_add_user_do_not_open_a_second_account() -> None:
-    source = _text("open-webui/backend/open_webui/routers/auths.py")
+    source = _text("mokli-ui/backend/mokli_ui/routers/auths.py")
     signup = source.split("async def signup(", 1)[1].split("async def", 1)[0]
     assert "if has_users:" in signup
     assert "enable_signup" not in signup
@@ -28,28 +28,28 @@ def test_signup_and_add_user_do_not_open_a_second_account() -> None:
 
 
 def test_chat_model_list_is_the_pipe_only() -> None:
-    source = _text("open-webui/backend/open_webui/main.py")
+    source = _text("mokli-ui/backend/mokli_ui/main.py")
     assert "isinstance(model.get('pipe'), dict)" in source
 
 
 def test_signup_link_and_add_user_button_are_gone() -> None:
-    auth = _text("open-webui/src/routes/auth/+page.svelte")
+    auth = _text("mokli-ui/src/routes/auth/+page.svelte")
     assert "Don't have an account?" not in auth
-    users = _text("open-webui/src/lib/components/admin/Users/UserList.svelte")
+    users = _text("mokli-ui/src/lib/components/admin/Users/UserList.svelte")
     assert "Add User" not in users
     assert "AddUserModal" not in users
 
 
 def test_system_prompt_and_temperature_controls_are_gone() -> None:
-    general = _text("open-webui/src/lib/components/chat/Settings/General.svelte")
-    controls = _text("open-webui/src/lib/components/chat/Controls/Controls.svelte")
+    general = _text("mokli-ui/src/lib/components/chat/Settings/General.svelte")
+    controls = _text("mokli-ui/src/lib/components/chat/Controls/Controls.svelte")
     assert "sections.systemPrompt" not in general
     assert "temperature:" not in general
     assert "System Prompt" not in controls
     assert "Advanced Params" not in controls
-    chat = _text("open-webui/src/lib/components/chat/Chat.svelte")
+    chat = _text("mokli-ui/src/lib/components/chat/Chat.svelte")
     assert "role: 'system'" not in chat
     assert "selectedModelIds = [atSelectedModel.id]" not in chat
-    message_input = _text("open-webui/src/lib/components/chat/MessageInput.svelte")
+    message_input = _text("mokli-ui/src/lib/components/chat/MessageInput.svelte")
     assert "atSelectedModel = data" not in message_input
     assert "atSelectedModel = model" not in message_input

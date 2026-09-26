@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from nanobot.security.secret_store import SecretStore, set_secret_store_for_tests
-from nanobot.trading.permissions.model import Mt5Permissions
-from nanobot.trading.permissions.store import (
+from mokli.security.secret_store import SecretStore, set_secret_store_for_tests
+from mokli.trading.permissions.model import Mt5Permissions
+from mokli.trading.permissions.store import (
     AUDIT_MAX_ENTRIES,
     AUDIT_SECRET_NAME,
     PERMISSIONS_SECRET_NAME,

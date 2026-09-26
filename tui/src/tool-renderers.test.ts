@@ -14,8 +14,8 @@ describe("tool renderers", () => {
   test("uses stable task language for common file and web tools", () => {
     expect(renderToolEvent({ phase: "end", name: "read_file", arguments: { path: "README.md" } }))
       .toBe("  ✓ Read  README.md")
-    expect(renderToolEvent({ phase: "start", name: "web_search", arguments: { query: "nanobot" } }))
-      .toBe("  › Search web  nanobot")
+    expect(renderToolEvent({ phase: "start", name: "web_search", arguments: { query: "mokli" } }))
+      .toBe("  › Search web  mokli")
     expect(renderToolEvent({ phase: "error", name: "web_fetch", error: "timeout" }))
       .toBe("  × Fetch  timeout")
   })
@@ -28,19 +28,19 @@ describe("tool renderers", () => {
   })
 
   test("shortens file paths relative to the workspace while preserving the useful tail", () => {
-    const workspace = String.raw`C:\workspace\nanobot`
+    const workspace = String.raw`C:\workspace\mokli`
     expect(renderToolEvent({
       phase: "end",
       name: "read_file",
-      arguments: { path: String.raw`C:\workspace\nanobot\tui\src\app.ts` },
+      arguments: { path: String.raw`C:\workspace\mokli\tui\src\app.ts` },
     }, { workspace })).toBe("  ✓ Read  tui/src/app.ts")
     expect(renderToolEvent({
       phase: "end",
       name: "read_file",
       arguments: {
-        path: String.raw`C:\workspace\nanobot\.worktrees\feature\nanobot\providers\fallback_provider.py`,
+        path: String.raw`C:\workspace\mokli\.worktrees\feature\mokli\providers\fallback_provider.py`,
       },
-    }, { workspace })).toBe("  ✓ Read  …/feature/nanobot/providers/fallback_provider.py")
+    }, { workspace })).toBe("  ✓ Read  …/feature/mokli/providers/fallback_provider.py")
   })
 
   test("summarizes subagent delegation without exposing raw argument JSON", () => {

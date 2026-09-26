@@ -1,5 +1,5 @@
 {
-  "name": "nanoagent-mobile",
+  "name": "mokli-mobile",
   "private": true,
   "version": "0.1.0",
   "main": "expo-router/entry",
@@ -15,7 +15,7 @@
     "build:production": "eas build --platform all --profile production"
   },
   "dependencies": {
-    "@nanoagent/sdk": "file:../packages/nanoagent-sdk",
+    "@mokli/sdk": "file:../packages/mokli-sdk",
     "@react-native-community/slider": "5.0.1",
     "expo": "~54.0.0",
     "expo-application": "~7.0.8",

@@ -1,4 +1,4 @@
-from nanobot.trading.i18n import artifact_title, gate_label, label_map, tr
+from mokli.trading.i18n import artifact_title, gate_label, label_map, tr
 
 
 def test_tr_arabic_price_header() -> None:

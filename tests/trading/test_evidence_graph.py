@@ -2,7 +2,7 @@
 
 import pytest
 
-from nanobot.trading.evidence import (
+from mokli.trading.evidence import (
     DEFAULT_ANALYSIS_GRAPH,
     NODE_REGISTRY,
     PipelineContext,
@@ -10,7 +10,7 @@ from nanobot.trading.evidence import (
     run_evidence_graph,
     stage_sequence_from_graph,
 )
-from nanobot.trading.evidence.graph import DEFAULT_ANALYSIS_LAYERS
+from mokli.trading.evidence.graph import DEFAULT_ANALYSIS_LAYERS
 
 
 def test_default_graph_matches_legacy_layer_order():
@@ -76,7 +76,7 @@ async def test_run_evidence_graph_full_analysis(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_market_data_failure_aborts_graph(monkeypatch):
-    from nanobot.trading.types import AgentMarketContext, MarketSync
+    from mokli.trading.types import AgentMarketContext, MarketSync
 
     def _fail_market(_symbol: str, _interval: str):
         return AgentMarketContext(
@@ -89,7 +89,7 @@ async def test_market_data_failure_aborts_graph(monkeypatch):
         )
 
     monkeypatch.setattr(
-        "nanobot.trading.evidence.nodes.run_market_data_agent",
+        "mokli.trading.evidence.nodes.run_market_data_agent",
         _fail_market,
     )
 
@@ -111,7 +111,7 @@ async def test_market_data_failure_aborts_graph(monkeypatch):
 async def test_orchestrator_uses_evidence_graph(monkeypatch):
     from evidence_stubs import install_evidence_stubs
 
-    from nanobot.trading.kernel import run_trading_kernel
+    from mokli.trading.kernel import run_trading_kernel
 
     install_evidence_stubs(monkeypatch)
     result = await run_trading_kernel(store=False)
@@ -126,9 +126,9 @@ async def test_orchestrator_uses_evidence_graph(monkeypatch):
 async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
     from evidence_stubs import install_evidence_stubs
 
-    from nanobot.trading.intel.postmortem import LossRecord
-    from nanobot.trading.kernel import run_trading_kernel
-    from nanobot.trading.types import AgentRecommendation, FinalDecisionResult
+    from mokli.trading.intel.postmortem import LossRecord
+    from mokli.trading.kernel import run_trading_kernel
+    from mokli.trading.types import AgentRecommendation, FinalDecisionResult
 
     install_evidence_stubs(monkeypatch)
 
@@ -149,9 +149,9 @@ async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
             recommendation=rec,
         )
 
-    monkeypatch.setattr("nanobot.trading.kernel.run_final_decision_synthesizer", _buy)
+    monkeypatch.setattr("mokli.trading.kernel.run_final_decision_synthesizer", _buy)
     monkeypatch.setattr(
-        "nanobot.trading.kernel.refuse_repeat_error",
+        "mokli.trading.kernel.refuse_repeat_error",
         lambda **_k: LossRecord(2400, 2385, 1, "unknown", "structure", 10.0, "early_entry", "buy"),
     )
     result = await run_trading_kernel(store=False)

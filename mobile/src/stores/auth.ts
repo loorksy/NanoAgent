@@ -1,18 +1,18 @@
-import type { PairDeviceResponse, Scope } from "@nanoagent/sdk";
+import type { PairDeviceResponse, Scope } from "@mokli/sdk";
 import { createStore } from "zustand/vanilla";
 
 import { isLocale, setLocale, type Locale } from "../i18n";
 import type { KeyValueStore } from "../lib/storage";
 
 export const STORAGE_KEYS = {
-  gatewayUrl: "nanoagent.gateway_url",
-  token: "nanoagent.device_token",
-  clientId: "nanoagent.client_id",
-  deviceId: "nanoagent.device_id",
-  scopes: "nanoagent.scopes",
-  locale: "nanoagent.locale",
-  pushToken: "nanoagent.push_token",
-  pushPlatform: "nanoagent.push_platform",
+  gatewayUrl: "mokli.gateway_url",
+  token: "mokli.device_token",
+  clientId: "mokli.client_id",
+  deviceId: "mokli.device_id",
+  scopes: "mokli.scopes",
+  locale: "mokli.locale",
+  pushToken: "mokli.push_token",
+  pushPlatform: "mokli.push_platform",
 } as const;
 
 export type PushPlatform = "ios" | "android";

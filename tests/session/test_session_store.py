@@ -1,10 +1,10 @@
 import json
 from unittest.mock import MagicMock
 
-from nanobot.providers.base import ProviderConversationState
-from nanobot.session import Session, SessionManager
-from nanobot.session.manager import SessionStore
-from nanobot.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
+from mokli.providers.base import ProviderConversationState
+from mokli.session import Session, SessionManager
+from mokli.session.manager import SessionStore
+from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
 
 
 def test_manager_delegates_persistence_to_store(tmp_path) -> None:

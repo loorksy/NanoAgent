@@ -1,4 +1,4 @@
-# How to Build a Personal AI Agent with nanobot
+# How to Build a Personal AI Agent with mokli
 
 This guide builds a personal AI agent you can run locally, talk to from the
 terminal or browser, and later connect to chat apps, memory, tools, and
@@ -6,21 +6,21 @@ automations.
 
 ## What you will build
 
-- a configured nanobot install
+- a configured mokli install
 - one working model provider
 - one local agent reply
-- a browser WebUI session for ongoing work
+- a browser Mokli session for ongoing work
 
 ## When to use this
 
 Use this when you want a personal AI agent that you control rather than a hosted
-chat-only interface. nanobot is useful when the agent needs local workspace
+chat-only interface. mokli is useful when the agent needs local workspace
 access, tool calls, session history, memory, scheduled work, or chat app
 delivery.
 
 ## Install
 
-Follow [Quick Start](../quick-start.md) to install nanobot using the recommended
+Follow [Quick Start](../quick-start.md) to install mokli using the recommended
 method for your operating system and configure one model. Return here after
 you receive the first reply. If terminals and config files are new to you, use
 [Start Without Technical Background](../start-without-technical-background.md)
@@ -31,16 +31,16 @@ instead.
 First prove the runtime can answer:
 
 ```bash
-nanobot agent -m "Hello!"
+mokli agent -m "Hello!"
 ```
 
 Then open the browser workbench:
 
 ```bash
-nanobot webui
+mokli mokli
 ```
 
-The WebUI starts the local gateway, opens a browser, and keeps persistent chat
+The Mokli starts the local gateway, opens a browser, and keeps persistent chat
 sessions for longer work.
 
 ## Production notes
@@ -48,7 +48,7 @@ sessions for longer work.
 - Keep one workspace per project or personal context.
 - Use `modelPresets` when you want stable names for fast, deep, local, or
   fallback models.
-- Keep `nanobot gateway` running for WebUI, chat apps, automations, and the
+- Keep `mokli gateway` running for Mokli, chat apps, automations, and the
   WebSocket channel.
 - Use the Python SDK or OpenAI-compatible API when another program should call
   the agent.
@@ -64,16 +64,16 @@ sessions for longer work.
 
 ## Troubleshooting
 
-- `nanobot status` shows the config path, workspace path, and active model.
-- If `nanobot agent -m "Hello!"` fails, fix provider setup before opening the
-  WebUI or chat apps.
-- If the WebUI opens but does not answer, check gateway logs and provider
+- `mokli status` shows the config path, workspace path, and active model.
+- If `mokli agent -m "Hello!"` fails, fix provider setup before opening the
+  Mokli or chat apps.
+- If the Mokli opens but does not answer, check gateway logs and provider
   credentials.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Quick Start](../quick-start.md)
 - [Concepts](../concepts.md)
-- [WebUI](../webui.md)
+- [Mokli](../mokli.md)
 - [Configuration](../configuration.md)
 - [Troubleshooting](../troubleshooting.md)

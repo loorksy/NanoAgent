@@ -1,5 +1,5 @@
 {
-  "app.name": "NanoAgent",
+  "app.name": "Mokli",
   "common.loading": "Loading…",
   "common.retry": "Retry",
   "common.error_generic": "Something went wrong",
@@ -257,7 +257,7 @@
   "pairing.pair": "Pair",
   "pairing.camera_permission": "Camera access is needed to scan the pairing code.",
   "pairing.grant_camera": "Allow camera",
-  "pairing.invalid_qr": "That QR code is not a NanoAgent pairing code.",
+  "pairing.invalid_qr": "That QR code is not a Mokli pairing code.",
   "pairing.success": "Paired successfully",
   "pairing.failed": "Pairing failed",
   "pairing.invalid_url": "Enter a valid http(s) URL",

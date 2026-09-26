@@ -6,9 +6,9 @@ import typer
 from rich.console import Console
 from typer.testing import CliRunner
 
-from nanobot.cli.gateway import _resolved_config_selector, create_gateway_app
-from nanobot.config.schema import Config
-from nanobot.gateway import (
+from mokli.cli.gateway import _resolved_config_selector, create_gateway_app
+from mokli.config.schema import Config
+from mokli.gateway import (
     GatewayAlreadyRunningError,
     GatewayInstance,
     GatewayRuntimePaths,
@@ -16,7 +16,7 @@ from nanobot.gateway import (
     GatewayStatus,
     RuntimeResult,
 )
-from nanobot.gateway.service import GatewayServiceOptions, GatewayServiceResult
+from mokli.gateway.service import GatewayServiceOptions, GatewayServiceResult
 
 runner = CliRunner()
 
@@ -26,7 +26,7 @@ def test_default_config_has_the_same_gateway_identity_when_explicit(
     tmp_path: Path,
 ) -> None:
     config_path = tmp_path / "config.json"
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
 
     assert _resolved_config_selector(None) == config_path
     assert _resolved_config_selector(str(config_path)) == config_path
@@ -93,9 +93,9 @@ class FakeServiceInstaller:
             True,
             "service_install_dry_run" if dry_run else "service_installed",
             "systemd",
-            self.tmp_path / "nanobot-gateway.service",
+            self.tmp_path / "mokli-gateway.service",
             (("systemctl", "--user", "daemon-reload"),),
-            "[Unit]\nDescription=Nanobot Gateway\n",
+            "[Unit]\nDescription=Mokli Gateway\n",
         )
 
     def uninstall(self, *, name: str, manager: str, dry_run: bool) -> GatewayServiceResult:
@@ -105,8 +105,8 @@ class FakeServiceInstaller:
             True,
             "service_uninstall_dry_run" if dry_run else "service_uninstalled",
             "systemd",
-            self.tmp_path / "nanobot-gateway.service",
-            (("systemctl", "--user", "disable", "--now", "nanobot-gateway.service"),),
+            self.tmp_path / "mokli-gateway.service",
+            (("systemctl", "--user", "disable", "--now", "mokli-gateway.service"),),
         )
 
 
@@ -131,17 +131,17 @@ def _test_app(
         config: Config,
         *,
         port: int | None = None,
-        webui_bundle_mode: str | None = None,
+        mokli_bundle_mode: str | None = None,
         unconfigured_provider_error: str | None = None,
         gateway_instance: GatewayInstance | None = None,
     ) -> None:
         if run_error is not None:
             raise run_error
         run_calls.append(
-            (config, port, webui_bundle_mode, unconfigured_provider_error, gateway_instance)
+            (config, port, mokli_bundle_mode, unconfigured_provider_error, gateway_instance)
         )
 
-    def prepare_webui_bundle(config: Config, mode: str) -> None:
+    def prepare_mokli_bundle(config: Config, mode: str) -> None:
         prepare_calls.append((config, mode))
 
     def validate_startup_config(config: Config) -> str | None:
@@ -159,7 +159,7 @@ def _test_app(
             ),
             runtime_factory=lambda **_kwargs: fake_runtime,
             service_factory=lambda: fake_service,
-            prepare_webui_bundle=prepare_webui_bundle,
+            prepare_mokli_bundle=prepare_mokli_bundle,
         ),
         name="gateway",
     )
@@ -418,7 +418,7 @@ def test_gateway_restart_does_not_create_a_persistent_gateway(tmp_path):
 
     assert result.exit_code == 1
     assert "there is nothing to restart" in result.stdout
-    assert "nanobot gateway --background" in result.stdout
+    assert "mokli gateway --background" in result.stdout
 
 
 def test_gateway_restart_explains_foreground_lifecycle(tmp_path):

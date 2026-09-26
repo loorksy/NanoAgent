@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from nanobot.agent.memory import MemoryStore
-from nanobot.agent.tools.context import ToolContext
-from nanobot.agent.tools.loader import ToolLoader
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.config.schema import Config
+from mokli.agent.memory import MemoryStore
+from mokli.agent.tools.context import ToolContext
+from mokli.agent.tools.loader import ToolLoader
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.config.schema import Config
 
 
 def test_dream_registry_exposes_only_memory_file_tools(tmp_path: Path) -> None:

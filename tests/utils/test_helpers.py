@@ -2,8 +2,8 @@ from pathlib import Path
 
 import tiktoken
 
-from nanobot.utils import helpers
-from nanobot.utils.helpers import (
+from mokli.utils import helpers
+from mokli.utils.helpers import (
     _write_text_atomic,
     content_with_media_breadcrumbs,
     split_message,

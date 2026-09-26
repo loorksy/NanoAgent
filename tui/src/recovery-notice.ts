@@ -40,7 +40,7 @@ export class RecoveryNotice {
     options: RecoveryNoticeOptions,
   ) {
     this.root = new BoxRenderable(renderer, {
-      id: "nanobot-tui-recovery-notice",
+      id: "mokli-tui-recovery-notice",
       width: "100%",
       height: 4,
       flexShrink: 0,
@@ -54,7 +54,7 @@ export class RecoveryNotice {
       backgroundColor: RGBA.defaultBackground(),
     })
     const header = new BoxRenderable(renderer, {
-      id: "nanobot-tui-recovery-header",
+      id: "mokli-tui-recovery-header",
       width: "100%",
       height: 1,
       flexDirection: "row",
@@ -62,7 +62,7 @@ export class RecoveryNotice {
       gap: 2,
     })
     this.title = new TextRenderable(renderer, {
-      id: "nanobot-tui-recovery-title",
+      id: "mokli-tui-recovery-title",
       width: "auto",
       minWidth: 0,
       flexGrow: 1,
@@ -71,7 +71,7 @@ export class RecoveryNotice {
       selectable: false,
     })
     this.detail = new TextRenderable(renderer, {
-      id: "nanobot-tui-recovery-detail",
+      id: "mokli-tui-recovery-detail",
       width: "100%",
       height: 1,
       truncate: true,
@@ -122,7 +122,7 @@ export class RecoveryNotice {
     primary = false,
   ): TextRenderable {
     return new TextRenderable(renderer, {
-      id: `nanobot-tui-recovery-${id}`,
+      id: `mokli-tui-recovery-${id}`,
       content: label,
       width: label.length,
       height: 1,

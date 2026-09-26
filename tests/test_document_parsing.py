@@ -5,7 +5,7 @@ from zipfile import ZipFile
 
 import pytest
 
-from nanobot.utils.document import (
+from mokli.utils.document import (
     PdfSafetyError,
     _is_text_extension,
     extract_pdf_pages,
@@ -280,7 +280,7 @@ class TestExtractText:
         """Large tables fail safely even when their text output would be empty."""
         from docx import Document
 
-        from nanobot.utils import document as document_utils
+        from mokli.utils import document as document_utils
 
         docx_file = tmp_path / "too-many-cells.docx"
         doc = Document()
@@ -299,7 +299,7 @@ class TestExtractText:
         """Deeply nested tables fail safely instead of recursing without a bound."""
         from docx import Document
 
-        from nanobot.utils import document as document_utils
+        from mokli.utils import document as document_utils
 
         docx_file = tmp_path / "nested-too-deep.docx"
         doc = Document()
@@ -401,7 +401,7 @@ class TestExtractText:
         with ZipFile(office_file, "w") as archive:
             archive.writestr("word/document.xml", "x" * 32)
 
-        monkeypatch.setattr("nanobot.utils.document._MAX_OFFICE_UNCOMPRESSED_SIZE", 16)
+        monkeypatch.setattr("mokli.utils.document._MAX_OFFICE_UNCOMPRESSED_SIZE", 16)
 
         assert "Office document expands beyond" in (extract_text(office_file) or "")
 
@@ -433,7 +433,7 @@ class TestExtractText:
             return workbook
 
         monkeypatch.setattr("openpyxl.load_workbook", tracked_load_workbook)
-        monkeypatch.setattr("nanobot.utils.document._MAX_TEXT_LENGTH", 80)
+        monkeypatch.setattr("mokli.utils.document._MAX_TEXT_LENGTH", 80)
 
         result = extract_text(xlsx_file)
 
@@ -461,7 +461,7 @@ class TestExtractText:
                 self.pages = [_Page()]
 
         monkeypatch.setattr("pypdf.PdfReader", _Reader)
-        monkeypatch.setattr("nanobot.utils.document._MAX_PDF_CONTENT_STREAM_SIZE", 16)
+        monkeypatch.setattr("mokli.utils.document._MAX_PDF_CONTENT_STREAM_SIZE", 16)
 
         with pytest.raises(PdfSafetyError, match="content stream exceeds"):
             extract_pdf_pages(tmp_path / "large.pdf")

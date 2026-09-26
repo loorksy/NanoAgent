@@ -7,24 +7,24 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.tools.context import ToolContext
-from nanobot.agent.tools.loader import ToolLoader
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.config.schema import ToolsConfig
-from nanobot.trading.policy_guard import PolicyViolation, validate_tool_call
-from nanobot.trading.turn_session import TurnSession, turn_session_scope
+from mokli.agent.tools.context import ToolContext
+from mokli.agent.tools.loader import ToolLoader
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.config.schema import ToolsConfig
+from mokli.trading.policy_guard import PolicyViolation, validate_tool_call
+from mokli.trading.turn_session import TurnSession, turn_session_scope
 
 _REPO = Path(__file__).resolve().parents[2]
 _ANALYSIS_MODULES = [
-    _REPO / "nanobot/trading/kernel.py",
-    _REPO / "nanobot/trading/unified_evidence.py",
-    _REPO / "nanobot/agent/tools/trading_evidence.py",
-    _REPO / "nanobot/agent/tools/trading_kernel.py",
+    _REPO / "mokli/trading/kernel.py",
+    _REPO / "mokli/trading/unified_evidence.py",
+    _REPO / "mokli/agent/tools/trading_evidence.py",
+    _REPO / "mokli/agent/tools/trading_kernel.py",
 ]
 _MT5_MARKERS = (
-    "nanobot.trading.mt5_execution",
-    "nanobot.trading.mt5_metaapi",
-    "nanobot.trading.mt5_proposals",
+    "mokli.trading.mt5_execution",
+    "mokli.trading.mt5_metaapi",
+    "mokli.trading.mt5_proposals",
     "mt5_propose_order",
     "mt5_confirm_order",
     "mt5_modify_order",

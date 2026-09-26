@@ -1,5 +1,5 @@
-import { setApprovalStatus, type ApprovalDecision, type ArtifactEntry, type ChatMessage, type Session, type StructuredResult } from "@nanoagent/sdk";
-import { useSession } from "@nanoagent/sdk/react";
+import { setApprovalStatus, type ApprovalDecision, type ArtifactEntry, type ChatMessage, type Session, type StructuredResult } from "@mokli/sdk";
+import { useSession } from "@mokli/sdk/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";

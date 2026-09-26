@@ -1,4 +1,4 @@
-import type { Recommendation } from "@nanoagent/sdk";
+import type { Recommendation } from "@mokli/sdk";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

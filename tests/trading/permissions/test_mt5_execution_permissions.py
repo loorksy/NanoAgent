@@ -7,21 +7,21 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.config.loader import save_config
-from nanobot.config.schema import Config
-from nanobot.security.secret_store import SecretStore
-from nanobot.trading.mt5_execution import (
+from mokli.config.loader import save_config
+from mokli.config.schema import Config
+from mokli.security.secret_store import SecretStore
+from mokli.trading.mt5_execution import (
     mt5_close_position,
     mt5_confirm_order,
     mt5_modify_order,
     mt5_propose_order,
 )
-from nanobot.trading.mt5_metaapi import NullTransport, set_transport_for_tests
-from nanobot.trading.mt5_proposals import get_proposal_store
-from nanobot.trading.permissions.model import Mt5Permissions
-from nanobot.trading.permissions.store import PermissionStore, set_permission_store_for_tests
-from nanobot.trading.risk_state import RiskStateStore
-from nanobot.trading.runtime_state import TradingRuntimeStore
+from mokli.trading.mt5_metaapi import NullTransport, set_transport_for_tests
+from mokli.trading.mt5_proposals import get_proposal_store
+from mokli.trading.permissions.model import Mt5Permissions
+from mokli.trading.permissions.store import PermissionStore, set_permission_store_for_tests
+from mokli.trading.risk_state import RiskStateStore
+from mokli.trading.runtime_state import TradingRuntimeStore
 
 SAFE_TS = datetime(2023, 11, 15, 12, 0, tzinfo=UTC).timestamp()  # london + newyork
 DEAD_TS = datetime(2023, 11, 15, 22, 30, tzinfo=UTC).timestamp()  # no session
@@ -86,19 +86,19 @@ class Harness:
         set_transport_for_tests(self.transport)
         config_path = tmp_path / "config.json"
         save_config(Config(), config_path)
-        monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+        monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
         self.runtime = TradingRuntimeStore(tmp_path / "runtime.json")
         self.runtime.update(paper_mode=False)
         self.risk = RiskStateStore(tmp_path / "risk.json")
-        monkeypatch.setattr("nanobot.trading.mt5_execution.get_runtime_store", lambda: self.runtime)
-        monkeypatch.setattr("nanobot.trading.mt5_execution.get_risk_store", lambda: self.risk)
+        monkeypatch.setattr("mokli.trading.mt5_execution.get_runtime_store", lambda: self.runtime)
+        monkeypatch.setattr("mokli.trading.mt5_execution.get_risk_store", lambda: self.risk)
         self.permissions = PermissionStore(SecretStore(tmp_path / "secrets.enc"))
         set_permission_store_for_tests(self.permissions)
         self.set_time(SAFE_TS)
 
     def set_time(self, ts: float) -> None:
-        self.monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: ts)
-        self.monkeypatch.setattr("nanobot.trading.mt5_proposals.time.time", lambda: ts)
+        self.monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: ts)
+        self.monkeypatch.setattr("mokli.trading.mt5_proposals.time.time", lambda: ts)
 
     def grant(self, **overrides: object) -> Mt5Permissions:
         base: dict[str, object] = {

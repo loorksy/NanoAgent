@@ -12,7 +12,7 @@
 ## التشغيل
 
 ```bash
-docker build -t nanobot-chart-host ./chart-host
+docker build -t mokli-chart-host ./chart-host
 
 # --init «إلزامي» لا اختياري: بدونه يترك كل فتح/إغلاق للمتصفح ~3 عمليات
 # Chromium زومبي، ومع --pids-limit=256 تتوقف الحاوية عن العمل بعد ~80 دورة.
@@ -21,8 +21,8 @@ docker run -d --name chart-host \
   --init --memory=1500m --pids-limit=256 --restart=unless-stopped \
   -p 127.0.0.1:8788:8787 \
   -e APP_URL="https://your-app-origin" \
-  -e NANOBOT_CHART_HOST_TOKEN="<نفس قيمة التطبيق>" \
-  nanobot-chart-host
+  -e MOKLI_CHART_HOST_TOKEN="<نفس قيمة التطبيق>" \
+  mokli-chart-host
 ```
 
 ثم في بيئة التطبيق:
@@ -30,7 +30,7 @@ docker run -d --name chart-host \
 ```bash
 CHART_HOST_URL=http://127.0.0.1:8788
 # نفس السر يستخدم للتحكم ولتوقيع رمز الصفحة:
-NANOBOT_CHART_HOST_TOKEN=<same>
+MOKLI_CHART_HOST_TOKEN=<same>
 ```
 
 بدون `CHART_HOST_URL` يعمل التطبيق كما قبل هذه الميزة تماماً: لا تبويب حي ⇒ فشل
@@ -48,7 +48,7 @@ NANOBOT_CHART_HOST_TOKEN=<same>
 
 وفي جانب التطبيق: `CHART_SNAPSHOT_CACHE_TTL_MS` (افتراضي **15000**، 0 يعطّل) نافذة
 كاش اللقطة المشتركة، و`CHART_HOST_WARMUP_MS` مهلة انتظار أول poll بعد الفتح،
-و`CHART_HOST_CONTROL_TOKEN` لفصل رمز التحكم عن `NANOBOT_CHART_HOST_TOKEN` عند الرغبة.
+و`CHART_HOST_CONTROL_TOKEN` لفصل رمز التحكم عن `MOKLI_CHART_HOST_TOKEN` عند الرغبة.
 
 ## واجهة التحكم
 

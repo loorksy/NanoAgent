@@ -7,24 +7,24 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.goal_permission import goal_mutation_allowed, goal_mutation_permission
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.context import (
+from mokli.agent.goal_permission import goal_mutation_allowed, goal_mutation_permission
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.context import (
     RequestContext,
     current_request_context,
     request_context,
 )
-from nanobot.agent.tools.long_task import (
+from mokli.agent.tools.long_task import (
     CreateGoalTool,
     UpdateGoalTool,
 )
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.bus.outbound_events import GoalStateSyncEvent
-from nanobot.bus.queue import MessageBus
-from nanobot.session.goal_state import GOAL_STATE_KEY, MAX_GOAL_OBJECTIVE_CHARS
-from nanobot.session.manager import SessionManager
-from nanobot.session.turn_continuation import should_finalize_on_max_iterations
-from nanobot.session.webui_turns import WebuiTurnCoordinator
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.bus.outbound_events import GoalStateSyncEvent
+from mokli.bus.queue import MessageBus
+from mokli.session.goal_state import GOAL_STATE_KEY, MAX_GOAL_OBJECTIVE_CHARS
+from mokli.session.manager import SessionManager
+from mokli.session.turn_continuation import should_finalize_on_max_iterations
+from mokli.session.mokli_turns import MokliTurnCoordinator
 
 
 def _goal_metadata() -> dict[str, object]:
@@ -380,7 +380,7 @@ async def test_goal_state_events_publish_active_then_inactive(tmp_path):
     bus = MessageBus()
     bus.publish_outbound = AsyncMock()
     sm = SessionManager(tmp_path)
-    WebuiTurnCoordinator(
+    MokliTurnCoordinator(
         bus=bus,
         sessions=sm,
         schedule_background=lambda _coro: None,

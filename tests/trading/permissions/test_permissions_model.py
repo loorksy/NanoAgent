@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from nanobot.config.schema import TradingRiskParameters
-from nanobot.trading.permissions.model import (
+from mokli.config.schema import TradingRiskParameters
+from mokli.trading.permissions.model import (
     ACTIONS,
     DEFAULT_SESSIONS,
     SESSION_HOURS_UTC,
@@ -15,7 +15,7 @@ from nanobot.trading.permissions.model import (
     round_lot,
     session_names_at,
 )
-from nanobot.trading.risk_profiles import apply_profile
+from mokli.trading.risk_profiles import apply_profile
 
 HOUR_MS = 3_600_000
 

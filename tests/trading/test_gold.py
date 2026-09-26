@@ -1,4 +1,4 @@
-from nanobot.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold, is_gold, require_gold
+from mokli.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold, is_gold, require_gold
 
 
 def test_is_gold_accepts_aliases() -> None:

@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from nanobot.config.schema import TradingMetaApiConfig, TradingOandaConfig
-from nanobot.security.secret_store import (
+from mokli.config.schema import TradingMetaApiConfig, TradingOandaConfig
+from mokli.security.secret_store import (
     SECRET_KEY_ENV,
     SecretStore,
     SecretStoreError,
@@ -125,7 +125,7 @@ def test_resolve_secret_swallows_store_errors(tmp_path: Path) -> None:
 
 
 def test_default_store_uses_config_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", tmp_path / "config.json")
+    monkeypatch.setattr("mokli.config.loader._current_config_path", tmp_path / "config.json")
     store = get_secret_store()
     assert store.path == tmp_path / "secrets.enc"
     assert store.key_path == tmp_path / "secret.key"

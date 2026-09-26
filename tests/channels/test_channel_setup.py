@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-import nanobot.channels._setup as channel_setup_module
-import nanobot.channels.registry as registry_module
-from nanobot.channels._setup import channel_setup_spec
-from nanobot.channels.plugin import ChannelPlugin, load_channel_package
-from nanobot.channels.registry import channel_default_enabled, discover_plugins
+import mokli.channels._setup as channel_setup_module
+import mokli.channels.registry as registry_module
+from mokli.channels._setup import channel_setup_spec
+from mokli.channels.plugin import ChannelPlugin, load_channel_package
+from mokli.channels.registry import channel_default_enabled, discover_plugins
 
 EXPECTED_CHANNELS = {
     "telegram",
@@ -21,7 +21,7 @@ EXPECTED_CHANNELS = {
 
 INTERNAL_CHANNEL_FIELDS = {
     "whatsapp": {"databasePath", "lidMappings"},
-    # nanobot WebUI owns this transport and intentionally has no channel dialog.
+    # mokli Mokli owns this transport and intentionally has no channel dialog.
     "websocket": {
         "allowFrom",
         "host",
@@ -90,7 +90,7 @@ def test_channel_setup_spec_separates_writable_and_snapshot_fields() -> None:
     assert "allowFrom" not in whatsapp.snapshot_fields
 
 
-def test_webui_forms_have_writable_telegram_and_whatsapp_contracts() -> None:
+def test_mokli_forms_have_writable_telegram_and_whatsapp_contracts() -> None:
     telegram = channel_setup_spec("telegram")
     whatsapp = channel_setup_spec("whatsapp")
 
@@ -121,10 +121,10 @@ def test_every_channel_is_a_self_contained_package() -> None:
         plugin = load_channel_package(name)
         assert plugin is not None
         assert plugin.name == name
-        assert plugin.runtime.startswith(f"nanobot.channels.{name}.runtime:")
+        assert plugin.runtime.startswith(f"mokli.channels.{name}.runtime:")
         assert plugin.setup is channel_setup_spec(name)
-        if plugin.webui is not None:
-            assert (package_dir / plugin.webui).is_file()
+        if plugin.mokli is not None:
+            assert (package_dir / plugin.mokli).is_file()
 
 
 def test_channel_locales_cover_authoritative_setup_contracts() -> None:
@@ -132,10 +132,10 @@ def test_channel_locales_cover_authoritative_setup_contracts() -> None:
     for name in EXPECTED_CHANNELS:
         plugin = load_channel_package(name)
         assert plugin is not None
-        if plugin.webui is None or plugin.setup is None:
+        if plugin.mokli is None or plugin.setup is None:
             continue
         english = json.loads(
-            (channel_dir / name / "webui" / "locales" / "en.json").read_text(encoding="utf-8")
+            (channel_dir / name / "mokli" / "locales" / "en.json").read_text(encoding="utf-8")
         )
         setup_messages = english["setup"]
         field_messages = setup_messages.get("fields", {})
@@ -155,7 +155,7 @@ def test_channel_locales_cover_authoritative_setup_contracts() -> None:
             assert setup_messages.get("officialLabel"), f"{name} has no localized official label"
 
 
-def test_every_runtime_channel_field_has_a_webui_contract() -> None:
+def test_every_runtime_channel_field_has_a_mokli_contract() -> None:
     for name, plugin in discover_plugins().items():
         runtime_fields = _flatten_channel_fields(plugin.load_channel_class().default_config())
         runtime_fields.discard("enabled")
@@ -165,22 +165,22 @@ def test_every_runtime_channel_field_has_a_webui_contract() -> None:
         internal_fields = INTERNAL_CHANNEL_FIELDS.get(name, set())
 
         assert not runtime_fields - contract_fields - internal_fields, (
-            f"{name} runtime fields missing from WebUI contract: "
+            f"{name} runtime fields missing from Mokli contract: "
             f"{sorted(runtime_fields - contract_fields - internal_fields)}"
         )
         assert not {
             field_name
             for field_name in runtime_fields - internal_fields
             if field_name not in setup.route_field_types
-        }, f"{name} has user-configurable runtime fields that WebUI cannot save"
+        }, f"{name} has user-configurable runtime fields that Mokli cannot save"
 
 
 def test_channel_manifests_only_import_contract_modules() -> None:
     channel_dir = Path(channel_setup_module.__file__).parent
     allowed_imports = {
-        "nanobot.channels._manifest",
-        "nanobot.channels.contracts",
-        "nanobot.channels.plugin",
+        "mokli.channels._manifest",
+        "mokli.channels.contracts",
+        "mokli.channels.plugin",
     }
 
     for name in EXPECTED_CHANNELS:
@@ -195,41 +195,41 @@ def test_channel_manifests_only_import_contract_modules() -> None:
         allowed_channel_imports = {
             module
             for module in imports
-            if module.startswith(f"nanobot.channels.{name}.")
+            if module.startswith(f"mokli.channels.{name}.")
             and not module.endswith(".runtime")
         }
         unexpected = imports - allowed_imports - allowed_channel_imports
         assert not unexpected, f"{name} imports runtime dependencies: {unexpected}"
 
 
-def test_telegram_package_manifest_owns_runtime_and_webui_metadata() -> None:
+def test_telegram_package_manifest_owns_runtime_and_mokli_metadata() -> None:
     plugin = load_channel_package("telegram")
 
     assert plugin is not None
-    assert plugin.runtime == "nanobot.channels.telegram.runtime:TelegramChannel"
+    assert plugin.runtime == "mokli.channels.telegram.runtime:TelegramChannel"
     assert plugin.dependencies[0].startswith("python-telegram-bot")
     assert plugin.setup is not None
     assert plugin.setup.verifies_connection is True
-    assert plugin.webui == "webui/index.ts"
+    assert plugin.mokli == "mokli/index.ts"
 
 
 def test_whatsapp_package_manifest_owns_browser_connector() -> None:
     plugin = load_channel_package("whatsapp")
 
     assert plugin is not None
-    assert plugin.connector == "nanobot.channels.whatsapp.connect:WhatsAppConnectStore"
-    assert plugin.webui == "webui/index.tsx"
+    assert plugin.connector == "mokli.channels.whatsapp.connect:WhatsAppConnectStore"
+    assert plugin.mokli == "mokli/index.tsx"
 
 
 def test_package_manifests_do_not_import_runtimes() -> None:
     code = f"""
 import sys
-from nanobot.channels.plugin import load_channel_package
+from mokli.channels.plugin import load_channel_package
 
 for name in {sorted(EXPECTED_CHANNELS)!r}:
     plugin = load_channel_package(name)
     assert plugin is not None
-    assert f"nanobot.channels.{{name}}.runtime" not in sys.modules
+    assert f"mokli.channels.{{name}}.runtime" not in sys.modules
 """
     result = subprocess.run(
         [sys.executable, "-c", code],
@@ -241,15 +241,15 @@ for name in {sorted(EXPECTED_CHANNELS)!r}:
     assert result.returncode == 0, result.stderr
 
 
-def test_channel_plugin_normalizes_webui_entry() -> None:
+def test_channel_plugin_normalizes_mokli_entry() -> None:
     plugin = ChannelPlugin(
         name="demo",
         display_name="Demo",
         runtime="example.demo.runtime:DemoChannel",
-        webui="webui\\index.tsx",
+        mokli="mokli\\index.tsx",
     )
 
-    assert plugin.webui == "webui/index.tsx"
+    assert plugin.mokli == "mokli/index.tsx"
 
 
 def test_channel_plugin_name_must_match_package_identifier() -> None:

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { type TextareaRenderable } from "@opentui/core"
 import { MockTreeSitterClient, createTestRenderer, type TestRendererSetup } from "@opentui/core/testing"
 
-import { NanobotTui } from "./app"
+import { MokliTui } from "./app"
 import type { UsagePanel } from "./usage-panel"
 import type { RecoveryState } from "./protocol"
 
@@ -52,12 +52,12 @@ describe("TUI /usage", () => {
     }
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input)
-      if (url.includes("/webui-thread")) return history(init)
+      if (url.includes("/mokli-thread")) return history(init)
       return Response.json({ commands: [], sessions: [], skills: [], candidates: [] })
     }) as typeof fetch
     setup = await createTestRenderer({ width: 80, height: 30, screenMode: "alternate-screen", consoleMode: "disabled" })
-    const app = NanobotTui.mount(setup.renderer, {
-      wsUrl: "ws://localhost.invalid/ws", apiUrl: "http://nanobot.test", apiToken: "test-token",
+    const app = MokliTui.mount(setup.renderer, {
+      wsUrl: "ws://localhost.invalid/ws", apiUrl: "http://mokli.test", apiToken: "test-token",
       model: "test/model", modelPreset: "default", workspace: "/test", version: "test",
       access: "workspace access", theme: "dark",
     }, client, new MockTreeSitterClient({ autoResolveTimeout: 0 }))
@@ -101,7 +101,7 @@ describe("TUI /usage", () => {
       await setup!.renderOnce()
       frame = setup!.captureCharFrame()
       expect(frame).toContain("Context 9k / 262k")
-      expect(frame).toContain("Ask nanobot anything")
+      expect(frame).toContain("Ask mokli anything")
     }
     await close(ui)
     await setup!.renderOnce()

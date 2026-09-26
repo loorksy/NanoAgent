@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import LLMResponse
-from nanobot.session.manager import Session
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.agent.loop import AgentLoop
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.providers.base import LLMResponse
+from mokli.session.manager import Session
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _make_loop(tmp_path: Path, context_window_tokens: int = 200_000) -> AgentLoop:

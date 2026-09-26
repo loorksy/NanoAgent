@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.cli import entry
-from nanobot.cli.entry import _agent_invocation_args, _native_tui_candidate
+from mokli.cli import entry
+from mokli.cli.entry import _agent_invocation_args, _native_tui_candidate
 
 
 def test_root_command_routes_to_agent_without_copying_agent_options() -> None:
@@ -25,7 +25,7 @@ def test_root_metadata_and_subcommands_keep_the_root_cli() -> None:
         ["--version"],
         ["--install-completion"],
         ["gateway"],
-        ["webui"],
+        ["mokli"],
     ):
         assert _agent_invocation_args(args) is None
 
@@ -34,15 +34,15 @@ def test_root_shell_completion_keeps_root_subcommands() -> None:
     env = os.environ.copy()
     env.update(
         {
-            "_NANOBOT_COMPLETE": "complete_bash",
-            "COMP_WORDS": "nanobot ",
+            "_MOKLI_COMPLETE": "complete_bash",
+            "COMP_WORDS": "mokli ",
             "COMP_CWORD": "1",
         }
     )
     script = (
         "import sys; "
-        "from nanobot.cli.entry import main; "
-        "sys.argv = ['nanobot']; "
+        "from mokli.cli.entry import main; "
+        "sys.argv = ['mokli']; "
         "main()"
     )
 
@@ -56,13 +56,13 @@ def test_root_shell_completion_keeps_root_subcommands() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert {"agent", "gateway", "webui"} <= set(result.stdout.splitlines())
+    assert {"agent", "gateway", "mokli"} <= set(result.stdout.splitlines())
     assert "not supported" not in result.stderr
 
 
 def test_root_alias_dispatches_the_shared_agent_command(monkeypatch) -> None:
     calls: dict[str, object] = {}
-    monkeypatch.setattr(entry.sys, "argv", ["nanobot", "-m", "hello"])
+    monkeypatch.setattr(entry.sys, "argv", ["mokli", "-m", "hello"])
     monkeypatch.setattr(
         entry,
         "set_cli_process_identity",
@@ -80,14 +80,14 @@ def test_root_alias_dispatches_the_shared_agent_command(monkeypatch) -> None:
     assert calls == {
         "identity": ["agent", "-m", "hello"],
         "args": ["-m", "hello"],
-        "prog_name": "nanobot",
+        "prog_name": "mokli",
     }
 
 
 def test_desktop_handled_bare_invocation_does_not_start_python(monkeypatch) -> None:
-    from nanobot.cli import desktop_target
+    from mokli.cli import desktop_target
 
-    monkeypatch.setattr(entry.sys, "argv", ["nanobot"])
+    monkeypatch.setattr(entry.sys, "argv", ["mokli"])
     monkeypatch.setattr(entry, "set_cli_process_identity", lambda _args: None)
     monkeypatch.setattr(entry, "_configure_windows_console", lambda: None)
     monkeypatch.setattr(desktop_target, "dispatch_bare_desktop_target", lambda _args: 0)

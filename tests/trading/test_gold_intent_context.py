@@ -1,7 +1,7 @@
 import asyncio
 
-from nanobot.agent.tools.context import RequestContext
-from nanobot.trading.gold_intent_context import gold_intent_runtime_context
+from mokli.agent.tools.context import RequestContext
+from mokli.trading.gold_intent_context import gold_intent_runtime_context
 
 
 def test_gold_intent_context_none_without_live_plan() -> None:
@@ -16,11 +16,11 @@ def test_gold_intent_context_none_without_live_plan() -> None:
 
 
 def test_gold_intent_context_with_live_plan(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
 
-    from nanobot.trading.recommendations.store import store_recommendation
-    from nanobot.trading.types import (
+    from mokli.trading.recommendations.store import store_recommendation
+    from mokli.trading.types import (
         AgentMarketContext,
         AgentRecommendation,
         Candle,
@@ -65,11 +65,11 @@ def test_gold_intent_context_with_live_plan(tmp_path, monkeypatch) -> None:
 
 
 def test_gold_intent_context_telegram_does_not_repeat_card(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
 
-    from nanobot.trading.recommendations.store import store_recommendation
-    from nanobot.trading.types import (
+    from mokli.trading.recommendations.store import store_recommendation
+    from mokli.trading.types import (
         AgentMarketContext,
         AgentRecommendation,
         Candle,

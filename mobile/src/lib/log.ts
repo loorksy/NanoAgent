@@ -1,4 +1,4 @@
-import type { LogEntry } from "@nanoagent/sdk";
+import type { LogEntry } from "@mokli/sdk";
 
 import type { Params } from "../i18n";
 import { colors } from "./theme";

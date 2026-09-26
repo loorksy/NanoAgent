@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# Deploy Mokli gold trading gateway to VPS in isolation from other projects.
+# Does NOT modify foxagent, aichart, zorroagent, or other /opt/* trees.
+#
+# Required env: VPS, VPSPASS
+# Optional: MOKLI_DOMAIN (default mokli.lork.cloud)
+#           MOKLI_BRANCH (default cursor/gold-trading-chat-first-aba3)
+#           MOKLI_WEB_TOKEN (auto-generated if unset)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/vps_ssh_target.sh
+source "$ROOT/scripts/vps_ssh_target.sh"
+SSH_TARGET="$(normalize_vps_ssh_target "${VPS:-}")"
+DOMAIN="${MOKLI_DOMAIN:-mokli.lork.cloud}"
+BRANCH="${MOKLI_BRANCH:-main}"
+INSTALL_DIR="/opt/mokli"
+SERVICE_USER="mokli"
+WEB_PORT=8766
+HEALTH_PORT=18791
+REPO_URL="https://github.com/loorksy/Mokli.git"
+
+if [[ -z "${VPS:-}" || -z "${VPSPASS:-}" ]]; then
+  echo "deploy: VPS and VPSPASS must be set" >&2
+  exit 1
+fi
+
+command -v sshpass >/dev/null || { echo "deploy: sshpass required" >&2; exit 1; }
+
+WEB_TOKEN="${MOKLI_WEB_TOKEN:-$(openssl rand -hex 24)}"
+
+REMOTE_SCRIPT=$(cat <<'EOS'
+set -euo pipefail
+INSTALL_DIR="$1"
+SERVICE_USER="$2"
+WEB_PORT="$3"
+HEALTH_PORT="$4"
+DOMAIN="$5"
+BRANCH="$6"
+REPO_URL="$7"
+WEB_TOKEN="$8"
+
+id "$SERVICE_USER" &>/dev/null || useradd --system --home "$INSTALL_DIR" --shell /bin/bash "$SERVICE_USER"
+
+mkdir -p "$INSTALL_DIR"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+
+git_safe() {
+  sudo -u "$SERVICE_USER" git -C "$INSTALL_DIR" "$@"
+}
+
+if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+  sudo -u "$SERVICE_USER" git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+else
+  git_safe config --global --add safe.directory "$INSTALL_DIR" 2>/dev/null || true
+  git_safe fetch --depth 1 origin "$BRANCH"
+  git_safe checkout -B "$BRANCH" FETCH_HEAD
+fi
+
+cd "$INSTALL_DIR"
+sudo -u "$SERVICE_USER" python3 -m venv .venv
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U pip wheel && pip install -e '.[trading-mt5]'"
+
+# OANDA from foxagent (read-only)
+if [[ -f scripts/sync-oanda-from-foxagent.sh ]]; then
+  bash scripts/sync-oanda-from-foxagent.sh || true
+fi
+
+# The legacy React client is not built. Mokli is the browser.
+# Charting library files stay under mokli/public/charting_library/.
+cd "$INSTALL_DIR"
+
+CONFIG_DIR="$INSTALL_DIR/.mokli"
+mkdir -p "$CONFIG_DIR"
+if [[ ! -f "$CONFIG_DIR/config.json" ]]; then
+  sudo -u "$SERVICE_USER" HOME="$INSTALL_DIR" "$INSTALL_DIR/.venv/bin/mokli" onboard --yes 2>/dev/null || true
+fi
+
+python3 - "$CONFIG_DIR/config.json" "$WEB_PORT" "$HEALTH_PORT" "$WEB_TOKEN" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+web_port, health_port, token = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+cfg = {}
+if path.exists():
+    cfg = json.loads(path.read_text())
+cfg.setdefault("gateway", {})["host"] = "0.0.0.0"
+cfg["gateway"]["port"] = health_port
+cfg.setdefault("channels", {}).setdefault("websocket", {})
+ws = cfg["channels"]["websocket"]
+ws["enabled"] = True
+ws["host"] = "0.0.0.0"
+ws["port"] = web_port
+# The Agent API defaults to 8766, which is the public web UI port. Keep the API
+# on localhost:8767 so this vhost can keep serving the UI on 8766.
+api = cfg.setdefault("agentApi", {})
+api["enabled"] = True
+api["host"] = "127.0.0.1"
+api["port"] = 8767
+existing = ws.get("tokenIssueSecret")
+ws["tokenIssueSecret"] = existing or token
+tools = cfg.setdefault("tools", {})
+tools["mokliAllowRemotePackageInstall"] = True
+print("ISSUED_TOKEN=" + ws["tokenIssueSecret"])
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(cfg, indent=2) + "\n")
+PY
+
+sudo -u "$SERVICE_USER" bash -lc "cd '$INSTALL_DIR' && source .venv/bin/activate && pip install -U \
+  'python-telegram-bot[socks,webhooks]>=22.6,<23.0' \
+  'socksio>=1.0.0,<2.0.0' \
+  'python-socks[asyncio]>=2.8.0,<3.0.0' \
+  'neonize>=0.4.3.post0,<0.5.0' \
+  'segno>=1.6.1,<2.0.0'"
+chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
+
+# Claude Code CLI (optional agents.defaults.provider=claude_code_cli):
+# Interactive `claude login` cannot run as this systemd unit. Seed auth
+# before enabling that provider:
+#   - CLAUDE_CODE_OAUTH_TOKEN in $INSTALL_DIR/.env (from `claude setup-token`
+#     on a host with a browser; also pasteable in Mokli Settings → Providers
+#     → Claude Code CLI), or
+#   - $INSTALL_DIR/.claude/.credentials.json mode 0600 owned by $SERVICE_USER
+# HOME below is $INSTALL_DIR, so ~/.claude is /opt/mokli/.claude — not
+# /home/mokli. Also install the `claude` binary on PATH (venv or /usr/bin).
+cat > /etc/systemd/system/mokli-gateway.service <<UNIT
+[Unit]
+Description=Mokli Gold Trading Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$INSTALL_DIR
+Environment=PATH=$INSTALL_DIR/.venv/bin:/usr/bin:/bin
+Environment=HOME=$INSTALL_DIR
+EnvironmentFile=-$INSTALL_DIR/.env
+ExecStart=$INSTALL_DIR/.venv/bin/mokli gateway --foreground --port $HEALTH_PORT
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable mokli-gateway.service
+systemctl restart mokli-gateway.service
+
+# Public site is the Mokli fork on 127.0.0.1:8080.
+# The legacy React client is not published. Agent API stays on 127.0.0.1:8767.
+# Leave an existing Mokli vhost in place so Certbot's 443 block survives.
+if [[ -f /etc/nginx/sites-available/mokli.lork.cloud ]] && grep -q '127.0.0.1:8080' /etc/nginx/sites-available/mokli.lork.cloud; then
+  echo "nginx already serves Mokli; leaving the vhost in place"
+else
+cat > /etc/nginx/sites-available/mokli.lork.cloud <<NGX
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+map \$http_referer \$mokli_shared_upstream {
+    default http://127.0.0.1:8080;
+}
+
+server {
+    listen 80;
+    server_name $DOMAIN;
+    client_max_body_size 50m;
+
+    location /api/v2 {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /ws/v2 {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /v1/ {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api/ {
+        proxy_pass \$mokli_shared_upstream;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /ws {
+        proxy_pass \$mokli_shared_upstream;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /manifest.json {
+        proxy_pass \$mokli_shared_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Host \$host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGX
+
+ln -sf /etc/nginx/sites-available/mokli.lork.cloud /etc/nginx/sites-enabled/mokli.lork.cloud
+nginx -t && systemctl reload nginx
+fi
+
+if ! command -v certbot >/dev/null; then
+  apt-get update -qq
+  apt-get install -y -qq certbot python3-certbot-nginx || true
+fi
+if command -v certbot >/dev/null; then
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+    --register-unsafely-without-email --redirect --keep-until-expiring || true
+  nginx -t && systemctl reload nginx || true
+fi
+
+echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT"
+EOS
+)
+
+echo "Deploying Mokli to ${SSH_TARGET} (${DOMAIN})..."
+OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 "$SSH_TARGET" \
+  "bash -s" -- "$INSTALL_DIR" "$SERVICE_USER" "$WEB_PORT" "$HEALTH_PORT" "$DOMAIN" "$BRANCH" "$REPO_URL" "$WEB_TOKEN" <<< "$REMOTE_SCRIPT")
+
+echo "$OUT"
+echo ""
+echo "Mokli: https://${DOMAIN}/"
+ISSUED=$(printf '%s\n' "$OUT" | awk -F= '/^ISSUED_TOKEN=/{print $2}' | tail -1)
+echo "Bootstrap token (save this): ${ISSUED:-$WEB_TOKEN}"

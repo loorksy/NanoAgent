@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.config.loader import save_config
-from nanobot.config.schema import Config, TradingRiskParameters
-from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
-from nanobot.trading.gates.position_sizing import lot_from_balance
-from nanobot.trading.gates.risk_snapshot import RiskSnapshot
-from nanobot.trading.policy import invalidate_live_cache, live
-from nanobot.trading.risk_profiles import (
+from mokli.config.loader import save_config
+from mokli.config.schema import Config, TradingRiskParameters
+from mokli.trading.gates.execution import collect_execution_checks, first_blocker
+from mokli.trading.gates.position_sizing import lot_from_balance
+from mokli.trading.gates.risk_snapshot import RiskSnapshot
+from mokli.trading.policy import invalidate_live_cache, live
+from mokli.trading.risk_profiles import (
     DERIVED_FIELDS,
     PRESET_NAMES,
     PROFILE_NAMES,
@@ -26,7 +26,7 @@ from nanobot.trading.risk_profiles import (
     matches_preset,
     reference_lot,
 )
-from nanobot.trading.types import EntryPlan
+from mokli.trading.types import EntryPlan
 
 NOON_MS = 1_700_049_600_000  # 2023-11-15 12:00 UTC
 
@@ -188,7 +188,7 @@ def test_preset_reaches_live_policy_and_clean_plan_passes_gates(
     name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config_path = tmp_path / "config.json"
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", config_path)
+    monkeypatch.setattr("mokli.config.loader._current_config_path", config_path)
     config = Config()
     config.trading_risk_parameters = apply_profile(config.trading_risk_parameters, name)
     save_config(config, config_path)

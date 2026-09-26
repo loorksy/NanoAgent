@@ -12,13 +12,13 @@ from typing import Any
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent_api.app import AgentApiDeps, create_app
-from nanobot.agent_api.config import AgentApiConfig
-from nanobot.agent_api.context import SERVICES_KEY, AgentApiServices
-from nanobot.security.secret_store import SecretStore, set_secret_store_for_tests
-from nanobot.trading.permissions.store import PermissionStore, set_permission_store_for_tests
-from nanobot.trading.policy import invalidate_live_cache
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent_api.app import AgentApiDeps, create_app
+from mokli.agent_api.config import AgentApiConfig
+from mokli.agent_api.context import SERVICES_KEY, AgentApiServices
+from mokli.security.secret_store import SecretStore, set_secret_store_for_tests
+from mokli.trading.permissions.store import PermissionStore, set_permission_store_for_tests
+from mokli.trading.policy import invalidate_live_cache
 
 BOOTSTRAP = "nbat_test-bootstrap-token"
 
@@ -64,14 +64,14 @@ class FakeAgent:
 
 @pytest.fixture(autouse=True)
 def _isolate_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("nanobot.config.loader._current_config_path", tmp_path / "config.json")
+    monkeypatch.setattr("mokli.config.loader._current_config_path", tmp_path / "config.json")
     set_secret_store_for_tests(SecretStore(tmp_path / "secrets.enc"))
     set_permission_store_for_tests(PermissionStore(SecretStore(tmp_path / "secrets.enc")))
-    monkeypatch.setattr("nanobot.trading.runtime_state._STORE", None)
-    monkeypatch.setattr("nanobot.trading.risk_state._STORE", None)
+    monkeypatch.setattr("mokli.trading.runtime_state._STORE", None)
+    monkeypatch.setattr("mokli.trading.risk_state._STORE", None)
     # ``/approvals`` syncs pending MT5 proposals from this process-global store, so
     # proposals left behind by other test modules in the same xdist worker must not leak in.
-    monkeypatch.setattr("nanobot.trading.mt5_proposals._STORE", None)
+    monkeypatch.setattr("mokli.trading.mt5_proposals._STORE", None)
     invalidate_live_cache()
     yield
     set_permission_store_for_tests(None)
@@ -90,7 +90,7 @@ def api_config() -> AgentApiConfig:
         host="127.0.0.1",
         port=0,
         bootstrap_token=BOOTSTRAP,
-        cors_origins=["http://openwebui.local"],
+        cors_origins=["http://mokli.local"],
         request_timeout_seconds=5.0,
     )
 

@@ -7,16 +7,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.trading_chart import AnalyzeGoldTool, GetGoldQuoteTool
-from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.stage_events import emit_stage
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.trading_chart import AnalyzeGoldTool, GetGoldQuoteTool
+from mokli.trading.stage_delivery import TradingStagePublisher
+from mokli.trading.stage_events import emit_stage
 
 
 @pytest.mark.asyncio
 async def test_get_gold_quote_unconfigured() -> None:
     tool = GetGoldQuoteTool.create(MagicMock())
-    with patch("nanobot.agent.tools.trading_chart.load_trading_config") as cfg:
+    with patch("mokli.agent.tools.trading_chart.load_trading_config") as cfg:
         cfg.return_value = MagicMock(oanda_configured=False)
         result = await tool.execute()
     payload = json.loads(str(result))
@@ -57,7 +57,7 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
 
     with request_context(ctx):
         with patch(
-            "nanobot.agent.tools.trading_chart.run_trading_kernel",
+            "mokli.agent.tools.trading_chart.run_trading_kernel",
             new_callable=AsyncMock,
             return_value=fake_result,
         ):

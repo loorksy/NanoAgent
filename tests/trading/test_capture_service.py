@@ -1,4 +1,4 @@
-from nanobot.trading.capture_service import build_chart_snapshot_artifact
+from mokli.trading.capture_service import build_chart_snapshot_artifact
 
 
 def test_build_chart_snapshot_artifact() -> None:

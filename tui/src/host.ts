@@ -6,7 +6,7 @@ export interface TuiHost {
 type Environment = Record<string, string | undefined>
 type CommandRunner = (command: readonly string[]) => Promise<void>
 
-const METADATA_SOURCE = "nanobot:tui:metadata"
+const METADATA_SOURCE = "mokli:tui:metadata"
 
 export function configureOpenTuiEnvironment(
   environment: Environment = process.env,

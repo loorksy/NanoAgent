@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nanobot.utils.file_edit_events import (
+from mokli.utils.file_edit_events import (
     build_file_edit_end_event,
     build_file_edit_start_event,
     build_unified_diff_payload,

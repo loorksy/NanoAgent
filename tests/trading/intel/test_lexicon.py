@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.trading.agents import macro_drivers
-from nanobot.trading.intel import lexicon, local_sentiment, regex_emergency
+from mokli.trading.agents import macro_drivers
+from mokli.trading.intel import lexicon, local_sentiment, regex_emergency
 
-LEXICON_DIR = Path("nanobot/trading/intel/lexicon")
+LEXICON_DIR = Path("mokli/trading/intel/lexicon")
 
 EXPECTED = {
     "macro_bullish",

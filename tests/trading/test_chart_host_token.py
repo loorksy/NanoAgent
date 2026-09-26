@@ -1,7 +1,7 @@
 
 import pytest
 
-from nanobot.trading.chart_host_token import (
+from mokli.trading.chart_host_token import (
     mint_chart_host_page_token,
     verify_chart_host_page_token,
 )
@@ -9,7 +9,7 @@ from nanobot.trading.chart_host_token import (
 
 @pytest.fixture(autouse=True)
 def chart_host_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NANOBOT_CHART_HOST_TOKEN", "test-chart-host-secret-123456")
+    monkeypatch.setenv("MOKLI_CHART_HOST_TOKEN", "test-chart-host-secret-123456")
 
 
 def test_chart_host_token_roundtrip() -> None:
@@ -25,5 +25,5 @@ def test_chart_host_token_rejects_tampered() -> None:
 
 
 def test_chart_host_token_requires_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("NANOBOT_CHART_HOST_TOKEN", raising=False)
+    monkeypatch.delenv("MOKLI_CHART_HOST_TOKEN", raising=False)
     assert mint_chart_host_page_token() is None

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from nanobot.bus.events import OutboundMessage
-from nanobot.bus.outbound_events import (
+from mokli.bus.events import OutboundMessage
+from mokli.bus.outbound_events import (
     ContextCompactionEvent,
     ProgressEvent,
     StreamDeltaEvent,

@@ -1,4 +1,4 @@
-import type { ResultRecord, StructuredResult, StructuredType } from "@nanoagent/sdk";
+import type { ResultRecord, StructuredResult, StructuredType } from "@mokli/sdk";
 
 export const STRUCTURED_TYPES: readonly StructuredType[] = [
   "market",

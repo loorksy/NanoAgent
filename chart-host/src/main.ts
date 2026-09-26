@@ -43,7 +43,7 @@ function envInt(name: string, fallback: number): number {
 function controlToken(): string | null {
   for (const name of [
     "CHART_HOST_CONTROL_TOKEN",
-    "NANOBOT_CHART_HOST_TOKEN",
+    "MOKLI_CHART_HOST_TOKEN",
     "AICHART_SERVICE_TOKEN",
     "APP_SECRET",
   ]) {

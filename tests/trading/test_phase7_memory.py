@@ -7,23 +7,23 @@ from datetime import UTC, datetime, timedelta
 
 from aiohttp import web
 
-from nanobot.agent_api.routes.jobs import register as register_jobs
-from nanobot.agent_api.routes.log import register as register_log
-from nanobot.agent_api.routes.settings import capabilities_view, public_models, system_view
-from nanobot.agent_api.routes.settings import register as register_settings
-from nanobot.trading.backtest.engine import replay
-from nanobot.trading.backtest.validation import bootstrap_expectancy, monte_carlo, walk_forward
-from nanobot.trading.bots.circuit import StrategyCircuit
-from nanobot.trading.bots.opportunity import imminent_events, scan_opportunities, tradability
-from nanobot.trading.closed_market import closed_market_plan
-from nanobot.trading.cron import run_cot_job, run_event_monitor_job
-from nanobot.trading.intel.calendar_view import parse_event_time, rows_from_events, upcoming_rows
-from nanobot.trading.intel.cases import CaseIndex
-from nanobot.trading.intel.cot import cot_bias, load_gold_cot, rows_from_cftc, snapshot_from_rows
-from nanobot.trading.intel.lessons import lesson_from_loss
-from nanobot.trading.memory.scenarios import ScenarioMemory
-from nanobot.trading.strategy_lab import propose_strategy
-from nanobot.trading.types import Candle
+from mokli.agent_api.routes.jobs import register as register_jobs
+from mokli.agent_api.routes.log import register as register_log
+from mokli.agent_api.routes.settings import capabilities_view, public_models, system_view
+from mokli.agent_api.routes.settings import register as register_settings
+from mokli.trading.backtest.engine import replay
+from mokli.trading.backtest.validation import bootstrap_expectancy, monte_carlo, walk_forward
+from mokli.trading.bots.circuit import StrategyCircuit
+from mokli.trading.bots.opportunity import imminent_events, scan_opportunities, tradability
+from mokli.trading.closed_market import closed_market_plan
+from mokli.trading.cron import run_cot_job, run_event_monitor_job
+from mokli.trading.intel.calendar_view import parse_event_time, rows_from_events, upcoming_rows
+from mokli.trading.intel.cases import CaseIndex
+from mokli.trading.intel.cot import cot_bias, load_gold_cot, rows_from_cftc, snapshot_from_rows
+from mokli.trading.intel.lessons import lesson_from_loss
+from mokli.trading.memory.scenarios import ScenarioMemory
+from mokli.trading.strategy_lab import propose_strategy
+from mokli.trading.types import Candle
 
 
 def _candles(count: int = 40) -> list[Candle]:
@@ -274,17 +274,17 @@ def test_upcoming_rows_parse_iso_times() -> None:
 def test_event_monitor_and_cot_jobs(monkeypatch) -> None:
     soon = (datetime.now(tz=UTC) + timedelta(minutes=5)).isoformat()
     monkeypatch.setattr(
-        "nanobot.trading.news.forex_factory.fetch_upcoming_events",
+        "mokli.trading.news.forex_factory.fetch_upcoming_events",
         lambda: [{"title": "CPI", "time": soon}],
     )
     assert asyncio.run(run_event_monitor_job()) == "Event monitor: calendar.soon"
     monkeypatch.setattr(
-        "nanobot.trading.intel.cot.load_gold_cot",
+        "mokli.trading.intel.cot.load_gold_cot",
         lambda: {"available": True, "notice_key": "cot.bias_bullish"},
     )
     assert asyncio.run(run_cot_job()) == "COT: cot.bias_bullish"
     monkeypatch.setattr(
-        "nanobot.trading.intel.cot.load_gold_cot",
+        "mokli.trading.intel.cot.load_gold_cot",
         lambda: {"available": False, "notice_key": "cot.bias_neutral"},
     )
     assert asyncio.run(run_cot_job()) is None
@@ -317,7 +317,7 @@ def test_opportunity_and_calendar_helpers() -> None:
 def test_models_document_omits_secrets() -> None:
     document = public_models(
         {"openai": {"api_key": "sk-secret", "api_base": "https://api.example"}},
-        "nanoagent",
+        "mokli",
     )
     blob = str(document)
     assert "sk-secret" not in blob

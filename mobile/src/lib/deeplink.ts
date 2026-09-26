@@ -2,16 +2,16 @@
  * Deep links understood by the app.
  *
  * Pairing (QR or link):
- *   nanoagent://pair?url=<gateway>&code=<8 digits>
+ *   mokli://pair?url=<gateway>&code=<8 digits>
  *   https://<gateway>/api/v2/devices/pair?code=<8 digits>
  *   {"url": "<gateway>", "code": "<8 digits>"}   (also `gateway` / `pair_url`)
  *
- * Push payload `deep_link` values (nanobot/agent_api/push/router.py):
- *   nanoagent://approvals/<id>  nanoagent://sessions/<id>
- *   nanoagent://results/<id>    nanoagent://jobs/<id>
+ * Push payload `deep_link` values (mokli/agent_api/push/router.py):
+ *   mokli://approvals/<id>  mokli://sessions/<id>
+ *   mokli://results/<id>    mokli://jobs/<id>
  */
 
-export const APP_SCHEME = "nanoagent";
+export const APP_SCHEME = "mokli";
 export const PAIR_PATH = "/api/v2/devices/pair";
 
 export type DeepLink =
@@ -87,7 +87,7 @@ export function parseDeepLink(raw: string): DeepLink | undefined {
   }
 
   if (parsed.protocol === `${APP_SCHEME}:`) {
-    // `nanoagent://pair?...` parses with host "pair"; `nanoagent:///pair` with pathname "/pair".
+    // `mokli://pair?...` parses with host "pair"; `mokli:///pair` with pathname "/pair".
     const segments = [parsed.host, ...parsed.pathname.split("/")].filter(Boolean);
     const [head, id] = segments;
     const params = parsed.searchParams;

@@ -1,0 +1,66 @@
+# Caddy reverse proxy for mokli.lork.cloud.
+#
+#   /api/v2/*   /ws/v2*   /v1/*   -> mokli Agent API   (host:8766, aiohttp; SSE + WebSocket)
+#   everything else               -> Mokli          (mokli-ui:8080)
+#
+# Values come from the caddy service environment in docker-compose.yml.
+# Automatic HTTPS (Let's Encrypt) is used for SITE_ADDRESS; the ACME account e-mail is optional.
+
+{
+	email {$ACME_EMAIL}
+	servers {
+		# Keep long-lived SSE / WebSocket connections alive; the Agent API streams for minutes.
+		timeouts {
+			read_body 30s
+			read_header 15s
+			idle 10m
+		}
+	}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# --- mokli Agent API -------------------------------------------------------------------
+	@agent_api path /api/v2/* /ws/v2 /ws/v2/* /v1/*
+	handle @agent_api {
+		reverse_proxy {$AGENT_API_UPSTREAM} {
+			# SSE: never buffer and never time out the response body.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+				dial_timeout 10s
+			}
+			header_up Host {upstream_hostport}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# --- Mokli (default) ----------------------------------------------------------------
+	handle {
+		reverse_proxy mokli-ui:8080 {
+			# Mokli streams chat completions and uses Socket.IO WebSockets.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

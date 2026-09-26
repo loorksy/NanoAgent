@@ -7,10 +7,10 @@ from typing import Any
 
 import httpx
 
-from nanobot.agent_api.devices import DeviceRecord
-from nanobot.agent_api.push.base import PushPayload
-from nanobot.agent_api.push.fcm import ANDROID_CHANNEL_ID, FcmV1Provider, localized_notification
-from nanobot.agent_api.push.router import payload_for
+from mokli.agent_api.devices import DeviceRecord
+from mokli.agent_api.push.base import PushPayload
+from mokli.agent_api.push.fcm import ANDROID_CHANNEL_ID, FcmV1Provider, localized_notification
+from mokli.agent_api.push.router import payload_for
 
 
 def _device(locale: str) -> DeviceRecord:
@@ -80,7 +80,7 @@ async def test_fcm_message_carries_data_and_localized_notification() -> None:
     data = message["data"]
     assert data["kind"] == "approval"
     assert data["approval_id"] == "a1"
-    assert data["deep_link"] == "nanoagent://approvals/a1"
+    assert data["deep_link"] == "mokli://approvals/a1"
     assert json.loads(data["args"]) == {"type": "execution"}
     # FCM data values must all be strings and never contain prices/levels.
     assert all(isinstance(value, str) for value in data.values())

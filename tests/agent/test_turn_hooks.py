@@ -1,7 +1,7 @@
 import pytest
 
-from nanobot.agent.hook import AgentHook, AgentHookContext, AgentTurnHookContext
-from nanobot.agent.turn_hooks import AgentTurnHookSpec, build_agent_turn_hook
+from mokli.agent.hook import AgentHook, AgentHookContext, AgentTurnHookContext
+from mokli.agent.turn_hooks import AgentTurnHookSpec, build_agent_turn_hook
 
 
 class RecordingHook(AgentHook):

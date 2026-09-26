@@ -3,9 +3,9 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "nanoagent-mobile",
+      "name": "mokli-mobile",
       "dependencies": {
-        "@nanoagent/sdk": "file:../packages/nanoagent-sdk",
+        "@mokli/sdk": "file:../packages/mokli-sdk",
         "@react-native-community/slider": "5.0.1",
         "expo": "~54.0.0",
         "expo-application": "~7.0.8",
@@ -311,7 +311,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@nanoagent/sdk": ["@nanoagent/sdk@file:../packages/nanoagent-sdk", { "devDependencies": { "@types/bun": "^1.2.0", "@types/react": "~19.1.0", "react": "19.1.0", "typescript": "~5.9.0" }, "peerDependencies": { "react": ">=18.0.0" }, "optionalPeers": ["react"] }],
+    "@mokli/sdk": ["@mokli/sdk@file:../packages/mokli-sdk", { "devDependencies": { "@types/bun": "^1.2.0", "@types/react": "~19.1.0", "react": "19.1.0", "typescript": "~5.9.0" }, "peerDependencies": { "react": ">=18.0.0" }, "optionalPeers": ["react"] }],
 
     "@radix-ui/primitive": ["@radix-ui/primitive@1.1.7", "", {}, "sha512-rqWnm76nYT8HoNNqEjpgJ7Pw/DrBj5iBTrmEPo6HTX5+VJyBNOqTdv4g89G63HuR5g0AaENoAcH7Is5fF2kZ8Q=="],
 

@@ -1,22 +1,22 @@
 # Automations
 
-<!-- Meta description: Create, run, and manage nanobot scheduled automations, local triggers, and heartbeat-backed background checks. -->
+<!-- Meta description: Create, run, and manage mokli scheduled automations, local triggers, and heartbeat-backed background checks. -->
 
 Automations are agent turns that run later in a linked topic. Use them
-when nanobot should do work without someone actively typing: reminders,
+when mokli should do work without someone actively typing: reminders,
 recurring checks, nightly summaries, CI follow-ups, local script reports, or
 webhook-driven events.
 
-Create automations from the chat channel or WebUI topic where the
-result should appear. That lets nanobot keep the right session history,
+Create automations from the chat channel or Mokli topic where the
+result should appear. That lets mokli keep the right session history,
 workspace, and reply target.
 
 ## Choose an Automation Type
 
 | Type | Starts from | Best for | Created with |
 |---|---|---|---|
-| Scheduled automation | Time, interval, or cron expression | Recurring reminders, scheduled summaries, one-time future tasks | Ask nanobot in the target topic to schedule it with the `cron` tool |
-| Local trigger | A local `nanobot trigger ...` command | CI jobs, webhooks, shell scripts, generated reports | `/trigger <name>` in the target topic |
+| Scheduled automation | Time, interval, or cron expression | Recurring reminders, scheduled summaries, one-time future tasks | Ask mokli in the target topic to schedule it with the `cron` tool |
+| Local trigger | A local `mokli trigger ...` command | CI jobs, webhooks, shell scripts, generated reports | `/trigger <name>` in the target topic |
 | Heartbeat | Protected system schedule | Quiet recurring checks that should only report useful results | Edit `<workspace>/HEARTBEAT.md` |
 
 The two user-created automation types are scheduled automations and local
@@ -25,22 +25,22 @@ protected from normal automation edits.
 
 ## Before You Create One
 
-Keep `nanobot gateway` running. The gateway owns background delivery for chat
-apps, WebUI topics, scheduled automations, local triggers, heartbeat, and
+Keep `mokli gateway` running. The gateway owns background delivery for chat
+apps, Mokli topics, scheduled automations, local triggers, heartbeat, and
 Dream jobs.
 
 Use the same workspace and config for the gateway and any process that sends
-local trigger messages. If you run multiple nanobot instances, pass the matching
-`--config` or `--workspace` option to `nanobot trigger`.
+local trigger messages. If you run multiple mokli instances, pass the matching
+`--config` or `--workspace` option to `mokli trigger`.
 
 Create each automation from the target topic. An automation without a linked
-topic cannot be enabled or run from the WebUI because nanobot would not know
+topic cannot be enabled or run from the Mokli because mokli would not know
 where to deliver the turn.
 
 ## Scheduled Automations
 
 Scheduled automations are created by the agent's `cron` tool. In practice, ask
-nanobot from the target chat or WebUI topic:
+mokli from the target chat or Mokli topic:
 
 ```text
 Every weekday at 9am, check open pull requests and summarize blockers here.
@@ -54,7 +54,7 @@ Tomorrow at 4pm, remind me to send the release notes.
 
 The cron tool supports interval schedules, cron expressions, and one-time
 scheduled tasks. Cron expressions can include an IANA timezone such as
-`America/Vancouver`; otherwise nanobot uses the runtime default timezone.
+`America/Vancouver`; otherwise mokli uses the runtime default timezone.
 
 Scheduled automations normally deliver the result back to the session where they
 were created. Use them for work that should run on a predictable schedule and
@@ -66,39 +66,39 @@ report, use heartbeat instead of a user-created scheduled automation.
 ## Local Triggers
 
 Local triggers let a local script or external service send a message into a
-specific nanobot session later.
+specific mokli session later.
 
-Create the trigger from the chat or WebUI topic where future messages should
+Create the trigger from the chat or Mokli topic where future messages should
 arrive:
 
 ```text
 /trigger PR review
 ```
 
-nanobot replies with a trigger ID and a command shaped like:
+mokli replies with a trigger ID and a command shaped like:
 
 ```bash
-nanobot trigger trg_8K4P2Q9X "Review PR #4502"
+mokli trigger trg_8K4P2Q9X "Review PR #4502"
 ```
 
-Replace the quoted text with the message nanobot should receive. For generated
+Replace the quoted text with the message mokli should receive. For generated
 or longer content, pipe stdin:
 
 ```bash
-generate-report | nanobot trigger trg_8K4P2Q9X
+generate-report | mokli trigger trg_8K4P2Q9X
 ```
 
 For multiple instances, use the same config or workspace selector as the
 gateway:
 
 ```bash
-nanobot trigger --config ./bot-a/config.json trg_8K4P2Q9X "Nightly report"
-nanobot trigger --workspace ./bot-a/workspace trg_8K4P2Q9X "Nightly report"
+mokli trigger --config ./bot-a/config.json trg_8K4P2Q9X "Nightly report"
+mokli trigger --workspace ./bot-a/workspace trg_8K4P2Q9X "Nightly report"
 ```
 
-nanobot does not provide a built-in public webhook receiver for local triggers.
-If GitHub, CI, or another external system should wake nanobot, run your own
-small webhook service and have it call `nanobot trigger` after it builds the
+mokli does not provide a built-in public webhook receiver for local triggers.
+If GitHub, CI, or another external system should wake mokli, run your own
+small webhook service and have it call `mokli trigger` after it builds the
 final message.
 
 ## Heartbeat
@@ -112,12 +112,12 @@ Use heartbeat for checks such as "watch this repo for important failures" or
 a scheduled automation instead when every run should produce a visible reminder
 or report.
 
-Heartbeat is enabled by default when `nanobot gateway` starts. Configure it in
+Heartbeat is enabled by default when `mokli gateway` starts. Configure it in
 [`configuration.md#gateway-heartbeat`](./configuration.md#gateway-heartbeat).
 
 ## Manage Automations
 
-Use the WebUI Automations view to:
+Use the Mokli Automations view to:
 
 - filter by all, active, paused, needs-attention, or system jobs;
 - search by task name, message, trigger command, linked topic, schedule, or
@@ -128,8 +128,8 @@ Use the WebUI Automations view to:
 - copy the CLI command for local triggers;
 - inspect protected system automations without changing them.
 
-Local triggers do not have a WebUI "Run now" action because each run needs a
-message. Copy the `nanobot trigger ...` command from the WebUI and replace
+Local triggers do not have a Mokli "Run now" action because each run needs a
+message. Copy the `mokli trigger ...` command from the Mokli and replace
 `"message"` with the content that should be delivered.
 
 ## Delivery and Reliability
@@ -169,18 +169,18 @@ For a CI follow-up, create a trigger once:
 Then have your CI or webhook adapter call:
 
 ```bash
-nanobot trigger <trigger-id> "Build failed on main. Inspect the logs and suggest the next fix."
+mokli trigger <trigger-id> "Build failed on main. Inspect the logs and suggest the next fix."
 ```
 
 For a local report script:
 
 ```bash
-generate-report | nanobot trigger <trigger-id>
+generate-report | mokli trigger <trigger-id>
 ```
 
 ## Troubleshooting
 
-If an automation does not run, check that `nanobot gateway` is running, the
+If an automation does not run, check that `mokli gateway` is running, the
 automation is enabled, and it was created from a linked topic.
 
 If a local trigger waits forever, confirm the command uses the same workspace or
@@ -190,12 +190,12 @@ If a trigger message appears twice after a restart, treat it as expected
 at-least-once delivery and make the external message idempotent.
 
 If you need to edit, pause, resume, rename, delete, or inspect automations, use
-the WebUI Automations view.
+the Mokli Automations view.
 
 ## Related Docs
 
-- [`webui.md#automations`](./webui.md#automations) for the browser management view
+- [`mokli.md#automations`](./mokli.md#automations) for the browser management view
 - [`chat-commands.md#local-triggers`](./chat-commands.md#local-triggers) for `/trigger`
-- [`cli-reference.md#local-triggers`](./cli-reference.md#local-triggers) for `nanobot trigger`
+- [`cli-reference.md#local-triggers`](./cli-reference.md#local-triggers) for `mokli trigger`
 - [`configuration.md#gateway-heartbeat`](./configuration.md#gateway-heartbeat) for heartbeat settings
 - [`guides/long-running-ai-agent.md`](./guides/long-running-ai-agent.md) for long-running agent work

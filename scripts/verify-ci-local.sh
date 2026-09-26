@@ -14,15 +14,15 @@ uv sync --all-extras --dev
 uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
 uv pip check
 
-uv run --no-sync ruff check nanobot tests conftest.py
+uv run --no-sync ruff check mokli tests conftest.py
 uv run --no-sync basedpyright
 
 PYTEST_ARGS=(-n auto --dist loadfile --ignore=tests/cli/test_commands.py)
 uv run --no-sync python -m pytest "${PYTEST_ARGS[@]}" \
-  --cov=nanobot --cov-report=term-missing:skip-covered \
+  --cov=mokli --cov-report=term-missing:skip-covered \
   --durations=25 --durations-min=1.0
 uv run --no-sync python -m pytest tests/cli/test_commands.py \
-  --cov=nanobot --cov-append --cov-report=term-missing:skip-covered \
+  --cov=mokli --cov-append --cov-report=term-missing:skip-covered \
   --durations=25 --durations-min=1.0
 
 echo "Local CI parity checks finished successfully."

@@ -1,4 +1,4 @@
-import type { Mt5Permissions, PermissionLevel, RiskFieldDescriptor } from "@nanoagent/sdk";
+import type { Mt5Permissions, PermissionLevel, RiskFieldDescriptor } from "@mokli/sdk";
 
 import type { Locale, Params } from "../i18n";
 import { formatNumber } from "./format";

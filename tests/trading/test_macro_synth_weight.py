@@ -10,23 +10,23 @@ import json
 
 import pytest
 
-from nanobot.trading.agents.apply_model_decision import (
+from mokli.trading.agents.apply_model_decision import (
     MACRO_CONFIDENCE_WEIGHT,
     apply_macro_confidence,
     apply_model_decision,
     macro_alignment_score,
     parse_macro_drivers,
 )
-from nanobot.trading.agents.macro_drivers import format_team_briefing
-from nanobot.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
-from nanobot.trading.kernel import run_trading_kernel
-from nanobot.trading.types import (
+from mokli.trading.agents.macro_drivers import format_team_briefing
+from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
+from mokli.trading.kernel import run_trading_kernel
+from mokli.trading.types import (
     EvidenceSnapshot,
 )
 
 
 def _driver(name: str, bias: str, strength: int) -> dict:
-    from nanobot.trading.agents.macro_drivers import MacroVerdict
+    from mokli.trading.agents.macro_drivers import MacroVerdict
 
     return MacroVerdict(
         driver=name,

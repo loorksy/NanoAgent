@@ -14,15 +14,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from nanobot.bus.outbound_events import (
+from mokli.bus.outbound_events import (
     ContextCompactionEvent,
     ProgressEvent,
     outbound_message_for_event,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.channels.base import BaseChannel
-from nanobot.channels.manager import ChannelManager
-from nanobot.config.schema import Config
+from mokli.bus.queue import MessageBus
+from mokli.channels.base import BaseChannel
+from mokli.channels.manager import ChannelManager
+from mokli.config.schema import Config
 
 
 class _MockChannel(BaseChannel):

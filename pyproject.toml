@@ -1,5 +1,5 @@
 [project]
-name = "nanobot-ai"
+name = "mokli-ai"
 version = "0.3.0"
 description = "A lightweight personal AI assistant framework"
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Xubin Ren"},
-    {name = "the nanobot contributors"}
+    {name = "the mokli contributors"}
 ]
 keywords = ["ai", "agent", "chatbot"]
 classifiers = [
@@ -126,12 +126,12 @@ dev = [
 ]
 
 [project.scripts]
-nanobot = "nanobot.cli.entry:main"
-nanobot-desktop-tui = "nanobot.cli.desktop_tui:main"
+mokli = "mokli.cli.entry:main"
+mokli-desktop-tui = "mokli.cli.desktop_tui:main"
 
 # Third-party tool plugins register here.  Built-in tools are discovered
 # automatically via pkgutil scanning in ToolLoader.discover().
-# [project.entry-points."nanobot.tools"]
+# [project.entry-points."mokli.tools"]
 # my_plugin = "my_package.plugins:MyTool"
 
 [build-system]
@@ -146,40 +146,40 @@ allow-direct-references = true
 
 [tool.hatch.build]
 include = [
-    "nanobot/**/*.py",
-    "nanobot/templates/**/*.md",
-    "nanobot/skills/**/*.md",
-    "nanobot/skills/**/*.sh",
-    "nanobot/trading/locales/*.json",
-    "nanobot/trading/intel/lexicon/*.json",
-    "nanobot/channels/*/webui/**/*",
-    "nanobot/web/dist/**/*",
+    "mokli/**/*.py",
+    "mokli/templates/**/*.md",
+    "mokli/skills/**/*.md",
+    "mokli/skills/**/*.sh",
+    "mokli/trading/locales/*.json",
+    "mokli/trading/intel/lexicon/*.json",
+    "mokli/channels/*/mokli/**/*",
+    "mokli/web/dist/**/*",
 ]
-# A leftover nanobot/web/dist/ is git-ignored. The legacy React client is no
+# A leftover mokli/web/dist/ is git-ignored. The legacy React client is no
 # longer built. The path stays an artifact so an existing bundle can still be
 # packed, but the gateway does not serve it.
 artifacts = [
-    "nanobot/web/dist/**/*",
+    "mokli/web/dist/**/*",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["nanobot"]
-exclude = ["nanobot/channels/*/tests/**"]
+packages = ["mokli"]
+exclude = ["mokli/channels/*/tests/**"]
 
 [tool.hatch.build.targets.wheel.sources]
-"nanobot" = "nanobot"
+"mokli" = "mokli"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "nanobot/",
-    "nanobot/web/dist/",
+    "mokli/",
+    "mokli/web/dist/",
     "hatch_build.py",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "pyproject.toml",
 ]
-exclude = ["nanobot/channels/*/tests/**"]
+exclude = ["mokli/channels/*/tests/**"]
 
 [tool.ruff]
 line-length = 100
@@ -190,17 +190,17 @@ select = ["E", "F", "I", "N", "W"]
 ignore = ["E501"]
 
 [tool.basedpyright]
-include = ["nanobot"]
+include = ["mokli"]
 exclude = ["**/tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests", "nanobot/channels"]
+testpaths = ["tests", "mokli/channels"]
 
 [tool.coverage.run]
-source = ["nanobot"]
+source = ["mokli"]
 omit = ["tests/*", "**/tests/*"]
 
 [tool.coverage.report]

@@ -1,8 +1,8 @@
-# Contributing to nanobot
+# Contributing to mokli
 
 Thank you for being here.
 
-nanobot is built with a simple belief: good tools should feel calm, clear, and humane.
+mokli is built with a simple belief: good tools should feel calm, clear, and humane.
 We care deeply about useful features, but we also believe in achieving more with less:
 solutions should be powerful without becoming heavy, and ambitious without becoming
 needlessly complicated.
@@ -46,7 +46,7 @@ git pull --ff-only upstream main
 git switch -c your-topic-branch
 ```
 
-Use your primary HKUDS/nanobot remote in place of `upstream` if your checkout
+Use your primary HKUDS/mokli remote in place of `upstream` if your checkout
 uses a different remote name.
 
 Keep unrelated local changes out of the topic branch. If your checkout already has
@@ -59,8 +59,8 @@ Keep setup boring and reliable. The goal is to get you into the code quickly:
 
 ```bash
 # Clone the repository
-git clone https://github.com/HKUDS/nanobot.git
-cd nanobot
+git clone https://github.com/HKUDS/mokli.git
+cd mokli
 
 # Install with dev dependencies
 pip install -e ".[dev]"
@@ -69,7 +69,7 @@ pip install -e ".[dev]"
 pytest
 
 # Lint code
-ruff check nanobot/
+ruff check mokli/
 
 # Format code — optional. The existing tree predates `ruff format`,
 # so running it broadly produces large unrelated diffs.
@@ -99,7 +99,7 @@ and agree that it will be licensed under the project's MIT License.
 
 ## Code Style
 
-We care about more than passing lint. We want nanobot to stay small, calm, and readable.
+We care about more than passing lint. We want mokli to stay small, calm, and readable.
 
 When contributing, please aim for code that feels:
 
@@ -139,7 +139,7 @@ explicitly in the PR description so it can be discussed before merge.
 ### When **Detect changes** fails in a few seconds with no logs
 
 If the **Test Suite** workflow shows six checks where only **Detect changes**
-failed and every Python, webui, tui, and docker job was **skipped**, open the
+failed and every Python, mokli, tui, and docker job was **skipped**, open the
 failed job. When GitHub never assigned a runner (`runner_name` is empty and the
 job has no steps), the failure is usually an **Actions billing or account lock**,
 not a broken test in the repository. Restore Actions billing on the org or user
@@ -162,12 +162,12 @@ this order:
 4. Wait for every platform archive and checksum to appear on the release, then publish the same
    `X.Y.Z` package to PyPI.
 
-The wheel contains the built WebUI. The native TUI stays a platform-specific release sidecar so
+The wheel contains the built Mokli. The native TUI stays a platform-specific release sidecar so
 users download only the archive for their machine. Each archive must contain the executable,
 target-specific third-party notices, project and runtime licenses, corresponding application
 source, a written source offer, relinking instructions, and a checksum manifest. Never upload a
 naked TUI executable. Source checkouts use an editable Python install, run `tui/` with Bun, and
-rebuild stale `webui/` assets locally.
+rebuild stale `mokli/` assets locally.
 
 The confirmation is an operational commitment, not a cosmetic checkbox. Before accepting it,
 verify that the exact Bun/WebKit revisions remain retrievable and that the project can honor the
@@ -178,10 +178,10 @@ their source materials.
 
 If you have questions, ideas, or half-formed insights, you are warmly welcome here.
 
-Please feel free to open an [issue](https://github.com/HKUDS/nanobot/issues), join the community, or simply reach out:
+Please feel free to open an [issue](https://github.com/HKUDS/mokli/issues), join the community, or simply reach out:
 
 - [Discord](https://discord.gg/MnCvHqpUGB)
 - [Feishu/WeChat](./COMMUNICATION.md)
 - Email: Xubin Ren (@Re-bin) — <xubinrencs@gmail.com>
 
-Thank you for spending your time and care on nanobot. We would love for more people to participate in this community, and we genuinely welcome contributions of all sizes.
+Thank you for spending your time and care on mokli. We would love for more people to participate in this community, and we genuinely welcome contributions of all sizes.

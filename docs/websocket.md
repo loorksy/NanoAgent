@@ -1,6 +1,6 @@
 # WebSocket Server Channel
 
-Nanobot can act as a WebSocket server, allowing external clients (web apps, CLIs, scripts) to interact with the agent in real time via persistent connections.
+Mokli can act as a WebSocket server, allowing external clients (web apps, CLIs, scripts) to interact with the agent in real time via persistent connections.
 
 ## Features
 
@@ -26,7 +26,7 @@ override under `channels.websocket`:
       "host": "127.0.0.1",
       "port": 8765,
       "path": "/",
-      "tokenIssueSecret": "your-webui-password",
+      "tokenIssueSecret": "your-mokli-password",
       "websocketRequiresToken": true,
       "allowFrom": ["*"],
       "streaming": true
@@ -35,10 +35,10 @@ override under `channels.websocket`:
 }
 ```
 
-### 2. Start nanobot
+### 2. Start mokli
 
 ```bash
-nanobot gateway
+mokli gateway
 ```
 
 You should see:
@@ -60,7 +60,7 @@ async def main():
     async with websockets.connect("ws://127.0.0.1:8765/?client_id=alice") as ws:
         ready = json.loads(await ws.recv())
         print(ready)  # {"event": "ready", "chat_id": "...", "client_id": "alice"}
-        await ws.send(json.dumps({"content": "Hello nanobot!"}))
+        await ws.send(json.dumps({"content": "Hello mokli!"}))
         reply = json.loads(await ws.recv())
         print(reply["text"])
 
@@ -140,7 +140,7 @@ All frames are JSON text. Each message has an `event` field.
 }
 ```
 
-**`reasoning_end`** — close marker for the active reasoning stream. WebUI uses this to lock the in-place bubble and switch from the shimmer header to a static collapsed state:
+**`reasoning_end`** — close marker for the active reasoning stream. Mokli uses this to lock the in-place bubble and switch from the shimmer header to a static collapsed state:
 
 ```json
 {
@@ -163,7 +163,7 @@ when a config reload requires clients to refresh their model catalog:
 }
 ```
 
-`model_preset` is omitted when no named preset is active. WebUI clients use this event
+`model_preset` is omitted when no named preset is active. Mokli clients use this event
 to refresh model settings after default-runtime and config changes. `/model <preset>`
 is session-scoped; its selection is reflected through `session_updated` and the
 session row's `model_preset` field instead of this global event.
@@ -185,11 +185,11 @@ session row's `model_preset` field instead of this global event.
 **Legacy (default chat):** send a plain string, or a JSON object with a recognized text field:
 
 ```json
-"Hello nanobot!"
+"Hello mokli!"
 ```
 
 ```json
-{"content": "Hello nanobot!"}
+{"content": "Hello mokli!"}
 ```
 
 Recognized fields: `content`, `text`, `message` (checked in that order). Invalid JSON is treated as plain text. These frames route to the connection's default `chat_id` (the one announced in `ready`).
@@ -212,11 +212,11 @@ All fields go under `channels.websocket` in `config.json`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enabled` | bool | `true` | Enable the WebSocket server. Set to `false` only when you intentionally do not want the bundled WebUI/WebSocket surface. |
+| `enabled` | bool | `true` | Enable the WebSocket server. Set to `false` only when you intentionally do not want the bundled Mokli/WebSocket surface. |
 | `host` | string | `"127.0.0.1"` | Bind address. Use `"0.0.0.0"` to accept external connections. |
 | `port` | int | `8765` | Listen port. |
 | `path` | string | `"/"` | WebSocket upgrade path. Trailing slashes are normalized (root `/` is preserved). |
-| `publicWsUrl` | string | `""` | Exact public `ws://` or `wss://` endpoint returned by `/webui/bootstrap`. Set this when a reverse proxy forwards requests with an origin `Host` header (for example, `wss://claw.example.com/`); its path must match `path`. |
+| `publicWsUrl` | string | `""` | Exact public `ws://` or `wss://` endpoint returned by `/mokli/bootstrap`. Set this when a reverse proxy forwards requests with an origin `Host` header (for example, `wss://claw.example.com/`); its path must match `path`. |
 | `maxMessageBytes` | int | `37748736` | Maximum inbound message size in bytes (1 KB – 40 MB). Default (36 MB) is sized to accept up to 4 base64-encoded image attachments at 8 MB each; lower it if the channel only carries text. |
 
 ### Authentication
@@ -226,10 +226,10 @@ All fields go under `channels.websocket` in `config.json`.
 | `token` | string | `""` | Static shared secret. When set, clients must provide `?token=<value>` matching this secret (timing-safe comparison). Issued tokens are also accepted as a fallback. A trusted proxy assertion bypasses this requirement. |
 | `websocketRequiresToken` | bool | `true` | When `true` and no static `token` is configured, clients must still present a valid issued token, unless `trustedProxyAuth` authenticates the direct proxy peer. Set to `false` to allow unauthenticated connections (only safe for local/trusted networks). |
 | `tokenIssuePath` | string | `""` | HTTP path for issuing short-lived tokens. Must differ from `path`. See [Token Issuance](#token-issuance). |
-| `tokenIssueSecret` | string | `""` | Secret required to obtain tokens via the issue endpoint. If empty, any client can obtain WebSocket connection tokens from `tokenIssuePath` (logged as a warning). `/webui/bootstrap` issues tokens for local/secret-authenticated requests; trusted-proxy requests intentionally receive no bootstrap or API token. |
+| `tokenIssueSecret` | string | `""` | Secret required to obtain tokens via the issue endpoint. If empty, any client can obtain WebSocket connection tokens from `tokenIssuePath` (logged as a warning). `/mokli/bootstrap` issues tokens for local/secret-authenticated requests; trusted-proxy requests intentionally receive no bootstrap or API token. |
 | `trustedProxyAuth` | object or `null` | `null` | Optional two-part no-token authorization for a directly connected upstream proxy. Both `trustedPeerCidrs` and a non-empty `assertionHeader` value must match; a CIDR alone never authorizes bootstrap or WebSocket/API access. |
 | `trustedProxyAuth.trustedPeerCidrs` | list of CIDR strings | — | Direct TCP peer networks that may present the assertion. IPv4, IPv6, and IPv4-mapped IPv6 peers are supported; universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected. |
-| `trustedProxyAuth.assertionHeader` | string | — | Header injected by the identity-aware proxy after successful authentication. Routing/client metadata headers (`Host`, `Forwarded`, `X-Forwarded-*`, `X-Real-IP`, `CF-Connecting-IP`) are rejected; nanobot trusts the remaining header's non-empty value but does not cryptographically validate it. |
+| `trustedProxyAuth.assertionHeader` | string | — | Header injected by the identity-aware proxy after successful authentication. Routing/client metadata headers (`Host`, `Forwarded`, `X-Forwarded-*`, `X-Real-IP`, `CF-Connecting-IP`) are rejected; mokli trusts the remaining header's non-empty value but does not cryptographically validate it. |
 | `tokenTtlS` | int | `300` | Time-to-live for issued tokens in seconds (30 – 86,400). |
 
 ### Access Control
@@ -264,7 +264,7 @@ For production deployments where `websocketRequiresToken: true`, use short-lived
 
 ### How it works
 
-1. Client sends `GET {tokenIssuePath}` with `Authorization: Bearer {tokenIssueSecret}` (or `X-Nanobot-Auth` header).
+1. Client sends `GET {tokenIssuePath}` with `Authorization: Bearer {tokenIssueSecret}` (or `X-Mokli-Auth` header).
 2. Server responds with a one-time-use token:
 
 ```json
@@ -274,7 +274,7 @@ For production deployments where `websocketRequiresToken: true`, use short-lived
 3. Client opens WebSocket with `?token=nbwt_aBcDeFg...&client_id=...`.
 4. The token is consumed (single use) and cannot be reused.
 
-The embedded WebUI's `/webui/bootstrap` route returns a WebSocket token and
+The embedded Mokli's `/mokli/bootstrap` route returns a WebSocket token and
 REST `api_token` for local or secret-authenticated requests. When
 `trustedProxyAuth` authenticates the direct proxy peer, it returns connection
 metadata only: no bootstrap token, no REST API token, and no token query
@@ -283,19 +283,19 @@ parameter is required for the WebSocket handshake or subsequent REST requests.
 ### Trusted proxy no-token bootstrap
 
 `trustedProxyAuth` is an opt-in alternative for deployments where an
-identity-aware reverse proxy authenticates the user before connecting to nanobot.
-The proxy assertion becomes the authentication boundary for the entire WebUI
-surface: `/webui/bootstrap`, the WebSocket handshake, and REST API routes.
+identity-aware reverse proxy authenticates the user before connecting to mokli.
+The proxy assertion becomes the authentication boundary for the entire Mokli
+surface: `/mokli/bootstrap`, the WebSocket handshake, and REST API routes.
 Bootstrap is accepted only when **both** the direct TCP peer matches one of
 `trustedPeerCidrs` and the configured assertion header is present and non-empty.
 A trusted address by itself is never sufficient.
 
-Nanobot deliberately uses only `connection.remote_address` for the peer check.
+Mokli deliberately uses only `connection.remote_address` for the peer check.
 It never uses `X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`,
-or `X-Forwarded-Host` to decide whether the proxy is trusted. Nanobot trusts the
+or `X-Forwarded-Host` to decide whether the proxy is trusted. Mokli trusts the
 assertion supplied by the explicitly trusted peer, but does not cryptographically
 validate or interpret the JWT/assertion contents. Do not enable this option if
-untrusted clients can connect directly to the nanobot listener.
+untrusted clients can connect directly to the mokli listener.
 
 The configured assertion header must be a proxy-generated authentication
 assertion, not a routing or client metadata header. Headers such as `Host`,
@@ -311,7 +311,7 @@ user at the edge and forward the resulting `Cf-Access-Jwt-Assertion`:
   "channels": {
     "websocket": {
       "host": "127.0.0.1",
-      "publicWsUrl": "wss://nanobot.example.com/",
+      "publicWsUrl": "wss://mokli.example.com/",
       "trustedProxyAuth": {
         "trustedPeerCidrs": ["127.0.0.1/32", "::1/128"],
         "assertionHeader": "Cf-Access-Jwt-Assertion"
@@ -322,8 +322,8 @@ user at the edge and forward the resulting `Cf-Access-Jwt-Assertion`:
 ```
 
 This works only when the directly connected `cloudflared` process reaches
-nanobot over the configured loopback address and supplies a non-empty assertion.
-Keep nanobot firewalled from untrusted clients; this configuration is not a
+mokli over the configured loopback address and supplies a non-empty assertion.
+Keep mokli firewalled from untrusted clients; this configuration is not a
 CIDR-based bootstrap bypass.
 
 ### Example setup
@@ -401,7 +401,7 @@ Legacy clients that only send plain text or `{"content": ...}` keep working unch
 
 ### Security boundary
 
-`chat_id` is a *capability*: anyone holding a valid WebSocket auth credential and the chat_id can attach to that conversation and see its output. This is safe for nanobot's local, single-user model. Multi-tenant deployments should namespace chat_ids per user (or introduce a per-tenant auth gate) — nanobot does not do this today.
+`chat_id` is a *capability*: anyone holding a valid WebSocket auth credential and the chat_id can attach to that conversation and see its output. This is safe for mokli's local, single-user model. Multi-tenant deployments should namespace chat_ids per user (or introduce a per-tenant auth gate) — mokli does not do this today.
 
 ## Security Notes
 
@@ -416,7 +416,7 @@ Legacy clients that only send plain text or `{"content": ...}` keep working unch
 Outbound `message` events may include a `media` field containing local filesystem paths. Remote clients cannot access these files directly — they need either:
 
 - A shared filesystem mount, or
-- An HTTP file server serving the nanobot media directory
+- An HTTP file server serving the mokli media directory
 
 ## Common Patterns
 

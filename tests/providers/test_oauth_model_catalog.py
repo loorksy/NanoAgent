@@ -11,15 +11,15 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from nanobot.providers.oauth_model_catalog import (
+from mokli.providers.oauth_model_catalog import (
     OAuthModelCatalog,
     get_oauth_model_catalog,
     invalidate_oauth_model_catalog,
 )
-from nanobot.providers.openai_codex_provider import DEFAULT_OPENAI_CODEX_MODELS_URL
-from nanobot.providers.registry import ProviderModelSpec
-from nanobot.providers.xai_grok_provider import DEFAULT_XAI_GROK_MODELS_URL
-from nanobot.providers.xai_oauth import XAIToken
+from mokli.providers.openai_codex_provider import DEFAULT_OPENAI_CODEX_MODELS_URL
+from mokli.providers.registry import ProviderModelSpec
+from mokli.providers.xai_grok_provider import DEFAULT_XAI_GROK_MODELS_URL
+from mokli.providers.xai_oauth import XAIToken
 
 
 @pytest.fixture(autouse=True)
@@ -96,18 +96,18 @@ def test_xai_catalog_fetches_remote_models_and_reuses_capability_metadata(
         )
 
     monkeypatch.setattr(
-        "nanobot.providers.xai_grok_provider.get_xai_oauth_storage_path",
+        "mokli.providers.xai_grok_provider.get_xai_oauth_storage_path",
         lambda: tmp_path / "auth" / "xai.json",
     )
     monkeypatch.setattr(
-        "nanobot.providers.xai_grok_provider.get_xai_oauth_login_status",
+        "mokli.providers.xai_grok_provider.get_xai_oauth_login_status",
         lambda: token,
     )
     monkeypatch.setattr(
-        "nanobot.providers.xai_grok_provider.get_xai_oauth_token",
+        "mokli.providers.xai_grok_provider.get_xai_oauth_token",
         lambda **_kwargs: token,
     )
-    monkeypatch.setattr("nanobot.providers.xai_grok_provider.httpx.Client", fake_client)
+    monkeypatch.setattr("mokli.providers.xai_grok_provider.httpx.Client", fake_client)
 
     catalog = get_oauth_model_catalog("xai_grok")
 
@@ -202,14 +202,14 @@ def test_openai_codex_catalog_uses_account_catalog_and_filters_hidden_models(
             return tmp_path / "auth" / "openai-codex.json"
 
     monkeypatch.setattr(
-        "nanobot.providers.openai_codex_provider.FileTokenStorage",
+        "mokli.providers.openai_codex_provider.FileTokenStorage",
         lambda **_kwargs: Storage(),
     )
     monkeypatch.setattr(
-        "nanobot.providers.openai_codex_provider.get_codex_token",
+        "mokli.providers.openai_codex_provider.get_codex_token",
         lambda **_kwargs: SimpleNamespace(access="secret", account_id="account-42"),
     )
-    monkeypatch.setattr("nanobot.providers.openai_codex_provider.httpx.Client", fake_client)
+    monkeypatch.setattr("mokli.providers.openai_codex_provider.httpx.Client", fake_client)
 
     catalog = get_oauth_model_catalog("openai_codex")
 
@@ -301,10 +301,10 @@ def test_github_copilot_catalog_only_lists_compatible_chat_models(
             return tmp_path / "auth" / "github-copilot.json"
 
     monkeypatch.setattr(
-        "nanobot.providers.github_copilot_provider.get_storage",
+        "mokli.providers.github_copilot_provider.get_storage",
         lambda: Storage(),
     )
-    monkeypatch.setattr("nanobot.providers.github_copilot_provider.httpx.Client", fake_client)
+    monkeypatch.setattr("mokli.providers.github_copilot_provider.httpx.Client", fake_client)
 
     catalog = get_oauth_model_catalog("github_copilot")
 

@@ -11,12 +11,12 @@ from prompt_toolkit.application import create_app_session
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
 
-from nanobot.cli import desktop_target
-from nanobot.cli.desktop_target import (
+from mokli.cli import desktop_target
+from mokli.cli.desktop_target import (
     DesktopReply,
     DesktopTarget,
     DesktopTargetError,
-    _desktop_webui_url,
+    _desktop_mokli_url,
     _parse_descriptor,
     _parse_reply,
     discover_desktop_target,
@@ -52,7 +52,7 @@ def test_macos_discovery_uses_private_versioned_descriptor(monkeypatch, tmp_path
         address=address,
     )
     monkeypatch.setattr(desktop_target.sys, "platform", "darwin")
-    monkeypatch.setenv("NANOBOT_DESKTOP_ROOT", str(tmp_path))
+    monkeypatch.setenv("MOKLI_DESKTOP_ROOT", str(tmp_path))
 
     assert discover_desktop_target() == DesktopTarget(instance_id, "unix", address)
 
@@ -64,7 +64,7 @@ def test_relative_desktop_root_matches_absolute_advertised_address(monkeypatch, 
     _write_descriptor(terminal, instance_id=instance_id, transport="unix", address=address)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(desktop_target.sys, "platform", "darwin")
-    monkeypatch.setenv("NANOBOT_DESKTOP_ROOT", ".")
+    monkeypatch.setenv("MOKLI_DESKTOP_ROOT", ".")
     assert discover_desktop_target() == DesktopTarget(instance_id, "unix", address)
 
 
@@ -80,7 +80,7 @@ def test_discovery_rejects_non_private_directory(monkeypatch, tmp_path: Path) ->
     )
     terminal.chmod(0o755)
     monkeypatch.setattr(desktop_target.sys, "platform", "darwin")
-    monkeypatch.setenv("NANOBOT_DESKTOP_ROOT", str(tmp_path))
+    monkeypatch.setenv("MOKLI_DESKTOP_ROOT", str(tmp_path))
 
     with pytest.raises(DesktopTargetError, match="private"):
         discover_desktop_target()
@@ -93,7 +93,7 @@ def test_descriptor_transport_is_bound_to_platform(monkeypatch, tmp_path: Path) 
             "schemaVersion": 1,
             "instanceId": instance_id,
             "transport": "namedPipe",
-            "address": f"nanobot-desktop-v1-{instance_id}",
+            "address": f"mokli-desktop-v1-{instance_id}",
         }
     ).encode()
     monkeypatch.setattr(desktop_target.sys, "platform", "win32")
@@ -101,7 +101,7 @@ def test_descriptor_transport_is_bound_to_platform(monkeypatch, tmp_path: Path) 
     assert _parse_descriptor(raw, directory=tmp_path) == DesktopTarget(
         instance_id,
         "namedPipe",
-        f"nanobot-desktop-v1-{instance_id}",
+        f"mokli-desktop-v1-{instance_id}",
     )
 
 
@@ -129,7 +129,7 @@ def test_unix_request_revalidates_instance_identity() -> None:
                             "schemaVersion": 1,
                             "instanceId": instance_id,
                             "state": "ready",
-                            "capabilities": ["webui"],
+                            "capabilities": ["mokli"],
                         }
                     ).encode()
                     + b"\n"
@@ -143,7 +143,7 @@ def test_unix_request_revalidates_instance_identity() -> None:
             thread.join(timeout=2)
             server.close()
 
-    assert reply == DesktopReply("ready", frozenset({"webui"}))
+    assert reply == DesktopReply("ready", frozenset({"mokli"}))
     assert received == [
         {
             "schemaVersion": 1,
@@ -153,20 +153,20 @@ def test_unix_request_revalidates_instance_identity() -> None:
     ]
 
 
-def test_webui_url_requires_ready_capability_and_loopback() -> None:
+def test_mokli_url_requires_ready_capability_and_loopback() -> None:
     assert (
-        _desktop_webui_url(
+        _desktop_mokli_url(
             DesktopReply(
                 "ready",
-                frozenset({"webui"}),
+                frozenset({"mokli"}),
                 "http://127.0.0.1:8765/#/?bootstrapSecret=private",
             )
         )
         == "http://127.0.0.1:8765/#/?bootstrapSecret=private"
     )
     with pytest.raises(DesktopTargetError, match="non-loopback"):
-        _desktop_webui_url(
-            DesktopReply("ready", frozenset({"webui"}), "https://example.com/")
+        _desktop_mokli_url(
+            DesktopReply("ready", frozenset({"mokli"}), "https://example.com/")
         )
 
 
@@ -176,7 +176,7 @@ def test_reply_must_match_selected_instance() -> None:
             "schemaVersion": 1,
             "instanceId": "7ebaf7ba-194e-4df5-a9a0-b9a760086a89",
             "state": "ready",
-            "capabilities": ["webui"],
+            "capabilities": ["mokli"],
         }
     ).encode()
 
@@ -195,12 +195,12 @@ def test_non_bare_or_noninteractive_invocations_do_not_discover(monkeypatch) -> 
     )
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
 
-    assert dispatch_bare_desktop_target(["webui", "--no-open"]) is None
+    assert dispatch_bare_desktop_target(["mokli", "--no-open"]) is None
     assert dispatch_bare_desktop_target(["agent"]) is None
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: False)
     assert dispatch_bare_desktop_target([]) is None
-    assert dispatch_bare_desktop_target(["webui"]) is None
+    assert dispatch_bare_desktop_target(["mokli"]) is None
 
 
 def test_absent_desktop_selects_current_python(monkeypatch, capsys) -> None:
@@ -224,11 +224,11 @@ def test_target_picker_accepts_real_navigation_keys(keys, expected):
         with create_app_session(input=pipe_input, output=DummyOutput()):
             pipe_input.send_text(keys)
             assert desktop_target._choose_target(
-                DesktopReply("ready", frozenset({"webui", "tui"}))
+                DesktopReply("ready", frozenset({"mokli", "tui"}))
             ) == expected
 
 
-@pytest.mark.parametrize("args", [[], ["webui"]])
+@pytest.mark.parametrize("args", [[], ["mokli"]])
 @pytest.mark.parametrize("cancel", ["interrupt", "eof"])
 def test_target_picker_cancellation_exits_without_attachment(monkeypatch, capsys, args, cancel):
     calls: list[str] = []
@@ -237,16 +237,16 @@ def test_target_picker_cancellation_exits_without_attachment(monkeypatch, capsys
         def request(self, operation: str) -> DesktopReply:
             calls.append(operation)
             assert operation == "status", "cancellation must not request attachment credentials"
-            return DesktopReply("ready", frozenset({"webui", "tui"}))
+            return DesktopReply("ready", frozenset({"mokli", "tui"}))
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(
-        "nanobot.cli.desktop_tui.launch_desktop_tui",
+        "mokli.cli.desktop_tui.launch_desktop_tui",
         lambda *_: pytest.fail("cancellation started the TUI"),
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._launch_browser",
+        "mokli.cli.mokli_support._launch_browser",
         lambda *_: pytest.fail("cancellation opened a browser"),
     )
 
@@ -273,18 +273,18 @@ def test_python_choice_does_not_request_desktop_operation(monkeypatch, capsys) -
     class Target:
         def request(self, operation: str) -> DesktopReply:
             calls.append(operation)
-            return DesktopReply("ready", frozenset({"webui"}))
+            return DesktopReply("ready", frozenset({"mokli"}))
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _status: "python")
 
-    assert dispatch_bare_desktop_target(["webui"]) is None
+    assert dispatch_bare_desktop_target(["mokli"]) is None
     assert calls == ["status"]
     assert "Using current Python environment:" in capsys.readouterr().out
 
 
-def test_desktop_webui_selection_revalidates_and_opens_browser(monkeypatch, capsys) -> None:
+def test_desktop_mokli_selection_revalidates_and_opens_browser(monkeypatch, capsys) -> None:
     calls: list[str] = []
     browser_urls: list[str] = []
     url = "http://localhost:8765/#/?bootstrapSecret=private"
@@ -292,18 +292,18 @@ def test_desktop_webui_selection_revalidates_and_opens_browser(monkeypatch, caps
     class Target:
         def request(self, operation: str) -> DesktopReply:
             calls.append(operation)
-            return DesktopReply("ready", frozenset({"webui"}), url if operation == "webui" else None)
+            return DesktopReply("ready", frozenset({"mokli"}), url if operation == "mokli" else None)
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _status: "desktop")
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._launch_browser",
+        "mokli.cli.mokli_support._launch_browser",
         lambda value: browser_urls.append(value) or True,
     )
 
-    assert dispatch_bare_desktop_target(["webui"]) == 0
-    assert calls == ["status", "webui"]
+    assert dispatch_bare_desktop_target(["mokli"]) == 0
+    assert calls == ["status", "mokli"]
     assert browser_urls == [url]
     output = capsys.readouterr().out
     assert "Closing the browser leaves Desktop running" in output
@@ -316,7 +316,7 @@ def test_desktop_tui_selection_fails_without_fallback(monkeypatch, capsys) -> No
     class Target:
         def request(self, operation: str) -> DesktopReply:
             calls.append(operation)
-            return DesktopReply("ready", frozenset({"webui"}))
+            return DesktopReply("ready", frozenset({"mokli"}))
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
@@ -337,26 +337,26 @@ def test_disconnect_after_desktop_selection_never_falls_back(monkeypatch, capsys
             nonlocal calls
             calls += 1
             if calls == 1:
-                return DesktopReply("ready", frozenset({"webui"}))
+                return DesktopReply("ready", frozenset({"mokli"}))
             raise DesktopTargetError("disconnected")
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _status: "desktop")
 
-    assert dispatch_bare_desktop_target(["webui"]) == 3
+    assert dispatch_bare_desktop_target(["mokli"]) == 3
     assert calls == 2
     assert "No backend was started" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("args", [[], ["webui"]])
+@pytest.mark.parametrize("args", [[], ["mokli"]])
 @pytest.mark.parametrize("state", ["busy", "unavailable", "offline", "untrusted"])
 def test_unready_desktop_preserves_python_before_selection(monkeypatch, capsys, args, state):
     class Target:
         def request(self, _operation):
             if state == "offline":
                 raise DesktopTargetError("stale socket")
-            return DesktopReply(state, frozenset({"webui"}))
+            return DesktopReply(state, frozenset({"mokli"}))
 
     def discover():
         if state == "untrusted":
@@ -393,7 +393,7 @@ def test_python_label_preserves_venv_executable(monkeypatch, tmp_path):
 ])
 def test_invalid_browser_urls_are_protocol_errors(url):
     with pytest.raises(DesktopTargetError):
-        _desktop_webui_url(DesktopReply("ready", frozenset({"webui"}), url))
+        _desktop_mokli_url(DesktopReply("ready", frozenset({"mokli"}), url))
 
 
 def test_browser_failure_does_not_leak_bootstrap_or_fall_back(monkeypatch, capsys):
@@ -401,7 +401,7 @@ def test_browser_failure_does_not_leak_bootstrap_or_fall_back(monkeypatch, capsy
 
     class Target:
         def request(self, _operation):
-            return DesktopReply("ready", frozenset({"webui"}), url)
+            return DesktopReply("ready", frozenset({"mokli"}), url)
 
     def fail_browser(_url):
         raise OSError(f"Could not open {url}")
@@ -409,8 +409,8 @@ def test_browser_failure_does_not_leak_bootstrap_or_fall_back(monkeypatch, capsy
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _: "desktop")
-    monkeypatch.setattr("nanobot.cli.webui_support._launch_browser", fail_browser)
-    assert dispatch_bare_desktop_target(["webui"]) == 3
+    monkeypatch.setattr("mokli.cli.mokli_support._launch_browser", fail_browser)
+    assert dispatch_bare_desktop_target(["mokli"]) == 3
     output = capsys.readouterr()
     assert "bootstrapSecret" not in output.out + output.err
     assert "Using current Python" not in output.out
@@ -429,7 +429,7 @@ def test_discovery_rejects_special_files_without_blocking(monkeypatch, tmp_path,
         other.write_text("{}")
         descriptor.symlink_to(other)
     monkeypatch.setattr(desktop_target.sys, "platform", "darwin")
-    monkeypatch.setenv("NANOBOT_DESKTOP_ROOT", str(tmp_path))
+    monkeypatch.setenv("MOKLI_DESKTOP_ROOT", str(tmp_path))
     with pytest.raises(DesktopTargetError):
         discover_desktop_target()
 
@@ -453,9 +453,9 @@ def test_socket_rejects_truncated_or_oversized_reply(monkeypatch, reply):
             desktop_target._read_socket_line(client, deadline=time.monotonic() + 1)
 
 
-@pytest.mark.parametrize("args", [[], ["webui"]])
+@pytest.mark.parametrize("args", [[], ["mokli"]])
 def test_completion_never_discovers_desktop(monkeypatch, args):
-    monkeypatch.setenv("_NANOBOT_COMPLETE", "complete_bash")
+    monkeypatch.setenv("_MOKLI_COMPLETE", "complete_bash")
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(
         desktop_target, "discover_desktop_target", lambda: pytest.fail("completion must bypass")

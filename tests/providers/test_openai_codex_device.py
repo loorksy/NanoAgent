@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from nanobot.providers.openai_codex_device import (
+from mokli.providers.openai_codex_device import (
     CodexDeviceError,
     start_openai_codex_device_login,
 )
@@ -79,7 +79,7 @@ def test_device_login_waits_then_saves_without_localhost(
         clients.append(client)
         return client
 
-    monkeypatch.setattr("nanobot.providers.openai_codex_device.httpx.Client", fake_client)
+    monkeypatch.setattr("mokli.providers.openai_codex_device.httpx.Client", fake_client)
 
     flow = start_openai_codex_device_login(timeout_s=30)
     assert flow.authorization_url == "https://auth.openai.com/codex/device"
@@ -107,7 +107,7 @@ def test_device_login_error_hides_the_response_body(monkeypatch: pytest.MonkeyPa
             super().__init__([(502, {"access_token": secret})])
 
     monkeypatch.setattr(
-        "nanobot.providers.openai_codex_device.httpx.Client",
+        "mokli.providers.openai_codex_device.httpx.Client",
         lambda *_args, **_kwargs: Broken(),
     )
 
@@ -122,7 +122,7 @@ def test_device_login_network_error_has_no_url_details(monkeypatch: pytest.Monke
     def broken(*_args, **_kwargs):
         raise httpx.ConnectError("proxy secret.example")
 
-    monkeypatch.setattr("nanobot.providers.openai_codex_device.httpx.Client", broken)
+    monkeypatch.setattr("mokli.providers.openai_codex_device.httpx.Client", broken)
 
     with pytest.raises(CodexDeviceError) as exc:
         start_openai_codex_device_login()

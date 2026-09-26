@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nanobot.cron.types import CronJob, CronPayload, CronSchedule
-from nanobot.trading.cron import (
+from mokli.cron.types import CronJob, CronPayload, CronSchedule
+from mokli.trading.cron import (
     GOLD_FOLLOWUP_JOB_ID,
     GOLD_NEWS_JOB_ID,
     GOLD_SCAN_JOB_ID,
@@ -13,7 +13,7 @@ from nanobot.trading.cron import (
     register_trading_cron_jobs,
     run_gold_news_job,
 )
-from nanobot.trading.types import EconomicEvent, NewsMacroResult
+from mokli.trading.types import EconomicEvent, NewsMacroResult
 
 
 class _FakeCron:
@@ -64,7 +64,7 @@ def test_run_gold_news_job_reads_economic_event_title(monkeypatch) -> None:
         reason="high-impact calendar",
     )
     monkeypatch.setattr(
-        "nanobot.trading.agents.news_macro.run_news_macro_agent",
+        "mokli.trading.agents.news_macro.run_news_macro_agent",
         lambda: news,
     )
 

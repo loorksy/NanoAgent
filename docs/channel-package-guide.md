@@ -1,12 +1,12 @@
 # Channel Package Guide
 
-Use this guide to add a self-contained channel package to the nanobot repository. A channel is part of nanobot when its package lives at `nanobot/channels/<channel>/`; there is no separate external channel-plugin path.
+Use this guide to add a self-contained channel package to the mokli repository. A channel is part of mokli when its package lives at `mokli/channels/<channel>/`; there is no separate external channel-plugin path.
 
-> **Breaking change:** nanobot no longer discovers the `nanobot.channels` Python entry-point group. Move an entry-point implementation into `nanobot/channels/<channel>/` with a package-owned manifest, runtime, tests, and optional WebUI contribution.
+> **Breaking change:** mokli no longer discovers the `mokli.channels` Python entry-point group. Move an entry-point implementation into `mokli/channels/<channel>/` with a package-owned manifest, runtime, tests, and optional Mokli contribution.
 
 ## How It Works
 
-When `nanobot gateway` starts, nanobot scans the packages under `nanobot/channels/` and loads each dependency-free `ChannelPlugin` descriptor from `manifest.py`.
+When `mokli gateway` starts, mokli scans the packages under `mokli/channels/` and loads each dependency-free `ChannelPlugin` descriptor from `manifest.py`.
 
 If a matching config section has `"enabled": true`, the channel is instantiated and started.
 
@@ -21,9 +21,9 @@ If a matching config section has `"enabled": true`, the channel is instantiated 
 | Interactive setup connections and their short-lived state | `ChannelPlugin.connector` backed by package-local `connect.py` |
 | Reusable local login-state detection | `ChannelPlugin.management.local_state_present` backed by package-local code |
 | Discovery metadata and lazy runtime target | `PLUGIN` in `manifest.py` |
-| WebUI structure, components, URLs, field keys, actions, and preset values | `webui/index.ts` or `webui/index.tsx` |
-| Channel-specific user-facing copy | `webui/locales/<locale>.json` |
-| Generic settings-shell copy shared by every channel | `webui/src/i18n/locales/<locale>/common.json` |
+| Mokli structure, components, URLs, field keys, actions, and preset values | `mokli/index.ts` or `mokli/index.tsx` |
+| Channel-specific user-facing copy | `mokli/locales/<locale>.json` |
+| Generic settings-shell copy shared by every channel | `mokli/src/i18n/locales/<locale>/common.json` |
 
 Keep one source of truth for each concern. In particular, the backend setup contract decides what may be written, the TypeScript contribution decides how those fields are presented, and locale JSON supplies the channel-specific words shown to users.
 
@@ -34,25 +34,25 @@ We'll build a minimal webhook channel that receives messages via HTTP POST and s
 ### Project Structure
 
 ```text
-nanobot/channels/webhook/
+mokli/channels/webhook/
 ├── __init__.py          # lightweight package marker; do not import the runtime
 ├── manifest.py          # dependency-free ChannelPlugin descriptor
 ├── runtime.py           # channel implementation and optional SDK imports
 ├── tests/               # package-local tests
-└── webui/               # optional settings UI and translations
+└── mokli/               # optional settings UI and translations
 ```
 
 ### 1. Create Your Channel
 
 ```python
-# nanobot/channels/webhook/__init__.py
+# mokli/channels/webhook/__init__.py
 """Webhook channel package."""
 ```
 
 ```python
-# nanobot/channels/webhook/manifest.py
-from nanobot.channels.contracts import ChannelFieldSpec, ChannelSetupSpec
-from nanobot.channels.plugin import ChannelPlugin
+# mokli/channels/webhook/manifest.py
+from mokli.channels.contracts import ChannelFieldSpec, ChannelSetupSpec
+from mokli.channels.plugin import ChannelPlugin
 
 
 PLUGIN = ChannelPlugin(
@@ -70,7 +70,7 @@ PLUGIN = ChannelPlugin(
 ```
 
 ```python
-# nanobot/channels/webhook/runtime.py
+# mokli/channels/webhook/runtime.py
 import asyncio
 from typing import Any
 
@@ -78,10 +78,10 @@ from aiohttp import web
 from loguru import logger
 from pydantic import Field
 
-from nanobot.channels.base import BaseChannel
-from nanobot.bus.events import OutboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.config.schema import Base
+from mokli.channels.base import BaseChannel
+from mokli.bus.events import OutboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.config.schema import Base
 
 
 class WebhookConfig(Base):
@@ -164,16 +164,16 @@ class WebhookChannel(BaseChannel):
 
 The package directory, `PLUGIN.name`, runtime class name, and config section must all use `webhook`. Channel names use a portable ASCII package identifier: they start with a letter and contain only letters, digits, or underscores.
 
-Declare runtime requirements directly in `ChannelPlugin.dependencies`. Do not add channel requirements to the root `pyproject.toml`: the package manifest is the source of truth used by the CLI, WebUI, and gateway startup. Keep the manifest and anything it imports free of the optional SDK itself.
+Declare runtime requirements directly in `ChannelPlugin.dependencies`. Do not add channel requirements to the root `pyproject.toml`: the package manifest is the source of truth used by the CLI, Mokli, and gateway startup. Keep the manifest and anything it imports free of the optional SDK itself.
 
 ### 2. Configure
 
 ```bash
-nanobot plugins list      # verify the channel package appears as "webhook"
-nanobot onboard           # add default config for detected channels
+mokli plugins list      # verify the channel package appears as "webhook"
+mokli onboard           # add default config for detected channels
 ```
 
-Edit `~/.nanobot/config.json`:
+Edit `~/.mokli/config.json`:
 
 ```json
 {
@@ -187,12 +187,12 @@ Edit `~/.nanobot/config.json`:
 }
 ```
 
-nanobot always loads the dependency-free descriptor during discovery. When the WebUI gateway starts, it installs missing requirements for enabled channels before importing their runtimes. It also installs them when a channel is enabled from the CLI or WebUI. Status, configuration, and disable operations do not need the runtime. Single-instance and multi-instance channels use the same activation rules.
+mokli always loads the dependency-free descriptor during discovery. When the Mokli gateway starts, it installs missing requirements for enabled channels before importing their runtimes. It also installs them when a channel is enabled from the CLI or Mokli. Status, configuration, and disable operations do not need the runtime. Single-instance and multi-instance channels use the same activation rules.
 
 ### 3. Run & Test
 
 ```bash
-nanobot gateway
+mokli gateway
 ```
 
 In another terminal:
@@ -207,12 +207,12 @@ The agent receives the message and processes it. Replies arrive in your `send()`
 
 ## Channel Package Requirements
 
-Every channel is a self-contained package at `nanobot/channels/<channel>/`; channel-specific runtime code, setup metadata, tests, WebUI structure, components, and translations stay under that directory.
+Every channel is a self-contained package at `mokli/channels/<channel>/`; channel-specific runtime code, setup metadata, tests, Mokli structure, components, and translations stay under that directory.
 
 ### Package Layout
 
 ```text
-nanobot/channels/<channel>/
+mokli/channels/<channel>/
 ├── __init__.py                 # package marker only; no runtime or SDK imports
 ├── manifest.py                 # dependency-free ChannelPlugin and ChannelSetupSpec
 ├── config.py                   # optional dependency-free config model and defaults
@@ -222,28 +222,28 @@ nanobot/channels/<channel>/
 ├── validation.py               # optional package-owned setup checks
 ├── runtime.py                  # BaseChannel implementation and platform SDK imports
 ├── tests/                      # channel-specific Python tests
-└── webui/                      # optional, compiled into the shared WebUI
+└── mokli/                      # optional, compiled into the shared Mokli
     ├── index.ts or index.tsx   # structure and optional React components
     └── locales/
         ├── en.json             # canonical locale shape
-        └── <locale>.json       # one file for every supported WebUI locale
+        └── <locale>.json       # one file for every supported Mokli locale
 ```
 
-Do not add a runtime module directly under `nanobot/channels/`, create a parallel manifest tree, or add a central per-channel UI catalog. If existing channel files move, use `git mv` so history remains traceable.
+Do not add a runtime module directly under `mokli/channels/`, create a parallel manifest tree, or add a central per-channel UI catalog. If existing channel files move, use `git mv` so history remains traceable.
 
 ### Manifest and Runtime Boundary
 
-`manifest.py` exports a typed `ChannelPlugin` whose `runtime` target is an absolute import target, such as `nanobot.channels.telegram.runtime:TelegramChannel`; using `f"{__package__}.runtime:TelegramChannel"` keeps it package-owned without repeating the package path. Discovery imports the manifest before it knows whether the optional platform dependency is installed, so `manifest.py` must not import `runtime.py` or any platform SDK. Import runtime symbols from `runtime.py` explicitly; `__init__.py` remains an inert package marker.
+`manifest.py` exports a typed `ChannelPlugin` whose `runtime` target is an absolute import target, such as `mokli.channels.telegram.runtime:TelegramChannel`; using `f"{__package__}.runtime:TelegramChannel"` keeps it package-owned without repeating the package path. Discovery imports the manifest before it knows whether the optional platform dependency is installed, so `manifest.py` must not import `runtime.py` or any platform SDK. Import runtime symbols from `runtime.py` explicitly; `__init__.py` remains an inert package marker.
 
-The manifest owns the channel name, display name, setup contract, management adapter, optional connector target, dependency requirements, capabilities, default activation, and optional WebUI entry path. The management adapter alone decides whether a channel is single-instance or multi-instance.
+The manifest owns the channel name, display name, setup contract, management adapter, optional connector target, dependency requirements, capabilities, default activation, and optional Mokli entry path. The management adapter alone decides whether a channel is single-instance or multi-instance.
 
 Interactive browser setup uses one small connector contract. Set `connector=f"{__package__}.connect:MyConnectStore"`; the target is loaded only when `/api/settings/channels/<name>/connect/{start,poll,cancel}` is called. The store exposes one async `handle(action, query)` method and keeps platform-specific parsing, sessions, and errors inside the channel package. The shared settings router only authenticates, dispatches, and applies a successful connection.
 
-Use the small constructors in [`nanobot/channels/_manifest.py`](../nanobot/channels/_manifest.py) for declarative field and requirement definitions. Use [`nanobot/channels/dingtalk/manifest.py`](../nanobot/channels/dingtalk/manifest.py) as a compact single-instance example and [`nanobot/channels/feishu/`](../nanobot/channels/feishu/) as a multi-instance example.
+Use the small constructors in [`mokli/channels/_manifest.py`](../mokli/channels/_manifest.py) for declarative field and requirement definitions. Use [`mokli/channels/dingtalk/manifest.py`](../mokli/channels/dingtalk/manifest.py) as a compact single-instance example and [`mokli/channels/feishu/`](../mokli/channels/feishu/) as a multi-instance example.
 
-### Package-owned WebUI
+### Package-owned Mokli
 
-Set `webui="webui/index.ts"` or `webui="webui/index.tsx"` in the channel manifest. Candidate modules are bundled from channel packages, but the settings UI activates only the exact path returned by the backend feature payload.
+Set `mokli="mokli/index.ts"` or `mokli="mokli/index.tsx"` in the channel manifest. Candidate modules are bundled from channel packages, but the settings UI activates only the exact path returned by the backend feature payload.
 
 The entry module exports one default `ChannelUiContribution`. Channel identity comes from the package directory, so do not repeat a `channel` field in TypeScript. Keep only structure and executable UI data in this module: presentation metadata, icons or logo URLs, docs URLs, config field keys, action payloads, preset values, aliases, and optional `Panel` or `ConnectFlow` components.
 
@@ -251,11 +251,11 @@ Do not put static descriptions, setup steps, labels, placeholders, help text, ac
 
 ### Channel-owned i18n
 
-Create `webui/locales/<locale>.json` for every locale code declared in [`webui/src/i18n/config.ts`](../webui/src/i18n/config.ts). Treat `en.json` as the canonical shape; every other locale must contain the same message keys and the same interpolation variables. `displayName` may be omitted when the product name should remain unchanged.
+Create `mokli/locales/<locale>.json` for every locale code declared in [`mokli/src/i18n/config.ts`](../mokli/src/i18n/config.ts). Treat `en.json` as the canonical shape; every other locale must contain the same message keys and the same interpolation variables. `displayName` may be omitted when the product name should remain unchanged.
 
 ```json
 {
-  "description": "Use nanobot from Example chats.",
+  "description": "Use mokli from Example chats.",
   "requirements": "Example app credentials and gateway",
   "setup": {
     "docsLabel": "Open Example setup",
@@ -293,8 +293,8 @@ Custom channel components should read dynamic copy with `channelTranslator(t, "<
 
 The dependency direction is intentional:
 
-- [`webui/src/i18n/index.ts`](../webui/src/i18n/index.ts) imports the pure JSON [`channel-plugins/locale-registry.ts`](../webui/src/channel-plugins/locale-registry.ts).
-- The locale registry discovers only `nanobot/channels/*/webui/locales/*.json` and must not import the UI registry, React, or TSX.
+- [`mokli/src/i18n/index.ts`](../mokli/src/i18n/index.ts) imports the pure JSON [`channel-plugins/locale-registry.ts`](../mokli/src/channel-plugins/locale-registry.ts).
+- The locale registry discovers only `mokli/channels/*/mokli/locales/*.json` and must not import the UI registry, React, or TSX.
 - Settings components may consume both the UI registry and locale registry.
 - Channel UI code may use shared types and generic settings components, but core settings code must not add `if (feature.name === "...")` branches for individual channels.
 
@@ -302,14 +302,14 @@ This separation prevents i18n initialization from eagerly loading every channel 
 
 ### Tests and Definition of Done
 
-Put channel-specific Python tests in `nanobot/channels/<channel>/tests/`. Keep only shared registry, manager, base-class, and cross-channel contract tests in `tests/channels/`. Release builds exclude package-local tests while the repository test configuration discovers both trees.
+Put channel-specific Python tests in `mokli/channels/<channel>/tests/`. Keep only shared registry, manager, base-class, and cross-channel contract tests in `tests/channels/`. Release builds exclude package-local tests while the repository test configuration discovers both trees.
 
 For a focused channel change, run the smallest relevant set:
 
 ```bash
-uv run pytest nanobot/channels/<channel>/tests -q
+uv run pytest mokli/channels/<channel>/tests -q
 
-cd webui
+cd mokli
 bun run test -- src/tests/channel-locale-registry.test.ts src/tests/channel-ui-registry.test.ts src/tests/channel-identity.test.ts
 bun run lint
 bun run build
@@ -322,7 +322,7 @@ Before considering the change complete, verify all of the following:
 - The TypeScript field, action, and preset IDs have matching English locale messages.
 - Every supported locale matches the English key shape and interpolation variables.
 - Generic settings copy remains in core `common.json`; channel-specific copy remains inside the channel package.
-- User-facing WebUI changes work through the built frontend served by a real gateway, including language switching and refresh persistence.
+- User-facing Mokli changes work through the built frontend served by a real gateway, including language switching and refresh persistence.
 - Markdown prose paragraphs and individual list items remain on one source line; let the renderer handle visual wrapping.
 
 ## BaseChannel API
@@ -366,8 +366,8 @@ Channels that don't need interactive login (e.g. Telegram with bot token, Discor
 
 Users trigger interactive login via:
 ```bash
-nanobot channels login <channel_name>
-nanobot channels login <channel_name> --force  # re-authenticate
+mokli channels login <channel_name>
+mokli channels login <channel_name> --force  # re-authenticate
 ```
 
 ### Provided by Base
@@ -391,8 +391,8 @@ nanobot channels login <channel_name> --force  # re-authenticate
 Persisted-state management belongs to `ChannelPlugin.management`, not `BaseChannel`. Keep the adapter and anything it imports free of optional platform SDKs so status, settings, and disable operations still work when the runtime cannot be imported. Runtime classes own network lifecycle, message delivery, interactive login, enable-time availability checks, and explicit runtime-only actions such as metadata refresh.
 
 ```python
-from nanobot.channels.contracts import ChannelFieldSpec, ChannelSetupSpec, SetupRequirement
-from nanobot.channels.plugin import ChannelPlugin
+from mokli.channels.contracts import ChannelFieldSpec, ChannelSetupSpec, SetupRequirement
+from mokli.channels.plugin import ChannelPlugin
 
 from .instances import MANAGEMENT
 
@@ -420,7 +420,7 @@ PLUGIN = ChannelPlugin(
 ```python
 from typing import Any
 
-from nanobot.channels.contracts import ChannelInstanceSpec, ChannelManagementSpec
+from mokli.channels.contracts import ChannelInstanceSpec, ChannelManagementSpec
 
 from .config import default_config
 
@@ -458,13 +458,13 @@ Multi-instance adapters return `ChannelInstanceSpec` objects and preserve their 
 - settings instance summaries are generated from `instance_specs()` and `ChannelPlugin.setup`. They contain the authoritative `enabled` and `configured` state plus secret-safe `config_values` and `configured_fields` for the generic instance editor;
 - the management adapter's `feature_instances()` may return `None` or presentation overrides containing an `id` plus `name`, `display_name`, or `avatar_url`. It cannot override runtime state or the configuration snapshot.
 
-`ChannelInstanceSpec` contains only `instance_id` and the instance config; nanobot derives its runtime name through the adapter. Single-instance plugins keep ownership of their entire config, including a field named `instances`. Only plugins whose management spec sets `multi_instance=True` opt into instance expansion.
+`ChannelInstanceSpec` contains only `instance_id` and the instance config; mokli derives its runtime name through the adapter. Single-instance plugins keep ownership of their entire config, including a field named `instances`. Only plugins whose management spec sets `multi_instance=True` opt into instance expansion.
 
 The package/config section name owns every runtime produced from that section. Class inheritance does not transfer runtime ownership to another package.
 
-Return a concrete iterable or generator from the adapter's `instance_specs()`; nanobot materializes and validates it before constructing any runtime. Raise an exception for malformed persisted data rather than silently changing instance identity. Keep network-backed metadata refresh behind the runtime's `refresh_feature_metadata()` so feature GET requests remain dependency-free and read-only.
+Return a concrete iterable or generator from the adapter's `instance_specs()`; mokli materializes and validates it before constructing any runtime. Raise an exception for malformed persisted data rather than silently changing instance identity. Keep network-backed metadata refresh behind the runtime's `refresh_feature_metadata()` so feature GET requests remain dependency-free and read-only.
 
-For package layout, WebUI ownership, and localization rules, see [Channel Package Requirements](#channel-package-requirements).
+For package layout, Mokli ownership, and localization rules, see [Channel Package Requirements](#channel-package-requirements).
 
 ### Optional (streaming)
 
@@ -485,7 +485,7 @@ class OutboundMessage:
     event: object | None # typed runtime/UI event; usually inspect with isinstance()
 ```
 
-Runtime/UI semantics live on `msg.event`. Plugin-authored outbound messages should use typed events instead of legacy metadata flags such as `_progress`, `_stream_delta`, `_stream_end`, `_reasoning_delta`, `_turn_end`, or `_goal_status`. nanobot still accepts those old flags as a compatibility bridge for existing in-process extensions, but new plugin code should not add fresh dependencies on them.
+Runtime/UI semantics live on `msg.event`. Plugin-authored outbound messages should use typed events instead of legacy metadata flags such as `_progress`, `_stream_delta`, `_stream_end`, `_reasoning_delta`, `_turn_end`, or `_goal_status`. mokli still accepts those old flags as a compatibility bridge for existing in-process extensions, but new plugin code should not add fresh dependencies on them.
 
 ## Streaming Support
 
@@ -593,14 +593,14 @@ When `streaming` is `false` (default) or omitted, only `send()` is called — no
 
 ## Progress, Tool Hints, and Reasoning
 
-Besides normal assistant text, nanobot can emit low-emphasis trace blocks. These are intended for UI affordances like status rows, collapsible "used tools" groups, or reasoning/thinking blocks. Platforms that do not have a good place for them can ignore them safely.
+Besides normal assistant text, mokli can emit low-emphasis trace blocks. These are intended for UI affordances like status rows, collapsible "used tools" groups, or reasoning/thinking blocks. Platforms that do not have a good place for them can ignore them safely.
 
 ### Progress and Tool Hints
 
 Progress and tool hints arrive through the normal `send(msg)` path. Check `msg.event` before rendering:
 
 ```python
-from nanobot.bus.outbound_events import ProgressEvent
+from mokli.bus.outbound_events import ProgressEvent
 
 async def send(self, msg: OutboundMessage) -> None:
     event = msg.event
@@ -706,15 +706,15 @@ Recommended rendering:
 
 `BaseChannel.is_allowed()` reads the permission list via `getattr(self.config, "allow_from", [])`. This works for Pydantic models where `allow_from` is a real Python attribute, but **fails silently for plain `dict`** — `dict` has no `allow_from` attribute, so `getattr` always returns the default `[]`, causing all messages to be denied.
 
-Channel runtimes use Pydantic config models by subclassing `Base` from `nanobot.config.schema`.
+Channel runtimes use Pydantic config models by subclassing `Base` from `mokli.config.schema`.
 
 ### Pattern
 
-1. Define a Pydantic model inheriting from `nanobot.config.schema.Base`:
+1. Define a Pydantic model inheriting from `mokli.config.schema.Base`:
 
 ```python
 from pydantic import Field
-from nanobot.config.schema import Base
+from mokli.config.schema import Base
 
 class WebhookConfig(Base):
     """Webhook channel configuration."""
@@ -729,7 +729,7 @@ class WebhookConfig(Base):
 
 ```python
 from typing import Any
-from nanobot.bus.queue import MessageBus
+from mokli.bus.queue import MessageBus
 
 class WebhookChannel(BaseChannel):
     def __init__(self, config: Any, bus: MessageBus):
@@ -748,7 +748,7 @@ async def start(self) -> None:
 
 `allowFrom` is handled automatically by `_handle_message()` — you don't need to check it yourself.
 
-`nanobot onboard` reads the descriptor without importing the runtime. Put writable defaults in `ChannelSetupSpec`:
+`mokli onboard` reads the descriptor without importing the runtime. Put writable defaults in `ChannelSetupSpec`:
 
 ```python
 setup=ChannelSetupSpec(
@@ -765,26 +765,26 @@ String and secret fields default to `""`, list fields to `[]`, and boolean field
 
 | What | Format | Example |
 |------|--------|---------|
-| Package directory | `nanobot/channels/{name}` | `nanobot/channels/webhook` |
+| Package directory | `mokli/channels/{name}` | `mokli/channels/webhook` |
 | Manifest name | `{name}` | `webhook` |
 | Config section | `channels.{name}` | `channels.webhook` |
-| Runtime import | `nanobot.channels.{name}.runtime` | `nanobot.channels.webhook.runtime` |
+| Runtime import | `mokli.channels.{name}.runtime` | `mokli.channels.webhook.runtime` |
 
 ## Local Development
 
 ```bash
-git clone https://github.com/HKUDS/nanobot.git
-cd nanobot
+git clone https://github.com/HKUDS/mokli.git
+cd mokli
 python -m pip install -e .
-nanobot plugins list    # should show the package as "webhook"
-nanobot plugins enable webhook
-nanobot gateway         # test end-to-end
+mokli plugins list    # should show the package as "webhook"
+mokli plugins enable webhook
+mokli gateway         # test end-to-end
 ```
 
 ## Verify
 
 ```bash
-$ nanobot plugins list
+$ mokli plugins list
 
   Name       Type      Enabled
   discord    channel   no

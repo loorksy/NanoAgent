@@ -12,14 +12,14 @@ graphify-out/
 docs/superpowers/
 docs/plans/
 
-# webui (monorepo frontend)
-webui/node_modules/
-open-webui/node_modules/
-open-webui/.svelte-kit/
-open-webui/backend/data/
-webui/dist/
-webui/coverage/
-webui/.vite/
+# mokli (monorepo frontend)
+mokli/node_modules/
+mokli-ui/node_modules/
+mokli-ui/.svelte-kit/
+mokli-ui/backend/data/
+mokli/dist/
+mokli/coverage/
+mokli/.vite/
 tui/node_modules/
 tui/dist/
 *.tsbuildinfo
@@ -106,7 +106,7 @@ temp/
 exp/
 .playwright-mcp/
 bridge/node_modules/
-webui/.verify-*
+mokli/.verify-*
 .playwright-cli/
 
 # JS workspaces

@@ -1,4 +1,4 @@
-from nanobot.trading.teams.runtime import load_preset, topological_layers
+from mokli.trading.teams.runtime import load_preset, topological_layers
 
 
 def test_load_gold_debate_desk_preset():

@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.trading.teams.subagent_runner import TeamRunCollector, run_team_role
-from nanobot.utils.llm_runtime import LLMRuntime
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
+from mokli.utils.llm_runtime import LLMRuntime
 
 
 @pytest.mark.asyncio

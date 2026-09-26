@@ -4,7 +4,7 @@ When /stop cancels an active task, the runtime checkpoint (tool results,
 assistant messages accumulated so far) should be materialized into session
 history rather than silently discarded.
 
-See: https://github.com/HKUDS/nanobot/issues/2966
+See: https://github.com/HKUDS/mokli/issues/2966
 """
 
 from __future__ import annotations
@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.queue import MessageBus
-from nanobot.session.recovery import RUNTIME_CHECKPOINT_KEY
+from mokli.agent.loop import AgentLoop
+from mokli.bus.queue import MessageBus
+from mokli.session.recovery import RUNTIME_CHECKPOINT_KEY
 
 
 def _make_provider():
@@ -35,9 +35,9 @@ def _make_loop(tmp_path: Path) -> AgentLoop:
     """Create a real AgentLoop with mocked provider — avoids patching __init__."""
     bus = MessageBus()
     provider = _make_provider()
-    with patch("nanobot.agent.loop.ContextBuilder"), \
-         patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as mock_subagent_manager:
+    with patch("mokli.agent.loop.ContextBuilder"), \
+         patch("mokli.agent.loop.SessionManager"), \
+         patch("mokli.agent.loop.SubagentManager") as mock_subagent_manager:
         mock_subagent_manager.return_value.cancel_by_session = AsyncMock(return_value=0)
         return AgentLoop(bus=bus, provider=provider, workspace=tmp_path)
 
@@ -52,8 +52,8 @@ async def test_dispatch_cancellation_restores_checkpoint():
     CancelledError handler), so a future refactor that drops the cancel-time
     restore is caught by CI instead of silently regressing.
     """
-    from nanobot.bus.events import InboundMessage
-    from nanobot.bus.queue import MessageBus
+    from mokli.bus.events import InboundMessage
+    from mokli.bus.queue import MessageBus
 
     bus = MessageBus()
     provider = MagicMock()
@@ -61,9 +61,9 @@ async def test_dispatch_cancellation_restores_checkpoint():
     workspace = MagicMock()
     workspace.__truediv__ = MagicMock(return_value=MagicMock())
 
-    with patch("nanobot.agent.loop.ContextBuilder"), \
-         patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as mock_subagent_manager:
+    with patch("mokli.agent.loop.ContextBuilder"), \
+         patch("mokli.agent.loop.SessionManager"), \
+         patch("mokli.agent.loop.SubagentManager") as mock_subagent_manager:
         mock_subagent_manager.return_value.cancel_by_session = AsyncMock(return_value=0)
         loop = AgentLoop(bus=bus, provider=provider, workspace=workspace)
 
@@ -142,7 +142,7 @@ async def test_dispatch_cancellation_keeps_checkpoint_for_gateway_shutdown(tmp_p
 
     loop._process_message = _cancel  # type: ignore[method-assign]
 
-    from nanobot.bus.events import InboundMessage
+    from mokli.bus.events import InboundMessage
 
     with pytest.raises(asyncio.CancelledError):
         await loop._dispatch(

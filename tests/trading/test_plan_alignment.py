@@ -1,8 +1,8 @@
-from nanobot.trading.gates.plan_alignment import (
+from mokli.trading.gates.plan_alignment import (
     evaluate_liquidity_alignment,
     evaluate_supply_demand_alignment,
 )
-from nanobot.trading.types import (
+from mokli.trading.types import (
     EntryPlan,
     LiquidityResult,
     LiquiditySweep,

@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from agent.runner_helpers import make_run_spec
-from nanobot.agent.runner import AgentRunner
-from nanobot.agent.tools import ToolResult
-from nanobot.agent.tools.execution import is_ssrf_violation
-from nanobot.config.schema import AgentDefaults
-from nanobot.providers.base import LLMResponse, ToolCallRequest
+from mokli.agent.runner import AgentRunner
+from mokli.agent.tools import ToolResult
+from mokli.agent.tools.execution import is_ssrf_violation
+from mokli.config.schema import AgentDefaults
+from mokli.providers.base import LLMResponse, ToolCallRequest
 
 _MAX_TOOL_RESULT_CHARS = AgentDefaults().max_tool_result_chars
 

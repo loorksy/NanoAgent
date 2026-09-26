@@ -5,29 +5,29 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.memory import (
+from mokli.agent.memory import (
     _ARCHIVE_TOOL_RESULT,
     _HISTORY_ENTRY_HARD_CAP,
     Consolidator,
     MemoryStore,
 )
-from nanobot.events import AgentEvent, ContextCompactionEvent, EventSink
-from nanobot.providers.base import (
+from mokli.events import AgentEvent, ContextCompactionEvent, EventSink
+from mokli.providers.base import (
     GenerationSettings,
     LLMResponse,
     ProviderConversationState,
     ToolCallRequest,
 )
-from nanobot.runtime_context import (
+from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     RuntimeContextBlock,
     append_runtime_context,
 )
-from nanobot.session.keys import UNIFIED_SESSION_KEY, remember_last_channel
-from nanobot.session.manager import Session
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
-from nanobot.utils.llm_runtime import LLMRuntime
-from nanobot.utils.prompt_templates import render_template
+from mokli.session.keys import UNIFIED_SESSION_KEY, remember_last_channel
+from mokli.session.manager import Session
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.utils.llm_runtime import LLMRuntime
+from mokli.utils.prompt_templates import render_template
 
 _ARCHIVE_PROMPT = render_template("agent/consolidator_archive.md", strip=True)
 
@@ -253,7 +253,7 @@ class TestTurnTranscriptSummary:
 
 class TestConsolidatorSummarize:
     def test_format_messages_keeps_media_only_user_turn(self):
-        path = "/home/user/.nanobot/media/websocket/clip.mp4"
+        path = "/home/user/.mokli/media/websocket/clip.mp4"
 
         formatted = MemoryStore._format_messages([
             {
@@ -492,7 +492,7 @@ class TestConsolidatorArchiveErrorHandling:
         runtime = replace(runtime, context_window_tokens=128_000)
         consolidator.store.raw_archive = MagicMock()
         monkeypatch.setattr(
-            "nanobot.agent.memory.render_template",
+            "mokli.agent.memory.render_template",
             MagicMock(side_effect=RuntimeError("template failed")),
         )
         session = Session(key="test:template")
@@ -562,7 +562,7 @@ class TestCompactIdleSession:
     @pytest.fixture
     def real_consolidator(self, store, mock_provider):
         """Create a Consolidator with a real SessionManager (not a mock)."""
-        from nanobot.session.manager import SessionManager
+        from mokli.session.manager import SessionManager
 
         sessions = SessionManager(store.workspace)
         return Consolidator(

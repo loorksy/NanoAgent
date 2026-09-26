@@ -8,7 +8,7 @@ import type {
   RiskProfileName,
   RiskSettings,
   TradingSession,
-} from "@nanoagent/sdk";
+} from "@mokli/sdk";
 import Slider from "@react-native-community/slider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, RefreshControl, ScrollView, StyleSheet, Switch, View } from "react-native";

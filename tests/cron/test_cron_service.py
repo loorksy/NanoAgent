@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.cron.service import CronJobSkippedError, CronService
-from nanobot.cron.types import CronJob, CronPayload, CronSchedule
-from nanobot.runtime_context import RUNTIME_CONTEXT_INPUT_META
+from mokli.cron.service import CronJobSkippedError, CronService
+from mokli.cron.types import CronJob, CronPayload, CronSchedule
+from mokli.runtime_context import RUNTIME_CONTEXT_INPUT_META
 
 
 async def _wait_until(predicate, *, timeout: float = 1.0, interval: float = 0.01) -> None:
@@ -296,7 +296,7 @@ def test_load_store_migrates_legacy_delivery_context(tmp_path) -> None:
                             "channelMeta": {
                                 "message_thread_id": 42,
                                 RUNTIME_CONTEXT_INPUT_META: [
-                                    {"source": "webui_quote", "content": "stale quote"}
+                                    {"source": "mokli_quote", "content": "stale quote"}
                                 ],
                             },
                             "sessionKey": "telegram:user-1:topic:42",
@@ -426,14 +426,14 @@ async def test_start_heals_runtime_context_from_pending_external_add(tmp_path) -
         name="quoted reminder",
         schedule=CronSchedule(kind="every", every_ms=60_000),
         message="remember this",
-        origin_metadata={"webui": True},
+        origin_metadata={"mokli": True},
         **_bound_chat("quoted"),
     )
 
     action_path = tmp_path / "cron" / "action.jsonl"
     action = json.loads(action_path.read_text(encoding="utf-8"))
     action["params"]["payload"]["origin_metadata"][RUNTIME_CONTEXT_INPUT_META] = [
-        {"source": "webui_quote", "content": "quoted reply"}
+        {"source": "mokli_quote", "content": "quoted reply"}
     ]
     action_path.write_text(json.dumps(action), encoding="utf-8")
 
@@ -442,10 +442,10 @@ async def test_start_heals_runtime_context_from_pending_external_add(tmp_path) -
     try:
         loaded = owner.get_job(job.id)
         assert loaded is not None
-        assert loaded.payload.origin_metadata == {"webui": True}
+        assert loaded.payload.origin_metadata == {"mokli": True}
 
         raw = json.loads(store_path.read_text(encoding="utf-8"))
-        assert raw["jobs"][0]["payload"]["originMetadata"] == {"webui": True}
+        assert raw["jobs"][0]["payload"]["originMetadata"] == {"mokli": True}
     finally:
         owner.stop()
 

@@ -3,11 +3,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nanobot.agent.context import ContextBuilder
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.message import MessageTool
-from nanobot.agent.tools.spawn import SpawnTool
-from nanobot.security.workspace_access import (
+from mokli.agent.context import ContextBuilder
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.message import MessageTool
+from mokli.agent.tools.spawn import SpawnTool
+from mokli.security.workspace_access import (
     WORKSPACE_SCOPE_METADATA_KEY,
     WorkspaceScopeError,
     WorkspaceScopeResolver,

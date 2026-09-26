@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from nanobot.agent.tools import (
+from mokli.agent.tools import (
     ArraySchema,
     IntegerSchema,
     ObjectSchema,
@@ -12,9 +12,9 @@ from nanobot.agent.tools import (
     tool_parameters,
     tool_parameters_schema,
 )
-from nanobot.agent.tools.base import Tool
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent.tools.shell import ExecToolConfig
+from mokli.agent.tools.base import Tool
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.shell import ExecToolConfig
 
 
 class SampleTool(Tool):

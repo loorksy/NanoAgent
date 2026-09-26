@@ -6,7 +6,7 @@ These rules govern architectural decisions. When adding a feature or fixing a bu
 
 New capabilities should be added via `channels/`, `tools/`, skills, or MCP servers. The files `agent/loop.py` and `agent/runner.py` form the critical core path; changes there should be minimal and justified. If a feature can live in a channel adapter, a tool, or an external MCP server, it should not be inlined into the agent loop.
 
-Runtime state fan-out follows the same boundary. `MessageBus.publish` awaits local subscribers for turn/run/model/goal state changes; `MessageBus.publish_event` queues routed channel delivery without waiting for network sends. Both carry `AgentEvent` values. Runner hooks publish typed output through the turn's scoped `EventSink`; direct-call callbacks are adapted at the execution boundary. WebUI/WebSocket wire details, title refreshes, and goal-state sync belong in `nanobot.session.webui_turns.WebuiTurnCoordinator` or the relevant channel adapter.
+Runtime state fan-out follows the same boundary. `MessageBus.publish` awaits local subscribers for turn/run/model/goal state changes; `MessageBus.publish_event` queues routed channel delivery without waiting for network sends. Both carry `AgentEvent` values. Runner hooks publish typed output through the turn's scoped `EventSink`; direct-call callbacks are adapted at the execution boundary. Mokli/WebSocket wire details, title refreshes, and goal-state sync belong in `mokli.session.mokli_turns.MokliTurnCoordinator` or the relevant channel adapter.
 
 ## Less structure, more intelligence
 
@@ -38,7 +38,7 @@ Trading recommendation output should move from fixed `derive_cards()` templates 
 
 ## Gold trading — proactive communication
 
-No default background gold cron spam (`gateway.tradingCron.enabled` defaults to `false`). The agent uses `nanobot/skills/trading-proactive/SKILL.md` to decide when to notify, schedule user-requested watches, and stay silent when the market is closed or nothing material changed.
+No default background gold cron spam (`gateway.tradingCron.enabled` defaults to `false`). The agent uses `mokli/skills/trading-proactive/SKILL.md` to decide when to notify, schedule user-requested watches, and stay silent when the market is closed or nothing material changed.
 
 ## Explicit over magical
 

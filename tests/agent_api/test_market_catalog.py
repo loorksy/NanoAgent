@@ -24,9 +24,9 @@ async def test_klines_returns_wire_candles(client: TestClient, monkeypatch) -> N
     def fake_fetch(*_args, **_kwargs):
         return [candle], False
 
-    monkeypatch.setattr("nanobot.trading.oanda.fetch_candles", fake_fetch)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_candles", fake_fetch)
     monkeypatch.setattr(
-        "nanobot.trading.config.load_trading_config",
+        "mokli.trading.config.load_trading_config",
         lambda: SimpleNamespace(oanda_configured=True),
     )
     response = await client.get(
@@ -42,7 +42,7 @@ async def test_klines_returns_wire_candles(client: TestClient, monkeypatch) -> N
 
 async def test_klines_unconfigured_feed(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
-        "nanobot.trading.config.load_trading_config",
+        "mokli.trading.config.load_trading_config",
         lambda: SimpleNamespace(oanda_configured=False),
     )
     response = await client.get("/api/v2/market/klines", headers=auth())
@@ -54,7 +54,7 @@ async def test_klines_unconfigured_feed(client: TestClient, monkeypatch) -> None
 
 async def test_workspace_tools_include_emit_result(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
-        "nanobot.agent_api.routes.catalog.skill_rows",
+        "mokli.agent_api.routes.catalog.skill_rows",
         lambda _path=None: {"skills": [{"name": "cron", "enabled": True, "source": "builtin"}]},
     )
     skills = await client.get("/api/v2/workspace/skills", headers=auth())
@@ -68,7 +68,7 @@ async def test_workspace_tools_include_emit_result(client: TestClient, monkeypat
 
 
 def test_apply_disabled_skills_reaches_the_live_agent() -> None:
-    from nanobot.agent_api.tool_ref import apply_disabled_skills, bind_agent
+    from mokli.agent_api.tool_ref import apply_disabled_skills, bind_agent
 
     skills = SimpleNamespace(disabled_skills=set())
     subagents = SimpleNamespace(disabled_skills=set())
@@ -82,10 +82,10 @@ def test_apply_disabled_skills_reaches_the_live_agent() -> None:
 
 
 def test_every_gold_tool_has_a_schema(tmp_path) -> None:
-    from nanobot.agent.tools.context import ToolContext
-    from nanobot.agent.tools.loader import ToolLoader
-    from nanobot.agent.tools.registry import ToolRegistry
-    from nanobot.config.schema import ToolsConfig
+    from mokli.agent.tools.context import ToolContext
+    from mokli.agent.tools.loader import ToolLoader
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.config.schema import ToolsConfig
 
     expected = {
         "analyze_gold",

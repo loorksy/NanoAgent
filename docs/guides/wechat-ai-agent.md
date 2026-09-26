@@ -1,30 +1,30 @@
-# Build a WeChat AI Agent with nanobot
+# Build a WeChat AI Agent with mokli
 
-This guide connects nanobot to WeChat through the `weixin` channel. The channel
+This guide connects mokli to WeChat through the `weixin` channel. The channel
 uses HTTP long polling with QR-code login through the supported upstream API.
 
 ## What this guide builds
 
-- the `weixin` channel enabled in nanobot
+- the `weixin` channel enabled in mokli
 - a QR-code login session
 - one pairing-approved WeChat sender
 - a running gateway for message delivery
 
 ## Prerequisites
 
-- A working local nanobot reply:
+- A working local mokli reply:
 
 ```bash
-nanobot agent -m "Hello!"
+mokli agent -m "Hello!"
 ```
 
 - A WeChat account that can complete QR-code login.
 
-## Install nanobot
+## Install mokli
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
+python -m pip install mokli-ai
+mokli onboard --wizard
 ```
 
 ## Enable the WeChat channel
@@ -32,10 +32,10 @@ nanobot onboard --wizard
 Install the optional channel dependency:
 
 ```bash
-nanobot plugins enable weixin
+mokli plugins enable weixin
 ```
 
-Merge this snippet into `~/.nanobot/config.json`:
+Merge this snippet into `~/.mokli/config.json`:
 
 ```json
 {
@@ -53,16 +53,16 @@ from a new sender gets a pairing code instead of agent access.
 Log in:
 
 ```bash
-nanobot channels login weixin
+mokli channels login weixin
 ```
 
 Use `--force` if you need to discard saved login state and authenticate again.
 
-## Run nanobot gateway
+## Run mokli gateway
 
 ```bash
-nanobot channels status
-nanobot gateway
+mokli channels status
+mokli gateway
 ```
 
 ## Test a message
@@ -71,7 +71,7 @@ Send a private WeChat message to the bot. It should reply with a pairing code.
 Approve it from a trusted local surface:
 
 ```bash
-nanobot agent -m "/pairing approve ABCD-EFGH"
+mokli agent -m "/pairing approve ABCD-EFGH"
 ```
 
 Send the message again after approval and watch gateway logs for the sender ID
@@ -87,11 +87,11 @@ and reply.
 
 ## Troubleshooting
 
-- If login fails, rerun `nanobot channels login weixin --force`.
+- If login fails, rerun `mokli channels login weixin --force`.
 - If a first private message returns a pairing code, that is expected. Approve
   the code before testing normal agent replies.
 - If messages are denied without a pairing code, check gateway logs for whether
-  WeChat provided the context token required for nanobot to reply.
+  WeChat provided the context token required for mokli to reply.
 - If polling disconnects, restart the gateway and check network reachability to
   the upstream service.
 

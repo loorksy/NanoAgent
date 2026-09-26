@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nanobot.providers import github_copilot_provider as gc
+from mokli.providers import github_copilot_provider as gc
 
 
 @pytest.mark.asyncio

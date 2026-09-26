@@ -3,11 +3,11 @@ from unittest.mock import MagicMock
 import pytest
 from websockets.http11 import Request
 
-from nanobot.agent.tools.context import RequestContext, current_request_context, request_context
-from nanobot.providers.base import GenerationSettings, LLMProvider
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
-from nanobot.utils.llm_runtime import LLMRuntime
-from nanobot.webui.trading_api import (
+from mokli.agent.tools.context import RequestContext, current_request_context, request_context
+from mokli.providers.base import GenerationSettings, LLMProvider
+from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+from mokli.utils.llm_runtime import LLMRuntime
+from mokli.mokli.trading_api import (
     analyze_request_context,
     handle_trading_analyze,
     handle_trading_klines,
@@ -79,30 +79,30 @@ def _fake_final(*, decision: str = "sell", confidence: float = 0.56) -> AgentFin
 
 def test_analyze_request_context_uses_configured_provider(monkeypatch) -> None:
     runtime = _fake_runtime()
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", lambda: object())
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: runtime,
     )
     ctx = analyze_request_context()
     assert ctx.runtime is runtime
-    assert ctx.channel == "webui"
+    assert ctx.channel == "mokli"
 
 
 def test_analyze_request_context_absent_provider(monkeypatch) -> None:
     def _boom() -> None:
         raise ValueError("No API key configured for provider 'anthropic'.")
 
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", _boom)
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", _boom)
     ctx = analyze_request_context()
     assert ctx.runtime is None
 
 
 def test_analyze_request_context_fills_missing_runtime(monkeypatch) -> None:
     runtime = _fake_runtime()
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", lambda: object())
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: runtime,
     )
     with request_context(RequestContext(channel="cli", chat_id="direct")):
@@ -115,7 +115,7 @@ def test_analyze_request_context_keeps_existing_runtime(monkeypatch) -> None:
     existing_runtime = _fake_runtime("already-bound")
     loaded_runtime = _fake_runtime("should-not-load")
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: loaded_runtime,
     )
     with request_context(
@@ -130,12 +130,12 @@ def test_analyze_request_context_keeps_existing_runtime(monkeypatch) -> None:
 async def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.create_trading_subagent_manager",
+        "mokli.mokli.trading_api.create_trading_subagent_manager",
         lambda: MagicMock(),
     )
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", lambda: object())
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: runtime,
     )
     seen: dict[str, object] = {}
@@ -146,7 +146,7 @@ async def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -
         seen["runtime"] = ctx.runtime if ctx else None
         return {"final": _fake_final()}
 
-    monkeypatch.setattr("nanobot.webui.trading_api.run_swarm", fake_swarm)
+    monkeypatch.setattr("mokli.mokli.trading_api.run_swarm", fake_swarm)
     response = await handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=swarm"),
     )
@@ -159,12 +159,12 @@ async def test_http_analyze_swarm_binds_llm_runtime_across_thread(monkeypatch) -
 async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.create_trading_subagent_manager",
+        "mokli.mokli.trading_api.create_trading_subagent_manager",
         lambda: MagicMock(),
     )
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", lambda: object())
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: runtime,
     )
     seen: dict[str, object] = {}
@@ -177,7 +177,7 @@ async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
         seen["visual_capture"] = visual_capture
         return _fake_final(decision="wait", confidence=0.0)
 
-    monkeypatch.setattr("nanobot.trading.kernel.run_trading_kernel", fake_core)
+    monkeypatch.setattr("mokli.trading.kernel.run_trading_kernel", fake_core)
     response = await handle_trading_analyze(
         _request("/api/trading/analyze?interval=15m&team_mode=core"),
     )
@@ -191,12 +191,12 @@ async def test_http_analyze_core_binds_llm_runtime(monkeypatch) -> None:
 async def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
     runtime = _fake_runtime()
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.create_trading_subagent_manager",
+        "mokli.mokli.trading_api.create_trading_subagent_manager",
         lambda: MagicMock(),
     )
-    monkeypatch.setattr("nanobot.webui.trading_api.load_provider_snapshot", lambda: object())
+    monkeypatch.setattr("mokli.mokli.trading_api.load_provider_snapshot", lambda: object())
     monkeypatch.setattr(
-        "nanobot.webui.trading_api.runtime_from_provider_snapshot",
+        "mokli.mokli.trading_api.runtime_from_provider_snapshot",
         lambda _snapshot: runtime,
     )
     seen: dict[str, object] = {}
@@ -206,7 +206,7 @@ async def test_http_analyze_debate_binds_llm_runtime(monkeypatch) -> None:
         seen["runtime"] = ctx.runtime if ctx else None
         return MagicMock(final=_fake_final(decision="wait", confidence=0.1))
 
-    monkeypatch.setattr("nanobot.webui.trading_api.run_debate_crew", fake_debate)
+    monkeypatch.setattr("mokli.mokli.trading_api.run_debate_crew", fake_debate)
     response = await handle_trading_analyze(
         _request("/api/trading/analyze?team_mode=debate"),
     )

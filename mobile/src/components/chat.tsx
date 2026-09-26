@@ -1,5 +1,5 @@
-import type { ArtifactEntry, ChatMessage, StateData, TimelineEntry } from "@nanoagent/sdk";
-import type { SubscribeStatus } from "@nanoagent/sdk";
+import type { ArtifactEntry, ChatMessage, StateData, TimelineEntry } from "@mokli/sdk";
+import type { SubscribeStatus } from "@mokli/sdk";
 import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";

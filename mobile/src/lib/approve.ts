@@ -1,4 +1,4 @@
-import type { ApprovalDecision, ApprovalDecisionResponse, GatewayClient } from "@nanoagent/sdk";
+import type { ApprovalDecision, ApprovalDecisionResponse, GatewayClient } from "@mokli/sdk";
 import { useCallback } from "react";
 import { Alert } from "react-native";
 
