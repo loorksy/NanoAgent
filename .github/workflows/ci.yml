@@ -64,13 +64,20 @@ jobs:
           tui_required=true
           docker_required=true
 
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ -z "$BASE_SHA" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]] ||
+              ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              BASE_SHA="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
+            fi
+          fi
+
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             diff_range="${BASE_SHA}...${HEAD_SHA}"
           else
             diff_range="${BASE_SHA}..${HEAD_SHA}"
           fi
 
-          if git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null &&
+          if [[ -n "$BASE_SHA" ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null &&
             changed_files="$(git diff --name-only --no-renames "$diff_range")" &&
             [[ -n "$changed_files" ]]; then
             python_required=false
@@ -87,7 +94,7 @@ jobs:
                   tui_required=true
                   docker_required=true
                   ;;
-                webui/*|nanobot/channels/*/webui/*)
+                webui/*|open-webui/*|nanobot/channels/*/webui/*)
                   webui_required=true
                   # The Docker image builds and bundles both WebUI trees.
                   docker_required=true
@@ -124,7 +131,7 @@ jobs:
                   docker_required=true
                   ;;
               esac
-            done <<< "$changed_files"
+            done <<< "$changed_files" || true
           fi
 
           echo "python_required=$python_required" >> "$GITHUB_OUTPUT"

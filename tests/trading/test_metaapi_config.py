@@ -12,14 +12,15 @@ from nanobot.trading.mt5_metaapi import NullTransport, build_transport, reset_tr
 
 
 def test_trading_mt5_extra_stays_coinstallable_with_dev() -> None:
-    """metaapi-cloud-sdk pins socketio<5 and cannot live in --all-extras --dev."""
+    """metaapi-cloud-sdk pins socketio<5; keep it out of optional extras (manual install)."""
     extras = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"][
         "optional-dependencies"
     ]
     trading_mt5 = extras["trading-mt5"]
     assert trading_mt5 == ["yfinance>=0.2.40,<1.0.0"]
     assert not any(dep.startswith("metaapi-cloud-sdk") for dep in trading_mt5)
-    assert any(dep.startswith("python-socketio>=5.16.0") for dep in extras["dev"])
+    dev = extras["dev"]
+    assert not any(dep.startswith("metaapi-cloud-sdk") for dep in dev)
 
 
 def test_saved_metaapi_reaches_transport_builder(tmp_path, monkeypatch) -> None:
