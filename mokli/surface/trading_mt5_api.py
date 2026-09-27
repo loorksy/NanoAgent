@@ -193,8 +193,11 @@ def _parse_connect(query: QueryParams, *, config_path: Path | None) -> _ConnectD
     stored = config.trading_mt5
     login = _query_text(query, "login") or (stored.login or "")
     server = _query_text(query, "server") or (stored.server or "")
-    host = _query_text(query, "host") or (stored.host or "localhost")
-    port = _port(_query_text(query, "port"), locale=locale, fallback=int(stored.port or 8001))
+    # The form omits host and port unless the operator opens the advanced
+    # fields. Use the same bridge address the agent uses, including MT5_HOST.
+    runtime = load_trading_config()
+    host = _query_text(query, "host") or runtime.mt5_host
+    port = _port(_query_text(query, "port"), locale=locale, fallback=int(runtime.mt5_port))
     password = _query_text(query, "password") or stored.effective_password()
     if not login or not password or not server:
         raise TradingMt5Error(tr("mt5.connect.login_incomplete", locale=locale))

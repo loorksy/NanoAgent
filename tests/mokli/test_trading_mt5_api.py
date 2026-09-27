@@ -141,6 +141,29 @@ async def test_trading_mt5_env_blocks_disconnect(tmp_path, monkeypatch: pytest.M
 
 
 @pytest.mark.asyncio
+async def test_trading_mt5_update_uses_env_bridge_when_form_omits_host(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+    monkeypatch.setenv("MT5_HOST", "10.0.0.8")
+    monkeypatch.setenv("MT5_PORT", "8001")
+
+    async def fake_validate(draft):
+        assert draft.host == "10.0.0.8"
+        assert draft.port == 8001
+        return {"login": draft.login, "name": "Desk", "server": draft.server}
+
+    monkeypatch.setattr("mokli.surface.trading_mt5_api._validate_live", fake_validate)
+    await trading_mt5_action(
+        "update",
+        {"login": ["10001"], "password": ["broker-pass"], "server": ["Broker-Demo"]},
+    )
+    saved = load_config()
+    assert saved.trading_mt5.host == "10.0.0.8"
+    assert saved.trading_mt5.port == 8001
+
+
+@pytest.mark.asyncio
 async def test_trading_mt5_rejects_incomplete_login(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
