@@ -172,5 +172,19 @@
   "peak_day": "أعلى يوم",
   "streak_days": "السلسلة الحالية",
   "by_model": "حسب الموديل",
-  "daily": "الحرق اليومي"
+  "daily": "الحرق اليومي",
+  "mt5_login": "رقم دخول MT5",
+  "mt5_password": "كلمة مرور MT5",
+  "mt5_server": "سيرفر الوسيط",
+  "mt5_host": "مضيف الجسر",
+  "mt5_port": "منفذ الجسر",
+  "mt5_advanced": "عنوان الجسر المتقدم",
+  "mt5_connect": "ربط MT5",
+  "mt5_disconnect": "قطع الربط",
+  "mt5_connected": "متصل",
+  "mt5_disconnected": "غير متصل",
+  "mt5_account": "حساب MT5",
+  "mt5_saving": "جارٍ الربط…",
+  "mt5_saved": "تم ربط حساب MT5.",
+  "mt5_failed": "فشل اتصال MT5."
 }

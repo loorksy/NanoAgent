@@ -30,7 +30,7 @@ Built-in directories are auto-discovered from this folder (`SKILL.md` required).
 | `technical-analysis` | Technical and price action (FVG, MTF, sweeps, BOS/CHoCH) |
 | `macro-radar` | Macro radar (calendar, DXY, tone, geopolitics) |
 | `risk-guardrails` | Risk guardrails around `policy.live()` |
-| `mt5-execution` | Execution and trade management (MetaAPI propose/confirm; HITL mandatory) |
+| `mt5-execution` | Execution and trade management (MT5 propose/confirm; HITL mandatory) |
 | `memory-review` | Memory and review (similar cases, post-mortem, dual review) |
 | `news-volatility-protocol` | 100 news rules + 100 news-candle rules |
 | `xauusd-playbook` | 200 operational field rules |

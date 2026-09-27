@@ -58,7 +58,7 @@ class SystemSettingsOperations:
     deny_code: SettingsOperation
     mcp_presets_action: SettingsOperation
     trading_risk_action: SettingsOperation
-    trading_metaapi_action: SettingsOperation
+    trading_mt5_action: SettingsOperation
     reload_mcp: SettingsOperation
     mcp_runtime_status: Callable[[], Mapping[str, str]] | None
     check_for_update: SettingsOperation
@@ -484,12 +484,12 @@ class SystemSettingsHandler:
                 action.removeprefix("trading-risk-"),
                 operations,
             )
-        if action == "trading-metaapi-list":
-            return await self._trading_metaapi(request, None, operations)
-        if action.startswith("trading-metaapi-"):
-            return await self._trading_metaapi(
+        if action == "trading-mt5-list":
+            return await self._trading_mt5(request, None, operations)
+        if action.startswith("trading-mt5-"):
+            return await self._trading_mt5(
                 request,
-                action.removeprefix("trading-metaapi-"),
+                action.removeprefix("trading-mt5-"),
                 operations,
             )
         if action == "version-check":
@@ -1053,14 +1053,14 @@ class SystemSettingsHandler:
             return SettingsRouteResult.failure(status, message)
         return SettingsRouteResult.success(payload)
 
-    async def _trading_metaapi(
+    async def _trading_mt5(
         self,
         request: SettingsRequest,
         action: str | None,
         operations: SystemSettingsOperations,
     ) -> SettingsRouteResult:
         try:
-            payload = await operations.trading_metaapi_action(
+            payload = await operations.trading_mt5_action(
                 action,
                 request.query,
                 config=self.settings.config,
@@ -1070,7 +1070,7 @@ class SystemSettingsHandler:
             message = getattr(exc, "message", str(exc))
             if status >= 500:
                 self.logger.exception(
-                    "Trading MetaAPI action '{}' failed",
+                    "Trading MT5 action '{}' failed",
                     action or "list",
                 )
             return SettingsRouteResult.failure(status, message)

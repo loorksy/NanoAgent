@@ -23,7 +23,8 @@ _ANALYSIS_MODULES = [
 ]
 _MT5_MARKERS = (
     "mokli.trading.mt5_execution",
-    "mokli.trading.mt5_metaapi",
+    "mokli.trading.mt5_broker",
+    "mokli.trading.broker_interface",
     "mokli.trading.mt5_proposals",
     "mt5_propose_order",
     "mt5_confirm_order",

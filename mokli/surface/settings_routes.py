@@ -68,7 +68,7 @@ from mokli.surface.settings_contracts import (
 )
 from mokli.surface.settings_runtime import runtime_config_payload
 from mokli.surface.settings_services import MokliSettingsServices
-from mokli.surface.trading_metaapi_api import trading_metaapi_settings_action
+from mokli.surface.trading_mt5_api import trading_mt5_settings_action
 from mokli.surface.trading_risk_api import trading_risk_settings_action
 from mokli.surface.version_check import check_for_update
 
@@ -111,10 +111,11 @@ _TRADING_RISK_ACTIONS_BY_PATH = {
     "/api/settings/trading-risk/update": "update",
 }
 
-_TRADING_METAAPI_ACTIONS_BY_PATH = {
-    "/api/settings/trading-metaapi/update": "update",
-    "/api/settings/trading-metaapi/test": "test",
-    "/api/settings/trading-metaapi/disconnect": "disconnect",
+_TRADING_MT5_ACTIONS_BY_PATH = {
+    "/api/settings/trading-mt5/update": "update",
+    "/api/settings/trading-mt5/test": "test",
+    "/api/settings/trading-mt5/status": "status",
+    "/api/settings/trading-mt5/disconnect": "disconnect",
 }
 
 _MODEL_ROUTES = {
@@ -162,7 +163,7 @@ _SYSTEM_ROUTES = {
     "/api/settings/pairing/deny": "pairing-deny",
     "/api/settings/mcp-presets": "mcp-list",
     "/api/settings/trading-risk": "trading-risk-list",
-    "/api/settings/trading-metaapi": "trading-metaapi-list",
+    "/api/settings/trading-mt5": "trading-mt5-list",
     "/api/settings/version-check": "version-check",
     **{
         path: f"mcp-{action}"
@@ -173,8 +174,8 @@ _SYSTEM_ROUTES = {
         for path, action in _TRADING_RISK_ACTIONS_BY_PATH.items()
     },
     **{
-        path: f"trading-metaapi-{action}"
-        for path, action in _TRADING_METAAPI_ACTIONS_BY_PATH.items()
+        path: f"trading-mt5-{action}"
+        for path, action in _TRADING_MT5_ACTIONS_BY_PATH.items()
     },
 }
 
@@ -215,7 +216,7 @@ _SETTINGS_MUTATION_PATHS = frozenset({
     "/api/settings/mcp-oauth/cancel",
     *_MCP_PRESET_ACTIONS_BY_PATH,
     *_TRADING_RISK_ACTIONS_BY_PATH,
-    *_TRADING_METAAPI_ACTIONS_BY_PATH,
+    *_TRADING_MT5_ACTIONS_BY_PATH,
 })
 
 
@@ -555,7 +556,7 @@ class MokliSettingsRouter:
             deny_code=deny_code,
             mcp_presets_action=mcp_presets_settings_action,
             trading_risk_action=trading_risk_settings_action,
-            trading_metaapi_action=trading_metaapi_settings_action,
+            trading_mt5_action=trading_mt5_settings_action,
             reload_mcp=self._reload_mcp_runtime,
             mcp_runtime_status=self._mcp_runtime_status,
             check_for_update=check_for_update,

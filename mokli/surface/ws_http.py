@@ -199,9 +199,10 @@ _MOKLI_MUTATION_PATHS = {
     "settings.mcp.oauth_complete": "/api/settings/mcp-oauth/complete",
     "settings.mcp.oauth_cancel": "/api/settings/mcp-oauth/cancel",
     "settings.trading_risk.update": "/api/settings/trading-risk/update",
-    "settings.trading_metaapi.update": "/api/settings/trading-metaapi/update",
-    "settings.trading_metaapi.test": "/api/settings/trading-metaapi/test",
-    "settings.trading_metaapi.disconnect": "/api/settings/trading-metaapi/disconnect",
+    "settings.trading_mt5.update": "/api/settings/trading-mt5/update",
+    "settings.trading_mt5.test": "/api/settings/trading-mt5/test",
+    "settings.trading_mt5.status": "/api/settings/trading-mt5/status",
+    "settings.trading_mt5.disconnect": "/api/settings/trading-mt5/disconnect",
 }
 
 _MOKLI_CHANNEL_CONNECT_ACTIONS = {

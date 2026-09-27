@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 def _strip(value: str | None) -> str | None:
@@ -18,13 +18,15 @@ class TradingConfig:
     oanda_api_token: str | None
     oanda_account_id: str | None
     oanda_env: str
-    metaapi_token: str | None = None
-    metaapi_account_id: str | None = None
-    metaapi_region: str = "new-york"
+    mt5_host: str = "localhost"
+    mt5_port: int = 8001
+    mt5_login: str | None = None
+    mt5_password: str | None = field(default=None, repr=False)
+    mt5_server: str | None = None
 
     @property
-    def metaapi_configured(self) -> bool:
-        return bool(self.metaapi_token and self.metaapi_account_id)
+    def mt5_configured(self) -> bool:
+        return bool(self.mt5_login and self.mt5_password and self.mt5_server)
 
     @property
     def oanda_configured(self) -> bool:
@@ -37,44 +39,63 @@ class TradingConfig:
             return "https://api-fxtrade.oanda.com"
         return "https://api-fxpractice.oanda.com"
 
-    def public_metaapi(self) -> dict[str, str | bool]:
-        """Operator-safe MetaAPI snapshot — never includes the token."""
+    def public_mt5(self) -> dict[str, str | int | bool]:
+        """Operator-safe MT5 snapshot — never includes the password."""
         return {
-            "configured": self.metaapi_configured,
-            "account_id": self.metaapi_account_id or "",
-            "region": self.metaapi_region,
-            "token_set": bool(self.metaapi_token),
+            "configured": self.mt5_configured,
+            "host": self.mt5_host,
+            "port": self.mt5_port,
+            "login": self.mt5_login or "",
+            "server": self.mt5_server or "",
+            "password_set": bool(self.mt5_password),
         }
 
 
 @dataclass(frozen=True)
 class _StoredCredentials:
-    metaapi_token: str | None = None
-    metaapi_account: str | None = None
-    metaapi_region: str | None = None
+    mt5_host: str | None = None
+    mt5_port: int | None = None
+    mt5_login: str | None = None
+    mt5_password: str | None = None
+    mt5_server: str | None = None
     oanda_token: str | None = None
     oanda_account: str | None = None
     oanda_env: str | None = None
 
 
 def _stored_credentials() -> _StoredCredentials:
-    """Primary source: ``Config.trading_metaapi`` / ``Config.trading_oanda`` in config.json.
+    """Primary source: ``Config.trading_mt5`` / ``Config.trading_oanda`` in config.json.
 
-    Tokens fall back to the encrypted secret store via ``effective_token()``.
+    The MT5 password lives only in the encrypted secret store.
     """
     from mokli.config.loader import load_config
 
     config = load_config()
-    metaapi = config.trading_metaapi
+    mt5 = config.trading_mt5
     oanda = config.trading_oanda
     return _StoredCredentials(
-        metaapi_token=_strip(metaapi.effective_token()),
-        metaapi_account=_strip(metaapi.account_id),
-        metaapi_region=_strip(metaapi.region),
+        mt5_host=_strip(mt5.host),
+        mt5_port=int(mt5.port or 8001),
+        mt5_login=_strip(mt5.login),
+        mt5_password=_strip(mt5.effective_password()),
+        mt5_server=_strip(mt5.server),
         oanda_token=_strip(oanda.effective_token()),
         oanda_account=_strip(oanda.account_id),
         oanda_env=_strip(oanda.env),
     )
+
+
+def _env_port(stored: int | None) -> int:
+    raw = _strip(os.environ.get("MT5_PORT"))
+    if raw is None:
+        return stored or 8001
+    try:
+        port = int(raw)
+    except ValueError:
+        return stored or 8001
+    if port < 1 or port > 65535:
+        return stored or 8001
+    return port
 
 
 def load_trading_config() -> TradingConfig:
@@ -85,12 +106,14 @@ def load_trading_config() -> TradingConfig:
     except (OSError, ConfigLoadError, ValueError):
         stored = _StoredCredentials()
 
-    # METAAPI_* / OANDA_* env vars override saved Config.
+    # MT5_* / OANDA_* env vars override saved Config. Host and port default when unset.
     return TradingConfig(
         oanda_api_token=_strip(os.environ.get("OANDA_API_TOKEN")) or stored.oanda_token,
         oanda_account_id=_strip(os.environ.get("OANDA_ACCOUNT_ID")) or stored.oanda_account,
         oanda_env=_strip(os.environ.get("OANDA_ENV")) or stored.oanda_env or "practice",
-        metaapi_token=_strip(os.environ.get("METAAPI_TOKEN")) or stored.metaapi_token,
-        metaapi_account_id=_strip(os.environ.get("METAAPI_ACCOUNT_ID")) or stored.metaapi_account,
-        metaapi_region=_strip(os.environ.get("METAAPI_REGION")) or stored.metaapi_region or "new-york",
+        mt5_host=_strip(os.environ.get("MT5_HOST")) or stored.mt5_host or "localhost",
+        mt5_port=_env_port(stored.mt5_port),
+        mt5_login=_strip(os.environ.get("MT5_LOGIN")) or stored.mt5_login,
+        mt5_password=_strip(os.environ.get("MT5_PASSWORD")) or stored.mt5_password,
+        mt5_server=_strip(os.environ.get("MT5_SERVER")) or stored.mt5_server,
     )

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from mokli.config.schema import TradingMetaApiConfig, TradingOandaConfig
+from mokli.config.schema import TradingMt5Config, TradingOandaConfig
 from mokli.security.secret_store import (
     SECRET_KEY_ENV,
     SecretStore,
@@ -36,24 +36,24 @@ def _store(tmp_path: Path) -> SecretStore:
 
 def test_roundtrip_and_names(tmp_path: Path) -> None:
     store = _store(tmp_path)
-    assert store.get("metaapi_token") is None
+    assert store.get("mt5_password") is None
     assert store.names() == []
-    store.set("metaapi_token", "tok-1")
+    store.set("mt5_password", "tok-1")
     store.set("oanda_api_token", "tok-2")
-    assert store.get("metaapi_token") == "tok-1"
-    assert store.names() == ["metaapi_token", "oanda_api_token"]
-    assert store.delete("metaapi_token") is True
-    assert store.delete("metaapi_token") is False
-    assert store.get("metaapi_token") is None
+    assert store.get("mt5_password") == "tok-1"
+    assert store.names() == ["mt5_password", "oanda_api_token"]
+    assert store.delete("mt5_password") is True
+    assert store.delete("mt5_password") is False
+    assert store.get("mt5_password") is None
     assert store.names() == ["oanda_api_token"]
 
 
 def test_file_is_encrypted_and_key_generated(tmp_path: Path) -> None:
     store = _store(tmp_path)
-    store.set("metaapi_token", "super-secret-value")
+    store.set("mt5_password", "super-secret-value")
     raw = (tmp_path / "secrets.enc").read_bytes()
     assert b"super-secret-value" not in raw
-    assert b"metaapi_token" not in raw
+    assert b"mt5_password" not in raw
     key_path = tmp_path / "secret.key"
     assert key_path.exists()
     Fernet(key_path.read_bytes().strip())
@@ -112,9 +112,9 @@ def test_empty_name_rejected(tmp_path: Path) -> None:
 
 def test_resolve_secret_prefers_config_value(tmp_path: Path) -> None:
     store = _store(tmp_path)
-    store.set("metaapi_token", "stored")
-    assert resolve_secret("  from-config ", "metaapi_token", store=store) == "from-config"
-    assert resolve_secret("", "metaapi_token", store=store) == "stored"
+    store.set("mt5_password", "stored")
+    assert resolve_secret("  from-config ", "mt5_password", store=store) == "from-config"
+    assert resolve_secret("", "mt5_password", store=store) == "stored"
     assert resolve_secret(None, "missing", store=store) == ""
 
 
@@ -137,14 +137,15 @@ def test_config_effective_token_falls_back_to_store(
 ) -> None:
     store = _store(tmp_path)
     set_secret_store_for_tests(store)
-    store.set("metaapi_token", "meta-stored")
+    store.set("mt5_password", "stored-secret")
     store.set("oanda_api_token", "oanda-stored")
 
-    metaapi = TradingMetaApiConfig(account_id="acc")
-    assert metaapi.effective_token() == "meta-stored"
-    assert metaapi.public_view()["token_set"] is False
-    assert "meta-stored" not in str(metaapi.public_view())
-    assert TradingMetaApiConfig(token="explicit").effective_token() == "explicit"
+    mt5 = TradingMt5Config(login="100", server="Demo")
+    assert mt5.effective_password() == "stored-secret"
+    assert mt5.public_view()["password_set"] is True
+    assert mt5.public_view()["configured"] is True
+    assert "stored-secret" not in str(mt5.public_view())
+    assert "stored-secret" not in repr(mt5)
 
     oanda = TradingOandaConfig()
     assert oanda.effective_token() == "oanda-stored"

@@ -13,7 +13,7 @@ description: Gold runtime safety — kill switch, credential hygiene, local tick
 ## Steps
 
 1. Kill switch: flatten gold via confirmed flatten path, cancel pendings, stop new proposals. Do not argue.
-2. Never print secrets from `.env` or MetaAPI tokens.
+2. Never print secrets from `.env` or the MT5 password.
 3. After a restart, restore from local ticket state before proposing new risk.
 4. Ignore a one-tick spike that snaps back beyond `live()` bad-tick distance.
 5. Manual positions: ask once whether to adopt management; never hijack.

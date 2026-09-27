@@ -24,7 +24,7 @@ Grep `P-NNN` (zero-padded) in `references/` rather than loading every section. P
 1. Decide INTERPRETIVE vs DETERMINISTIC. If the rule has a `live()` owner, obey the gate; use the playbook text only as judgment around it.
 2. Entries may be immediate, anticipatory, or conditional. Do not require a classic S/R touch (P-001) or a retest (P-056) when momentum already completed the sweep.
 3. Stops sit beyond liquidity, not on the obvious swing (P-026). Invalidation is structural (P-031). Never widen a live stop (P-035).
-4. Recommendations stay recommendations until the operator confirms a MetaAPI proposal. P-182 auto-send is excluded.
+4. Recommendations stay recommendations until the operator confirms an MT5 proposal. P-182 auto-send is excluded.
 
 ## Output
 

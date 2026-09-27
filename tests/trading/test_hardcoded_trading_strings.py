@@ -13,10 +13,10 @@ SCAN_DIRS = [
 ]
 SCAN_FILES = [
     ROOT / "trading" / "mt5_execution.py",
-    ROOT / "trading" / "mt5_metaapi.py",
+    ROOT / "trading" / "mt5_broker.py",
     ROOT / "trading" / "broker_result.py",
     ROOT / "surface" / "trading_risk_api.py",
-    ROOT / "surface" / "trading_metaapi_api.py",
+    ROOT / "surface" / "trading_mt5_api.py",
 ]
 
 # Wire values and i18n keys are allowed; operator sentences are not.

@@ -432,5 +432,5 @@ EXCLUDED is allowed only for backtest, unpaid-service gaps, or P-182 HITL confli
 | --- | --- |
 | P-182 | Conflicts with mandatory HITL propose → confirm |
 | Section 5.2 Quick historical replay | Backtest / historical candle replay is excluded |
-| Paid APIs | Spec allows free engines only; MetaAPI is the documented optional exception |
+| Paid APIs | Spec allows free engines only; the self-hosted MT5 bridge is the execution path |
 

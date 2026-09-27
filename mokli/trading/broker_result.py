@@ -1,4 +1,4 @@
-"""Decide whether a MetaAPI / MT5 transport payload is a real broker success.
+"""Decide whether an MT5 transport payload is a real broker success.
 
 Propose/confirm must not mark a proposal executed, and must not open a Ticket,
 unless the transport returned a successful broker result.
@@ -10,7 +10,7 @@ from typing import Any, cast
 
 from mokli.trading.i18n import tr
 
-# MetaTrader 5 success retcodes used by MetaAPI:
+# MetaTrader 5 success retcodes:
 # 10008 TRADE_RETCODE_PLACED, 10009 TRADE_RETCODE_DONE, 10010 DONE_PARTIAL.
 _SUCCESS_RETCODES = {10008, 10009, 10010}
 
@@ -95,7 +95,7 @@ def broker_error_message(sent: Any) -> str:
 
 
 def wrap_sdk_result(result: Any) -> dict[str, Any]:
-    """Normalize a MetaAPI SDK return value into ``{ok, result, error?}``."""
+    """Normalize an MT5 order_send result into ``{ok, result, error?}``."""
     if result is None:
         return {"ok": False, "error": tr("mt5.empty_broker_result"), "result": None}
     result_dict = _as_dict(result)

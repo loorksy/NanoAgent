@@ -9,9 +9,9 @@ Table of contents: Direct MetaTrader 5 · Trailing stop · Auto breakeven · Par
 
 HITL propose→confirm wraps every send/modify/close. Playbook 182 is excluded.
 
-### Direct MT5 via MetaAPI
+### Direct MT5
 
-Market and pending (limit/stop) go through MetaAPI after confirm. Rec path still never sends. Proposal TTL is `live().PROPOSAL_TTL_SECONDS`. Stale quotes, ping, and exec latency are DETERMINISTIC (stale-quote guard, slippage guard).
+Market and pending (limit/stop) go through the self-hosted MT5 terminal after confirm. Rec path still never sends. Proposal TTL is `live().PROPOSAL_TTL_SECONDS`. Stale quotes, ping, and exec latency are DETERMINISTIC (stale-quote guard, slippage guard).
 
 ### Trailing stop
 

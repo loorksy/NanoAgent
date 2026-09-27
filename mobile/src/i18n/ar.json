@@ -345,6 +345,6 @@
   "settings.client_id": "معرّف العميل",
   "settings.scopes": "الصلاحيات",
   "log.kind.execution_failed": "فشل التنفيذ",
-  "connect.metaapi": "MetaApi",
+  "connect.mt5": "MT5",
   "connect.oanda": "OANDA"
 }

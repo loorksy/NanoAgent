@@ -143,10 +143,12 @@ function RuntimeCard({
         }
       />
       <Row
-        label={t("connect.metaapi")}
+        label={t("connect.mt5")}
         value={
-          <Badge tone={status.brokers.metaapi["configured"] ? colors.success : colors.textMuted}>
-            {status.brokers.metaapi["configured"] ? t("broker.configured") : t("broker.unconfigured")}
+          <Badge tone={status.brokers.mt5.configured ? colors.success : colors.textMuted}>
+            {status.brokers.mt5.configured
+              ? status.brokers.mt5.login || t("broker.configured")
+              : t("broker.unconfigured")}
           </Badge>
         }
       />

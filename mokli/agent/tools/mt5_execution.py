@@ -1,4 +1,4 @@
-"""MT5 MetaAPI tools — account, propose, confirm, modify, close. HITL is mandatory."""
+"""MT5 tools — account, propose, confirm, modify, close. HITL is mandatory."""
 
 from __future__ import annotations
 

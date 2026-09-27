@@ -345,6 +345,6 @@
   "settings.client_id": "Client ID",
   "settings.scopes": "Scopes",
   "log.kind.execution_failed": "Execution failed",
-  "connect.metaapi": "MetaApi",
+  "connect.mt5": "MT5",
   "connect.oanda": "OANDA"
 }

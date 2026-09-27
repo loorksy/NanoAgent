@@ -83,7 +83,7 @@ def _brokers() -> JsonObject:
             "env": cfg.oanda_env,
             "account_id": cfg.oanda_account_id or "",
         },
-        "metaapi": cast(JsonObject, cfg.public_metaapi()),
+        "mt5": cast(JsonObject, cfg.public_mt5()),
     }
 
 
@@ -337,6 +337,51 @@ async def post_whatsapp(request: web.Request) -> web.Response:
     return ok(public)
 
 
+async def get_mt5_status(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
+
+    path = services(request).config_path
+    try:
+        payload = await trading_mt5_action("status", {}, config_path=path)
+    except TradingMt5Error as exc:
+        raise ApiError(exc.status, "mt5_connect_error", details={"message": exc.message}) from exc
+    return ok(payload)
+
+
+async def post_mt5(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
+
+    path = services(request).config_path
+    body = await json_body(request)
+    query: dict[str, list[str]] = {}
+    for key in ("login", "password", "server", "host", "port"):
+        value = body.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            query[key] = [text]
+    try:
+        payload = await trading_mt5_action("update", query, config_path=path)
+    except TradingMt5Error as exc:
+        raise ApiError(exc.status, "mt5_connect_error", details={"message": exc.message}) from exc
+    return ok(payload)
+
+
+async def post_mt5_disconnect(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
+
+    path = services(request).config_path
+    try:
+        payload = await trading_mt5_action("disconnect", {}, config_path=path)
+    except TradingMt5Error as exc:
+        raise ApiError(exc.status, "mt5_connect_error", details={"message": exc.message}) from exc
+    return ok(payload)
+
+
 def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_get(f"{prefix}/connect/channels", get_channels)
     router.add_post(f"{prefix}/connect/channels/telegram", post_telegram)
@@ -346,6 +391,9 @@ def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_put(f"{prefix}/connect/risk", put_risk)
     router.add_put(f"{prefix}/connect/risk-profile", put_risk_profile)
     router.add_put(f"{prefix}/connect/risk/{{field}}", put_risk_field)
+    router.add_get(f"{prefix}/connect/mt5/status", get_mt5_status)
+    router.add_post(f"{prefix}/connect/mt5", post_mt5)
+    router.add_post(f"{prefix}/connect/mt5/disconnect", post_mt5_disconnect)
     router.add_get(f"{prefix}/connect/mt5/permissions", get_permissions)
     router.add_put(f"{prefix}/connect/mt5/permissions", put_permissions)
     router.add_get(f"{prefix}/control", get_control)

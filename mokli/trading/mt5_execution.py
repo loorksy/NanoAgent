@@ -18,7 +18,7 @@ from mokli.trading.gates.risk_snapshot import RiskSnapshot
 from mokli.trading.gates.trade_management import management_snapshot, stop_would_widen
 from mokli.trading.i18n import tr
 from mokli.trading.intel.tickets import TicketStore
-from mokli.trading.mt5_metaapi import get_transport
+from mokli.trading.mt5_broker import get_transport
 from mokli.trading.mt5_proposals import OrderProposal, get_proposal_store
 from mokli.trading.permissions.evaluate import PermissionContext, evaluate_permission
 from mokli.trading.permissions.model import Mt5Permissions, PermissionDecision

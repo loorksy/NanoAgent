@@ -10,13 +10,13 @@ import pytest
 from mokli.config.loader import save_config
 from mokli.config.schema import Config
 from mokli.security.secret_store import SecretStore
+from mokli.trading.mt5_broker import NullTransport, set_transport_for_tests
 from mokli.trading.mt5_execution import (
     mt5_close_position,
     mt5_confirm_order,
     mt5_modify_order,
     mt5_propose_order,
 )
-from mokli.trading.mt5_metaapi import NullTransport, set_transport_for_tests
 from mokli.trading.mt5_proposals import get_proposal_store
 from mokli.trading.permissions.model import Mt5Permissions
 from mokli.trading.permissions.store import PermissionStore, set_permission_store_for_tests

@@ -172,5 +172,19 @@
   "peak_day": "Peak day",
   "streak_days": "Current streak",
   "by_model": "By model",
-  "daily": "Daily burn"
+  "daily": "Daily burn",
+  "mt5_login": "MT5 login",
+  "mt5_password": "MT5 password",
+  "mt5_server": "Broker server",
+  "mt5_host": "Bridge host",
+  "mt5_port": "Bridge port",
+  "mt5_advanced": "Advanced bridge address",
+  "mt5_connect": "Connect MT5",
+  "mt5_disconnect": "Disconnect",
+  "mt5_connected": "Connected",
+  "mt5_disconnected": "Disconnected",
+  "mt5_account": "MT5 account",
+  "mt5_saving": "Connecting…",
+  "mt5_saved": "MT5 account linked.",
+  "mt5_failed": "MT5 connection failed."
 }

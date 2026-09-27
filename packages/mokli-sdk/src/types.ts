@@ -606,9 +606,20 @@ export interface RiskUpdateRequest {
   derive?: boolean;
 }
 
+export interface Mt5BrokerStatus {
+  configured: boolean;
+  connected?: boolean;
+  host: string;
+  port: number;
+  login: string;
+  server: string;
+  password_set: boolean;
+  name?: string;
+}
+
 export interface BrokerStatus {
   oanda: { configured: boolean; env: string; account_id: string };
-  metaapi: Record<string, unknown>;
+  mt5: Mt5BrokerStatus;
 }
 
 export interface RiskRuntimeState {

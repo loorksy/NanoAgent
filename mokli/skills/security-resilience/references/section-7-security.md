@@ -13,7 +13,7 @@ One operator command: propose flatten of gold positions, cancel pendings, halt n
 
 ### Encrypted local credentials
 
-MetaAPI and broker secrets live in local env, never in chat, skills, or screenshots.
+MT5 and broker secrets live in local env, never in chat, skills, or screenshots.
 
 ### Local ticket restore
 

@@ -1,6 +1,6 @@
 ---
 name: mt5-execution
-description: Gold MetaAPI/MT5 human-in-the-loop execution — propose, confirm, trailing, breakeven, partials, news shield, and early-exit judgment. Use when the operator wants to place, modify, or close a gold order, or asks why a proposal expired. English skill; reply in the operator's language.
+description: Gold MT5 human-in-the-loop execution — propose, confirm, trailing, breakeven, partials, news shield, and early-exit judgment. Use when the operator wants to place, modify, or close a gold order, or asks why a proposal expired. English skill; reply in the operator's language.
 ---
 
 # MT5 execution (HITL)

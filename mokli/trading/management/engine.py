@@ -229,7 +229,7 @@ async def run_management_cycle(
     candles: list[Candle] | None = None,
 ) -> dict[str, Any]:
     """Read open positions and optionally apply granted management actions."""
-    from mokli.trading.mt5_metaapi import get_transport
+    from mokli.trading.mt5_broker import get_transport
     from mokli.trading.permissions.store import get_permission_store
 
     perms = get_permission_store().load()

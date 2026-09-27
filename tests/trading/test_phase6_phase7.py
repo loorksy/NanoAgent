@@ -12,8 +12,8 @@ from mokli.trading.gates.max_positions import evaluate_max_total_lots
 from mokli.trading.gates.risk_snapshot import RiskSnapshot
 from mokli.trading.geometry.detectors import momentum_is_weak, momentum_score
 from mokli.trading.management.engine import ManagedPosition, plan_position_actions
+from mokli.trading.mt5_broker import NullTransport, set_transport_for_tests
 from mokli.trading.mt5_execution import mt5_confirm_order, mt5_propose_order
-from mokli.trading.mt5_metaapi import NullTransport, set_transport_for_tests
 from mokli.trading.oanda_stream import feed_health, note_tick
 from mokli.trading.reports.behaviour import postmortem_artifact, record_daily_wrap_answer
 from mokli.trading.reports.scorecard import build_scorecard
@@ -140,7 +140,7 @@ async def test_management_cycle_reports_a_rejected_broker_call(monkeypatch) -> N
         def load(self) -> _Perms:
             return _Perms()
 
-    monkeypatch.setattr("mokli.trading.mt5_metaapi.get_transport", lambda: _Transport())
+    monkeypatch.setattr("mokli.trading.mt5_broker.get_transport", lambda: _Transport())
     monkeypatch.setattr(
         "mokli.trading.permissions.store.get_permission_store",
         lambda: _Store(),

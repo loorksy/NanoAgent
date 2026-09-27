@@ -59,7 +59,7 @@ async def overview(request: web.Request) -> web.Response:
                 "env": cfg.oanda_env,
                 "account_id": cfg.oanda_account_id or "",
             },
-            "metaapi": cfg.public_metaapi(),
+            "mt5": cfg.public_mt5(),
         },
         "usage": _usage_snapshot(),
     })

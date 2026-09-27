@@ -1,4 +1,4 @@
-"""HITL MetaAPI propose/confirm never auto-sends."""
+"""HITL MT5 propose/confirm never auto-sends."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from mokli.trading.intel.tickets import TicketStore
+from mokli.trading.mt5_broker import NullTransport, set_transport_for_tests
 from mokli.trading.mt5_execution import (
     mt5_close_position,
     mt5_confirm_order,
@@ -14,8 +15,8 @@ from mokli.trading.mt5_execution import (
     mt5_modify_order,
     mt5_propose_order,
 )
-from mokli.trading.mt5_metaapi import NullTransport, set_transport_for_tests
 from mokli.trading.mt5_proposals import get_proposal_store
+from mokli.trading.runtime_state import get_runtime_store
 
 SAFE_TS = datetime(2023, 11, 15, 12, 0, tzinfo=UTC).timestamp()
 
@@ -71,6 +72,7 @@ class RecordingTransport(NullTransport):
 def _transport(monkeypatch: pytest.MonkeyPatch):
     rec = RecordingTransport()
     set_transport_for_tests(rec)
+    get_runtime_store().update(paper_mode=False, kill_switch=False, paused=False)
     monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: SAFE_TS)
     monkeypatch.setattr("mokli.trading.mt5_proposals.time.time", lambda: SAFE_TS)
     yield rec

@@ -1,6 +1,6 @@
 """Encrypted persistence for ``Mt5Permissions`` plus a change audit (08 §5).
 
-Both records live in the Fernet secret store next to the MetaAPI token:
+Both records live in the Fernet secret store next to the MT5 password:
 ``mt5_permissions`` (current grant) and ``mt5_permissions_audit`` (who / from /
 to / ts per change, newest last, bounded).
 """
