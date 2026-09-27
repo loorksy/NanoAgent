@@ -505,7 +505,7 @@
 					</a>
 					<a
 						class="text-xs text-gray-500 underline transition hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100"
-						href="https://github.com/loorksy/NanoAgent
+						href="https://github.com/loorksy/NanoAgent"
 						target="_blank"
 						rel="noreferrer"
 					>
