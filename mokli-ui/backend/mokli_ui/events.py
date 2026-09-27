@@ -1034,7 +1034,6 @@ def build_event(
 async def dispatch_webhook_event(app: Any, event: Event) -> None:
     # LICENSE covers this Mokli webhook identifier.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     name = getattr(getattr(app, 'state', None), 'MOKLI_NAME', 'Mokli')
     subject = event.subject or {}
     subject_id = subject.get('id')

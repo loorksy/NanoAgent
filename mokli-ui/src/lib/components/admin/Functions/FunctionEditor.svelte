@@ -51,8 +51,8 @@
 	const filterBoilerplate = `"""
 title: Example Filter
 author: mokli-ui
-author_url: https://github.com/open-webui
-funding_url: https://github.com/open-webui
+author_url: https://github.com/loorksy/NanoAgent
+funding_url: https://github.com/loorksy/NanoAgent
 version: 0.1
 """
 
@@ -127,8 +127,8 @@ class Filter:
 	const eventBoilerplate = `"""
 title: Example Event
 author: mokli-ui
-author_url: https://github.com/open-webui
-funding_url: https://github.com/open-webui
+author_url: https://github.com/loorksy/NanoAgent
+funding_url: https://github.com/loorksy/NanoAgent
 version: 0.1
 """
 

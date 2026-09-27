@@ -83,4 +83,4 @@ These pages explain implementation and extension points. You do not need them to
 | Add a channel package | [Channel Package Guide](./channel-package-guide.md) |
 | Build the Mokli source | [Mokli Development](../mokli/README.md) |
 
-If a command or screen no longer matches these docs, please [open an issue](https://github.com/HKUDS/nanobot/issues) with your mokli version, operating system, and the page that needs correction.
+If a command or screen no longer matches these docs, please [open an issue](https://github.com/loorksy/NanoAgent/issues) with your mokli version, operating system, and the page that needs correction.

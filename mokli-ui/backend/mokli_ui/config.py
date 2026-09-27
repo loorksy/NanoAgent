@@ -119,7 +119,6 @@ for file_path in (FRONTEND_BUILD_DIR / 'static').glob('**/*'):
 
 # LICENSE covers copied Mokli logo/favicon assets.
 # Do not alter, remove, obscure, or replace them except as LICENSE permits:
-# https://docs.openwebui.com/license.
 frontend_favicon = FRONTEND_BUILD_DIR / 'static' / 'favicon.png'
 
 if frontend_favicon.exists():
@@ -189,17 +188,16 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # LICENSE covers this legacy Mokli branding path.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 CUSTOM_NAME = os.getenv('CUSTOM_NAME', '')
 
 if CUSTOM_NAME:
     try:
-        r = requests.get(f'https://api.openwebui.com/api/v1/custom/{CUSTOM_NAME}')
+        r = requests.get(f'https://github.com/loorksy/NanoAgent/api/v1/custom/{CUSTOM_NAME}')
         data = r.json()
         if r.ok:
             if 'logo' in data:
                 MOKLI_FAVICON_URL = url = (
-                    f'https://api.openwebui.com{data["logo"]}' if data['logo'][0] == '/' else data['logo']
+                    f'https://github.com/loorksy/NanoAgent{data["logo"]}' if data['logo'][0] == '/' else data['logo']
                 )
 
                 r = requests.get(url, stream=True)
@@ -209,7 +207,7 @@ if CUSTOM_NAME:
                         shutil.copyfileobj(r.raw, f)
 
             if 'splash' in data:
-                url = f'https://api.openwebui.com{data["splash"]}' if data['splash'][0] == '/' else data['splash']
+                url = f'https://github.com/loorksy/NanoAgent{data["splash"]}' if data['splash'][0] == '/' else data['splash']
 
                 r = requests.get(url, stream=True)
                 if r.status_code == 200:
@@ -2070,7 +2068,6 @@ DEFAULT_ARENA_MODEL = {
     'meta': {
         # LICENSE covers this Mokli fallback logo.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         'profile_image_url': '/favicon.png',
         'description': 'Submit your questions to anonymous AI chatbots and vote on the best response.',
         'model_ids': None,
@@ -2468,7 +2465,7 @@ JWT_EXPIRES_IN = os.getenv('JWT_EXPIRES_IN', '4w')
 if JWT_EXPIRES_IN == '-1':
     log.warning(
         "⚠️  SECURITY WARNING: JWT_EXPIRES_IN is set to '-1'\n"
-        '    See: https://docs.openwebui.com/reference/env-configuration\n'
+        '    See: https://github.com/loorksy/NanoAgent/reference/env-configuration\n'
     )
 
 ####################################

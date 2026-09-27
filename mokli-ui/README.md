@@ -1,25 +1,20 @@
 # Mokli 👋
 
-![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
-![GitHub forks](https://img.shields.io/github/forks/open-webui/open-webui?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/open-webui/open-webui?style=social)
-![GitHub repo size](https://img.shields.io/github/repo-size/open-webui/open-webui)
-![GitHub language count](https://img.shields.io/github/languages/count/open-webui/open-webui)
-![GitHub top language](https://img.shields.io/github/languages/top/open-webui/open-webui)
-![GitHub last commit](https://img.shields.io/github/last-commit/open-webui/open-webui?color=red)
-[![Discord](https://img.shields.io/badge/Discord-Mokli_ui-blue?logo=discord&logoColor=white)](https://discord.gg/5rJgQTnV4s)
-[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/open-webui)
+![GitHub stars](https://img.shields.io/github/stars/loorksy/NanoAgent?style=social)
+![GitHub forks](https://img.shields.io/github/forks/loorksy/NanoAgent?style=social)
+![GitHub watchers](https://img.shields.io/github/watchers/loorksy/NanoAgent?style=social)
+![GitHub repo size](https://img.shields.io/github/repo-size/loorksy/NanoAgent)
+![GitHub language count](https://img.shields.io/github/languages/count/loorksy/NanoAgent)
+![GitHub top language](https://img.shields.io/github/languages/top/loorksy/NanoAgent)
+![GitHub last commit](https://img.shields.io/github/last-commit/loorksy/NanoAgent?color=red)
+[![Discord](https://img.shields.io/badge/Discord-Mokli_ui-blue?logo=discord&logoColor=white)](https://discord.gg/MnCvHqpUGB)
+[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/loorksy/NanoAgent)
 
-Mokli is **a home for AI**, a self-hosted AI platform that's **[extensible](https://docs.openwebui.com/features/extensibility/plugin/)**, **[feature-rich](https://docs.openwebui.com/features/)**, user-friendly, and built to run **[entirely offline](https://openwebui.com/sovereign-ai)**. With support for **Ollama** and **OpenAI-compatible APIs**, it gives you a powerful, provider-agnostic interface for both local and cloud-based models.
-
-Passionate about open-source AI? [Join our team →](https://careers.openwebui.com/)
+Mokli is **a home for AI**, a self-hosted AI platform that's **[extensible](https://github.com/loorksy/NanoAgent/features/extensibility/plugin/)**, **[feature-rich](https://github.com/loorksy/NanoAgent/features/)**, user-friendly, and built to run **[entirely offline](https://github.com/loorksy/NanoAgent/sovereign-ai)**. With support for **Ollama** and **OpenAI-compatible APIs**, it gives you a powerful, provider-agnostic interface for both local and cloud-based models.
 
 ![Mokli Demo](./demo.png)
 
-> [!TIP]  
-> **Looking for an [Enterprise Plan](https://docs.openwebui.com/enterprise)?** – **[Speak with Our Sales Team Today!](https://docs.openwebui.com/enterprise)**
-
-For more information, be sure to check out our [Mokli Documentation](https://docs.openwebui.com/).
+For more information, see the [Mokli repository](https://github.com/loorksy/NanoAgent).
 
 ## Key Features of Mokli ⭐
 
@@ -31,9 +26,9 @@ For more information, be sure to check out our [Mokli Documentation](https://doc
 
 - 🧩 **Plugin Support**: Extend Mokli with **Filters**, **Actions**, **Pipes**, **Tools**, and **Skills**. Connect external services through **MCP**, **MCPO**, and **OpenAPI tool servers**. Build custom integrations, rate limits, approval flows, data connections, and more.
 
-- 🤖 **Models & Agents**: Wrap any base model with custom instructions, tools, and knowledge to build specialized agents. Supports dynamic variables, per-user/group access control, and community preset imports via [Mokli Community](https://openwebui.com/).
+- 🤖 **Models & Agents**: Wrap any base model with custom instructions, tools, and knowledge to build specialized agents. Supports dynamic variables, per-user/group access control, and community preset imports via [Mokli Community](https://github.com/loorksy/NanoAgent/).
 
-- ⚡ **Agentic Execution with [Open Terminal](https://github.com/open-webui/open-terminal)**: Give your agents a terminal and filesystem to carry out multi-step tasks. Let them analyze data, run scripts, fix errors, and produce files directly in chat. Scale to teams with **[Terminals (Enterprise)](https://github.com/open-webui/terminals)** for per-user isolated environments, resource limits, and automatic lifecycle management.
+- ⚡ **Agentic Execution with [Open Terminal](https://github.com/loorksy/NanoAgent)**: Give your agents a terminal and filesystem to carry out multi-step tasks. Let them analyze data, run scripts, fix errors, and produce files directly in chat. Scale to teams with **[Terminals (Enterprise)](https://github.com/loorksy/NanoAgent)** for per-user isolated environments, resource limits, and automatic lifecycle management.
 
 - 📝 **Notes**: A dedicated workspace for content outside conversations. Draft with a rich editor, use AI to rewrite selected text, and attach notes to any chat for full-context injection.
 
@@ -83,23 +78,23 @@ For more information, be sure to check out our [Mokli Documentation](https://doc
 
 - 🌟 **Continuous Updates**: We're committed to improving Mokli with regular updates, fixes, and new features.
 
-- 🛡️ **Transparent Security Process**: Security reports are triaged, fixed, and published as open advisories through a documented responsible-disclosure process. See our [Security Policy](https://github.com/open-webui/open-webui/security).
+- 🛡️ **Transparent Security Process**: Security reports are triaged, fixed, and published as open advisories through a documented responsible-disclosure process. See our [Security Policy](https://github.com/loorksy/NanoAgent/security).
 
-Want to learn more about Mokli's features? Check out our [Mokli documentation](https://docs.openwebui.com/features) for a comprehensive overview!
+Want to learn more about Mokli's features? Check out our [Mokli documentation](https://github.com/loorksy/NanoAgent/features) for a comprehensive overview!
 
 ## The Mokli Ecosystem 🌐
 
 Mokli is the core, surrounded by companion apps and infrastructure that extend what your AI can do, where it can reach, and how you run it:
 
-- 💻 **Mokli Computer** ([mokli-ui/computer](https://github.com/open-webui/computer)): A standalone, mobile-first computer and coding agent that runs on the machine you own. Files, terminal, and git in a browser tab, reachable from your phone. Connect it into Mokli as a model, or reach it from Telegram, WhatsApp, and more.
+- 💻 **Mokli Computer** ([mokli-ui/computer](https://github.com/loorksy/NanoAgent)): A standalone, mobile-first computer and coding agent that runs on the machine you own. Files, terminal, and git in a browser tab, reachable from your phone. Connect it into Mokli as a model, or reach it from Telegram, WhatsApp, and more.
 
-- ⚡ **Open Terminal** and **Terminals (Enterprise)** ([mokli-ui/open-terminal](https://github.com/open-webui/open-terminal) & [mokli-ui/terminals](https://github.com/open-webui/terminals)): A self-hosted computing environment that plugs into Mokli, giving the AI a place to write code, run it, read output, fix errors, and iterate inside the chat. Terminals gives you per-user isolated containers with separate credentials, resource limits, and network rules. Automatic lifecycle management on Docker or Kubernetes.
+- ⚡ **Open Terminal** and **Terminals (Enterprise)** ([mokli-ui/open-terminal](https://github.com/loorksy/NanoAgent) & [mokli-ui/terminals](https://github.com/loorksy/NanoAgent)): A self-hosted computing environment that plugs into Mokli, giving the AI a place to write code, run it, read output, fix errors, and iterate inside the chat. Terminals gives you per-user isolated containers with separate credentials, resource limits, and network rules. Automatic lifecycle management on Docker or Kubernetes.
 
-- 🔄 **oikb** ([mokli-ui/oikb](https://github.com/open-webui/oikb)): Feed your Knowledge Bases from 45+ sources (GitHub, Confluence, ServiceNow, Salesforce, Jira, Slack, SharePoint, Notion, and more), keeping the tools your team already uses continuously in sync.
+- 🔄 **oikb** ([mokli-ui/oikb](https://github.com/loorksy/NanoAgent)): Feed your Knowledge Bases from 45+ sources (GitHub, Confluence, ServiceNow, Salesforce, Jira, Slack, SharePoint, Notion, and more), keeping the tools your team already uses continuously in sync.
 
-- 🖥️ **Native Desktop App** ([mokli-ui/desktop](https://github.com/open-webui/desktop)): Run Mokli as a native app on macOS, Windows, and Linux. System-wide Spotlight chat bar with screenshot capture, push-to-talk voice, and optional fully-local inference via a built-in llama.cpp engine.
+- 🖥️ **Native Desktop App** ([mokli-ui/desktop](https://github.com/loorksy/NanoAgent)): Run Mokli as a native app on macOS, Windows, and Linux. System-wide Spotlight chat bar with screenshot capture, push-to-talk voice, and optional fully-local inference via a built-in llama.cpp engine.
 
-Want to learn more? Check out our [Mokli documentation](https://docs.openwebui.com) for more details!
+Want to learn more? Check out our [Mokli documentation](https://github.com/loorksy/NanoAgent) for more details!
 
 ---
 
@@ -130,7 +125,7 @@ This will start the Mokli server, which you can access at [http://localhost:8080
 ### Quick Start with Docker 🐳
 
 > [!NOTE]  
-> Please note that for certain Docker environments, additional configurations might be needed. If you encounter any connection issues, our detailed guide on [Mokli Documentation](https://docs.openwebui.com/) is ready to assist you.
+> Please note that for certain Docker environments, additional configurations might be needed. If you encounter any connection issues, our detailed guide on [Mokli Documentation](https://github.com/loorksy/NanoAgent/) is ready to assist you.
 
 > [!WARNING]
 > When using Docker to install Mokli, make sure to include the `-v mokli-ui:/app/backend/data` in your Docker command. This step is crucial as it ensures your database is properly mounted and prevents any loss of data.
@@ -192,11 +187,11 @@ After installation, you can access Mokli at [http://localhost:3000](http://local
 
 ### Other Installation Methods
 
-We offer various installation alternatives, including non-Docker native installation methods, Docker Compose, Kustomize, and Helm. Visit our [Mokli Documentation](https://docs.openwebui.com/getting-started/) or join our [Discord community](https://discord.gg/5rJgQTnV4s) for comprehensive guidance.
+We offer various installation alternatives, including non-Docker native installation methods, Docker Compose, Kustomize, and Helm. Visit our [Mokli Documentation](https://github.com/loorksy/NanoAgent/getting-started/) or join our [Discord community](https://discord.gg/MnCvHqpUGB) for comprehensive guidance.
 
 ### Troubleshooting
 
-Encountering connection issues? Our [Mokli Documentation](https://docs.openwebui.com/troubleshooting/) has got you covered. For further assistance and to join our vibrant community, visit the [Mokli Discord](https://discord.gg/5rJgQTnV4s).
+Encountering connection issues? Our [Mokli Documentation](https://github.com/loorksy/NanoAgent/troubleshooting/) has got you covered. For further assistance and to join our vibrant community, visit the [Mokli Discord](https://discord.gg/MnCvHqpUGB).
 
 #### Mokli: Server Connection Error
 
@@ -210,7 +205,7 @@ docker run -d --network=host -v mokli-ui:/app/backend/data -e OLLAMA_BASE_URL=ht
 
 ### Keeping Your Docker Installation Up-to-Date
 
-Check our Updating Guide available in our [Mokli Documentation](https://docs.openwebui.com/getting-started/updating).
+Check our Updating Guide available in our [Mokli Documentation](https://github.com/loorksy/NanoAgent/getting-started/updating).
 
 ### Using the Dev Branch 🌙
 
@@ -233,7 +228,7 @@ export HF_HUB_OFFLINE=1
 
 ## What's Next? 🌟
 
-Discover upcoming features on our roadmap in the [Mokli Documentation](https://docs.openwebui.com/roadmap/).
+Discover upcoming features on our roadmap in the [Mokli Documentation](https://github.com/loorksy/NanoAgent/roadmap/).
 
 ## License 📜
 
@@ -242,22 +237,18 @@ Mokli is licensed under the MIT License. See [LICENSE](./LICENSE).
 ## Support 💬
 
 If you have any questions, suggestions, or need assistance, please open an issue or join our
-[Mokli Discord community](https://discord.gg/5rJgQTnV4s) to connect with us! 🤝
+[Mokli Discord community](https://discord.gg/MnCvHqpUGB) to connect with us! 🤝
 
 ## Security 🛡️
 
-If you believe you've found a security vulnerability, or something that shouldn't be disclosed publicly, please [reach out confidentially through our responsible disclosure program on GitHub](https://github.com/open-webui/open-webui/security). We accept reports only through GitHub, not through any other platform. Thank you for helping us keep Mokli secure!
+If you believe you've found a security vulnerability, or something that shouldn't be disclosed publicly, please [reach out confidentially through our responsible disclosure program on GitHub](https://github.com/loorksy/NanoAgent/security). We accept reports only through GitHub, not through any other platform. Thank you for helping us keep Mokli secure!
 
 ## Star History
 
-<a href="https://star-history.com/#open-webui/open-webui&Date">
+<a href="https://star-history.com/#loorksy/NanoAgent&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=loorksy/NanoAgent&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=loorksy/NanoAgent&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=loorksy/NanoAgent&type=Date" />
   </picture>
 </a>
-
----
-
-Created by [Timothy Jaeryang Baek](https://github.com/tjbck) - Let's make Mokli even more amazing together! 💪

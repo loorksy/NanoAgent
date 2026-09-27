@@ -967,7 +967,7 @@
 							>
 								<!-- LICENSE covers this Mokli sidebar logo.
 							Do not alter, remove, obscure, or replace it except as LICENSE permits:
-							https://docs.openwebui.com/license. -->
+							-->
 								<img
 									src="{MOKLI_BASE_URL}/static/favicon.png"
 									class="sidebar-new-chat-icon size-5 rounded-full group-hover:hidden"
@@ -1155,7 +1155,7 @@
 					>
 						<!-- LICENSE covers this Mokli sidebar logo.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 						<img
 							crossorigin="anonymous"
 							src="{MOKLI_BASE_URL}/static/favicon.png"
@@ -1167,7 +1167,7 @@
 					<a href="/" class="flex flex-1 px-0.5" on:click={newChatHandler}>
 						<!-- LICENSE covers this Mokli sidebar name.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 						<div
 							id="sidebar-mokli-name"
 							class=" self-center font-normal text-gray-700 dark:text-gray-200"

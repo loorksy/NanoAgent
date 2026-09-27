@@ -127,7 +127,6 @@
 	const shareHandler = async () => {
 		// LICENSE covers this Mokli Community wordmark.
 		// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		// https://docs.openwebui.com/license.
 		toast.success($i18n.t('Redirecting you to Mokli Community'));
 
 		// remove snapshot from feedbacks
@@ -137,7 +136,7 @@
 		});
 		console.log(feedbacksToShare);
 
-		const url = 'https://openwebui.com';
+		const url = 'https://github.com/loorksy/NanoAgent';
 		const tab = await window.open(`${url}/leaderboard`, '_blank');
 
 		// Define the event handler function

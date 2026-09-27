@@ -5,7 +5,6 @@
 	export let className = 'size-8';
 	// LICENSE covers this Mokli fallback logo.
 	// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	// https://docs.openwebui.com/license.
 	const FALLBACK_SRC = `${MOKLI_BASE_URL}/static/favicon.png`;
 
 	export let src = FALLBACK_SRC;

@@ -6,4 +6,4 @@ Mokli branding here includes the name, logo, and any visual, textual, or symboli
 
 Do not alter, remove, obscure, or replace Mokli branding except as permitted by `LICENSE`.
 
-See also: https://docs.openwebui.com/license.
+See also: https://github.com/loorksy/NanoAgent/license.

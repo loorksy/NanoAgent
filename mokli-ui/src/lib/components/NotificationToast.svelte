@@ -113,7 +113,7 @@
 	<div class="shrink-0 self-top -translate-y-0.5">
 		<!-- LICENSE covers this Mokli notification logo.
 		Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		https://docs.openwebui.com/license. -->
+		-->
 		<img src="{MOKLI_BASE_URL}/static/favicon.png" alt="favicon" class="size-6 rounded-full" />
 	</div>
 

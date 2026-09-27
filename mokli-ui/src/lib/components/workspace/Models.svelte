@@ -221,10 +221,9 @@
 	const shareModelHandler = async (model) => {
 		// LICENSE covers this Mokli Community wordmark.
 		// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		// https://docs.openwebui.com/license.
 		toast.success($i18n.t('Redirecting you to Mokli Community'));
 
-		const url = 'https://openwebui.com';
+		const url = 'https://github.com/loorksy/NanoAgent';
 		const fullModel = getFullModel(model);
 
 		const tab = await window.open(`${url}/post?type=model`, '_blank');
@@ -455,7 +454,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>
 		{$i18n.t('Models')} / {$MOKLI_NAME}
 	</title>
@@ -731,7 +730,6 @@
 											on:error={(e) => {
 												// LICENSE covers this Mokli fallback logo.
 												// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-												// https://docs.openwebui.com/license.
 												e.target.src = '/favicon.png';
 											}}
 										/>
@@ -944,7 +942,7 @@
 
 	{#if $config?.features.enable_community_sharing}
 		<CommunityDiscover
-			href="https://openwebui.com/models"
+			href="https://github.com/loorksy/NanoAgent/models"
 			title={$i18n.t('Discover a model')}
 			description={$i18n.t('Discover, download, and explore model presets')}
 		/>

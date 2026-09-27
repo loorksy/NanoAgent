@@ -115,10 +115,10 @@
 				<div class=" text-xs text-gray-600 dark:text-gray-300 mb-2">
 					<!-- LICENSE covers this Mokli wordmark.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 					{$i18n.t('Mokli can use tools provided by any OpenAPI server.')} <br /><a
 						class="underline"
-						href="https://github.com/open-webui/openapi-servers"
+						href="https://github.com/loorksy/NanoAgent"
 						target="_blank">{$i18n.t('Learn more about OpenAPI tool servers.')}</a
 					>
 				</div>

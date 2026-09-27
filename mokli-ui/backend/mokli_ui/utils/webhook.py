@@ -71,7 +71,6 @@ async def post_webhook(name: str, url: str, message: str, event_data: dict, desc
                         'activitySubtitle': f'{name} ({VERSION}) - {action}',
                         # LICENSE covers this Mokli webhook logo.
                         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                        # https://docs.openwebui.com/license.
                         'activityImage': MOKLI_FAVICON_URL,
                         'text': description,
                         'facts': facts,

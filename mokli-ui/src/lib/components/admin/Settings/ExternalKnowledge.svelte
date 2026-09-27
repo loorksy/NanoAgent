@@ -757,7 +757,7 @@
 								<div class="text-xs text-gray-500 mt-1">
 									<!-- LICENSE covers this Mokli wordmark.
 										Do not alter, remove, obscure, or replace it except as LICENSE permits:
-										https://docs.openwebui.com/license. -->
+										-->
 									{$i18n.t(
 										'External vectors must be generated with the same embedding model configured in Mokli.'
 									)}

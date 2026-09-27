@@ -206,10 +206,9 @@
 	const shareHandler = async (prompt) => {
 		// LICENSE covers this Mokli Community wordmark.
 		// Do not alter, remove, obscure, or replace it except as LICENSE permits:
-		// https://docs.openwebui.com/license.
 		toast.success($i18n.t('Redirecting you to Mokli Community'));
 
-		const url = 'https://openwebui.com';
+		const url = 'https://github.com/loorksy/NanoAgent';
 
 		const tab = await window.open(`${url}/prompts/create`, '_blank');
 		window.addEventListener(
@@ -368,7 +367,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>
 		{$i18n.t('Prompts')} / {$MOKLI_NAME}
 	</title>
@@ -758,7 +757,7 @@
 
 	{#if $config?.features.enable_community_sharing}
 		<CommunityDiscover
-			href="https://openwebui.com/prompts"
+			href="https://github.com/loorksy/NanoAgent/prompts"
 			title={$i18n.t('Discover a prompt')}
 			description={$i18n.t('Discover, download, and explore custom prompts')}
 		/>

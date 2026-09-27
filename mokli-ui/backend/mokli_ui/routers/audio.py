@@ -345,7 +345,6 @@ async def _raise_tts_error(exc: Exception, r=None) -> None:
     code = r.status if r is not None and r.status >= 400 else 500
     # LICENSE covers this Mokli error identifier.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     detail = 'Mokli: Server Connection Error'
     if r is not None:
         try:
@@ -767,7 +766,6 @@ async def _transcribe_openai(request, file_path, filename, languages, file_dir, 
                 detail = f'External: {e}'
         # LICENSE covers this Mokli error identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         raise Exception(detail if detail else 'Mokli: Server Connection Error')
 
 
@@ -820,7 +818,6 @@ async def _transcribe_deepgram(request, file_path, languages, file_dir, id):
         log.exception(e)
         # LICENSE covers this Mokli error identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         detail = 'Mokli: Server Connection Error'
         if r is not None:
             try:
@@ -952,7 +949,6 @@ async def _transcribe_azure(request, file_path, filename, file_dir, id):
             detail = f'External: {e}'
         # LICENSE covers this Mokli error identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         raise HTTPException(
             status_code=e.status if e.status else 500,
             detail=detail if detail else 'Mokli: Server Connection Error',
@@ -1125,7 +1121,6 @@ async def _transcribe_mistral(request, file_path, filename, metadata, file_dir, 
             detail = f'External: {e}'
         # LICENSE covers this Mokli error identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         raise HTTPException(
             status_code=e.status if e.status else 500,
             detail=detail if detail else 'Mokli: Server Connection Error',

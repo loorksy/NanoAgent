@@ -146,7 +146,7 @@
 									>
 								{:else}
 									<a
-										href="https://github.com/open-webui/open-webui/releases/tag/v{version.latest}"
+										href="https://github.com/loorksy/NanoAgent/releases/tag/v{version.latest}"
 										target="_blank"
 										class="text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300"
 									>
@@ -193,14 +193,14 @@
 							<div class="mt-0.5 text-gray-400 dark:text-gray-600">
 								<!-- LICENSE covers this Mokli wordmark.
 								Do not alter, remove, obscure, or replace it except as LICENSE permits:
-								https://docs.openwebui.com/license. -->
+								-->
 								{$i18n.t('settings.admin.general.help.description')}
 							</div>
 						</div>
 
 						<a
 							class="shrink-0 text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
-							href="https://docs.openwebui.com/"
+							href="https://github.com/loorksy/NanoAgent/"
 							target="_blank"
 						>
 							{$i18n.t('Documentation')}
@@ -210,17 +210,17 @@
 					<div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-400 dark:text-gray-600">
 						<a
 							class="hover:text-gray-700 dark:hover:text-gray-300"
-							href="https://discord.gg/5rJgQTnV4s"
+							href="https://discord.gg/MnCvHqpUGB"
 							target="_blank">Discord</a
 						>
 						<a
 							class="hover:text-gray-700 dark:hover:text-gray-300"
-							href="https://twitter.com/OpenWebUI"
+							href="https://x.com/mokli_project"
 							target="_blank">X</a
 						>
 						<a
 							class="hover:text-gray-700 dark:hover:text-gray-300"
-							href="https://github.com/open-webui/open-webui"
+							href="https://github.com/loorksy/NanoAgent"
 							target="_blank">GitHub</a
 						>
 					</div>
@@ -229,14 +229,14 @@
 				<div class="text-xs">
 					<!-- LICENSE covers this Mokli license attribution.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 					<div class="text-gray-600 dark:text-gray-400">
 						{$i18n.t('settings.admin.general.license.label')}
 					</div>
 
 					{#if $config?.license_metadata}
 						<a
-							href="https://docs.openwebui.com/enterprise"
+							href="https://github.com/loorksy/NanoAgent/enterprise"
 							target="_blank"
 							class="mt-0.5 block text-gray-500"
 						>
@@ -260,7 +260,7 @@
 					{:else}
 						<a
 							class="mt-0.5 block text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
-							href="https://docs.openwebui.com/enterprise"
+							href="https://github.com/loorksy/NanoAgent/enterprise"
 							target="_blank"
 						>
 							{$i18n.t(
@@ -279,7 +279,7 @@
 				>
 					<!-- LICENSE covers this Mokli Community wordmark.
 					Do not alter, remove, obscure, or replace it except as LICENSE permits:
-					https://docs.openwebui.com/license. -->
+					-->
 					<Switch bind:state={adminConfig.ENABLE_COMMUNITY_SHARING} ariaLabelledbyId={labelId} />
 				</AdminSettingRow>
 				<AdminSettingRow

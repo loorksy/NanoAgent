@@ -207,7 +207,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>
 		{`${$MOKLI_NAME}`}
 	</title>
@@ -253,7 +253,7 @@
 								<div class="flex justify-center mb-6">
 									<!-- LICENSE covers this Mokli sign-in logo.
 									Do not alter, remove, obscure, or replace it except as LICENSE permits:
-									https://docs.openwebui.com/license. -->
+									-->
 									<img
 										id="logo"
 										crossorigin="anonymous"
@@ -602,7 +602,7 @@
 					<div class=" self-center">
 						<!-- LICENSE covers this Mokli sign-in logo.
 						Do not alter, remove, obscure, or replace it except as LICENSE permits:
-						https://docs.openwebui.com/license. -->
+						-->
 						<img
 							id="logo"
 							crossorigin="anonymous"

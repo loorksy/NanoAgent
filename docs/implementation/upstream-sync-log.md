@@ -1,8 +1,6 @@
-# Upstream sync log (HKUDS/nanobot)
+# Sync log
 
-Remote: `mokli-upstream` → https://github.com/HKUDS/nanobot
-
-| Date | Upstream | Summary | Method | Branch |
+| Date | Source | Summary | Method | Branch |
 |------|----------|---------|--------|--------|
 | 2026-09-15 | `151173c8` | Session: search older history pages | cherry-pick | cursor/sync-mokli-upstream-c0e8 |
 | 2026-09-15 | `8c4eb2c8` | Session: bound retained search results | cherry-pick | cursor/sync-mokli-upstream-c0e8 |

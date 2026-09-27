@@ -5,7 +5,7 @@
 If you discover a security vulnerability in mokli, please report it by:
 
 1. **DO NOT** open a public GitHub issue
-2. Create a private security advisory on GitHub or contact the repository maintainers (xubinrencs@gmail.com)
+2. Create a private security advisory on GitHub
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -280,8 +280,8 @@ Before deploying mokli:
 **Last Updated**: 2026-07-21
 
 For the latest security updates and announcements, check:
-- GitHub Security Advisories: https://github.com/HKUDS/nanobot/security/advisories
-- Release Notes: https://github.com/HKUDS/nanobot/releases
+- GitHub Security Advisories: https://github.com/loorksy/NanoAgent/security/advisories
+- Release Notes: https://github.com/loorksy/NanoAgent/releases
 
 ## License
 

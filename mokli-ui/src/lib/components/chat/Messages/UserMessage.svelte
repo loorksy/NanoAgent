@@ -140,7 +140,7 @@
 		<div class={`shrink-0 ltr:mr-2 rtl:ml-2 hidden @lg:flex mt-0.5`}>
 			<!-- LICENSE covers this Mokli fallback logo.
 			Do not alter, remove, obscure, or replace it except as LICENSE permits:
-			https://docs.openwebui.com/license. -->
+			-->
 			<ProfileImage
 				src={user?.id
 					? `${MOKLI_API_BASE_URL}/users/${user.id}/profile/image`

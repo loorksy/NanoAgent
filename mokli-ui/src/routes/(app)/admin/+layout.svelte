@@ -28,7 +28,7 @@
 <svelte:head>
 	<!-- LICENSE covers this Mokli browser-title identifier.
 	Do not alter, remove, obscure, or replace it except as LICENSE permits:
-	https://docs.openwebui.com/license. -->
+	-->
 	<title>
 		{$i18n.t('Admin Panel')} / {$MOKLI_NAME}
 	</title>

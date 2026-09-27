@@ -575,7 +575,6 @@ Conversation:
                     'role': 'system',
                     # LICENSE covers this Mokli system identifier.
                     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                    # https://docs.openwebui.com/license.
                     'content': "You are Mokli's private memory reviewer. Return only valid JSON.",
                 },
                 {'role': 'user', 'content': review_prompt},

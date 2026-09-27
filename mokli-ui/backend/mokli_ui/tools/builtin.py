@@ -149,7 +149,6 @@ async def notify(
     app_name = getattr(getattr(__request__, 'app', None), 'state', None)
     # LICENSE covers this Mokli notification identifier.
     # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-    # https://docs.openwebui.com/license.
     app_name = getattr(app_name, 'MOKLI_NAME', 'Mokli')
     try:
         result = await notify_target(user_id, message, target=target, title=title, app_name=app_name)

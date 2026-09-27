@@ -167,8 +167,7 @@ async def get_headers_and_cookies(
             {
                 # LICENSE covers this Mokli upstream metadata identifier.
                 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                # https://docs.openwebui.com/license.
-                'HTTP-Referer': 'https://openwebui.com/',
+                'HTTP-Referer': 'https://github.com/loorksy/NanoAgent/',
                 'X-Title': 'Mokli',
             }
             if 'openrouter.ai' in url
@@ -663,7 +662,6 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
             # LICENSE covers this Mokli error identifier.
             # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-            # https://docs.openwebui.com/license.
             raise HTTPException(
                 status_code=r.status if r else 500,
                 detail=detail if detail else 'Mokli: Server Connection Error',
@@ -928,7 +926,6 @@ async def get_models(request: Request, url_idx: int | None = None, user=Depends(
                 log.exception(f'Client error: {str(e)}')
                 # LICENSE covers this Mokli error identifier.
                 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-                # https://docs.openwebui.com/license.
                 raise HTTPException(status_code=500, detail='Mokli: Server Connection Error')
             except Exception as e:
                 log.exception(f'Unexpected error: {e}')
@@ -2106,7 +2103,6 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
         log.exception(e)
         # LICENSE covers this Mokli error identifier.
         # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-        # https://docs.openwebui.com/license.
         raise HTTPException(
             status_code=r.status if r else 500,
             detail='Mokli: Server Connection Error',

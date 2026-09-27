@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 from urllib.request import Request, urlopen
 
-REPOSITORY = "HKUDS/nanobot"
+REPOSITORY = "loorksy/NanoAgent"
 README = Path(__file__).resolve().parents[1] / "README.md"
 START = "<!-- contributors:start -->"
 END = "<!-- contributors:end -->"

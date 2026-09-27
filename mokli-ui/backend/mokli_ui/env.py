@@ -786,7 +786,7 @@ if MOKLI_AUTH and MOKLI_SECRET_KEY == '':
         'start_windows.bat (Windows), or `mokli-ui serve`.\n'
         'If you start the backend another way (e.g. invoking uvicorn directly, which is unsupported), '
         'you must set MOKLI_SECRET_KEY yourself to a long random value.\n'
-        'See https://docs.openwebui.com/reference/env-configuration#webui_secret_key'
+        'See https://github.com/loorksy/NanoAgent/reference/env-configuration#webui_secret_key'
     )
 
 ENABLE_COMPRESSION_MIDDLEWARE = os.getenv('ENABLE_COMPRESSION_MIDDLEWARE', 'True').lower() == 'true'
@@ -949,7 +949,6 @@ if LICENSE_PUBLIC_KEY:
 # LICENSE covers this Mokli branding surface, including name, logo,
 # visual, textual, symbolic identifiers, metadata, and surrounding UI.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 MOKLI_NAME = os.getenv('MOKLI_NAME', 'Mokli')
 if MOKLI_NAME != 'Mokli':
     MOKLI_NAME += ' (Mokli)'
@@ -957,8 +956,7 @@ if MOKLI_NAME != 'Mokli':
 # LICENSE covers this Mokli branding surface, including this favicon
 # and any visual, textual, or symbolic identifiers it preserves.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
-MOKLI_FAVICON_URL = 'https://openwebui.com/favicon.png'
+MOKLI_FAVICON_URL = 'https://raw.githubusercontent.com/loorksy/NanoAgent/main/mokli-ui/static/favicon.png'
 MOKLI_BUILD_HASH = os.getenv('MOKLI_BUILD_HASH', 'dev-build')
 TRUSTED_SIGNATURE_KEY = os.getenv('TRUSTED_SIGNATURE_KEY', '')
 
@@ -1018,7 +1016,6 @@ except ValueError:
 # LICENSE covers this install-time Mokli branding surface, including
 # names, logos, manifests, metadata, and surrounding UI.
 # Do not alter, remove, obscure, or replace it except as LICENSE permits:
-# https://docs.openwebui.com/license.
 EXTERNAL_PWA_MANIFEST_URL = os.getenv('EXTERNAL_PWA_MANIFEST_URL', None)
 
 ####################################
