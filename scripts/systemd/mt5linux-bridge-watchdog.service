@@ -1,0 +1,10 @@
+[Unit]
+Description=Restart the mt5linux bridge when port 8001 is closed
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=MT5_CONTAINER=metatrader-5-ie74-mt5-1
+Environment=MT5_BRIDGE_PORT=8001
+ExecStart=/usr/local/sbin/mt5linux-bridge-watchdog.sh

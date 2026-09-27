@@ -49,3 +49,31 @@ python scripts/test_mt5_connection.py
 ```
 
 A working bridge prints the account login, name, and balance, then one bid/ask for `MT5_SYMBOL`, and exits 0. A failure prints a redacted reason on stderr and exits 1.
+
+## Hostinger image: mt5linux 1.1.1 does not start
+
+The Hostinger MetaTrader 5 template runs `gmag11/metatrader5_vnc` and launches the bridge once from `/Metatrader/start.sh`:
+
+```bash
+python3 -m mt5linux --host 0.0.0.0 -p 8001 -w wine python.exe
+```
+
+That image installs **mt5linux 1.1.1**. Importing it raises `SyntaxError` in `metatrader5.py`, so the process exits and port 8001 never listens. Nothing in the image supervises that process: s6 watches the desktop, not the bridge.
+
+The working server is the same 0.2.x line as the client in `trading-mt5` (0.2.4). It has to run under Wine, because that is the interpreter that can `import MetaTrader5`. On the container volume mounted at `/config`:
+
+- Linux and Wine `mt5linux` are pinned to 0.2.4, with `rpyc` 5.2.3.
+- Wine `numpy` stays on 1.26.4. NumPy 2 cannot load the MetaTrader5 extension shipped in the image.
+- The Linux package's `__main__.py` starts with a short shim. The image still passes `-w wine python.exe`, which 0.2.4 does not understand, so the shim re-executes the same host and port under Wine.
+
+Those files live on the `mt5-config` volume, so a container restart keeps them. The image's `start.sh` is not rewritten: on boot it still runs the command above, finds `mt5linux` already installed, and the shim starts the 0.2.4 server. Published ports are left as the template set them. Port 8001 is only inside the container network.
+
+`start.sh` starts the bridge once and exits. If that process dies later, the port stays closed. `scripts/mt5linux-bridge-watchdog.sh` checks every 60 seconds (systemd timer `mt5linux-bridge-watchdog.timer`) and, when 8001 is not listening and no bridge process is already starting, runs the same command again. The timer is on the host, so it still runs after the container restarts. It does not change the container's published ports.
+
+If `scripts/test_mt5_connection.py` fails, check the bridge port first:
+
+```bash
+docker exec metatrader-5-ie74-mt5-1 ss -tulpn | grep 8001
+```
+
+No listener means the bridge is down. Then read `/config/mt5linux-bridge.log` inside the container and `systemctl status mt5linux-bridge-watchdog.timer` on the host. A missing login, password, or server is a later error: the script reaches the terminal and reports that credentials are not configured.
