@@ -237,7 +237,7 @@ Discover upcoming features on our roadmap in the [Mokli Documentation](https://d
 
 ## License 📜
 
-This project contains code under multiple licenses. The current codebase includes components licensed under the Mokli License with an additional requirement to preserve the "Mokli" branding, as well as prior contributions under their respective original licenses. For a detailed record of license changes and the applicable terms for each section of the code, please refer to [LICENSE_HISTORY](./LICENSE_HISTORY). For complete and updated licensing details, please see the [LICENSE](./LICENSE) and [LICENSE_HISTORY](./LICENSE_HISTORY) files.
+Mokli is licensed under the MIT License. See [LICENSE](./LICENSE).
 
 ## Support 💬
 

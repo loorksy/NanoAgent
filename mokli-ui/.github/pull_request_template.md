@@ -85,11 +85,3 @@ Do not add or rewrite automated tests unless a maintainer explicitly requests th
 
 Add anything maintainers should know before review.
 
-## Contributor License Agreement
-
-<!--
-DO NOT DELETE THIS SECTION.
-Your PR will not be reviewed or merged until you check the box below confirming that you have read and agree to the CLA.
--->
-
-- [ ] By submitting this pull request, I confirm that I have read and fully agree to the [Contributor License Agreement (CLA)](https://github.com/open-webui/open-webui/blob/main/CONTRIBUTOR_LICENSE_AGREEMENT), and I am providing my contributions under its terms.

@@ -160,12 +160,9 @@
 			</div>
 
 			<div class="text-xs text-gray-400 dark:text-gray-500">
-				<!-- LICENSE covers this Open WebUI copyright attribution.
-				Do not alter, remove, obscure, or replace it except as LICENSE permits:
-				https://docs.openwebui.com/license. -->
 				{$i18n.t('Copyright (c)')}
 				{new Date().getFullYear()}
-				<a href="https://openwebui.com" target="_blank" class="underline">Open WebUI Inc.</a>
+				<a href="https://openwebui.com" target="_blank" class="underline">Mokli</a>
 				<a href="https://github.com/open-webui/open-webui/blob/main/LICENSE" target="_blank"
 					>{$i18n.t('All rights reserved.')}</a
 				>
