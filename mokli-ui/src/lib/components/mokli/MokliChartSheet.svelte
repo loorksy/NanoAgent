@@ -16,6 +16,7 @@
 		remove?: () => void;
 		resize?: () => void;
 		onChartReady?: (cb: () => void) => void;
+		activeChart?: () => { setSymbol: (value: string) => void };
 	} | null = null;
 	let scriptPromise: Promise<void> | null = null;
 
@@ -340,12 +341,7 @@
 			return;
 		}
 		try {
-			await alignSymbol();
-			if (token !== generation || container !== node) {
-				starting = false;
-				if (token === generation) loading = false;
-				return;
-			}
+			const naming = alignSymbol();
 			await loadScript();
 			if (token !== generation || container !== node) {
 				starting = false;
@@ -377,6 +373,15 @@
 				}
 			});
 			widget = created;
+			const initial = symbol;
+			void naming.then(() => {
+				if (widget !== created || symbol === initial) return;
+				try {
+					created.activeChart?.().setSymbol(symbol);
+				} catch {
+					/* the typed name still resolves on the server */
+				}
+			});
 			created.onChartReady?.(() => {
 				try {
 					created.resize?.();
