@@ -6,7 +6,32 @@ import json
 
 from mokli.agent.tools.mt5_market import Mt5ListSymbolsTool, Mt5MarketTool
 from mokli.trading.broker_market import candles_from_rates, quote_view
-from mokli.trading.mt5_broker import _filter_symbols, set_transport_for_tests
+from mokli.trading.mt5_broker import _compact_symbols, _filter_symbols, set_transport_for_tests
+
+
+def test_compact_catalog_does_not_pull_full_symbol_records() -> None:
+    class Conn:
+        def eval(self, code: str) -> list[dict]:
+            assert "symbols_get" in code
+            assert "trade_mode" in code
+            return [
+                {
+                    "name": "EURUSD",
+                    "description": "Euro",
+                    "digits": 5,
+                    "path": "Forex",
+                    "trade_mode": 4,
+                }
+            ]
+
+    class Client:
+        _MetaTrader5__conn = Conn()
+
+        def symbols_get(self) -> list[dict]:
+            raise AssertionError("full catalog")
+
+    rows = _compact_symbols(Client())
+    assert rows[0]["name"] == "EURUSD"
 
 
 def test_symbol_catalog_hides_disabled_names_and_matches_the_query() -> None:

@@ -227,6 +227,29 @@ def _account_view(info: Any) -> dict[str, Any]:
     )
 
 
+_COMPACT_SYMBOLS = (
+    "[{'name': s.name, 'description': s.description, 'digits': int(s.digits), "
+    "'path': s.path, 'trade_mode': int(s.trade_mode)} "
+    "for s in (mt5.symbols_get() or ()) "
+    "if int(getattr(s, 'trade_mode', 4) or 0) != 0]"
+)
+
+
+def _compact_symbols(client: Any) -> list[Any]:
+    """Ask the terminal for names only.
+
+    ``symbols_get()`` otherwise copies every field of every symbol across the
+    bridge and the chart request times out.
+    """
+    conn = getattr(client, "_MetaTrader5__conn", None)
+    evaluate = getattr(conn, "eval", None) if conn is not None else None
+    if callable(evaluate):
+        rows = evaluate(_COMPACT_SYMBOLS)
+        return list(rows or [])
+    rows = client.symbols_get()
+    return list(rows or [])
+
+
 def _symbol_public(row: Any) -> dict[str, Any] | None:
     name = str(_field(row, "name") or "").strip()
     if not name:
@@ -639,8 +662,7 @@ class Mt5LinuxBroker:
         """Tradable symbols on the connected terminal. Disabled symbols are omitted."""
 
         def _read(client: Any) -> dict[str, Any]:
-            raw = client.symbols_get()
-            return {"ok": True, "symbols": list(raw or [])}
+            return {"ok": True, "symbols": _compact_symbols(client)}
 
         try:
             payload = await asyncio.to_thread(self._attempt, _read)
