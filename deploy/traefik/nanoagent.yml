@@ -1,0 +1,16 @@
+# Route the public name to the Mokli UI on this host.
+# Change the Host rule for another domain. The UI listens on 127.0.0.1:8080.
+http:
+  routers:
+    nanoagent:
+      rule: Host(`nanoagent.lork.cloud`)
+      entryPoints:
+        - websecure
+      service: nanoagent
+      tls:
+        certResolver: letsencrypt
+  services:
+    nanoagent:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:8080

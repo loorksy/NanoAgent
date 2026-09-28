@@ -1,0 +1,19 @@
+[Unit]
+Description=Mokli Gold Trading Gateway
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nanoagent
+Group=nanoagent
+WorkingDirectory=/opt/nanoagent
+Environment=PATH=/opt/nanoagent/.venv/bin:/usr/bin:/bin
+Environment=HOME=/opt/nanoagent
+EnvironmentFile=-/opt/nanoagent/.env
+ExecStart=/opt/nanoagent/.venv/bin/mokli gateway --foreground --port 18791
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

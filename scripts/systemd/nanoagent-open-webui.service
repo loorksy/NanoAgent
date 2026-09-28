@@ -1,0 +1,23 @@
+[Unit]
+Description=Mokli web UI
+After=network-online.target nanoagent-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nanoagent
+Group=nanoagent
+WorkingDirectory=/opt/nanoagent/mokli-ui/backend
+Environment=HOME=/opt/nanoagent
+Environment=DATA_DIR=/opt/nanoagent/mokli-ui/data
+Environment=FRONTEND_BUILD_DIR=/opt/nanoagent/mokli-ui/build
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=PYTHONPATH=/opt/nanoagent
+EnvironmentFile=-/opt/nanoagent/mokli-ui.env
+ExecStart=/opt/nanoagent/mokli-ui/backend/.venv/bin/python -m uvicorn mokli_ui.main:app --host 127.0.0.1 --port 8080 --forwarded-allow-ips=*
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -27,9 +27,12 @@ Copy `.env.example` to `.env` (gitignored) and set:
 | --- | --- | --- | --- |
 | `MT5_HOST` | no | `localhost` | Bridge host. Use a container or VPS hostname when Mokli and MT5 are not on the same network namespace. |
 | `MT5_PORT` | no | `8001` | Bridge port published by the MT5 container. |
-| `MT5_LOGIN` | yes | | MT5 account number. |
-| `MT5_PASSWORD` | yes | | Trading password. Never commit it. |
-| `MT5_SERVER` | yes | | Broker server name, as shown in the MT5 terminal. |
+| `MT5_LOGIN` | no | | Account number. Leave empty when the Connect page saves the account. |
+| `MT5_PASSWORD` | no | | Trading password. Leave empty for the Connect page. Never commit it. |
+| `MT5_SERVER` | no | | Broker server name. Leave empty for the Connect page. |
+| `MT5_TERMINAL_PATH` | no | generic `terminal64.exe` | Portable terminal the bridge attaches to. In `.env`, double every backslash. |
+| `MT5_PORTABLE` | no | `1` | Pass `portable=True` into `initialize()`. |
+| `MT5_IPC_TIMEOUT_MS` | no | `45000` | How long the first login waits for the terminal. |
 | `MT5_SYMBOL` | no | `XAUUSD` | Symbol printed by the connectivity script. |
 | `MT5_DEVIATION` | no | `20` | Maximum price deviation (points) on market orders. |
 | `MT5_TIMEOUT` | no | `10` | Seconds to wait for the bridge TCP port. |
@@ -78,3 +81,31 @@ docker exec metatrader-5-ie74-mt5-1 ss -tulpn | grep 8001
 ```
 
 No listener means the bridge is down. Then read `/config/mt5linux-bridge.log` inside the container and `systemctl status mt5linux-bridge-watchdog.timer` on the host. A missing login, password, or server is a later error: the script reaches the terminal and reports that credentials are not configured.
+
+## Same layout on another host
+
+The running host keeps code in `/opt/nanoagent` on the git ref it was installed from. These files are not in git because they hold secrets or live data, and a new host creates them locally:
+
+- `/opt/nanoagent/.env` from `.env.example`
+- `/opt/nanoagent/mokli-ui.env` from `deploy/nanoagent/mokli-ui.env.example`
+- `/opt/nanoagent/.mokli/` (config and the encrypted secret store)
+- `/opt/nanoagent/mokli-ui/data/` (the UI database)
+- `/opt/nanoagent/mokli-ui/build/` (produced by `npm run build`)
+
+`scripts/deploy-mokli-vps.sh` installs a different tree at `/opt/mokli`. Do not run it on a host that already serves this domain.
+
+On the new machine, as root, from a checkout of the same ref:
+
+```bash
+sudo NANOAGENT_BOOTSTRAP=1 NANOAGENT_REF=<ref> scripts/install-nanoagent-host.sh
+```
+
+Fill the two env files, then start the services:
+
+```bash
+sudo NANOAGENT_RESTART=1 scripts/install-nanoagent-host.sh
+```
+
+The script installs the gateway, the UI, and the bridge watchdog. The UI process needs `PYTHONPATH=/opt/nanoagent` so it can import Mokli. The public name is routed by `deploy/traefik/nanoagent.yml` to `127.0.0.1:8080`. Copy that file into the Traefik dynamic directory and change the `Host` rule for another domain.
+
+`scripts/install-mt5linux-shim.sh` copies the Wine bridge entrypoint into the MT5 container when it is missing. It does not change the container's published ports. The watchdog then starts 64-bit `C:\Python311\python.exe` with mt5linux 0.2.4. The image's 32-bit `python.exe` and mt5linux 1.1.1 do not complete the handshake.
