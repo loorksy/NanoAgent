@@ -41,6 +41,8 @@ SAMPLE_TOOLS = (
     "get_live_recommendation",
     "capture_gold_chart",
     "run_trading_team",
+    "mt5_list_symbols",
+    "mt5_market",
     "mt5_propose_order",
     "mt5_confirm_order",
     "emit_result",

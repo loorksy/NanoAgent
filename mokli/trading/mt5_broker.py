@@ -227,6 +227,54 @@ def _account_view(info: Any) -> dict[str, Any]:
     )
 
 
+def _symbol_public(row: Any) -> dict[str, Any] | None:
+    name = str(_field(row, "name") or "").strip()
+    if not name:
+        return None
+    trade_mode = _field(row, "trade_mode")
+    try:
+        mode = int(trade_mode) if trade_mode is not None else 4
+    except (TypeError, ValueError):
+        mode = 4
+    if mode == 0:
+        return None
+    digits = _field(row, "digits")
+    try:
+        digits_n = int(digits) if digits is not None else None
+    except (TypeError, ValueError):
+        digits_n = None
+    return {
+        "name": name,
+        "description": str(_field(row, "description") or ""),
+        "digits": digits_n,
+        "path": str(_field(row, "path") or ""),
+        "trade_mode": mode,
+    }
+
+
+def _filter_symbols(rows: list[Any], *, query: str, limit: int) -> dict[str, Any]:
+    needle = query.strip().casefold()
+    public: list[dict[str, Any]] = []
+    for row in rows:
+        item = _symbol_public(row)
+        if item is None:
+            continue
+        if needle:
+            hay = " ".join(
+                (item["name"], item["description"], item["path"])
+            ).casefold()
+            if needle not in hay:
+                continue
+        public.append(item)
+    capped = max(1, min(int(limit), 800))
+    return {
+        "ok": True,
+        "source": "mt5",
+        "total": len(public),
+        "symbols": public[:capped],
+    }
+
+
 def _position_row(row: Any) -> dict[str, Any]:
     raw = _as_mapping(row)
     ticket = raw.get("ticket")
@@ -567,18 +615,40 @@ class Mt5LinuxBroker:
             ask = _field(tick, "ask")
             if bid is None or ask is None:
                 return {"ok": False, "symbol": symbol, "error": tr("mt5.empty_broker_result")}
+            spread = None
+            try:
+                spread = float(ask) - float(bid)
+            except (TypeError, ValueError):
+                spread = None
             return {
                 "ok": True,
                 "symbol": symbol,
                 "bid": bid,
                 "ask": ask,
+                "spread": spread,
                 "time": _field(tick, "time"),
+                "time_msc": _field(tick, "time_msc"),
             }
 
         try:
             return await asyncio.to_thread(self._attempt, _read)
         except Mt5ConnectionError as exc:
             return {"ok": False, "symbol": symbol, "error": str(exc)}
+
+    async def list_symbols(self, query: str = "", limit: int = 200) -> dict[str, Any]:
+        """Tradable symbols on the connected terminal. Disabled symbols are omitted."""
+
+        def _read(client: Any) -> dict[str, Any]:
+            raw = client.symbols_get()
+            return {"ok": True, "symbols": list(raw or [])}
+
+        try:
+            payload = await asyncio.to_thread(self._attempt, _read)
+        except Mt5ConnectionError as exc:
+            return {"ok": False, "error": str(exc), "symbols": []}
+        if not isinstance(payload, dict) or not payload.get("ok"):
+            return {"ok": False, "symbols": [], "error": (payload or {}).get("error")}
+        return _filter_symbols(payload.get("symbols") or [], query=query, limit=limit)
 
     async def get_candles(self, symbol: str, timeframe: str, count: int) -> list[dict[str, Any]]:
         def _read(client: Any) -> list[dict[str, Any]]:
@@ -800,6 +870,12 @@ class BrokerTransport:
             return price
         return {"ok": True, "quote": price}
 
+    async def list_symbols(self, query: str = "", limit: int = 200) -> dict[str, Any]:
+        return await self.broker.list_symbols(query, limit)
+
+    async def candles(self, symbol: str, timeframe: str, count: int) -> list[dict[str, Any]]:
+        return await self.broker.get_candles(symbol, timeframe, count)
+
     async def open_positions(self) -> list[dict[str, Any]]:
         return await self.broker.get_open_positions()
 
@@ -872,6 +948,20 @@ class NullTransport:
             "error": self.reason,
             "reason_key": self.reason_key,
         }
+
+    async def list_symbols(self, query: str = "", limit: int = 200) -> dict[str, Any]:
+        del query, limit
+        return {
+            "ok": False,
+            "symbols": [],
+            "total": 0,
+            "error": self.reason,
+            "reason_key": self.reason_key,
+        }
+
+    async def candles(self, symbol: str, timeframe: str, count: int) -> list[dict[str, Any]]:
+        del symbol, timeframe, count
+        return []
 
     async def open_positions(self) -> list[dict[str, Any]]:
         return []

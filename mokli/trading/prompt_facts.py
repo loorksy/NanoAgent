@@ -47,7 +47,13 @@ def _scope_summary(perms: object) -> str:
 
 
 def trading_prompt_facts(request: RequestContext) -> Mapping[str, str]:
-    facts: dict[str, str] = {"instrument": "XAUUSD (gold only)"}
+    facts: dict[str, str] = {
+        "instrument": (
+            "every tradable symbol on the connected MT5 account; "
+            "live bid/ask and candles come from that account"
+        ),
+        "market_data": "broker live prices from the operator's MT5 terminal",
+    }
 
     try:
         from mokli.trading.permissions.store import get_permission_store

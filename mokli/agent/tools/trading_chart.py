@@ -213,9 +213,9 @@ class GetGoldQuoteTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Get the current live gold (XAUUSD) bid/ask/mid price from the platform "
-            "market feed. Use for any price question or before quoting levels in chat. "
-            "Always use the returned mid/bid/ask in your reply — never invent prices. "
+            "Get the current live gold (XAUUSD) bid/ask/mid from the operator's MT5 "
+            "account when it is connected. For any other symbol use mt5_market. "
+            "Always use the returned mid/bid/ask — never invent prices. "
             "Set present_ui=true only when the operator explicitly wants a visual quote card."
         )
 
@@ -229,7 +229,30 @@ class GetGoldQuoteTool(Tool):
         present_ui: bool = False,
         **kwargs: Any,
     ) -> str:
-        if not load_trading_config().oanda_configured:
+        config = load_trading_config()
+        if getattr(config, "mt5_configured", False) is True:
+            from mokli.trading.broker_market import broker_quote
+
+            live = await broker_quote(symbol or DATA_SYMBOL)
+            view = live.get("quote") if isinstance(live, dict) else None
+            if isinstance(view, dict):
+                return json.dumps(
+                    {
+                        "symbol": view.get("symbol") or symbol or DATA_SYMBOL,
+                        "bid": view.get("bid"),
+                        "ask": view.get("ask"),
+                        "mid": view.get("mid"),
+                        "spread": view.get("spread"),
+                        "tradeable": True,
+                        "source": "mt5",
+                        "instruction": (
+                            "This bid/ask is the live tick from the operator's MT5 account. "
+                            "Quote it verbatim. Do not say the broker feed is unavailable."
+                        ),
+                    },
+                    indent=2,
+                )
+        if not config.oanda_configured:
             return tool_error(
                 REASON_MARKET_FEED_UNCONFIGURED,
                 instruction=(
@@ -340,7 +363,24 @@ class GetLiveRecommendationTool(Tool):
         live_price: float | None = None
         quote_data: dict[str, Any] | None = None
         config = load_trading_config()
-        if config.oanda_configured:
+        if getattr(config, "mt5_configured", False) is True:
+            try:
+                from mokli.trading.broker_market import broker_quote
+
+                quoted = await broker_quote(DATA_SYMBOL)
+                view = quoted.get("quote") if isinstance(quoted, dict) else None
+                if isinstance(view, dict) and view.get("mid") is not None:
+                    live_price = float(view["mid"])
+                    quote_data = {
+                        "symbol": view.get("symbol") or DATA_SYMBOL,
+                        "bid": view.get("bid"),
+                        "ask": view.get("ask"),
+                        "mid": view.get("mid"),
+                        "tradeable": True,
+                    }
+            except Exception:
+                pass
+        elif config.oanda_configured:
             try:
                 quote = fetch_quote(DATA_SYMBOL, config=config)
                 if quote is not None:

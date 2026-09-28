@@ -99,7 +99,8 @@ operator work around them.
 
 | Tool | Call when | Returns | Never |
 |------|-----------|---------|-------|
-| `get_gold_quote` | any price or spread question; before quoting a level | bid/ask/mid with display strings | invent, round, or reformat a price |
+| `mt5_list_symbols` / `mt5_market` | any question about available pairs, a price, a spread, or candles | the account's tradable symbols, or a live bid/ask/spread and recent candles | invent a symbol or a price; say the broker feed is down when the tool returned numbers |
+| `get_gold_quote` | a gold price question when mt5_market was not used | bid/ask/mid from the connected account when it is linked | invent, round, or reformat a price |
 | `fetch_evidence` | the operator wants structure, levels, zones, or news context without a new plan | evidence JSON for the requested nodes | decide a direction from it |
 | `run_trading_kernel` | the operator wants a new or re-evaluated recommendation | structured decision, quality checks, and artifacts | run while a plan is live without the operator confirming a replacement |
 | `get_live_recommendation` | follow-up on the live plan (status, progress toward stop or targets) | plan with graded outcome and live price | start a new analysis |

@@ -40,6 +40,72 @@ async def test_klines_returns_wire_candles(client: TestClient, monkeypatch) -> N
     assert body["candles"][0]["close"] == 2305.0
 
 
+async def test_klines_quote_and_symbols_come_from_the_broker(
+    client: TestClient, monkeypatch
+) -> None:
+    class Transport:
+        async def candles(self, symbol: str, timeframe: str, count: int) -> list[dict]:
+            assert symbol == "EURUSD"
+            assert timeframe == "M15"
+            assert count >= 1
+            return [
+                {
+                    "time": 1_700_000_000,
+                    "open": 1.0,
+                    "high": 1.2,
+                    "low": 0.9,
+                    "close": 1.1,
+                    "tick_volume": 8,
+                }
+            ]
+
+        async def quote(self, symbol: str) -> dict:
+            return {"ok": True, "quote": {"symbol": symbol, "bid": 1.1, "ask": 1.2, "time": 50}}
+
+        async def list_symbols(self, query: str, limit: int) -> dict:
+            del limit
+            assert "eur" in query.casefold()
+            return {
+                "ok": True,
+                "source": "mt5",
+                "total": 1,
+                "symbols": [
+                    {"name": "EURUSD", "description": "Euro", "digits": 5, "path": "Forex"}
+                ],
+            }
+
+    monkeypatch.setattr("mokli.trading.broker_market.get_transport", lambda: Transport())
+    monkeypatch.setattr(
+        "mokli.trading.config.load_trading_config",
+        lambda: SimpleNamespace(mt5_configured=True, oanda_configured=False),
+    )
+
+    def _oanda_must_not_run(*_args, **_kwargs):
+        raise AssertionError("external feed")
+
+    monkeypatch.setattr("mokli.trading.oanda.fetch_candles", _oanda_must_not_run)
+    candles = await client.get(
+        "/api/v2/market/klines?symbol=EURUSD&interval=15m&limit=10",
+        headers=auth(),
+    )
+    assert candles.status == 200
+    body = await candles.json()
+    assert body["source"] == "mt5"
+    assert body["symbol"] == "EURUSD"
+    assert body["candles"][0]["close"] == 1.1
+
+    quote = await client.get("/api/v2/market/quote?symbol=EURUSD", headers=auth())
+    assert quote.status == 200
+    quoted = await quote.json()
+    assert quoted["quote"]["bid"] == 1.1
+    assert quoted["source"] == "mt5"
+
+    symbols = await client.get("/api/v2/market/symbols?q=eur", headers=auth())
+    assert symbols.status == 200
+    listed = await symbols.json()
+    assert listed["symbols"][0]["name"] == "EURUSD"
+
+
 async def test_klines_unconfigured_feed(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         "mokli.trading.config.load_trading_config",
@@ -105,6 +171,8 @@ def test_every_gold_tool_has_a_schema(tmp_path) -> None:
         "mt5_close_position",
         "mt5_confirm_order",
         "mt5_get_account",
+        "mt5_list_symbols",
+        "mt5_market",
         "mt5_modify_order",
         "mt5_propose_order",
         "propose_strategy",

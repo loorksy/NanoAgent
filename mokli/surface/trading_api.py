@@ -13,6 +13,11 @@ from websockets.http11 import Response
 
 from mokli.agent.tools.context import RequestContext, current_request_context, request_context
 from mokli.providers.factory import load_provider_snapshot
+from mokli.surface.http_utils import bearer_token as _bearer_token
+from mokli.surface.http_utils import http_error as _http_error
+from mokli.surface.http_utils import http_json_response as _http_json_response
+from mokli.surface.http_utils import parse_query as _parse_query
+from mokli.surface.http_utils import query_first as _query_first
 from mokli.trading.chart_capture import (
     ChartCaptureError,
     submit_chart_capture,
@@ -38,11 +43,6 @@ from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import run_swarm
 from mokli.trading.teams.subagent_runner import create_trading_subagent_manager
 from mokli.utils.llm_runtime import runtime_from_provider_snapshot
-from mokli.surface.http_utils import bearer_token as _bearer_token
-from mokli.surface.http_utils import http_error as _http_error
-from mokli.surface.http_utils import http_json_response as _http_json_response
-from mokli.surface.http_utils import parse_query as _parse_query
-from mokli.surface.http_utils import query_first as _query_first
 
 _T = TypeVar("_T")
 
@@ -73,7 +73,7 @@ def _parse_int(value: str | None) -> int | None:
 def handle_trading_klines(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     locale = _locale_of(params)
-    symbol = coerce_to_gold(_query_first(params, "symbol"))
+    raw_symbol = (_query_first(params, "symbol") or "XAUUSD").strip() or "XAUUSD"
     interval = (_query_first(params, "interval") or "1h").strip()
     limit = _parse_int(_query_first(params, "limit")) or 300
     before_ms = _parse_int(_query_first(params, "before"))
@@ -81,6 +81,22 @@ def handle_trading_klines(request: WsRequest) -> Response:
     to_ms = _parse_int(_query_first(params, "to"))
 
     config = load_trading_config()
+    if config.mt5_configured is True:
+        from mokli.trading.broker_market import broker_candles
+
+        payload = _run_async(
+            broker_candles(
+                raw_symbol,
+                interval,
+                limit,
+                from_ms=from_ms,
+                to_ms=to_ms,
+                before_ms=before_ms,
+            )
+        )
+        return _http_json_response(payload)
+
+    symbol = coerce_to_gold(raw_symbol)
     if not config.oanda_configured:
         return _http_json_response({
             "symbol": symbol,
@@ -126,9 +142,15 @@ def handle_trading_klines(request: WsRequest) -> Response:
 def handle_trading_quote(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     locale = _locale_of(params)
-    symbol = coerce_to_gold(_query_first(params, "symbol"))
+    raw_symbol = (_query_first(params, "symbol") or "XAUUSD").strip() or "XAUUSD"
 
     config = load_trading_config()
+    if config.mt5_configured is True:
+        from mokli.trading.broker_market import broker_quote
+
+        return _http_json_response(_run_async(broker_quote(raw_symbol)))
+
+    symbol = coerce_to_gold(raw_symbol)
     if not config.oanda_configured:
         return _http_json_response({
             "symbol": symbol,

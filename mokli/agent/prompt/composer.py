@@ -203,9 +203,15 @@ class ToolContract:
 
 TOOL_CONTRACTS: tuple[ToolContract, ...] = (
     ToolContract(
+        ("mt5_list_symbols", "mt5_market"),
+        "any question about available pairs, a price, a spread, or candles",
+        "the account's tradable symbols, or a live bid/ask/spread and recent candles",
+        "invent a symbol or a price; say the broker feed is down when the tool returned numbers",
+    ),
+    ToolContract(
         ("get_gold_quote",),
-        "any price or spread question; before quoting a level",
-        "bid/ask/mid with display strings",
+        "a gold price question when mt5_market was not used",
+        "bid/ask/mid from the connected account when it is linked",
         "invent, round, or reformat a price",
     ),
     ToolContract(
@@ -260,7 +266,7 @@ TOOL_CONTRACTS: tuple[ToolContract, ...] = (
     ToolContract(
         ("mt5_get_account",),
         "the operator asks about balance, equity, margin, or open positions",
-        "account snapshot",
+        "account snapshot for every open position, plus the gold tick when it is quoted",
         "quote account figures from memory",
     ),
     ToolContract(

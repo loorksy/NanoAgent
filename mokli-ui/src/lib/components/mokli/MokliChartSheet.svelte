@@ -16,13 +16,18 @@
 	};
 
 	let interval = '15m';
+	let symbol = 'XAUUSD';
+	let query = '';
+	let matches: { name: string; description?: string; digits?: number }[] = [];
 	let failed = '';
 	let loading = false;
 	let container: HTMLDivElement | undefined;
 	let generation = 0;
 	let mounted = false;
-	let widget: { remove?: () => void; activeChart?: () => { setResolution: (value: string) => void } } | null =
-		null;
+	let widget: {
+		remove?: () => void;
+		activeChart?: () => { setResolution: (value: string) => void; setSymbol: (value: string) => void };
+	} | null = null;
 	let scriptPromise: Promise<void> | null = null;
 
 	function loadScript(): Promise<void> {
@@ -40,15 +45,41 @@
 		return scriptPromise;
 	}
 
+	const digitsOf = new Map<string, number>();
+
+	async function searchSymbols(text: string) {
+		const response = await fetch(
+			`/api/v1/mokli/market/symbols?q=${encodeURIComponent(text)}&limit=30`,
+			{ credentials: 'include' }
+		);
+		if (!response.ok) return [];
+		const body = (await response.json()) as {
+			symbols?: { name: string; description?: string; digits?: number }[];
+		};
+		for (const row of body.symbols ?? []) {
+			if (row?.name && Number.isFinite(row.digits)) digitsOf.set(row.name, Number(row.digits));
+		}
+		return body.symbols ?? [];
+	}
+
 	function datafeed() {
 		const resolutions = ['1', '5', '15', '60', '240', '1D'];
+		const barSeconds: Record<string, number> = {
+			'1': 60,
+			'5': 300,
+			'15': 900,
+			'60': 3600,
+			'240': 14400,
+			'1D': 86400,
+			D: 86400
+		};
 		const intervalOf = (resolution: string) =>
 			({ '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', '1D': '1d', D: '1d' })[
 				resolution
 			] ?? '15m';
-		const bars = async (resolution: string, from?: number, to?: number, limit = 300) => {
+		const bars = async (name: string, resolution: string, from?: number, to?: number, limit = 300) => {
 			const params = new URLSearchParams({
-				symbol: 'XAUUSD',
+				symbol: name,
 				interval: intervalOf(resolution),
 				limit: String(limit)
 			});
@@ -74,31 +105,64 @@
 				.sort((left, right) => left.time - right.time);
 		};
 		const timers = new Map<string, ReturnType<typeof setInterval>>();
+		const quote = async (name: string) => {
+			const response = await fetch(
+				`/api/v1/mokli/market/quote?symbol=${encodeURIComponent(name)}`,
+				{ credentials: 'include' }
+			);
+			if (!response.ok) throw new Error('quote');
+			const body = (await response.json()) as {
+				quote?: { bid?: number; ask?: number; mid?: number; time?: number };
+			};
+			const tick = body.quote;
+			if (!tick || tick.bid == null || tick.ask == null) return null;
+			const bid = Number(tick.bid);
+			const ask = Number(tick.ask);
+			return {
+				mid: Number(tick.mid ?? (bid + ask) / 2),
+				time: Number(tick.time) || Math.floor(Date.now() / 1000)
+			};
+		};
 		return {
 			onReady: (callback: (config: object) => void) => {
-				setTimeout(() => callback({ supported_resolutions: resolutions }), 0);
+				setTimeout(
+					() => callback({ supported_resolutions: resolutions, supports_search: true }),
+					0
+				);
 			},
 			searchSymbols: (
-				_userInput: string,
+				userInput: string,
 				_exchange: string,
 				_symbolType: string,
 				onResult: (rows: unknown[]) => void
-			) => onResult([]),
-			resolveSymbol: (
-				_name: string,
-				onResolve: (info: object) => void
 			) => {
+				void searchSymbols(userInput).then((rows) =>
+					onResult(
+						rows.map((row) => ({
+							symbol: row.name,
+							full_name: row.name,
+							description: row.description || row.name,
+							exchange: 'MT5',
+							ticker: row.name,
+							type: 'forex'
+						}))
+					)
+				);
+			},
+			resolveSymbol: (name: string, onResolve: (info: object) => void) => {
+				const digits = digitsOf.get(name) ?? 2;
 				setTimeout(
 					() =>
 						onResolve({
-							name: 'XAUUSD',
-							ticker: 'XAUUSD',
-							description: 'Gold',
+							name,
+							ticker: name,
+							description: name,
 							type: 'forex',
 							session: '24x7',
 							timezone: 'Etc/UTC',
+							exchange: 'MT5',
 							minmov: 1,
-							pricescale: 100,
+							pricescale: 10 ** Math.min(Math.max(digits, 0), 8),
 							has_intraday: true,
 							has_daily: true,
 							supported_resolutions: resolutions,
@@ -109,33 +173,59 @@
 				);
 			},
 			getBars: (
-				_symbol: object,
+				info: { ticker?: string; name?: string },
 				resolution: string,
 				period: { from?: number; to?: number; countBack?: number },
 				onResult: (rows: unknown[], meta: { noData: boolean }) => void,
 				onError: (reason: string) => void
 			) => {
-				bars(resolution, period.from, period.to, Math.min(period.countBack ?? 300, 4000))
+				const name = info?.ticker || info?.name || symbol;
+				bars(name, resolution, period.from, period.to, Math.min(period.countBack ?? 300, 4000))
 					.then((rows) => setTimeout(() => onResult(rows, { noData: rows.length === 0 }), 0))
 					.catch((error: Error) => setTimeout(() => onError(error.message), 0));
 			},
 			subscribeBars: (
-				_symbol: object,
+				info: { ticker?: string; name?: string },
 				resolution: string,
-				onTick: (bar: { time: number }) => void,
+				onTick: (bar: { time: number; open: number; high: number; low: number; close: number }) => void,
 				guid: string
 			) => {
-				let last = 0;
+				const name = info?.ticker || info?.name || symbol;
+				const step = barSeconds[resolution] ?? 900;
+				let current: {
+					time: number;
+					open: number;
+					high: number;
+					low: number;
+					close: number;
+					volume: number;
+				} | null = null;
 				const timer = setInterval(() => {
-					void bars(resolution, undefined, undefined, 2)
-						.then((rows) => {
-							const latest = rows[rows.length - 1];
-							if (!latest || latest.time < last) return;
-							last = latest.time;
-							onTick(latest);
+					void quote(name)
+						.then((tick) => {
+							if (!tick || !Number.isFinite(tick.mid)) return;
+							const bucket = Math.floor(tick.time / step) * step * 1000;
+							if (!current || current.time !== bucket) {
+								current = {
+									time: bucket,
+									open: tick.mid,
+									high: tick.mid,
+									low: tick.mid,
+									close: tick.mid,
+									volume: 0
+								};
+							} else {
+								current = {
+									...current,
+									high: Math.max(current.high, tick.mid),
+									low: Math.min(current.low, tick.mid),
+									close: tick.mid
+								};
+							}
+							onTick(current);
 						})
 						.catch(() => undefined);
-				}, 5000);
+				}, 1000);
 				timers.set(guid, timer);
 			},
 			unsubscribeBars: (guid: string) => {
@@ -176,7 +266,7 @@
 			if (!tradingView?.widget || !container) throw new Error('chart_library');
 			const dark = document.documentElement.classList.contains('dark');
 			widget = new tradingView.widget({
-				symbol: 'XAUUSD',
+				symbol,
 				interval: RES[interval] ?? '15',
 				container,
 				library_path: '/charting_library/',
@@ -201,6 +291,30 @@
 		} catch {
 			failed = mokliText($i18n?.language, 'chart_missing');
 			loading = false;
+		}
+	}
+
+	async function lookup() {
+		const text = query.trim();
+		if (text.length < 1) {
+			matches = [];
+			return;
+		}
+		try {
+			matches = await searchSymbols(text);
+		} catch {
+			matches = [];
+		}
+	}
+
+	function pickSymbol(name: string) {
+		symbol = name;
+		query = name;
+		matches = [];
+		try {
+			widget?.activeChart?.().setSymbol(name);
+		} catch {
+			void mountChart();
 		}
 	}
 
@@ -233,7 +347,32 @@
 		aria-label={mokliText($i18n?.language, 'chart')}
 	>
 		<div class="flex items-center gap-2 border-b border-gray-200 px-3 py-2 dark:border-gray-800">
-			<div class="text-sm font-medium">{mokliText($i18n?.language, 'chart')}</div>
+			<div class="relative">
+				<input
+					class="w-28 rounded-lg border border-gray-200 bg-transparent px-2 py-1 text-sm dark:border-gray-800"
+					placeholder={mokliText($i18n?.language, 'chart_symbol')}
+					bind:value={query}
+					on:input={lookup}
+				/>
+				{#if matches.length}
+					<ul
+						class="absolute left-0 top-9 z-10 max-h-48 w-56 overflow-auto rounded-lg border border-gray-200 bg-white text-sm dark:border-gray-800 dark:bg-gray-950"
+					>
+						{#each matches as row (row.name)}
+							<li>
+								<button
+									type="button"
+									class="block w-full px-2 py-1 text-start hover:bg-gray-100 dark:hover:bg-gray-900"
+									on:click={() => pickSymbol(row.name)}
+								>
+									{row.name}
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+			<div class="text-sm font-medium">{symbol}</div>
 			<div class="flex flex-1 gap-1 overflow-x-auto">
 				{#each INTERVALS as choice (choice)}
 					<button
