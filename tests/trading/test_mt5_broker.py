@@ -18,8 +18,9 @@ class FakeMt5:
         self.requests: list[dict] = []
         self.login_calls: list[tuple] = []
 
-    def initialize(self) -> bool:
+    def initialize(self, **kwargs) -> bool:
         self.initialized = True
+        self.init_kwargs = kwargs
         return True
 
     def login(self, login, password="", server="") -> bool:
@@ -105,10 +106,21 @@ def _broker(**kwargs) -> tuple[Mt5LinuxBroker, list[FakeMt5]]:
 
 
 @pytest.mark.asyncio
-async def test_connect_reads_host_port_and_hides_password() -> None:
+async def test_connect_reads_host_port_and_hides_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MT5_TERMINAL_PATH", r"C:\MT5\terminal64.exe")
+    monkeypatch.setenv("MT5_PORTABLE", "1")
+    monkeypatch.setenv("MT5_IPC_TIMEOUT_MS", "8000")
     broker, created = _broker()
     result = await broker.connect()
     assert result == {"ok": True, "host": "mt5.internal", "port": 8001}
+    assert created[0].init_kwargs == {
+        "login": 10001,
+        "password": "s3cret-pass",
+        "server": "Broker-Demo",
+        "timeout": 8000,
+        "path": r"C:\MT5\terminal64.exe",
+        "portable": True,
+    }
     assert created[0].login_calls == [(10001, "s3cret-pass", "Broker-Demo")]
     assert "s3cret-pass" not in repr(broker)
     info = await broker.get_account_info()

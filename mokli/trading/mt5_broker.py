@@ -312,6 +312,24 @@ def _comment(text: str) -> str:
     return cleaned[:31]
 
 
+def _terminal_path() -> str:
+    return os.environ.get("MT5_TERMINAL_PATH", "").strip()
+
+
+def _portable_terminal() -> bool:
+    return os.environ.get("MT5_PORTABLE", "").strip().lower() in {"1", "true", "yes"}
+
+
+def _ipc_timeout_ms() -> int:
+    raw = os.environ.get("MT5_IPC_TIMEOUT_MS", "").strip()
+    if not raw:
+        return 45_000
+    try:
+        return max(1000, int(raw))
+    except ValueError:
+        return 45_000
+
+
 class Mt5LinuxBroker:
     """``mt5linux.MetaTrader5`` client. Every dial target comes from config or env."""
 
@@ -397,7 +415,21 @@ class Mt5LinuxBroker:
             login_id = int(self.login)
         except ValueError:
             raise Mt5ConnectionError(tr("mt5.connect.login_invalid")) from None
-        if client.initialize() is False:
+        # The official terminal attaches only when the first call names the
+        # account. A bare initialize() waits on IPC until it times out if the
+        # terminal has not opened this broker before.
+        init_kwargs: dict[str, Any] = {
+            "login": login_id,
+            "password": self.password,
+            "server": self.server,
+            "timeout": _ipc_timeout_ms(),
+        }
+        terminal = _terminal_path()
+        if terminal:
+            init_kwargs["path"] = terminal
+        if _portable_terminal():
+            init_kwargs["portable"] = True
+        if client.initialize(**init_kwargs) is False:
             raise Mt5ConnectionError(_last_error(client, self.password))
         logged = client.login(login_id, password=self.password, server=self.server)
         if logged is False:

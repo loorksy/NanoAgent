@@ -15,8 +15,12 @@ if docker exec "$CONTAINER" ss -tuln | grep -q ":${PORT} "; then
   exit 0
 fi
 
+# terminal64.exe only completes IPC with the 64-bit MetaTrader5 package.
+# The image's 32-bit python.exe is not a healthy bridge.
+WINE_PYTHON="${MT5_WINE_PYTHON:-C:\\Python311\\python.exe}"
+
 # A start is already in progress. Do not launch a second server.
-if docker exec "$CONTAINER" ps -eo args | grep -q 'python.exe -m mt5linux'; then
+if docker exec "$CONTAINER" ps -eo args | grep -F 'Python311\python.exe -m mt5linux'; then
   exit 0
 fi
 
@@ -27,4 +31,4 @@ docker exec -d -u abc \
   -e WINEDEBUG=-all \
   -e DISPLAY="${MT5_BRIDGE_DISPLAY:-:1}" \
   "$CONTAINER" \
-  bash -c "python3 -m mt5linux --host 0.0.0.0 -p ${PORT} -w wine python.exe >> /config/mt5linux-bridge.log 2>&1"
+  bash -c "python3 -m mt5linux --host 0.0.0.0 -p ${PORT} -w wine '${WINE_PYTHON}' >> /config/mt5linux-bridge.log 2>&1"

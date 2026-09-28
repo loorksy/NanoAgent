@@ -251,6 +251,8 @@ async def _validate_live(draft: _ConnectDraft) -> dict[str, Any]:
         login=draft.login,
         password=draft.password,
         server=draft.server,
+        attempts=1,
+        retry_delay=0,
     )
     connected = await broker.connect()
     if not connected.get("ok"):

@@ -10,7 +10,7 @@ import os
 
 import httpx
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from mokli_ui.utils.auth import get_verified_user
 
@@ -43,7 +43,22 @@ async def forward(
     if content_type:
         headers["Content-Type"] = content_type
     body = await request.body()
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        upstream = await client.request(request.method, url, content=body or None, headers=headers)
+    # A first MT5 login waits on the terminal. The default 30s proxy cuts that
+    # off and the browser only sees "gateway 500".
+    timeout = 90.0 if path.startswith("connect/mt5") else 30.0
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            upstream = await client.request(request.method, url, content=body or None, headers=headers)
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=504,
+            content={
+                "error": {
+                    "details": {
+                        "message": "MT5 connection test timed out before the terminal answered",
+                    }
+                }
+            },
+        )
     media = upstream.headers.get("content-type")
     return Response(content=upstream.content, status_code=upstream.status_code, media_type=media)
