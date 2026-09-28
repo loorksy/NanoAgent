@@ -3079,16 +3079,9 @@ applications.get_swagger_ui_html = swagger_ui_html
 
 def _charting_library_dir() -> str | None:
     """TradingView static files kept after the legacy React client was removed."""
-    configured = os.environ.get('MOKLI_CHARTING_LIBRARY', '').strip()
-    candidates = [configured] if configured else []
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    candidates.append(os.path.join(repo_root, 'mokli', 'public', 'charting_library'))
-    candidates.append(os.path.join(repo_root, 'mokli', 'web', 'dist', 'charting_library'))
-    for path in candidates:
-        script = os.path.join(path, 'charting_library.standalone.js')
-        if path and os.path.isdir(path) and os.path.isfile(script):
-            return path
-    return None
+    from mokli_ui.chart_assets import charting_library_dir
+
+    return charting_library_dir()
 
 
 _chart_dir = _charting_library_dir()
