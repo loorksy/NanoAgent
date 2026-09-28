@@ -245,6 +245,23 @@
 		widget = null;
 	}
 
+	async function alignSymbol() {
+		try {
+			const rows = await searchSymbols(symbol);
+			const exact = rows.find((row) => row.name.toLowerCase() === symbol.toLowerCase());
+			if (exact) {
+				symbol = exact.name;
+				return;
+			}
+			const prefixed = rows
+				.filter((row) => row.name.toLowerCase().startsWith(symbol.toLowerCase()))
+				.sort((left, right) => left.name.length - right.name.length);
+			if (prefixed[0]) symbol = prefixed[0].name;
+		} catch {
+			/* keep the typed symbol; the gateway also resolves the account suffix */
+		}
+	}
+
 	async function mountChart() {
 		const token = ++generation;
 		loading = true;
@@ -256,6 +273,11 @@
 		}
 		destroyWidget();
 		try {
+			await alignSymbol();
+			if (token !== generation || !container) {
+				if (token === generation) loading = false;
+				return;
+			}
 			await loadScript();
 			if (token !== generation || !container) {
 				if (token === generation) loading = false;

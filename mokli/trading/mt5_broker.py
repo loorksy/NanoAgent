@@ -275,6 +275,26 @@ def _symbol_public(row: Any) -> dict[str, Any] | None:
     }
 
 
+def resolve_symbol_name(rows: list[Any], requested: str) -> str | None:
+    """Map a typed name onto the account's symbol, including a broker suffix."""
+    wanted = requested.strip().casefold()
+    if not wanted:
+        return None
+    names = [
+        str(row.get("name") or "").strip()
+        for row in rows
+        if isinstance(row, dict) and str(row.get("name") or "").strip()
+    ]
+    for name in names:
+        if name.casefold() == wanted:
+            return name
+    prefixed = [name for name in names if name.casefold().startswith(wanted)]
+    if not prefixed:
+        return None
+    prefixed.sort(key=len)
+    return prefixed[0]
+
+
 def _filter_symbols(rows: list[Any], *, query: str, limit: int) -> dict[str, Any]:
     needle = query.strip().casefold()
     public: list[dict[str, Any]] = []
@@ -886,8 +906,17 @@ class BrokerTransport:
     async def account_snapshot(self) -> dict[str, Any]:
         return await self.broker.get_account_info()
 
+    async def _resolved_name(self, symbol: str) -> str | None:
+        listed = await self.broker.list_symbols(symbol, 40)
+        rows = listed.get("symbols") if isinstance(listed, dict) else None
+        return resolve_symbol_name(list(rows or []), symbol)
+
     async def quote(self, symbol: str) -> dict[str, Any]:
         price = await self.broker.get_symbol_price(symbol)
+        if not price.get("ok"):
+            resolved = await self._resolved_name(symbol)
+            if resolved and resolved != symbol:
+                price = await self.broker.get_symbol_price(resolved)
         if not price.get("ok"):
             return price
         return {"ok": True, "quote": price}
@@ -896,7 +925,13 @@ class BrokerTransport:
         return await self.broker.list_symbols(query, limit)
 
     async def candles(self, symbol: str, timeframe: str, count: int) -> list[dict[str, Any]]:
-        return await self.broker.get_candles(symbol, timeframe, count)
+        rows = await self.broker.get_candles(symbol, timeframe, count)
+        if rows:
+            return rows
+        resolved = await self._resolved_name(symbol)
+        if not resolved or resolved == symbol:
+            return rows
+        return await self.broker.get_candles(resolved, timeframe, count)
 
     async def open_positions(self) -> list[dict[str, Any]]:
         return await self.broker.get_open_positions()

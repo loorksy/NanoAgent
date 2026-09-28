@@ -6,7 +6,12 @@ import json
 
 from mokli.agent.tools.mt5_market import Mt5ListSymbolsTool, Mt5MarketTool
 from mokli.trading.broker_market import candles_from_rates, quote_view
-from mokli.trading.mt5_broker import _compact_symbols, _filter_symbols, set_transport_for_tests
+from mokli.trading.mt5_broker import (
+    _compact_symbols,
+    _filter_symbols,
+    resolve_symbol_name,
+    set_transport_for_tests,
+)
 
 
 def test_compact_catalog_does_not_pull_full_symbol_records() -> None:
@@ -32,6 +37,17 @@ def test_compact_catalog_does_not_pull_full_symbol_records() -> None:
 
     rows = _compact_symbols(Client())
     assert rows[0]["name"] == "EURUSD"
+
+
+def test_typed_gold_name_resolves_to_the_account_symbol() -> None:
+    rows = [
+        {"name": "BTCXAUm"},
+        {"name": "XAUUSDm"},
+        {"name": "XAUEURm"},
+    ]
+    assert resolve_symbol_name(rows, "XAUUSD") == "XAUUSDm"
+    assert resolve_symbol_name([{"name": "XAUUSD"}, {"name": "XAUUSDm"}], "xauusd") == "XAUUSD"
+    assert resolve_symbol_name(rows, "EURUSD") is None
 
 
 def test_symbol_catalog_hides_disabled_names_and_matches_the_query() -> None:
