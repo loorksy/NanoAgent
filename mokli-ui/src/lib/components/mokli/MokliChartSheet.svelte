@@ -11,7 +11,12 @@
 	let container: HTMLDivElement | undefined;
 	let generation = 0;
 	let kept = false;
-	let widget: { remove?: () => void } | null = null;
+	let starting = false;
+	let widget: {
+		remove?: () => void;
+		resize?: () => void;
+		onChartReady?: (cb: () => void) => void;
+	} | null = null;
 	let scriptPromise: Promise<void> | null = null;
 
 	function loadScript(): Promise<void> {
@@ -300,24 +305,50 @@
 		}
 	}
 
+	function hostChart(node: HTMLDivElement) {
+		container = node;
+		let cancelled = false;
+		let frames = 0;
+		const waitForBox = () => {
+			if (cancelled || widget || starting) return;
+			frames += 1;
+			if (node.clientHeight < 8 && frames < 30) {
+				requestAnimationFrame(waitForBox);
+				return;
+			}
+			void mountChart();
+		};
+		requestAnimationFrame(waitForBox);
+		return {
+			destroy() {
+				cancelled = true;
+			}
+		};
+	}
+
 	async function mountChart() {
+		const node = container;
+		if (!node || widget || starting) return;
+		starting = true;
 		const token = ++generation;
 		loading = true;
 		failed = '';
 		await tick();
-		if (token !== generation || !container) {
+		if (token !== generation || container !== node) {
+			starting = false;
 			if (token === generation) loading = false;
 			return;
 		}
-		destroyWidget();
 		try {
 			await alignSymbol();
-			if (token !== generation || !container) {
+			if (token !== generation || container !== node) {
+				starting = false;
 				if (token === generation) loading = false;
 				return;
 			}
 			await loadScript();
-			if (token !== generation || !container) {
+			if (token !== generation || container !== node) {
+				starting = false;
 				if (token === generation) loading = false;
 				return;
 			}
@@ -326,20 +357,33 @@
 					TradingView?: { widget?: new (options: object) => typeof widget };
 				}
 			).TradingView;
-			if (!tradingView?.widget || !container) throw new Error('chart_library');
+			if (!tradingView?.widget) throw new Error('chart_library');
 			const dark = document.documentElement.classList.contains('dark');
 			const language = ($i18n?.language || 'en').toLowerCase();
-			widget = new tradingView.widget({
+			const created = new tradingView.widget({
 				symbol,
 				interval: '15',
-				container,
+				container: node,
 				library_path: '/charting_library/',
 				locale: language.startsWith('ar') ? 'ar' : 'en',
 				autosize: true,
 				theme: dark ? 'dark' : 'light',
 				disabled_features: ['header_saveload'],
 				enabled_features: [],
-				datafeed: datafeed()
+				datafeed: datafeed(),
+				overrides: {
+					'paneProperties.background': dark ? '#030712' : '#ffffff',
+					'paneProperties.backgroundType': 'solid'
+				}
+			});
+			widget = created;
+			created.onChartReady?.(() => {
+				try {
+					created.resize?.();
+				} catch {
+					/* the library sizes itself */
+				}
+				loading = false;
 			});
 			loading = false;
 		} catch {
@@ -348,10 +392,7 @@
 		}
 	}
 
-	$: if ($chartOpen && !kept) {
-		kept = true;
-		void mountChart();
-	}
+	$: if ($chartOpen) kept = true;
 
 	onDestroy(() => {
 		generation += 1;
@@ -379,7 +420,7 @@
 			</button>
 		</div>
 		<div class="relative min-h-0 flex-1">
-			<div class="h-full w-full" bind:this={container}></div>
+			<div class="absolute inset-0" use:hostChart></div>
 			{#if loading && $chartOpen}
 				<p class="absolute left-3 top-3 text-sm text-gray-500">
 					{mokliText($i18n?.language, 'chart_loading')}
