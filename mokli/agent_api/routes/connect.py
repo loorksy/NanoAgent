@@ -356,7 +356,7 @@ async def post_mt5(request: web.Request) -> web.Response:
     path = services(request).config_path
     body = await json_body(request)
     query: dict[str, list[str]] = {}
-    for key in ("login", "password", "server", "host", "port"):
+    for key in ("login", "password", "server", "host", "port", "locale"):
         value = body.get(key)
         if value is None:
             continue
