@@ -130,10 +130,10 @@ async def test_connect_reads_host_port_and_hides_password(monkeypatch: pytest.Mo
 async def test_connect_dials_the_access_address(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MT5_TERMINAL_PATH", r"C:\MT5\terminal64.exe")
     monkeypatch.setenv("MT5_PORTABLE", "1")
-    broker, created = _broker(server="FoxxLimited-Trade", access="203.0.113.10:443")
+    broker, created = _broker(server="Northwind-Trade", access="203.0.113.10:443")
     result = await broker.connect()
     assert result["ok"] is True
-    assert broker.server == "FoxxLimited-Trade"
+    assert broker.server == "Northwind-Trade"
     assert created[0].init_kwargs["server"] == "203.0.113.10:443"
     assert created[0].login_calls == [(10001, "s3cret-pass", "203.0.113.10:443")]
     assert "203.0.113.10" not in repr(broker)

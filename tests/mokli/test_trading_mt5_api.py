@@ -209,13 +209,13 @@ async def test_company_server_dials_access_and_hides_it(
     _use_config(tmp_path, monkeypatch)
 
     def fake_resolve(server: str, *, company: str = "") -> str:
-        assert server == "FoxxLimited-Trade"
-        assert company == "Foxx Limited"
+        assert server == "Northwind-Trade"
+        assert company == "Northwind Markets Limited"
         return "203.0.113.10:443"
 
     async def fake_validate(draft):
         assert draft.access == "203.0.113.10:443"
-        assert draft.server == "FoxxLimited-Trade"
+        assert draft.server == "Northwind-Trade"
         return {"login": draft.login, "name": "Desk", "server": draft.server}
 
     monkeypatch.setattr("mokli.surface.trading_mt5_api.resolve_access", fake_resolve)
@@ -225,16 +225,16 @@ async def test_company_server_dials_access_and_hides_it(
         {
             "login": ["10001"],
             "password": ["broker-pass"],
-            "server": ["FoxxLimited-Trade"],
-            "company": ["Foxx Limited"],
+            "server": ["Northwind-Trade"],
+            "company": ["Northwind Markets Limited"],
         },
     )
     blob = json.dumps(payload)
     assert "203.0.113.10" not in blob
     assert "broker-pass" not in blob
-    assert payload["server"] == "FoxxLimited-Trade"
+    assert payload["server"] == "Northwind-Trade"
     saved = load_config().trading_mt5
-    assert saved.server == "FoxxLimited-Trade"
+    assert saved.server == "Northwind-Trade"
     assert saved.access == "203.0.113.10:443"
     assert "203.0.113.10" not in json.dumps(saved.public_view())
 

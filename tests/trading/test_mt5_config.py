@@ -97,7 +97,7 @@ def test_access_address_is_not_in_the_public_snapshot(tmp_path, monkeypatch) -> 
         Config(
             trading_mt5=TradingMt5Config(
                 login="10001",
-                server="FoxxLimited-Trade",
+                server="Northwind-Trade",
                 access="203.0.113.10:443",
                 host="mt5.internal",
             )
