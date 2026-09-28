@@ -84,7 +84,7 @@ No listener means the bridge is down. Then read `/config/mt5linux-bridge.log` in
 
 ## Same layout on another host
 
-The running host keeps code in `/opt/nanoagent` on the git ref it was installed from. These files are not in git because they hold secrets or live data, and a new host creates them locally:
+The running host keeps code in `/opt/nanoagent` on `main`. These files are not in git because they hold secrets or live data, and a new host creates them locally:
 
 - `/opt/nanoagent/.env` from `.env.example`
 - `/opt/nanoagent/mokli-ui.env` from `deploy/nanoagent/mokli-ui.env.example`

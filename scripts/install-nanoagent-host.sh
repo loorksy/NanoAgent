@@ -10,8 +10,7 @@
 # Fill the two env files, then:
 #   sudo NANOAGENT_RESTART=1 scripts/install-nanoagent-host.sh
 #
-# NANOAGENT_REF is the git ref to check out. The live host tracks the
-# broker-search branch until that work is merged.
+# NANOAGENT_REF defaults to main, which is the branch the live host tracks.
 set -euo pipefail
 
 if [[ "$(id -u)" -ne 0 ]]; then
@@ -20,7 +19,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 INSTALL_DIR="${NANOAGENT_DIR:-/opt/nanoagent}"
-REF="${NANOAGENT_REF:-cursor/mt5-account-window-d9e1}"
+REF="${NANOAGENT_REF:-main}"
 REPO="${NANOAGENT_REPO:-https://github.com/loorksy/NanoAgent.git}"
 SERVICE_USER="${NANOAGENT_USER:-nanoagent}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
