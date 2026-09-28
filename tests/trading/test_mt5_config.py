@@ -90,6 +90,30 @@ def test_env_overrides_saved_mt5(tmp_path, monkeypatch) -> None:
     assert "env-pass" not in str(loaded.public_mt5())
 
 
+def test_access_address_is_not_in_the_public_snapshot(tmp_path, monkeypatch) -> None:
+    store = _isolate(tmp_path, monkeypatch)
+    store.set("mt5_password", "secret-pass")
+    save_config(
+        Config(
+            trading_mt5=TradingMt5Config(
+                login="10001",
+                server="FoxxLimited-Trade",
+                access="203.0.113.10:443",
+                host="mt5.internal",
+            )
+        ),
+        tmp_path / "config.json",
+    )
+    loaded = load_trading_config()
+    assert loaded.mt5_access == "203.0.113.10:443"
+    assert "203.0.113.10" not in json.dumps(loaded.public_mt5())
+    assert "203.0.113.10" not in repr(loaded)
+    monkeypatch.setenv("MT5_SERVER", "Other-Live")
+    overridden = load_trading_config()
+    assert overridden.mt5_server == "Other-Live"
+    assert overridden.mt5_access is None
+
+
 def test_host_and_port_default_when_unset(tmp_path, monkeypatch) -> None:
     _isolate(tmp_path, monkeypatch)
     loaded = load_trading_config()

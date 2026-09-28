@@ -394,6 +394,7 @@ class Mt5LinuxBroker:
         login: str | None,
         password: str | None,
         server: str | None,
+        access: str | None = None,
         attempts: int = _DEFAULT_ATTEMPTS,
         retry_delay: float = 0.4,
         timeout: float | None = None,
@@ -405,6 +406,9 @@ class Mt5LinuxBroker:
         self.login = (login or "").strip()
         self.password = password or ""
         self.server = (server or "").strip()
+        # Broker access address (host:port). The terminal reaches a company it
+        # has never opened only when initialize() is given this address.
+        self.access = (access or "").strip()
         self.attempts = max(1, int(attempts))
         self.retry_delay = max(0.0, float(retry_delay))
         self.timeout = _DEFAULT_TIMEOUT if timeout is None else max(1.0, float(timeout))
@@ -427,6 +431,7 @@ class Mt5LinuxBroker:
             login=config.mt5_login,
             password=config.mt5_password,
             server=config.mt5_server,
+            access=config.mt5_access,
             timeout=kwargs.pop("timeout", _env_float("MT5_TIMEOUT", _DEFAULT_TIMEOUT)),
             **kwargs,
         )
@@ -469,8 +474,11 @@ class Mt5LinuxBroker:
         if with_credentials:
             init_kwargs["login"] = int(self.login)
             init_kwargs["password"] = self.password
-            init_kwargs["server"] = self.server
+            init_kwargs["server"] = self._dial_server()
         return init_kwargs
+
+    def _dial_server(self) -> str:
+        return self.access or self.server
 
     def _session(self, client: Any) -> None:
         if self.password:
@@ -480,13 +488,16 @@ class Mt5LinuxBroker:
                 int(self.login)
             except ValueError:
                 raise Mt5ConnectionError(tr("mt5.connect.login_invalid")) from None
-            # The official terminal attaches only when the first call names the
-            # account. A bare initialize() waits on IPC until it times out if the
-            # terminal has not opened this broker before.
+            # A server name the terminal has never opened stalls on IPC.
+            # The company directory's access address reaches the broker directly.
             init_kwargs = self._terminal_kwargs(with_credentials=True)
             if client.initialize(**init_kwargs) is False:
                 raise Mt5ConnectionError(_last_error(client, self.password))
-            logged = client.login(int(self.login), password=self.password, server=self.server)
+            logged = client.login(
+                int(self.login),
+                password=self.password,
+                server=self._dial_server(),
+            )
             if logged is False:
                 raise Mt5ConnectionError(_last_error(client, self.password))
             return

@@ -23,6 +23,7 @@ class TradingConfig:
     mt5_login: str | None = None
     mt5_password: str | None = field(default=None, repr=False)
     mt5_server: str | None = None
+    mt5_access: str | None = field(default=None, repr=False)
     mt5_terminal_session: bool = False
 
     @property
@@ -62,6 +63,7 @@ class _StoredCredentials:
     mt5_login: str | None = None
     mt5_password: str | None = None
     mt5_server: str | None = None
+    mt5_access: str | None = None
     mt5_terminal_session: bool = False
     oanda_token: str | None = None
     oanda_account: str | None = None
@@ -84,6 +86,7 @@ def _stored_credentials() -> _StoredCredentials:
         mt5_login=_strip(mt5.login),
         mt5_password=_strip(mt5.effective_password()),
         mt5_server=_strip(mt5.server),
+        mt5_access=_strip(mt5.access),
         mt5_terminal_session=bool(mt5.terminal_session),
         oanda_token=_strip(oanda.effective_token()),
         oanda_account=_strip(oanda.account_id),
@@ -113,6 +116,17 @@ def load_trading_config() -> TradingConfig:
         stored = _StoredCredentials()
 
     # MT5_* / OANDA_* env vars override saved Config. Host and port default when unset.
+    # A stored access address belongs to the stored server name. A different
+    # MT5_SERVER must not keep dialing the previous broker.
+    env_server = _strip(os.environ.get("MT5_SERVER"))
+    server = env_server or stored.mt5_server
+    env_access = _strip(os.environ.get("MT5_ACCESS"))
+    if env_access:
+        access = env_access
+    elif server and server == stored.mt5_server:
+        access = stored.mt5_access
+    else:
+        access = None
     return TradingConfig(
         oanda_api_token=_strip(os.environ.get("OANDA_API_TOKEN")) or stored.oanda_token,
         oanda_account_id=_strip(os.environ.get("OANDA_ACCOUNT_ID")) or stored.oanda_account,
@@ -121,6 +135,7 @@ def load_trading_config() -> TradingConfig:
         mt5_port=_env_port(stored.mt5_port),
         mt5_login=_strip(os.environ.get("MT5_LOGIN")) or stored.mt5_login,
         mt5_password=_strip(os.environ.get("MT5_PASSWORD")) or stored.mt5_password,
-        mt5_server=_strip(os.environ.get("MT5_SERVER")) or stored.mt5_server,
+        mt5_server=server,
+        mt5_access=access,
         mt5_terminal_session=stored.mt5_terminal_session,
     )

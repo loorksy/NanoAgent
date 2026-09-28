@@ -337,6 +337,23 @@ async def post_whatsapp(request: web.Request) -> web.Response:
     return ok(public)
 
 
+async def get_mt5_brokers(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from mokli.trading.i18n import tr
+    from mokli.trading.mt5_directory import Mt5DirectoryError, search_companies
+
+    locale = request.query.get("locale")
+    try:
+        companies = await asyncio.to_thread(search_companies, request.query.get("q", ""))
+    except Mt5DirectoryError as exc:
+        raise ApiError(
+            502,
+            "mt5_directory_error",
+            details={"message": tr("mt5.connect.directory_failed", locale=locale)},
+        ) from exc
+    return ok({"companies": companies})
+
+
 async def get_mt5_status(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
@@ -356,7 +373,7 @@ async def post_mt5(request: web.Request) -> web.Response:
     path = services(request).config_path
     body = await json_body(request)
     query: dict[str, list[str]] = {}
-    for key in ("login", "password", "server", "host", "port", "locale"):
+    for key in ("login", "password", "server", "company", "host", "port", "locale"):
         value = body.get(key)
         if value is None:
             continue
@@ -403,6 +420,7 @@ def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_put(f"{prefix}/connect/risk", put_risk)
     router.add_put(f"{prefix}/connect/risk-profile", put_risk_profile)
     router.add_put(f"{prefix}/connect/risk/{{field}}", put_risk_field)
+    router.add_get(f"{prefix}/connect/mt5/brokers", get_mt5_brokers)
     router.add_get(f"{prefix}/connect/mt5/status", get_mt5_status)
     router.add_post(f"{prefix}/connect/mt5", post_mt5)
     router.add_post(f"{prefix}/connect/mt5/session", post_mt5_session)

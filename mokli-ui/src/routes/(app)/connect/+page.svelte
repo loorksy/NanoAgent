@@ -44,6 +44,8 @@
 		last_action?: { ok?: boolean; message?: string };
 	};
 
+	type BrokerCompany = { name: string; label: string; servers: string[] };
+
 	let mt5: Mt5Status = {};
 	let mt5Login = '';
 	let mt5Password = '';
@@ -52,6 +54,14 @@
 	let mt5Saving = false;
 	let mt5Note = '';
 	let mt5Ok = false;
+	let mt5Step: 'company' | 'account' = 'company';
+	let companyQuery = '';
+	let companies: BrokerCompany[] = [];
+	let companyBusy = false;
+	let companyNote = '';
+	let picked: BrokerCompany | null = null;
+	let searchTicket = 0;
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function flag(value: boolean): string {
 		return mokliText($i18n?.language, value ? 'yes' : 'no');
@@ -182,7 +192,74 @@
 
 	onDestroy(() => {
 		stopWhatsappPoll();
+		if (searchTimer) clearTimeout(searchTimer);
 	});
+
+	function looksLikeAddress(value: string): boolean {
+		const text = value.trim();
+		const colon = text.lastIndexOf(':');
+		if (colon < 1) return false;
+		const port = Number(text.slice(colon + 1));
+		if (!Number.isInteger(port) || port < 1 || port > 65535) return false;
+		const host = text.slice(0, colon);
+		if (host.startsWith('[') && host.endsWith(']') && host.includes(':')) return true;
+		if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+			return host.split('.').every((part) => Number(part) <= 255);
+		}
+		return /^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(host);
+	}
+
+	function onCompanyInput() {
+		if (searchTimer) clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => {
+			void searchCompanies();
+		}, 300);
+	}
+
+	async function searchCompanies() {
+		const query = companyQuery.trim();
+		const ticket = ++searchTicket;
+		companyNote = '';
+		if (query.length < 2) {
+			companies = [];
+			companyBusy = false;
+			return;
+		}
+		companyBusy = true;
+		try {
+			const body = (await gateway(
+				`connect/mt5/brokers?q=${encodeURIComponent(query)}&locale=${localeCode()}`
+			)) as { companies?: BrokerCompany[] };
+			if (ticket !== searchTicket) return;
+			companies = (body.companies ?? []).filter((company) => company.name && company.servers?.length);
+		} catch (err) {
+			if (ticket !== searchTicket) return;
+			companies = [];
+			companyNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
+		} finally {
+			if (ticket === searchTicket) companyBusy = false;
+		}
+	}
+
+	function pickCompany(company: BrokerCompany) {
+		picked = company;
+		mt5Server = company.servers[0] ?? '';
+		mt5Step = 'account';
+		mt5Note = '';
+		mt5Ok = false;
+	}
+
+	function useAddress() {
+		const address = companyQuery.trim();
+		if (!looksLikeAddress(address)) return;
+		pickCompany({ name: address, label: address, servers: [address] });
+	}
+
+	function backToCompanies() {
+		mt5Step = 'company';
+		mt5Note = '';
+		mt5Ok = false;
+	}
 
 	function localeCode(): string {
 		return ($i18n?.language ?? '').toLowerCase().startsWith('ar') ? 'ar' : 'en';
@@ -193,6 +270,7 @@
 		const login = mt5Login.trim();
 		const password = mt5Password;
 		const server = mt5Server.trim();
+		const company = picked?.name ?? '';
 		if (!login || !password.trim() || !server) {
 			mt5Ok = false;
 			mt5Note = mokliText($i18n?.language, 'mt5_incomplete');
@@ -202,7 +280,7 @@
 		try {
 			const next = (await gateway('connect/mt5', {
 				method: 'POST',
-				body: JSON.stringify({ login, password, server, locale: localeCode() })
+				body: JSON.stringify({ login, password, server, company, locale: localeCode() })
 			})) as Mt5Status;
 			mt5 = next;
 			mt5Login = next.login || login;
@@ -225,6 +303,9 @@
 		mt5Note = '';
 		try {
 			mt5 = (await gateway('connect/mt5/disconnect', { method: 'POST', body: '{}' })) as Mt5Status;
+			mt5Password = '';
+			mt5Step = 'company';
+			picked = null;
 			mt5Ok = true;
 			mt5Note = '';
 			broker = flag(false);
@@ -315,7 +396,63 @@
 			>
 				{mokliText($i18n?.language, 'mt5_disconnect')}
 			</button>
+		{:else if mt5Step === 'company'}
+			<label class="mt-4 block text-sm text-gray-500" for="mt5-company">
+				{mokliText($i18n?.language, 'mt5_search_placeholder')}
+			</label>
+			<input
+				id="mt5-company"
+				class="mt-1 h-12 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-base dark:border-gray-700"
+				autocomplete="off"
+				autocapitalize="off"
+				spellcheck="false"
+				placeholder={mokliText($i18n?.language, 'mt5_search_placeholder')}
+				bind:value={companyQuery}
+				on:input={onCompanyInput}
+			/>
+			{#if companyBusy}
+				<p class="mt-3 text-sm text-gray-500">{mokliText($i18n?.language, 'mt5_searching')}</p>
+			{/if}
+			{#if companies.length}
+				<ul class="mt-3 divide-y divide-gray-200 dark:divide-gray-800">
+					{#each companies as company (`${company.name}-${company.label}`)}
+						<li>
+							<button
+								class="flex min-h-14 w-full items-center gap-3 py-3 text-start"
+								type="button"
+								on:click={() => pickCompany(company)}
+							>
+								<span class="min-w-0 flex-1">
+									<span class="block truncate text-base font-medium">{company.name}</span>
+									<span class="block truncate text-sm text-blue-600 dark:text-blue-400">{company.label}</span>
+								</span>
+								<svg class="h-4 w-4 shrink-0 text-gray-400 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+									<path d="M7.2 4.2 13 10l-5.8 5.8-1.2-1.2L10.6 10 6 5.4l1.2-1.2Z" />
+								</svg>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if looksLikeAddress(companyQuery)}
+				<button class="mt-3 h-12 w-full rounded-xl border text-base" type="button" on:click={useAddress}>
+					{mokliText($i18n?.language, 'mt5_use_address')}
+				</button>
+			{/if}
+			<p class="mt-4 text-sm text-gray-500">{mokliText($i18n?.language, 'mt5_no_broker')}</p>
+			<p class="mt-1 text-xs leading-5 text-gray-500">{mokliText($i18n?.language, 'mt5_address_hint')}</p>
+			{#if companyNote}
+				<p class="mt-3 text-sm text-red-500">{companyNote}</p>
+			{/if}
 		{:else}
+			<button class="mt-4 text-sm text-gray-500" type="button" on:click={backToCompanies}>
+				{mokliText($i18n?.language, 'mt5_back')}
+			</button>
+			<h3 class="mt-2 text-base font-medium">{picked?.name}</h3>
+			{#if picked?.label && picked.label !== picked.name}
+				<p class="text-sm text-blue-600 dark:text-blue-400">{picked.label}</p>
+			{/if}
+			<p class="mt-3 text-sm text-gray-500">{mokliText($i18n?.language, 'mt5_login_title')}</p>
 			<form class="mt-4" on:submit|preventDefault={saveMt5}>
 				<label class="block text-sm text-gray-500" for="mt5-login">
 					{mokliText($i18n?.language, 'mt5_login')}
@@ -349,18 +486,18 @@
 				<label class="mt-4 block text-sm text-gray-500" for="mt5-server">
 					{mokliText($i18n?.language, 'mt5_server')}
 				</label>
-				<input
+				<select
 					id="mt5-server"
 					class="mt-1 h-12 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-base dark:border-gray-700"
-					autocomplete="off"
-					autocapitalize="off"
-					spellcheck="false"
-					placeholder={mokliText($i18n?.language, 'mt5_server_placeholder')}
 					bind:value={mt5Server}
-				/>
+				>
+					{#each picked?.servers ?? [] as server (server)}
+						<option value={server}>{server}</option>
+					{/each}
+				</select>
 				<p class="mt-3 text-xs leading-5 text-gray-500">{mokliText($i18n?.language, 'mt5_password_note')}</p>
 				<button
-					class="mt-5 h-12 w-full rounded-xl bg-gray-900 text-base text-white disabled:opacity-60 dark:bg-white dark:text-gray-900"
+					class="mt-5 h-12 w-full rounded-xl bg-blue-600 text-base text-white disabled:opacity-60"
 					type="submit"
 					disabled={mt5Saving}
 				>

@@ -98,6 +98,7 @@ def _broker(**kwargs) -> tuple[Mt5LinuxBroker, list[FakeMt5]]:
         login=kwargs.get("login", "10001"),
         password=kwargs.get("password", "s3cret-pass"),
         server=kwargs.get("server", "Broker-Demo"),
+        access=kwargs.get("access", ""),
         attempts=kwargs.get("attempts", 3),
         retry_delay=0,
         ipc_timeout_ms=kwargs.get("ipc_timeout_ms"),
@@ -123,6 +124,19 @@ async def test_connect_reads_host_port_and_hides_password(monkeypatch: pytest.Mo
         "portable": True,
     }
     assert created[0].login_calls == [(10001, "s3cret-pass", "Broker-Demo")]
+
+
+@pytest.mark.asyncio
+async def test_connect_dials_the_access_address(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MT5_TERMINAL_PATH", r"C:\MT5\terminal64.exe")
+    monkeypatch.setenv("MT5_PORTABLE", "1")
+    broker, created = _broker(server="FoxxLimited-Trade", access="203.0.113.10:443")
+    result = await broker.connect()
+    assert result["ok"] is True
+    assert broker.server == "FoxxLimited-Trade"
+    assert created[0].init_kwargs["server"] == "203.0.113.10:443"
+    assert created[0].login_calls == [(10001, "s3cret-pass", "203.0.113.10:443")]
+    assert "203.0.113.10" not in repr(broker)
     assert "s3cret-pass" not in repr(broker)
     info = await broker.get_account_info()
     assert info["account"]["balance"] == 2500.5

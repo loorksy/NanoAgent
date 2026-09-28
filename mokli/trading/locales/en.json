@@ -498,6 +498,8 @@
   "mt5.connect.token_required": "MT5 login, password, and broker server are required.",
   "mt5.connect.account_or_login_required": "MT5 login, password, and broker server are required.",
   "mt5.connect.login_incomplete": "MT5 login, password, and broker server are all required.",
+  "mt5.connect.server_unknown": "This company's servers could not be found. Search for the broker again.",
+  "mt5.connect.directory_failed": "Broker search is unavailable right now. Try again.",
   "mt5.connect.region_invalid": "Unknown bridge value: {region}",
   "mt5.connect.env_override": "MT5_LOGIN, MT5_PASSWORD, or MT5_SERVER environment variables override the saved account. Clear them on the server to use this form.",
   "mt5.connect.env_disconnect_blocked": "Cannot disconnect while MT5_LOGIN, MT5_PASSWORD, or MT5_SERVER environment variables are set.",

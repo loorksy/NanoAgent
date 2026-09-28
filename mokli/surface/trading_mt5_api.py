@@ -24,6 +24,7 @@ from mokli.trading.mt5_broker import (
     reset_transport,
     sdk_available,
 )
+from mokli.trading.mt5_directory import Mt5DirectoryError, looks_like_address, resolve_access
 
 QueryParams = dict[str, list[str]]
 
@@ -51,6 +52,8 @@ class _ConnectDraft:
     login: str
     password: str
     server: str
+    access: str
+    company: str
     locale: str | None
 
 
@@ -194,6 +197,7 @@ def _parse_connect(query: QueryParams, *, config_path: Path | None) -> _ConnectD
     stored = config.trading_mt5
     login = _query_text(query, "login") or (stored.login or "")
     server = _query_text(query, "server") or (stored.server or "")
+    company = _query_text(query, "company")
     # The form omits host and port unless the operator opens the advanced
     # fields. Use the same bridge address the agent uses, including MT5_HOST.
     runtime = load_trading_config()
@@ -202,14 +206,47 @@ def _parse_connect(query: QueryParams, *, config_path: Path | None) -> _ConnectD
     password = _query_text(query, "password") or stored.effective_password()
     if not login or not password or not server:
         raise TradingMt5Error(tr("mt5.connect.login_incomplete", locale=locale))
+    access = _resolve_server_access(
+        server,
+        company=company,
+        stored_server=stored.server or "",
+        stored_access=stored.access or "",
+        locale=locale,
+    )
     return _ConnectDraft(
         host=host,
         port=port,
         login=login,
         password=password,
         server=server,
+        access=access,
+        company=company,
         locale=locale,
     )
+
+
+def _resolve_server_access(
+    server: str,
+    *,
+    company: str,
+    stored_server: str,
+    stored_access: str,
+    locale: str | None,
+) -> str:
+    """Dial address for this server. A client-supplied access field is ignored."""
+    if looks_like_address(server):
+        return server.strip()
+    if company:
+        try:
+            access = resolve_access(server, company=company)
+        except Mt5DirectoryError as exc:
+            raise TradingMt5Error(tr("mt5.connect.directory_failed", locale=locale)) from exc
+        if not access:
+            raise TradingMt5Error(tr("mt5.connect.server_unknown", locale=locale))
+        return access
+    if server == stored_server and stored_access:
+        return stored_access
+    return ""
 
 
 def _persist(draft: _ConnectDraft, *, config_path: Path | None) -> None:
@@ -220,6 +257,7 @@ def _persist(draft: _ConnectDraft, *, config_path: Path | None) -> None:
         port=draft.port,
         login=draft.login,
         server=draft.server,
+        access=draft.access,
     )
     save_config(config, config_path)
     reset_transport()
@@ -279,6 +317,7 @@ async def _validate_live(draft: _ConnectDraft) -> dict[str, Any]:
         login=draft.login,
         password=draft.password,
         server=draft.server,
+        access=draft.access,
         attempts=1,
         retry_delay=0,
     )

@@ -498,6 +498,8 @@
   "mt5.connect.token_required": "رقم الدخول وكلمة المرور وسيرفر الوسيط مطلوبة.",
   "mt5.connect.account_or_login_required": "رقم الدخول وكلمة المرور وسيرفر الوسيط مطلوبة.",
   "mt5.connect.login_incomplete": "رقم الدخول وكلمة المرور وسيرفر الوسيط مطلوبة كلها.",
+  "mt5.connect.server_unknown": "لم يُعثر على خوادم هذه الشركة. ابحث عن الوسيط مرة أخرى.",
+  "mt5.connect.directory_failed": "تعذر البحث عن الوسطاء الآن. أعد المحاولة.",
   "mt5.connect.region_invalid": "قيمة جسر غير معروفة: {region}",
   "mt5.connect.env_override": "متغيرات البيئة MT5_LOGIN أو MT5_PASSWORD أو MT5_SERVER تتجاوز الحساب المحفوظ. امسحها على الخادم لاستخدام هذا النموذج.",
   "mt5.connect.env_disconnect_blocked": "لا يمكن قطع الربط بينما متغيرات البيئة MT5_LOGIN أو MT5_PASSWORD أو MT5_SERVER معيّنة.",

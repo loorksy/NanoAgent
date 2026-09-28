@@ -203,6 +203,93 @@ async def test_trading_mt5_update_uses_env_bridge_when_form_omits_host(
 
 
 @pytest.mark.asyncio
+async def test_company_server_dials_access_and_hides_it(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+
+    def fake_resolve(server: str, *, company: str = "") -> str:
+        assert server == "FoxxLimited-Trade"
+        assert company == "Foxx Limited"
+        return "203.0.113.10:443"
+
+    async def fake_validate(draft):
+        assert draft.access == "203.0.113.10:443"
+        assert draft.server == "FoxxLimited-Trade"
+        return {"login": draft.login, "name": "Desk", "server": draft.server}
+
+    monkeypatch.setattr("mokli.surface.trading_mt5_api.resolve_access", fake_resolve)
+    monkeypatch.setattr("mokli.surface.trading_mt5_api._validate_live", fake_validate)
+    payload = await trading_mt5_action(
+        "update",
+        {
+            "login": ["10001"],
+            "password": ["broker-pass"],
+            "server": ["FoxxLimited-Trade"],
+            "company": ["Foxx Limited"],
+        },
+    )
+    blob = json.dumps(payload)
+    assert "203.0.113.10" not in blob
+    assert "broker-pass" not in blob
+    assert payload["server"] == "FoxxLimited-Trade"
+    saved = load_config().trading_mt5
+    assert saved.server == "FoxxLimited-Trade"
+    assert saved.access == "203.0.113.10:443"
+    assert "203.0.113.10" not in json.dumps(saved.public_view())
+
+
+@pytest.mark.asyncio
+async def test_unknown_company_server_does_not_store_password(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+    monkeypatch.setattr("mokli.surface.trading_mt5_api.resolve_access", lambda *_args, **_kwargs: "")
+    with pytest.raises(TradingMt5Error, match="servers"):
+        await trading_mt5_action(
+            "update",
+            {
+                "login": ["10001"],
+                "password": ["broker-pass"],
+                "server": ["Missing-Trade"],
+                "company": ["Missing Ltd"],
+                "locale": ["en"],
+            },
+        )
+    assert get_secret_store().get("mt5_password") is None
+    assert load_config().trading_mt5.login == ""
+
+
+@pytest.mark.asyncio
+async def test_typed_server_address_is_the_dial_target(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+
+    def fake_resolve(*_args, **_kwargs):
+        raise AssertionError("a typed address is not a directory lookup")
+
+    async def fake_validate(draft):
+        assert draft.access == "203.0.113.10:443"
+        return {"login": draft.login, "name": "Desk"}
+
+    monkeypatch.setattr("mokli.surface.trading_mt5_api.resolve_access", fake_resolve)
+    monkeypatch.setattr("mokli.surface.trading_mt5_api._validate_live", fake_validate)
+    await trading_mt5_action(
+        "update",
+        {
+            "login": ["10001"],
+            "password": ["broker-pass"],
+            "server": ["203.0.113.10:443"],
+            "access": ["198.51.100.9:443"],
+        },
+    )
+    saved = load_config().trading_mt5
+    assert saved.server == "203.0.113.10:443"
+    assert saved.access == "203.0.113.10:443"
+
+
+@pytest.mark.asyncio
 async def test_trading_mt5_rejects_incomplete_login(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

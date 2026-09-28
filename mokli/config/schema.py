@@ -366,6 +366,8 @@ class TradingMt5Config(Base):
     port: int = Field(default=8001, ge=1, le=65535)
     login: str = ""
     server: str = ""
+    # host:port from the company directory. The terminal dials this; `server` is the name shown.
+    access: str = ""
     # The operator logged in inside the terminal window. The password stays there.
     terminal_session: bool = False
 
