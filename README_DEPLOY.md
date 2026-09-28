@@ -94,18 +94,36 @@ The running host keeps code in `/opt/nanoagent` on `main`. These files are not i
 
 `scripts/deploy-mokli-vps.sh` installs a different tree at `/opt/mokli`. Do not run it on a host that already serves this domain.
 
-On the new machine, as root, from a checkout of the same ref:
+The UI unit sets `PYTHONPATH=/opt/nanoagent` so the UI process can import Mokli. The public name is routed by `deploy/traefik/nanoagent.yml` to `127.0.0.1:8080`.
+
+`scripts/install-mt5linux-bridge.sh` is what a new container needs. When `C:\Python311\python.exe` already imports MetaTrader5 5.0.6231, numpy 1.26.4, mt5linux 0.2.4, and rpyc 5.2.3, it leaves the container alone. Otherwise it installs 64-bit Python 3.11.9 from python.org and those pins, then the Linux mt5linux 0.2.4 client. `scripts/install-mt5linux-shim.sh` copies the Wine bridge entrypoint when it is missing. Neither script restarts the container or changes its published ports. The watchdog then starts `C:\Python311\python.exe`. The image's 32-bit `python.exe` and mt5linux 1.1.1 do not complete the handshake.
+
+## What the programmer runs
+
+From a checkout of `main`, as root:
 
 ```bash
-sudo NANOAGENT_BOOTSTRAP=1 NANOAGENT_REF=<ref> scripts/install-nanoagent-host.sh
+sudo NANOAGENT_BOOTSTRAP=1 scripts/install-nanoagent-host.sh
 ```
 
-Fill the two env files, then start the services:
+That command installs git, Python 3.11, Node.js 22 when they are missing, both virtualenvs, the UI build, the systemd units, the bridge watchdog, and the bridge pins inside a running MT5 container. It copies `deploy/traefik/nanoagent.yml` only when `/docker/traefik/dynamic/` exists and `nanoagent.yml` is not already there. Edit the `Host` rule for another domain, then reload Traefik.
+
+The script creates the two env files from the examples and does not fill secrets. It does set `MT5_HOST` when that line is still `localhost` or empty, using the running container's address, and it does not print the address. A value you already chose is left as it is.
+
+Fill only the blank keys the script prints:
+
+| File | Key | What to put |
+| --- | --- | --- |
+| `/opt/nanoagent/.env` | `OANDA_API_TOKEN`, `OANDA_ACCOUNT_ID` | Market-data credentials. Leave them blank if this host does not use OANDA. |
+| `/opt/nanoagent/.env` | `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER` | Leave empty. The Connect page stores the account after a live login. |
+| `/opt/nanoagent/mokli-ui.env` | `MOKLI_SECRET_KEY` | A new random value: `openssl rand -hex 32`. Do not rotate it later; sessions are signed with it. |
+| `/opt/nanoagent/mokli-ui.env` | `MOKLI_API_TOKEN` | After the gateway has started once, copy the file `/opt/nanoagent/.mokli/workspace/agent_api/admin_token`. Do not print it. |
+| `/opt/nanoagent/mokli-ui.env` | `MT5_DESKTOP_USER`, `MT5_DESKTOP_PASSWORD` | The desktop login for the MT5 container, only if you use `/mt5-desktop/`. |
+
+Then start the services:
 
 ```bash
 sudo NANOAGENT_RESTART=1 scripts/install-nanoagent-host.sh
 ```
 
-The script installs the gateway, the UI, and the bridge watchdog. The UI process needs `PYTHONPATH=/opt/nanoagent` so it can import Mokli. The public name is routed by `deploy/traefik/nanoagent.yml` to `127.0.0.1:8080`. Copy that file into the Traefik dynamic directory and change the `Host` rule for another domain.
-
-`scripts/install-mt5linux-shim.sh` copies the Wine bridge entrypoint into the MT5 container when it is missing. It does not change the container's published ports. The watchdog then starts 64-bit `C:\Python311\python.exe` with mt5linux 0.2.4. The image's 32-bit `python.exe` and mt5linux 1.1.1 do not complete the handshake.
+The second run does not reinstall packages. It reloads the units, restarts the gateway and the UI, and skips the Wine installer when the pins already match.
