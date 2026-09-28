@@ -17,7 +17,12 @@ from mokli_ui.utils.auth import get_verified_user, get_verified_user_by_token
 from starlette.requests import Request
 from websockets.exceptions import ConnectionClosed
 
-from mokli.surface.mt5_desktop import desktop_authorization, upstream_http_url, upstream_ws_url
+from mokli.surface.mt5_desktop import (
+    desktop_authorization,
+    desktop_base_url,
+    upstream_http_url,
+    upstream_ws_url,
+)
 
 http_router = APIRouter()
 ws_router = APIRouter()
@@ -87,10 +92,14 @@ async def desktop_http(
     return await _proxy_http(path, request)
 
 
-def _connect_headers(authorization: str) -> dict[str, object]:
+def _connect_headers(authorization: str, origin: str) -> dict[str, object]:
     params = inspect.signature(websockets.connect).parameters
     key = 'additional_headers' if 'additional_headers' in params else 'extra_headers'
-    return {key: {'Authorization': authorization}, 'max_size': None, 'open_timeout': 10}
+    return {
+        key: {'Authorization': authorization, 'Origin': origin},
+        'max_size': None,
+        'open_timeout': 10,
+    }
 
 
 async def _browser_to_terminal(websocket: WebSocket, upstream) -> None:
@@ -138,11 +147,12 @@ async def desktop_socket(websocket: WebSocket) -> None:
         await websocket.close(code=1011)
         return
     offered = list(websocket.scope.get('subprotocols') or [])
+    origin = websocket.headers.get('origin') or desktop_base_url()
     try:
         upstream = await websockets.connect(
             upstream_ws_url(),
             subprotocols=offered,
-            **_connect_headers(authorization),
+            **_connect_headers(authorization, origin),
         )
     except Exception:
         await websocket.close(code=1011)
