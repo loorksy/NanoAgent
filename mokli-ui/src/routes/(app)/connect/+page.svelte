@@ -45,15 +45,12 @@
 	};
 
 	let mt5: Mt5Status = {};
-	let mt5Login = '';
-	let mt5Password = '';
-	let mt5Server = '';
-	let mt5Host = '';
-	let mt5Port = '';
-	let mt5Advanced = false;
 	let mt5Saving = false;
 	let mt5Note = '';
 	let mt5Ok = false;
+	let heldLogin = '';
+	let sessionTimer: ReturnType<typeof setInterval> | undefined;
+	let sessionBusy = false;
 
 	function flag(value: boolean): string {
 		return mokliText($i18n?.language, value ? 'yes' : 'no');
@@ -167,6 +164,9 @@
 			oanda = `${flag(Boolean(feed?.configured))} ${feed?.env ?? ''}`.trim();
 			broker = `${flag(Boolean(linked?.configured))} ${linked?.login ?? ''}`.trim();
 			await loadMt5();
+			sessionTimer = setInterval(() => {
+				void watchSession();
+			}, 8000);
 			level = body.mt5_permissions?.permissions?.level ?? '';
 			levels = body.mt5_permissions?.levels ?? [];
 			await loadChannels();
@@ -175,50 +175,50 @@
 		}
 	});
 
-	onDestroy(() => stopWhatsappPoll());
+	onDestroy(() => {
+		stopWhatsappPoll();
+		if (sessionTimer) clearInterval(sessionTimer);
+	});
 
-	async function loadMt5() {
-		mt5 = (await gateway('connect/mt5/status')) as Mt5Status;
+	function applySession(next: Mt5Status) {
+		const login = String(next.account?.login || next.login || '');
+		if (heldLogin) {
+			if (!next.connected || login !== heldLogin) heldLogin = '';
+			else return;
+		}
+		mt5 = next;
+		if (next.connected) broker = `${flag(true)} ${next.login ?? login}`.trim();
 	}
 
-	async function saveMt5() {
-		mt5Note = '';
-		mt5Ok = false;
-		mt5Saving = true;
-		const body: Record<string, string> = {
-			login: mt5Login.trim(),
-			password: mt5Password,
-			server: mt5Server.trim()
-		};
-		if (mt5Advanced) {
-			if (mt5Host.trim()) body.host = mt5Host.trim();
-			if (mt5Port.trim()) body.port = mt5Port.trim();
-		}
+	async function watchSession() {
+		if (sessionBusy) return;
+		sessionBusy = true;
 		try {
-			mt5 = (await gateway('connect/mt5', {
+			const next = (await gateway('connect/mt5/session', {
 				method: 'POST',
-				body: JSON.stringify(body)
+				body: '{}'
 			})) as Mt5Status;
-			mt5Password = '';
-			mt5Ok = true;
-			mt5Note = mokliText($i18n?.language, 'mt5_saved');
-			broker = `${flag(true)} ${mt5.login ?? ''}`.trim();
+			applySession(next);
 		} catch (err) {
-			mt5Ok = false;
-			mt5Note = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'mt5_failed');
+			if (!mt5.connected) {
+				mt5Ok = false;
+				mt5Note = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'mt5_failed');
+			}
 		} finally {
-			mt5Saving = false;
+			sessionBusy = false;
 		}
+	}
+
+	async function loadMt5() {
+		await watchSession();
 	}
 
 	async function disconnectMt5() {
 		mt5Saving = true;
 		mt5Note = '';
+		heldLogin = String(mt5.account?.login || mt5.login || '');
 		try {
 			mt5 = (await gateway('connect/mt5/disconnect', { method: 'POST', body: '{}' })) as Mt5Status;
-			mt5Password = '';
-			mt5Login = '';
-			mt5Server = '';
 			mt5Ok = true;
 			mt5Note = '';
 			broker = flag(false);
@@ -292,6 +292,7 @@
 
 	<section class="rounded-xl border border-gray-200 p-4 text-sm dark:border-gray-800">
 		<h2 class="font-medium">{mokliText($i18n?.language, 'mt5_account')}</h2>
+		<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'mt5_window_hint')}</p>
 		{#if mt5.configured}
 			<p class="mt-2 {mt5.connected ? 'text-green-600' : 'text-red-500'}">
 				{mokliText($i18n?.language, mt5.connected ? 'mt5_connected' : 'mt5_disconnected')}
@@ -312,47 +313,13 @@
 				{mokliText($i18n?.language, 'mt5_disconnect')}
 			</button>
 		{:else}
-			<input
-				class="mt-3 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-				autocomplete="off"
-				placeholder={mokliText($i18n?.language, 'mt5_login')}
-				bind:value={mt5Login}
-			/>
-			<input
-				class="mt-3 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-				type="password"
-				autocomplete="off"
-				placeholder={mokliText($i18n?.language, 'mt5_password')}
-				bind:value={mt5Password}
-			/>
-			<input
-				class="mt-3 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-				autocomplete="off"
-				placeholder={mokliText($i18n?.language, 'mt5_server')}
-				bind:value={mt5Server}
-			/>
-			<label class="mt-3 flex items-center gap-2 text-gray-500">
-				<input type="checkbox" bind:checked={mt5Advanced} />
-				{mokliText($i18n?.language, 'mt5_advanced')}
-			</label>
-			{#if mt5Advanced}
-				<input
-					class="mt-3 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-					autocomplete="off"
-					placeholder={mokliText($i18n?.language, 'mt5_host')}
-					bind:value={mt5Host}
-				/>
-				<input
-					class="mt-3 w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-					autocomplete="off"
-					placeholder={mokliText($i18n?.language, 'mt5_port')}
-					bind:value={mt5Port}
-				/>
-			{/if}
-			<button class="mt-3 rounded-lg border px-3 py-1.5" disabled={mt5Saving} on:click={saveMt5}>
-				{mokliText($i18n?.language, mt5Saving ? 'mt5_saving' : 'mt5_connect')}
-			</button>
+			<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'mt5_disconnected')}</p>
 		{/if}
+		<iframe
+			class="mt-3 h-[70vh] w-full rounded-lg border border-gray-300 bg-black dark:border-gray-700"
+			title={mokliText($i18n?.language, 'mt5_account')}
+			src="/mt5-desktop/vnc/index.html?autoconnect=1&resize=scale&show_control_bar=true&clipboard_up=true&clipboard_down=true"
+		></iframe>
 		{#if mt5Note}
 			<p class="mt-2 {mt5Ok ? 'text-green-600' : 'text-red-500'}">{mt5Note}</p>
 		{/if}

@@ -184,6 +184,7 @@
   "mt5_connected": "Connected",
   "mt5_disconnected": "Disconnected",
   "mt5_account": "MT5 account",
+  "mt5_window_hint": "This is the MetaTrader window. Choose File, then Open an Account, type the company, pick its server, and enter the account number and password.",
   "mt5_saving": "Connecting…",
   "mt5_saved": "MT5 account linked.",
   "mt5_failed": "MT5 connection failed."

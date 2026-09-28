@@ -20,6 +20,7 @@ from mokli.trading.i18n import tr
 from mokli.trading.mt5_broker import (
     Mt5LinuxBroker,
     public_account_information,
+    read_terminal_account,
     reset_transport,
     sdk_available,
 )
@@ -29,7 +30,7 @@ QueryParams = dict[str, list[str]]
 if TYPE_CHECKING:
     from mokli.surface.settings_services import MokliSettingsConfig
 
-_UPDATE_ACTIONS = frozenset({"update", "test", "disconnect", "status"})
+_UPDATE_ACTIONS = frozenset({"update", "test", "disconnect", "status", "session"})
 _SECRET_KEYS = frozenset({"password", "token", "investorPassword", "investor_password"})
 _ENV_KEYS = ("MT5_LOGIN", "MT5_PASSWORD", "MT5_SERVER")
 
@@ -224,6 +225,33 @@ def _persist(draft: _ConnectDraft, *, config_path: Path | None) -> None:
     reset_transport()
 
 
+def _persist_window(
+    account: dict[str, Any],
+    *,
+    config_path: Path | None,
+) -> None:
+    """Remember the account that is open in the terminal window."""
+    config = load_config(config_path) if config_path is not None else load_config()
+    trading = load_trading_config()
+    login = str(account.get("login") or "")
+    server = str(account.get("server") or "")
+    stored = config.trading_mt5
+    same = stored.login == login and stored.server == server and bool(stored.effective_password())
+    if stored.login == login and stored.server == server and (same or stored.terminal_session):
+        return
+    if not same:
+        get_secret_store().delete("mt5_password")
+    config.trading_mt5 = TradingMt5Config(
+        host=trading.mt5_host,
+        port=int(trading.mt5_port),
+        login=login,
+        server=server,
+        terminal_session=not same,
+    )
+    save_config(config, config_path)
+    reset_transport()
+
+
 def _disconnect_sync(query: QueryParams, *, config_path: Path | None) -> dict[str, Any]:
     locale = _locale(query)
     if _env_override():
@@ -279,7 +307,10 @@ async def _probe(locale: str | None, *, attempts: int) -> tuple[dict[str, Any] |
         return None, tr("mt5.credentials_missing", locale=locale), False
     if not sdk_available():
         return None, tr("mt5.sdk_missing", locale=locale), False
-    broker = Mt5LinuxBroker.from_config(trading, attempts=attempts, retry_delay=0.2)
+    broker_kwargs: dict[str, Any] = {"attempts": attempts, "retry_delay": 0.2}
+    if not trading.mt5_password:
+        broker_kwargs["ipc_timeout_ms"] = 8_000
+    broker = Mt5LinuxBroker.from_config(trading, **broker_kwargs)
     connected = await broker.connect()
     if not connected.get("ok"):
         return None, str(connected.get("error") or tr("mt5.connect.failed", locale=locale)), False
@@ -304,6 +335,21 @@ def _saved_payload(
         account=account,
         connected=True,
     )
+
+
+async def _apply_session(query: QueryParams, *, config_path: Path | None) -> dict[str, Any]:
+    """Link whatever account the operator opened inside the terminal window."""
+    locale = _locale(query)
+    trading = load_trading_config()
+    account = await read_terminal_account(
+        host=trading.mt5_host,
+        port=int(trading.mt5_port),
+        ipc_timeout_ms=8_000,
+    )
+    if not account:
+        return trading_mt5_payload(config_path=config_path, locale=locale, connected=False)
+    _persist_window(account, config_path=config_path)
+    return _saved_payload(config_path=config_path, locale=locale, account=account)
 
 
 async def _apply_update(query: QueryParams, *, config_path: Path | None) -> dict[str, Any]:
@@ -351,6 +397,8 @@ async def trading_mt5_action(
         )
     if action == "disconnect":
         return _disconnect_sync(query, config_path=config_path)
+    if action == "session":
+        return await _apply_session(query, config_path=config_path)
     if action != "update":
         raise TradingMt5Error(
             tr("mt5.connect.api.unknown_action", locale=locale, action=action),
@@ -375,8 +423,8 @@ async def trading_mt5_settings_action(
             tr("mt5.connect.api.unknown_action", locale=locale, action=action),
             status=404,
         )
-    if action == "status":
-        return await trading_mt5_action("status", query, config_path=config_path)
+    if action in {"status", "session"}:
+        return await trading_mt5_action(action, query, config_path=config_path)
     if config is None or action == "test":
         return await trading_mt5_action(action, query, config_path=config_path)
     if action == "disconnect":

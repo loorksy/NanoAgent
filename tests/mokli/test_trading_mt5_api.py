@@ -104,6 +104,45 @@ async def test_trading_mt5_failed_login_does_not_store_password(
 
 
 @pytest.mark.asyncio
+async def test_session_adopts_window_account_without_password(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+
+    async def fake_read(**kwargs):
+        assert kwargs["ipc_timeout_ms"] == 8000
+        return {"login": "256952586", "server": "Exness-MT5Real35", "name": "Desk", "currency": "USD"}
+
+    monkeypatch.setattr("mokli.surface.trading_mt5_api.read_terminal_account", fake_read)
+    payload = await trading_mt5_action("session", {})
+    assert payload["connected"] is True
+    assert payload["login"] == "256952586"
+    assert payload["server"] == "Exness-MT5Real35"
+    assert payload["password_set"] is False
+    saved = load_config().trading_mt5
+    assert saved.terminal_session is True
+    assert get_secret_store().get("mt5_password") is None
+    assert "256952586" in json.dumps(payload)
+    assert payload["password_set"] is False
+
+
+@pytest.mark.asyncio
+async def test_session_without_account_does_not_store(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use_config(tmp_path, monkeypatch)
+
+    async def fake_read(**kwargs):
+        del kwargs
+        return None
+
+    monkeypatch.setattr("mokli.surface.trading_mt5_api.read_terminal_account", fake_read)
+    payload = await trading_mt5_action("session", {})
+    assert payload["connected"] is False
+    assert load_config().trading_mt5.login == ""
+
+
+@pytest.mark.asyncio
 async def test_trading_mt5_arabic_labels(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     _use_config(tmp_path, monkeypatch)
     payload = trading_mt5_payload(locale="ar")

@@ -100,6 +100,7 @@ def _broker(**kwargs) -> tuple[Mt5LinuxBroker, list[FakeMt5]]:
         server=kwargs.get("server", "Broker-Demo"),
         attempts=kwargs.get("attempts", 3),
         retry_delay=0,
+        ipc_timeout_ms=kwargs.get("ipc_timeout_ms"),
         client_factory=factory,
     )
     return broker, created
@@ -129,6 +130,21 @@ async def test_connect_reads_host_port_and_hides_password(monkeypatch: pytest.Mo
     price = await broker.get_symbol_price("XAUUSD")
     assert price["bid"] == 2300.1
     assert price["ask"] == 2300.4
+
+
+@pytest.mark.asyncio
+async def test_window_login_attaches_without_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MT5_TERMINAL_PATH", r"C:\MT5\terminal64.exe")
+    monkeypatch.setenv("MT5_PORTABLE", "1")
+    broker, created = _broker(password="", ipc_timeout_ms=8000)
+    result = await broker.connect()
+    assert result["ok"] is True
+    assert "password" not in created[0].init_kwargs
+    assert "login" not in created[0].init_kwargs
+    assert created[0].init_kwargs["path"] == r"C:\MT5\terminal64.exe"
+    assert created[0].init_kwargs["portable"] is True
+    assert created[0].init_kwargs["timeout"] == 8000
+    assert created[0].login_calls == []
 
 
 @pytest.mark.asyncio

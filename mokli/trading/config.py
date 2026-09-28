@@ -23,10 +23,13 @@ class TradingConfig:
     mt5_login: str | None = None
     mt5_password: str | None = field(default=None, repr=False)
     mt5_server: str | None = None
+    mt5_terminal_session: bool = False
 
     @property
     def mt5_configured(self) -> bool:
-        return bool(self.mt5_login and self.mt5_password and self.mt5_server)
+        if not (self.mt5_login and self.mt5_server):
+            return False
+        return bool(self.mt5_password or self.mt5_terminal_session)
 
     @property
     def oanda_configured(self) -> bool:
@@ -48,6 +51,7 @@ class TradingConfig:
             "login": self.mt5_login or "",
             "server": self.mt5_server or "",
             "password_set": bool(self.mt5_password),
+            "terminal_session": self.mt5_terminal_session,
         }
 
 
@@ -58,6 +62,7 @@ class _StoredCredentials:
     mt5_login: str | None = None
     mt5_password: str | None = None
     mt5_server: str | None = None
+    mt5_terminal_session: bool = False
     oanda_token: str | None = None
     oanda_account: str | None = None
     oanda_env: str | None = None
@@ -79,6 +84,7 @@ def _stored_credentials() -> _StoredCredentials:
         mt5_login=_strip(mt5.login),
         mt5_password=_strip(mt5.effective_password()),
         mt5_server=_strip(mt5.server),
+        mt5_terminal_session=bool(mt5.terminal_session),
         oanda_token=_strip(oanda.effective_token()),
         oanda_account=_strip(oanda.account_id),
         oanda_env=_strip(oanda.env),
@@ -116,4 +122,5 @@ def load_trading_config() -> TradingConfig:
         mt5_login=_strip(os.environ.get("MT5_LOGIN")) or stored.mt5_login,
         mt5_password=_strip(os.environ.get("MT5_PASSWORD")) or stored.mt5_password,
         mt5_server=_strip(os.environ.get("MT5_SERVER")) or stored.mt5_server,
+        mt5_terminal_session=stored.mt5_terminal_session,
     )

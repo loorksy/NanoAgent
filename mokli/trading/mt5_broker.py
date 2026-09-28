@@ -330,6 +330,59 @@ def _ipc_timeout_ms() -> int:
         return 45_000
 
 
+def _open_kwargs(timeout_ms: int) -> dict[str, Any]:
+    init_kwargs: dict[str, Any] = {"timeout": max(1000, int(timeout_ms))}
+    terminal = _terminal_path()
+    if terminal:
+        init_kwargs["path"] = terminal
+    if _portable_terminal():
+        init_kwargs["portable"] = True
+    return init_kwargs
+
+
+def read_terminal_account_sync(
+    *,
+    host: str,
+    port: int,
+    ipc_timeout_ms: int = 8_000,
+    client_factory: ClientFactory | None = None,
+) -> dict[str, Any] | None:
+    """Read the account already open in the terminal window.
+
+    Returns ``None`` when the terminal has not logged in. This does not send
+    a password.
+    """
+    if client_factory is not None:
+        client = client_factory(host, port)
+    else:
+        from mt5linux import MetaTrader5
+
+        client = MetaTrader5(host=host, port=int(port))
+    try:
+        if client.initialize(**_open_kwargs(ipc_timeout_ms)) is False:
+            return None
+        view = _account_view(client.account_info())
+    except Exception:
+        logger.debug("MT5 terminal window has no account host=%s port=%s", host, port)
+        return None
+    finally:
+        shutdown = getattr(client, "shutdown", None)
+        if callable(shutdown):
+            try:
+                shutdown()
+            except Exception:
+                logger.debug("MT5 shutdown after account read failed")
+    login = str(view.get("login") or "")
+    server = str(view.get("server") or "")
+    if not login or login == "0" or not server:
+        return None
+    return view
+
+
+async def read_terminal_account(**kwargs: Any) -> dict[str, Any] | None:
+    return await asyncio.to_thread(read_terminal_account_sync, **kwargs)
+
+
 class Mt5LinuxBroker:
     """``mt5linux.MetaTrader5`` client. Every dial target comes from config or env."""
 
@@ -344,6 +397,7 @@ class Mt5LinuxBroker:
         attempts: int = _DEFAULT_ATTEMPTS,
         retry_delay: float = 0.4,
         timeout: float | None = None,
+        ipc_timeout_ms: int | None = None,
         client_factory: ClientFactory | None = None,
     ) -> None:
         self.host = (host or "").strip() or _DEFAULT_HOST
@@ -354,6 +408,7 @@ class Mt5LinuxBroker:
         self.attempts = max(1, int(attempts))
         self.retry_delay = max(0.0, float(retry_delay))
         self.timeout = _DEFAULT_TIMEOUT if timeout is None else max(1.0, float(timeout))
+        self.ipc_timeout_ms = None if ipc_timeout_ms is None else max(1000, int(ipc_timeout_ms))
         self._factory = client_factory
         self._client: Any = None
         self._lock = threading.Lock()
@@ -408,32 +463,41 @@ class Mt5LinuxBroker:
         except Exception:
             logger.debug("MT5 shutdown failed host=%s port=%s", self.host, self.port)
 
+    def _terminal_kwargs(self, *, with_credentials: bool) -> dict[str, Any]:
+        timeout_ms = self.ipc_timeout_ms if self.ipc_timeout_ms is not None else _ipc_timeout_ms()
+        init_kwargs = _open_kwargs(timeout_ms)
+        if with_credentials:
+            init_kwargs["login"] = int(self.login)
+            init_kwargs["password"] = self.password
+            init_kwargs["server"] = self.server
+        return init_kwargs
+
     def _session(self, client: Any) -> None:
-        if not self.login or not self.password or not self.server:
+        if self.password:
+            if not self.login or not self.server:
+                raise Mt5ConnectionError(tr("mt5.credentials_missing"))
+            try:
+                int(self.login)
+            except ValueError:
+                raise Mt5ConnectionError(tr("mt5.connect.login_invalid")) from None
+            # The official terminal attaches only when the first call names the
+            # account. A bare initialize() waits on IPC until it times out if the
+            # terminal has not opened this broker before.
+            init_kwargs = self._terminal_kwargs(with_credentials=True)
+            if client.initialize(**init_kwargs) is False:
+                raise Mt5ConnectionError(_last_error(client, self.password))
+            logged = client.login(int(self.login), password=self.password, server=self.server)
+            if logged is False:
+                raise Mt5ConnectionError(_last_error(client, self.password))
+            return
+        if not self.login or not self.server:
             raise Mt5ConnectionError(tr("mt5.credentials_missing"))
-        try:
-            login_id = int(self.login)
-        except ValueError:
-            raise Mt5ConnectionError(tr("mt5.connect.login_invalid")) from None
-        # The official terminal attaches only when the first call names the
-        # account. A bare initialize() waits on IPC until it times out if the
-        # terminal has not opened this broker before.
-        init_kwargs: dict[str, Any] = {
-            "login": login_id,
-            "password": self.password,
-            "server": self.server,
-            "timeout": _ipc_timeout_ms(),
-        }
-        terminal = _terminal_path()
-        if terminal:
-            init_kwargs["path"] = terminal
-        if _portable_terminal():
-            init_kwargs["portable"] = True
-        if client.initialize(**init_kwargs) is False:
-            raise Mt5ConnectionError(_last_error(client, self.password))
-        logged = client.login(login_id, password=self.password, server=self.server)
-        if logged is False:
-            raise Mt5ConnectionError(_last_error(client, self.password))
+        # The operator already logged in inside the terminal window.
+        if client.initialize(**self._terminal_kwargs(with_credentials=False)) is False:
+            raise Mt5ConnectionError(_last_error(client, ""))
+        seen = str(_account_view(client.account_info()).get("login") or "")
+        if seen != self.login:
+            raise Mt5ConnectionError(tr("mt5.credentials_missing"))
 
     def _attempt(self, fn: Callable[[Any], Any] | None = None) -> Any:
         last = tr("mt5.connect.failed")

@@ -165,6 +165,7 @@ from mokli_ui.routers import (
     memories,
     models,
     mokli,
+    mt5_desktop,
     notes,
     notifications,
     ollama,
@@ -858,6 +859,8 @@ app.include_router(openai.router, prefix='/openai', tags=['openai'])
 app.include_router(pipelines.router, prefix='/api/v1/pipelines', tags=['pipelines'])
 app.include_router(tasks.router, prefix='/api/v1/tasks', tags=['tasks'])
 app.include_router(mokli.router, prefix='/api/v1/mokli', tags=['mokli'])
+app.include_router(mt5_desktop.http_router, prefix='/mt5-desktop', tags=['mt5-desktop'])
+app.include_router(mt5_desktop.ws_router, tags=['mt5-desktop'])
 app.include_router(images.router, prefix='/api/v1/images', tags=['images'])
 
 app.include_router(audio.router, prefix='/api/v1/audio', tags=['audio'])

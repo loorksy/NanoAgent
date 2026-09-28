@@ -370,6 +370,18 @@ async def post_mt5(request: web.Request) -> web.Response:
     return ok(payload)
 
 
+async def post_mt5_session(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
+
+    path = services(request).config_path
+    try:
+        payload = await trading_mt5_action("session", {}, config_path=path)
+    except TradingMt5Error as exc:
+        raise ApiError(exc.status, "mt5_connect_error", details={"message": exc.message}) from exc
+    return ok(payload)
+
+
 async def post_mt5_disconnect(request: web.Request) -> web.Response:
     require_scope(request, "control")
     from mokli.surface.trading_mt5_api import TradingMt5Error, trading_mt5_action
@@ -393,6 +405,7 @@ def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_put(f"{prefix}/connect/risk/{{field}}", put_risk_field)
     router.add_get(f"{prefix}/connect/mt5/status", get_mt5_status)
     router.add_post(f"{prefix}/connect/mt5", post_mt5)
+    router.add_post(f"{prefix}/connect/mt5/session", post_mt5_session)
     router.add_post(f"{prefix}/connect/mt5/disconnect", post_mt5_disconnect)
     router.add_get(f"{prefix}/connect/mt5/permissions", get_permissions)
     router.add_put(f"{prefix}/connect/mt5/permissions", put_permissions)

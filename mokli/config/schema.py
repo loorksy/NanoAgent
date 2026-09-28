@@ -366,17 +366,21 @@ class TradingMt5Config(Base):
     port: int = Field(default=8001, ge=1, le=65535)
     login: str = ""
     server: str = ""
+    # The operator logged in inside the terminal window. The password stays there.
+    terminal_session: bool = False
 
     def public_view(self) -> dict[str, str | int | bool]:
         """Operator-safe snapshot — never includes the password."""
         password = self.effective_password()
+        linked = bool(self.login and self.server and (password or self.terminal_session))
         return {
             "host": self.host or "localhost",
             "port": int(self.port or 8001),
             "login": self.login,
             "server": self.server,
             "password_set": bool(password),
-            "configured": bool(self.login and self.server and password),
+            "terminal_session": self.terminal_session,
+            "configured": linked,
         }
 
     def effective_password(self) -> str:
