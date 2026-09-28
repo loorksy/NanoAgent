@@ -7,6 +7,9 @@ MT5 account is configured.
 
 from __future__ import annotations
 
+import asyncio
+import threading
+import time
 from typing import Any
 
 from mokli.trading.mt5_broker import get_transport
@@ -125,12 +128,44 @@ def candles_from_rates(
 
 
 def bar_count(interval: str, limit: int, from_ms: int | None, to_ms: int | None) -> int:
+    """How many terminal bars to request.
+
+    The terminal returns the newest bars. A chart asking for an older window
+    still needs every bar from that window up to now, otherwise the filter
+    drops the series and history stops.
+    """
     count = max(1, min(int(limit), 5000))
-    if from_ms is None or to_ms is None or to_ms <= from_ms:
-        return count
     bar = _BAR_SECONDS.get((interval or "").strip().lower(), 900)
-    span = int((to_ms - from_ms) / 1000 / bar) + 5
-    return max(count, min(span, 5000))
+    now_ms = int(time.time() * 1000)
+    if from_ms is not None and from_ms < now_ms:
+        depth = int((now_ms - from_ms) / 1000 / bar) + 8
+        return max(count, min(depth, 5000))
+    if from_ms is not None and to_ms is not None and to_ms > from_ms:
+        span = int((to_ms - from_ms) / 1000 / bar) + 5
+        return max(count, min(span, 5000))
+    return count
+
+
+def run_sync(coro: Any) -> Any:
+    """Run a broker coroutine from the synchronous analysis path."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    outcome: dict[str, Any] = {}
+
+    def _runner() -> None:
+        try:
+            outcome["value"] = asyncio.run(coro)
+        except Exception as exc:
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    thread.join()
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("value")
 
 
 async def broker_symbols(query: str = "", limit: int = 200) -> dict[str, Any]:

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import time
 
 from mokli.agent.tools.mt5_market import Mt5ListSymbolsTool, Mt5MarketTool
-from mokli.trading.broker_market import candles_from_rates, quote_view
+from mokli.trading.broker_market import bar_count, candles_from_rates, quote_view
 from mokli.trading.mt5_broker import (
     _compact_symbols,
     _filter_symbols,
@@ -84,6 +85,15 @@ def test_quote_and_candles_use_terminal_fields() -> None:
     assert [row["time"] for row in candles] == [200]
     assert candles[0]["complete"] is False
     assert candles[0]["volume"] == 3
+
+
+def test_older_chart_window_fetches_back_to_that_window() -> None:
+    now_ms = int(time.time() * 1000)
+    from_ms = now_ms - 2 * 24 * 3600 * 1000
+    to_ms = from_ms + 3600 * 1000
+    count = bar_count("5m", 300, from_ms, to_ms)
+    assert count >= 2 * 24 * 12
+    assert bar_count("15m", 240, None, None) == 240
 
 
 async def test_agent_reads_every_symbol_from_the_account() -> None:

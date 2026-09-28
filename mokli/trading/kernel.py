@@ -27,7 +27,7 @@ from mokli.trading.gold import DATA_SYMBOL, require_gold
 from mokli.trading.i18n import gate_label, tr
 from mokli.trading.intel.postmortem import refuse_repeat_error
 from mokli.trading.locale import active_locale
-from mokli.trading.oanda import fetch_quote
+from mokli.trading.oanda import OandaQuote
 from mokli.trading.observability import log_gate_observability
 from mokli.trading.policy import GOLD_POINT
 from mokli.trading.policy_guard import PolicyViolation
@@ -108,6 +108,13 @@ def _session_key(explicit: str | None) -> str | None:
 def _operator_text() -> str:
     ctx = current_request_context()
     return (ctx.original_user_text if ctx else "") or ""
+
+
+def fetch_quote(symbol: str, **_kwargs: object) -> OandaQuote | None:
+    """Live bid/ask for the gates. Tests replace this function."""
+    from mokli.trading.market_context import live_analysis_quote
+
+    return live_analysis_quote(symbol)
 
 
 def _quote_age(quote: object) -> float | None:
