@@ -1,10 +1,25 @@
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from mokli.agent.tools.context import RequestContext, request_context
+from mokli.trading.teams.evidence_text import scope_market_evidence
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 from mokli.utils.llm_runtime import LLMRuntime
+
+
+def test_non_structure_roles_do_not_receive_the_candle_dump() -> None:
+    candles = [{"t": index, "o": 1, "h": 2, "l": 0, "c": 1} for index in range(40)]
+    full = json.dumps({"symbol": "XAUUSD", "last_close": 2300, "candles": candles})
+    technical = scope_market_evidence(full, "Technical Analyst", "role:structure")
+    risk = scope_market_evidence(full, "Risk Officer", "role:risk")
+    macro = scope_market_evidence(full, "Macro News Analyst", "role:macro")
+    assert "candles" in technical
+    assert "candles" not in risk
+    assert "candles" not in macro
+    assert "2300" in risk
+    assert len(risk) < len(full) // 2
 
 
 @pytest.mark.asyncio

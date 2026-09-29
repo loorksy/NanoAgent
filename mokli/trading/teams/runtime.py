@@ -19,7 +19,7 @@ from mokli.trading.agents.macro_drivers import format_team_briefing, run_macro_d
 from mokli.trading.agents.market_data import run_market_data_agent
 from mokli.trading.i18n import tr
 from mokli.trading.stage_events import emit_stage
-from mokli.trading.teams.evidence_text import format_market_evidence
+from mokli.trading.teams.evidence_text import format_market_evidence, scope_market_evidence
 from mokli.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 
@@ -122,7 +122,7 @@ async def run_swarm(
                 agent_id=task.agent_id,
                 role=role,
                 task_text=prompt,
-                evidence_text=evidence_text,
+                evidence_text=scope_market_evidence(evidence_text, role, system_prompt),
                 system_prompt=system_prompt,
                 manager=subagent_manager,
                 publisher=publisher,

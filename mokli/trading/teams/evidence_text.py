@@ -29,3 +29,28 @@ def format_market_evidence(market: AgentMarketContext, *, max_candles: int = 40)
         "candles": rows,
     }
     return json.dumps(payload, ensure_ascii=False)
+
+
+_CANDLE_ROLE_FILES = frozenset({
+    "structure",
+    "timeframe",
+    "mtf_synthesizer",
+    "liquidity",
+    "scenario",
+})
+
+
+def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> str:
+    """Price and candles for structure roles. Other roles get the quote, not the candle dump."""
+    from mokli.trading.teams.role_prompts import resolve_role_file
+
+    if resolve_role_file(role, system_prompt) in _CANDLE_ROLE_FILES:
+        return evidence
+    try:
+        payload = json.loads(evidence)
+    except json.JSONDecodeError:
+        return evidence
+    if not isinstance(payload, dict) or "candles" not in payload:
+        return evidence
+    scoped = {key: value for key, value in payload.items() if key != "candles"}
+    return json.dumps(scoped, ensure_ascii=False)

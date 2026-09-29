@@ -16,7 +16,7 @@ from mokli.trading.locale import active_locale
 from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.gate_report import build_gate_report_result
 from mokli.trading.recommendations.lifecycle import sync_session_live_plan
-from mokli.trading.result_wire import result_to_wire
+from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.tool_delivery import should_publish_trading_ui
 
 _KERNEL_PARAMETERS = tool_parameters_schema(
@@ -133,7 +133,7 @@ class RunTradingKernelTool(Tool):
             result.team_agents = list(swarm_agents)
         if swarm_drivers:
             result.macro_drivers = list(swarm_drivers)
-        payload = json.dumps(result_to_wire(result), indent=2)
+        payload = json.dumps(brief_for_model(result_to_wire(result)), indent=2)
         if decision_review and turn is not None:
             turn.decision_wire = payload
         return payload
@@ -164,4 +164,4 @@ class GetGateReportTool(Tool):
         locale = active_locale()
         live = sync_session_live_plan(current_request_session_key())
         result = build_gate_report_result(live, operator_text="", locale=locale)
-        return json.dumps(result_to_wire(result), indent=2)
+        return json.dumps(brief_for_model(result_to_wire(result), include_gates=True), indent=2)

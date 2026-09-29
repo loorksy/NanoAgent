@@ -10,7 +10,7 @@ from typing import Any
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
 from mokli.agent.tools.context import ToolContext, current_request_context
 from mokli.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
-from mokli.trading.result_wire import result_to_wire
+from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import list_presets, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
@@ -137,8 +137,7 @@ class RunTradingTeamTool(Tool):
         return json.dumps(
             {
                 "preset": preset_name,
-                "task_summaries": swarm.get("task_summaries", []),
-                "final": wire,
+                "final": brief_for_model(wire),
             },
             indent=2,
         )

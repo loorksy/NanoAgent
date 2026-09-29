@@ -181,3 +181,83 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
         payload["agreement"] = agreement
     payload["operatorSummary"] = build_trading_explain(payload, locale=str(payload.get("locale") or "en"))
     return _jsonable(payload)
+
+
+_MODEL_KEYS = (
+    "decision",
+    "confidence",
+    "summary",
+    "keyReasons",
+    "riskWarnings",
+    "refusalSummary",
+    "agreement",
+    "dataSources",
+    "operatorSummary",
+    "teamMode",
+    "recommendationId",
+    "interval",
+)
+_MODEL_RECOMMENDATION_KEYS = (
+    "action",
+    "entry",
+    "entryZone",
+    "stopLoss",
+    "targets",
+    "takeProfit",
+    "rr",
+    "netRr",
+    "riskPercent",
+    "invalidationRule",
+    "validityCandles",
+    "activationCondition",
+    "alternativeScenario",
+)
+
+
+def brief_for_model(wire: dict[str, Any], *, include_gates: bool = False) -> dict[str, Any]:
+    """Structured decision for the model, without chart images or raw role transcripts."""
+    brief: dict[str, Any] = {}
+    for key in _MODEL_KEYS:
+        value = wire.get(key)
+        if value not in (None, "", [], {}):
+            brief[key] = value
+    recommendation = wire.get("recommendation")
+    if isinstance(recommendation, dict):
+        slim = {
+            key: recommendation[key]
+            for key in _MODEL_RECOMMENDATION_KEYS
+            if key in recommendation and recommendation[key] not in (None, "", [])
+        }
+        if slim:
+            brief["recommendation"] = slim
+    agents = wire.get("teamAgents")
+    if isinstance(agents, list):
+        rows: list[dict[str, Any]] = []
+        for row in agents:
+            if not isinstance(row, dict):
+                continue
+            item: dict[str, Any] = {
+                "agentId": row.get("agentId"),
+                "role": row.get("role"),
+                "status": row.get("status"),
+            }
+            match = _STANCE.search(str(row.get("summary") or ""))
+            if match is not None:
+                item["stance"] = match.group(1).lower()
+            rows.append({key: value for key, value in item.items() if value not in (None, "")})
+        if rows:
+            brief["teamAgents"] = rows
+    if include_gates:
+        chain = wire.get("gateChain")
+        if isinstance(chain, dict):
+            verdicts = [
+                {
+                    "id": row.get("id"),
+                    "name": row.get("name"),
+                    "status": row.get("status"),
+                }
+                for row in chain.get("verdicts") or []
+                if isinstance(row, dict)
+            ]
+            brief["gateChain"] = {"allowed": chain.get("allowed"), "verdicts": verdicts}
+    return brief

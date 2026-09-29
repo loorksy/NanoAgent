@@ -245,3 +245,54 @@ def test_buy_gold_question_routes_to_kernel_review() -> None:
     assert block is not None
     assert "decision_review=true" in block.content
     assert "gold_decision_review" in block.content
+
+
+def test_model_brief_drops_images_and_raw_role_text() -> None:
+    from mokli.trading.result_wire import brief_for_model
+
+    image = "data:image/png;base64," + ("A" * 8000)
+    transcript = "candle by candle\n" * 400 + "STANCE: wait"
+    wire = {
+        "decision": "wait",
+        "summary": "wait for the level",
+        "keyReasons": ["spread"],
+        "riskWarnings": ["news"],
+        "dataSources": ["market:XAUUSD:15m"],
+        "operatorSummary": "WAIT",
+        "agreement": {"stance": "wait", "agreeing": 2, "votes": 2},
+        "recommendation": {
+            "action": "wait",
+            "entry": 2300.0,
+            "stopLoss": 2290.0,
+            "targets": [2320.0],
+            "riskPercent": 0.01,
+            "invalidationRule": "close back inside the range",
+            "rr": 2.0,
+        },
+        "teamAgents": [
+            {"agentId": "technical", "role": "Technical Analyst", "status": "done", "summary": transcript},
+        ],
+        "chartSnapshots": [{"timeframe": "15m", "image": image}],
+        "drawings": [{"points": list(range(200))}],
+        "cards": [{"html": "x" * 2000}],
+        "gateChain": {
+            "allowed": True,
+            "verdicts": [{"id": "G1", "name": "spread", "status": "pass", "evidence": {"blob": "y" * 3000}}],
+        },
+    }
+    brief = brief_for_model(wire)
+    encoded = json.dumps(brief)
+    full = json.dumps(wire)
+    assert len(encoded) < len(full) // 5
+    assert "data:image" not in encoded
+    assert "candle by candle" not in encoded
+    assert brief["recommendation"]["stopLoss"] == 2290.0
+    assert brief["recommendation"]["riskPercent"] == 0.01
+    assert brief["recommendation"]["invalidationRule"] == "close back inside the range"
+    assert brief["teamAgents"] == [
+        {"agentId": "technical", "role": "Technical Analyst", "status": "done", "stance": "wait"}
+    ]
+    assert "gateChain" not in brief
+    with_gates = brief_for_model(wire, include_gates=True)
+    assert with_gates["gateChain"]["verdicts"] == [{"id": "G1", "name": "spread", "status": "pass"}]
+    assert "blob" not in json.dumps(with_gates)
