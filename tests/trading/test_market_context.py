@@ -98,3 +98,68 @@ def test_unconfigured_oanda_reports_the_candle_feed(monkeypatch) -> None:
     context = build_agent_market_context()
     assert context.sync.ok is False
     assert context.sync.reason == "OANDA not configured"
+
+
+def test_same_turn_reuses_candles_and_refreshes_the_quote(monkeypatch) -> None:
+    from mokli.trading.turn_session import turn_session_scope
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    fetches = {"candles": 0}
+
+    def _fetch(*_args, **_kwargs):
+        fetches["candles"] += 1
+        return _candles(), False
+
+    quotes = iter(
+        [
+            OandaQuote(symbol="XAUUSD", bid=10, ask=11, mid=10.5, tradeable=True),
+            OandaQuote(symbol="XAUUSD", bid=20, ask=21, mid=20.5, tradeable=True),
+            OandaQuote(symbol="XAUUSD", bid=30, ask=31, mid=30.5, tradeable=True),
+        ]
+    )
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", _fetch)
+    monkeypatch.setattr(
+        "mokli.trading.market_context.fetch_quote",
+        lambda *_args, **_kwargs: next(quotes),
+    )
+
+    with turn_session_scope() as turn:
+        first = build_agent_market_context("XAUUSD", "15m", limit=24)
+        second = build_agent_market_context("XAUUSD", "15m", limit=24)
+        other = build_agent_market_context("XAUUSD", "1h", limit=24)
+
+    assert fetches["candles"] == 2
+    assert turn.candle_reuses == 1
+    assert first.quote_mid == 10.5
+    assert second.quote_mid == 20.5
+    assert [c.time_ms for c in second.candles] == [c.time_ms for c in first.candles]
+    assert other.quote_mid == 30.5
+    assert len(other.candles) == 22
+
+
+def test_without_a_turn_each_call_fetches_candles(monkeypatch) -> None:
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    fetches = {"candles": 0}
+
+    def _fetch(*_args, **_kwargs):
+        fetches["candles"] += 1
+        return _candles(), False
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", _fetch)
+    monkeypatch.setattr(
+        "mokli.trading.market_context.fetch_quote",
+        lambda *_args, **_kwargs: OandaQuote(
+            symbol="XAUUSD", bid=1, ask=2, mid=1.5, tradeable=True
+        ),
+    )
+    build_agent_market_context()
+    build_agent_market_context()
+    assert fetches["candles"] == 2

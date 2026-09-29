@@ -50,6 +50,19 @@ class TurnSession:
     kernel_result: Any | None = None
     decision_wire: str | None = None
     quote_display: dict[str, str | None] = field(default_factory=dict)
+    candle_reuses: int = 0
+    _candle_cache: dict[tuple[str, str, int], tuple[Any, ...]] = field(default_factory=dict)
+
+    def take_cached_candles(self, symbol: str, interval: str, limit: int) -> tuple[Any, ...] | None:
+        """Candles already fetched in this turn for the same symbol, interval, and limit."""
+        hit = self._candle_cache.get((symbol, interval, limit))
+        if hit is None:
+            return None
+        self.candle_reuses += 1
+        return hit
+
+    def remember_candles(self, symbol: str, interval: str, limit: int, candles: list[Any]) -> None:
+        self._candle_cache[(symbol, interval, limit)] = tuple(candles)
 
     def ensure_pipeline(self, *, interval: str | None = None) -> PipelineContext:
         if interval:
