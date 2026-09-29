@@ -5,4 +5,5 @@ structural invalidation sits, whether the stop distance is defensible against re
 volatility and spread, whether the targets are real swings rather than nearby shelves, and
 which platform quality checks are likely to block or lower confidence. State the risk-defining
 level and the condition under which the plan should not be taken. Weigh conflicting briefs
-against each other; do not resolve them into a direction.
+against each other. Do not turn a conflict into an order. If the task asks for a STANCE line
+and the conflict is unresolved, end with STANCE: wait.

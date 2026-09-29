@@ -330,7 +330,8 @@ def test_decision_prompt_inherits_hard_law_and_language() -> None:
 def test_team_role_prompt_has_common_preamble_and_role_focus() -> None:
     prompt = compose_team_role_prompt("bull", product_name="GoldDesk", role_label="Bull Advocate")
     assert prompt.startswith("# GoldDesk — team specialist: Bull Advocate")
-    assert "You never choose buy or sell" in prompt
+    assert "You never place an order" in prompt
+    assert "STANCE line" in prompt
     assert "## Focus: the bull case" in prompt
     assert "Write in the operator's language" in prompt
     assert "Write in Arabic" in compose_team_role_prompt("bear", reply_language="ar")

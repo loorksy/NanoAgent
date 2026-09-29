@@ -40,7 +40,8 @@ def test_every_preset_role_gets_non_empty_english_prompt(
     assert "{" not in prompt
     assert f"team specialist: {role}" in prompt
     assert "## Focus:" in prompt
-    assert "You never choose buy or sell" in prompt
+    assert "You never place an order" in prompt
+    assert "STANCE line" in prompt
 
 
 @pytest.mark.parametrize(("preset", "role", "system_prompt"), _preset_agents())
@@ -91,6 +92,25 @@ def test_language_and_product_name_are_injected() -> None:
     default = role_system_prompt("Bull Advocate")
     assert "You are Mokli" in default
     assert "Write in the operator's language" in default
+
+
+def test_decision_review_asks_for_a_stance_the_risk_prompt_allows() -> None:
+    from mokli.trading.teams.runtime import load_preset
+
+    preset = load_preset("gold_decision_review")
+    assert [task.id for task in preset.tasks] == [
+        "task-technical",
+        "task-macro",
+        "task-trend",
+        "task-risk",
+        "task-review",
+    ]
+    for task in preset.tasks:
+        assert "STANCE:" in task.prompt_template
+    risk = role_system_prompt("Risk Officer", system_prompt="role:risk")
+    assert "STANCE: wait" in risk
+    assert "never place an order" in risk
+    assert "You never choose buy or sell" not in risk
 
 
 def test_role_files_cover_the_legacy_role_set() -> None:
