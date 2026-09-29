@@ -26,13 +26,11 @@ class ProposeStrategyTool(Tool):
 
     @property
     def parameters(self) -> dict[str, Any]:
-        return tool_parameters_schema(
+        # ``description`` is a tool argument. Passing it as a keyword to
+        # tool_parameters_schema sets the schema blurb and drops the argument.
+        schema = tool_parameters_schema(
             name=StringSchema("Strategy name"),
             candles_json=StringSchema("JSON list of OHLC objects. Required for backtest."),
-            description=StringSchema(
-                "Natural-language rules. Example: gold break of the previous hour high, "
-                "4h trend confirm, stop behind the last swing low, 1% risk.",
-            ),
             action=StringSchema(
                 "propose, save, paper, or activate",
                 enum=["propose", "save", "paper", "activate"],
@@ -43,6 +41,11 @@ class ProposeStrategyTool(Tool):
             ),
             required=["name"],
         )
+        schema["properties"]["description"] = StringSchema(
+            "Natural-language rules. Example: gold break of the previous hour high, "
+            "4h trend confirm, stop behind the last swing low, 1% risk.",
+        ).to_json_schema()
+        return schema
 
     @property
     def read_only(self) -> bool:

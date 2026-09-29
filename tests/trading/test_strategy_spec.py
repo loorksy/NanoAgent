@@ -130,3 +130,11 @@ def test_tool_propose_save_paper_and_live_refusal(tmp_path, monkeypatch) -> None
     )
     assert live["broker_order"] is False
 
+
+def test_strategy_tool_schema_exposes_the_description_argument() -> None:
+    schema = ProposeStrategyTool().parameters
+    encoded = json.dumps(schema)
+    assert schema["properties"]["description"]["type"] == "string"
+    assert "description" in encoded
+    assert "StringSchema" not in encoded
+
