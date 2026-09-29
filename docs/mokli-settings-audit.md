@@ -58,3 +58,9 @@
 | أدوات `mt5_*` | Mokli، التنفيذ الحي خلف السياسة | لا تُحذف لأن الحساب قد يُربط لاحقاً |
 
 لم يُزل إعداد من الواجهة. العدد قبل وبعد هذا الجرد واحد، لأن الجرد لا يحذف.
+
+## مكوّنات Mokli غير الموصولة
+
+بحث الاستيراد في `mokli/` و`tests/` و`scripts/` لم يجد أي مستدعٍ لـ `mokli/trading/stage_checkpoint.py` ولا `mokli/trading/trace_events.py`. لا مسار ولا اختبار يستدعي `candle_hash` أو `emit_trace_event`. حُذفا لأنهما نسخة موازية غير موصولة لنظام المراحل والأحداث الموجود (`stage_events` وأحداث Agent API).
+
+`mokli/trading/explain.py` كان بلا مستدعٍ. وُصل إلى `result_to_wire` كحقل `operatorSummary` المبني من حقول القرار الموجودة، بلا نص يختلقه النموذج.
