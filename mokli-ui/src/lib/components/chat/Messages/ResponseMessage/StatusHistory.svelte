@@ -4,6 +4,7 @@
 
 	import StatusItem from './StatusHistory/StatusItem.svelte';
 	import equal from 'fast-deep-equal';
+	import { expandedStatusDone } from '$lib/mokli/statusHistory';
 	export let statusHistory = [];
 	export let expand = false;
 
@@ -64,7 +65,7 @@
 										{/if}
 									</div>
 
-									<StatusItem {status} done={true} />
+									<StatusItem {status} done={expandedStatusDone(status, idx, history.length)} />
 								</div>
 							{/each}
 						</div>
