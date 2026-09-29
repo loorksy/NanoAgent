@@ -5,6 +5,7 @@ from __future__ import annotations
 from mokli.agent.tools.context import RequestContext
 from mokli.runtime_context import RuntimeContextBlock, wrap_runtime_context_lines
 from mokli.trading.config import load_trading_config
+from mokli.trading.decision_route import is_gold_decision_question
 from mokli.trading.gold import DATA_SYMBOL
 from mokli.trading.oanda import fetch_quote
 from mokli.trading.recommendations.lifecycle import sync_session_live_plan
@@ -28,7 +29,20 @@ async def gold_intent_runtime_context(
         return None
     live = sync_session_live_plan(request.session_key)
     if not live:
-        return None
+        if not is_gold_decision_question(text):
+            return None
+        return RuntimeContextBlock(
+            source="gold_intent",
+            content=wrap_runtime_context_lines(
+                [
+                    "The operator asked for a gold buy/sell decision.",
+                    "Call run_trading_kernel with decision_review=true.",
+                    "That flag runs gold_decision_review (technical, macro, trend, risk, review) "
+                    "and then the kernel. The kernel is the only BUY/SELL path.",
+                    "Do not answer the side from prose before that tool returns.",
+                ]
+            ),
+        )
 
     direction = str(live.get("direction") or "wait").upper()
     lines = [

@@ -36,6 +36,12 @@ _KERNEL_PARAMETERS = tool_parameters_schema(
     force_new_plan=BooleanSchema(
         description="Archive the live plan and issue a new recommendation.",
     ),
+    decision_review=BooleanSchema(
+        description=(
+            "For a buy/sell question, run the gold_decision_review team first "
+            "and pass its brief into the kernel. The kernel remains the only BUY/SELL path."
+        ),
+    ),
     present_ui=BooleanSchema(
         description="When true, stream trading cards. Default false.",
     ),
@@ -80,15 +86,30 @@ class RunTradingKernelTool(Tool):
         reevaluate: bool = False,
         force_new_plan: bool = False,
         present_ui: bool = False,
+        decision_review: bool = False,
         **kwargs: Any,
     ) -> str:
+        team_briefing: str | None = None
+        team_mode = "core"
         try:
+            if decision_review:
+                from mokli.trading.teams.runtime import run_swarm
+
+                swarm = await run_swarm(
+                    "gold_decision_review",
+                    subagent_manager=self._subagent_manager,
+                    interval=interval,
+                )
+                team_briefing = str(swarm.get("team_briefing") or "")
+                team_mode = "gold_decision_review"
             result = await run_trading_kernel(
                 interval=interval,
                 gather_missing=gather_missing,
                 reevaluate=reevaluate,
                 force_new_plan=force_new_plan,
                 present_ui=should_publish_trading_ui(present_ui),
+                team_briefing=team_briefing,
+                team_mode=team_mode,
             )
         except PolicyViolation as exc:
             return ToolResult.error(str(exc.reason))
