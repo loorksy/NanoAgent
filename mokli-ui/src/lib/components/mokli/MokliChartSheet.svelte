@@ -171,7 +171,7 @@
 							symbol: row.name,
 							full_name: row.name,
 							description: row.description || row.name,
-							exchange: 'MT5',
+							exchange: 'OANDA',
 							ticker: row.name,
 							type: 'forex'
 						}))
@@ -195,7 +195,7 @@
 						type: 'forex',
 						session: '24x7',
 						timezone: 'Etc/UTC',
-						exchange: 'MT5',
+						exchange: 'OANDA',
 						minmov: 1,
 						pricescale: 10 ** Math.min(Math.max(digits, 0), 8),
 						has_intraday: true,

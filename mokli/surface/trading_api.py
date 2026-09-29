@@ -29,7 +29,7 @@ from mokli.trading.config import load_trading_config
 from mokli.trading.crew.debate import run_debate_crew
 from mokli.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
 from mokli.trading.i18n import tr
-from mokli.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from mokli.trading.oanda import candle_to_wire, fetch_candles
 from mokli.trading.paper import record_paper_action
 from mokli.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
@@ -81,21 +81,6 @@ def handle_trading_klines(request: WsRequest) -> Response:
     to_ms = _parse_int(_query_first(params, "to"))
 
     config = load_trading_config()
-    if config.mt5_configured is True:
-        from mokli.trading.broker_market import broker_candles
-
-        payload = _run_async(
-            broker_candles(
-                raw_symbol,
-                interval,
-                limit,
-                from_ms=from_ms,
-                to_ms=to_ms,
-                before_ms=before_ms,
-            )
-        )
-        return _http_json_response(payload)
-
     symbol = coerce_to_gold(raw_symbol)
     if not config.oanda_configured:
         return _http_json_response({
@@ -145,49 +130,53 @@ def handle_trading_quote(request: WsRequest) -> Response:
     raw_symbol = (_query_first(params, "symbol") or "XAUUSD").strip() or "XAUUSD"
 
     config = load_trading_config()
-    if config.mt5_configured is True:
-        from mokli.trading.broker_market import broker_quote
-
-        return _http_json_response(_run_async(broker_quote(raw_symbol)))
-
     symbol = coerce_to_gold(raw_symbol)
-    if not config.oanda_configured:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": False,
-            "quote": None,
-            "error": tr("price.feed_unconfigured", locale),
-        })
+    if getattr(config, "metaapi_configured", False) is True or config.oanda_configured:
+        from mokli.trading.market_context import resolve_live_quote
+        from mokli.trading.metaapi_market import quote_time_seconds
 
-    try:
-        quote = fetch_quote(symbol, config=config)
-    except GoldOnlyError as exc:
-        return _http_error(400, str(exc))
-    except Exception as exc:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": True,
-            "quote": None,
-            "error": tr("api.quote_failed", locale, error=exc),
-        }, status=502)
-
-    if quote is None:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": True,
-            "quote": None,
-            "error": tr("api.quote_missing", locale),
-        })
-
-    return _http_json_response({
-        "symbol": quote.symbol,
-        "configured": True,
-        "quote": {
+        try:
+            quote, source = resolve_live_quote(symbol, config)
+        except GoldOnlyError as exc:
+            return _http_error(400, str(exc))
+        except Exception as exc:
+            return _http_json_response({
+                "symbol": symbol,
+                "configured": True,
+                "source": "oanda",
+                "quote": None,
+                "error": tr("api.quote_failed", locale, error=exc),
+            }, status=502)
+        if quote is None:
+            return _http_json_response({
+                "symbol": symbol,
+                "configured": True,
+                "source": source,
+                "quote": None,
+                "error": tr("api.quote_missing", locale),
+            })
+        tick = {
             "bid": quote.bid,
             "ask": quote.ask,
             "mid": quote.mid,
             "tradeable": quote.tradeable,
-        },
+        }
+        stamp = quote_time_seconds(quote.quoted_at)
+        if stamp is not None:
+            tick["time"] = stamp
+        return _http_json_response({
+            "symbol": quote.symbol,
+            "configured": True,
+            "source": source,
+            "quote": tick,
+        })
+
+    return _http_json_response({
+        "symbol": symbol,
+        "configured": False,
+        "source": "oanda",
+        "quote": None,
+        "error": tr("price.feed_unconfigured", locale),
     })
 
 
@@ -198,6 +187,7 @@ def handle_trading_status(_request: WsRequest) -> Response:
         "symbol": DATA_SYMBOL,
         "oanda_configured": config.oanda_configured,
         "oanda_env": config.oanda_env,
+        "metaapi_configured": config.metaapi_configured,
         "runtime": state.to_dict(),
     })
 
@@ -321,12 +311,12 @@ def _enrich_recommendation_rows(rows: list[dict]) -> list[dict]:
 
 def handle_trading_recommendations(_request: WsRequest) -> Response:
     from mokli.trading.gold import DATA_SYMBOL
-    from mokli.trading.oanda import fetch_quote
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
     live_price = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None
@@ -344,13 +334,13 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
 def performance_document() -> dict[str, Any]:
     from mokli.config.paths import get_data_dir
     from mokli.trading.gold import DATA_SYMBOL
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.memory.decisions import list_recent_decisions
-    from mokli.trading.oanda import fetch_quote
     from mokli.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
     live_price = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None
@@ -510,16 +500,14 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
 
 
 def briefing_document(locale: str | None) -> dict[str, Any]:
-    from mokli.trading.config import load_trading_config
-    from mokli.trading.oanda import fetch_quote
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.recommendations.followup import (
         grade_outcome_status,
         latest_open_recommendation,
         refresh_recommendation_outcomes,
     )
 
-    config = load_trading_config()
-    quote = fetch_quote("XAUUSD", config=config) if config.oanda_configured else None
+    quote = live_analysis_quote("XAUUSD")
     live_price = quote.mid if quote else None
     refresh_recommendation_outcomes(live_price=live_price)
     latest = latest_open_recommendation()

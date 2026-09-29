@@ -1,7 +1,7 @@
 """Candles and quotes for the in-chat chart.
 
-The connected MT5 account is the price source. OANDA remains only when
-that account is not configured.
+Candles come from OANDA. The live quote comes from MetaAPI when that
+account is configured, and from OANDA otherwise.
 """
 
 from __future__ import annotations
@@ -27,10 +27,6 @@ def _query_ms(request: web.Request, name: str) -> int | None:
 
 def _symbol_of(request: web.Request) -> str:
     return (request.query.get("symbol") or "XAUUSD").strip() or "XAUUSD"
-
-
-def _uses_broker(config: object) -> bool:
-    return getattr(config, "mt5_configured", False) is True
 
 
 def klines_payload(
@@ -78,25 +74,53 @@ def klines_payload(
 
 def quote_payload(symbol: str = "XAUUSD") -> dict[str, object]:
     from mokli.trading.config import load_trading_config
-    from mokli.trading.gold import coerce_to_gold
-    from mokli.trading.oanda import fetch_quote
+    from mokli.trading.gold import GoldOnlyError, coerce_to_gold
+    from mokli.trading.market_context import resolve_live_quote
+    from mokli.trading.metaapi_market import quote_time_seconds
 
     symbol = symbol.strip() or coerce_to_gold()
     config = load_trading_config()
-    if not config.oanda_configured:
-        return {"symbol": symbol, "configured": False, "quote": None}
-    quote = fetch_quote(symbol, config=config)
+    configured = bool(config.oanda_configured or getattr(config, "metaapi_configured", False) is True)
+    if not configured:
+        return {"symbol": symbol, "configured": False, "source": "oanda", "quote": None}
+    try:
+        quote, source = resolve_live_quote(symbol, config)
+    except GoldOnlyError:
+        return {"symbol": symbol, "configured": configured, "source": "oanda", "quote": None}
     if quote is None:
-        return {"symbol": symbol, "configured": True, "quote": None}
+        return {"symbol": symbol, "configured": True, "source": source, "quote": None}
+    tick: dict[str, object] = {
+        "bid": quote.bid,
+        "ask": quote.ask,
+        "mid": quote.mid,
+        "tradeable": quote.tradeable,
+    }
+    stamp = quote_time_seconds(quote.quoted_at)
+    if stamp is not None:
+        tick["time"] = stamp
     return {
-        "symbol": symbol,
+        "symbol": quote.symbol,
         "configured": True,
-        "quote": {
-            "bid": quote.bid,
-            "ask": quote.ask,
-            "mid": quote.mid,
-            "tradeable": quote.tradeable,
-        },
+        "source": source,
+        "quote": tick,
+    }
+
+
+def symbols_payload(query: str, limit: int) -> dict[str, object]:
+    text = query.casefold()
+    row = {
+        "name": "XAUUSD",
+        "description": "Gold",
+        "digits": 2,
+        "path": "Metals",
+    }
+    matched = not text or text in "xauusd" or text in "gold" or "xau" in text or "ذهب" in text
+    rows = [row] if matched else []
+    return {
+        "ok": True,
+        "source": "oanda",
+        "total": len(rows),
+        "symbols": rows[:limit],
     }
 
 
@@ -111,40 +135,25 @@ async def get_klines(request: web.Request) -> web.Response:
         except ValueError as exc:
             raise ApiError(400, "invalid_query", details={"param": "limit"}) from exc
     limit = min(max(limit, 1), 5000)
-    from mokli.trading.config import load_trading_config
-
-    config = await asyncio.to_thread(load_trading_config)
     symbol = _symbol_of(request)
     window = {
         "from_ms": _query_ms(request, "from"),
         "to_ms": _query_ms(request, "to"),
         "before_ms": _query_ms(request, "before"),
     }
-    if _uses_broker(config):
-        from mokli.trading.broker_market import broker_candles
-
-        payload = await broker_candles(symbol, interval, limit, **window)
-    else:
-        payload = await asyncio.to_thread(
-            klines_payload,
-            symbol=symbol,
-            interval=interval,
-            limit=limit,
-            **window,
-        )
+    payload = await asyncio.to_thread(
+        klines_payload,
+        symbol=symbol,
+        interval=interval,
+        limit=limit,
+        **window,
+    )
     return ok(payload)
 
 
 async def get_quote(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    from mokli.trading.config import load_trading_config
-
-    config = await asyncio.to_thread(load_trading_config)
     symbol = _symbol_of(request)
-    if _uses_broker(config):
-        from mokli.trading.broker_market import broker_quote
-
-        return ok(await broker_quote(symbol))
     return ok(await asyncio.to_thread(quote_payload, symbol))
 
 
@@ -159,9 +168,7 @@ async def get_symbols(request: web.Request) -> web.Response:
         except ValueError as exc:
             raise ApiError(400, "invalid_query", details={"param": "limit"}) from exc
     limit = min(max(limit, 1), 800)
-    from mokli.trading.broker_market import broker_symbols
-
-    return ok(await broker_symbols(query, limit))
+    return ok(symbols_payload(query, limit))
 
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:

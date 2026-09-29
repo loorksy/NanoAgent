@@ -21,7 +21,6 @@ from mokli.trading.crew.debate import run_debate_crew
 from mokli.trading.gold import DATA_SYMBOL, GoldOnlyError, require_gold
 from mokli.trading.kernel import LivePlanActive, run_trading_kernel
 from mokli.trading.locale import active_locale
-from mokli.trading.oanda import fetch_quote
 from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.followup import grade_outcome_status
 from mokli.trading.recommendations.lifecycle import (
@@ -213,8 +212,8 @@ class GetGoldQuoteTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Get the current live gold (XAUUSD) bid/ask/mid from the operator's MT5 "
-            "account when it is connected. For any other symbol use mt5_market. "
+            "Get the current live gold (XAUUSD) bid/ask/mid from MetaAPI when that "
+            "account is configured, otherwise from OANDA. "
             "Always use the returned mid/bid/ask — never invent prices. "
             "Set present_ui=true only when the operator explicitly wants a visual quote card."
         )
@@ -230,29 +229,30 @@ class GetGoldQuoteTool(Tool):
         **kwargs: Any,
     ) -> str:
         config = load_trading_config()
-        if getattr(config, "mt5_configured", False) is True:
-            from mokli.trading.broker_market import broker_quote
+        try:
+            require_gold(symbol)
+        except GoldOnlyError as exc:
+            return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
+        from mokli.trading.market_context import resolve_live_quote
 
-            live = await broker_quote(symbol or DATA_SYMBOL)
-            view = live.get("quote") if isinstance(live, dict) else None
-            if isinstance(view, dict):
-                return json.dumps(
-                    {
-                        "symbol": view.get("symbol") or symbol or DATA_SYMBOL,
-                        "bid": view.get("bid"),
-                        "ask": view.get("ask"),
-                        "mid": view.get("mid"),
-                        "spread": view.get("spread"),
-                        "tradeable": True,
-                        "source": "mt5",
-                        "instruction": (
-                            "This bid/ask is the live tick from the operator's MT5 account. "
-                            "Quote it verbatim. Do not say the broker feed is unavailable."
-                        ),
-                    },
-                    indent=2,
-                )
-        if not config.oanda_configured:
+        quote, source = resolve_live_quote(symbol or DATA_SYMBOL, config)
+        if quote is not None and quote.bid is not None and quote.ask is not None:
+            return json.dumps(
+                {
+                    "symbol": quote.symbol,
+                    "bid": quote.bid,
+                    "ask": quote.ask,
+                    "mid": quote.mid,
+                    "tradeable": quote.tradeable,
+                    "source": source,
+                    "instruction": (
+                        "This bid/ask is the live gold tick. "
+                        "Quote it verbatim. Do not invent a price."
+                    ),
+                },
+                indent=2,
+            )
+        if not config.oanda_configured and getattr(config, "metaapi_configured", False) is not True:
             return tool_error(
                 REASON_MARKET_FEED_UNCONFIGURED,
                 instruction=(
@@ -363,37 +363,21 @@ class GetLiveRecommendationTool(Tool):
         live_price: float | None = None
         quote_data: dict[str, Any] | None = None
         config = load_trading_config()
-        if getattr(config, "mt5_configured", False) is True:
-            try:
-                from mokli.trading.broker_market import broker_quote
+        try:
+            from mokli.trading.market_context import resolve_live_quote
 
-                quoted = await broker_quote(DATA_SYMBOL)
-                view = quoted.get("quote") if isinstance(quoted, dict) else None
-                if isinstance(view, dict) and view.get("mid") is not None:
-                    live_price = float(view["mid"])
-                    quote_data = {
-                        "symbol": view.get("symbol") or DATA_SYMBOL,
-                        "bid": view.get("bid"),
-                        "ask": view.get("ask"),
-                        "mid": view.get("mid"),
-                        "tradeable": True,
-                    }
-            except Exception:
-                pass
-        elif config.oanda_configured:
-            try:
-                quote = fetch_quote(DATA_SYMBOL, config=config)
-                if quote is not None:
-                    live_price = quote.mid
-                    quote_data = {
-                        "symbol": quote.symbol,
-                        "bid": quote.bid,
-                        "ask": quote.ask,
-                        "mid": quote.mid,
-                        "tradeable": quote.tradeable,
-                    }
-            except Exception:
-                pass
+            quote, _source = resolve_live_quote(DATA_SYMBOL, config)
+            if quote is not None and quote.mid is not None:
+                live_price = float(quote.mid)
+                quote_data = {
+                    "symbol": quote.symbol,
+                    "bid": quote.bid,
+                    "ask": quote.ask,
+                    "mid": quote.mid,
+                    "tradeable": quote.tradeable,
+                }
+        except Exception:
+            pass
 
         outcome_status = grade_outcome_status(live, live_price=live_price)
         can_issue_new = outcome_status in {"invalidated", "tp1", "expired", "superseded"}

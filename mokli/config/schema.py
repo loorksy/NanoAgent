@@ -354,12 +354,35 @@ class TradingCronConfig(Base):
     enabled: bool = False
 
 
+class TradingMetaApiConfig(Base):
+    """MetaAPI Cloud credentials for live broker quotes."""
+
+    token: str = Field(default="", repr=False)
+    account_id: str = Field(default="", validation_alias=AliasChoices("accountId", "account_id"))
+    region: str = "new-york"
+
+    def public_view(self) -> dict[str, str | bool]:
+        """Operator-safe snapshot — never includes the token."""
+        token = self.effective_token()
+        return {
+            "account_id": self.account_id,
+            "region": self.region,
+            "token_set": bool(token),
+            "configured": bool(token and self.account_id),
+        }
+
+    def effective_token(self) -> str:
+        """Config token when set, else the encrypted secret store (``metaapi_token``)."""
+        from mokli.security.secret_store import resolve_secret
+
+        return resolve_secret(self.token, "metaapi_token")
+
+
 class TradingMt5Config(Base):
     """Self-hosted MT5 terminal reached through the mt5linux bridge.
 
     The password is never a field on this model. It lives in the encrypted
-    secret store under ``mt5_password``. Older ``trading_metaapi`` objects
-    still load: unknown cloud-token fields are ignored.
+    secret store under ``mt5_password``. Market data does not use this terminal.
     """
 
     host: str = "localhost"
@@ -622,14 +645,14 @@ class Config(BaseSettings):
         serialization_alias="agentApi",
     )
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
+    trading_metaapi: TradingMetaApiConfig = Field(
+        default_factory=TradingMetaApiConfig,
+        validation_alias=AliasChoices("tradingMetaapi", "trading_metaapi"),
+        serialization_alias="tradingMetaapi",
+    )
     trading_mt5: TradingMt5Config = Field(
         default_factory=TradingMt5Config,
-        validation_alias=AliasChoices(
-            "tradingMt5",
-            "trading_mt5",
-            "tradingMetaapi",
-            "trading_metaapi",
-        ),
+        validation_alias=AliasChoices("tradingMt5", "trading_mt5"),
         serialization_alias="tradingMt5",
     )
     trading_risk_parameters: TradingRiskParameters = Field(

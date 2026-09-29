@@ -18,6 +18,9 @@ class TradingConfig:
     oanda_api_token: str | None
     oanda_account_id: str | None
     oanda_env: str
+    metaapi_token: str | None = field(default=None, repr=False)
+    metaapi_account_id: str | None = None
+    metaapi_region: str = "new-york"
     mt5_host: str = "localhost"
     mt5_port: int = 8001
     mt5_login: str | None = None
@@ -31,6 +34,10 @@ class TradingConfig:
         if not (self.mt5_login and self.mt5_server):
             return False
         return bool(self.mt5_password or self.mt5_terminal_session)
+
+    @property
+    def metaapi_configured(self) -> bool:
+        return bool(self.metaapi_token and self.metaapi_account_id)
 
     @property
     def oanda_configured(self) -> bool:
@@ -68,6 +75,9 @@ class _StoredCredentials:
     oanda_token: str | None = None
     oanda_account: str | None = None
     oanda_env: str | None = None
+    metaapi_token: str | None = None
+    metaapi_account: str | None = None
+    metaapi_region: str | None = None
 
 
 def _stored_credentials() -> _StoredCredentials:
@@ -80,6 +90,7 @@ def _stored_credentials() -> _StoredCredentials:
     config = load_config()
     mt5 = config.trading_mt5
     oanda = config.trading_oanda
+    metaapi = config.trading_metaapi
     return _StoredCredentials(
         mt5_host=_strip(mt5.host),
         mt5_port=int(mt5.port or 8001),
@@ -91,6 +102,9 @@ def _stored_credentials() -> _StoredCredentials:
         oanda_token=_strip(oanda.effective_token()),
         oanda_account=_strip(oanda.account_id),
         oanda_env=_strip(oanda.env),
+        metaapi_token=_strip(metaapi.effective_token()),
+        metaapi_account=_strip(metaapi.account_id),
+        metaapi_region=_strip(metaapi.region),
     )
 
 
@@ -131,6 +145,11 @@ def load_trading_config() -> TradingConfig:
         oanda_api_token=_strip(os.environ.get("OANDA_API_TOKEN")) or stored.oanda_token,
         oanda_account_id=_strip(os.environ.get("OANDA_ACCOUNT_ID")) or stored.oanda_account,
         oanda_env=_strip(os.environ.get("OANDA_ENV")) or stored.oanda_env or "practice",
+        metaapi_token=_strip(os.environ.get("METAAPI_TOKEN")) or stored.metaapi_token,
+        metaapi_account_id=_strip(os.environ.get("METAAPI_ACCOUNT_ID")) or stored.metaapi_account,
+        metaapi_region=(
+            _strip(os.environ.get("METAAPI_REGION")) or stored.metaapi_region or "new-york"
+        ),
         mt5_host=_strip(os.environ.get("MT5_HOST")) or stored.mt5_host or "localhost",
         mt5_port=_env_port(stored.mt5_port),
         mt5_login=_strip(os.environ.get("MT5_LOGIN")) or stored.mt5_login,
