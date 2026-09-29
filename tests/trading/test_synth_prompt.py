@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
 from mokli.agent.prompt.composer import decision_contract_template
 from mokli.trading.agents.apply_model_decision import apply_model_decision
 from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT, synth_system_prompt
-from mokli.trading.agents.synthesizer import _extract_json
-from mokli.trading.types import EvidenceSnapshot
+from mokli.trading.agents.synthesizer import _call_model, _extract_json
+from mokli.trading.types import AgentMarketContext, Candle, EvidenceSnapshot, MarketSync
 
 ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 
@@ -143,6 +144,57 @@ def test_exported_symbols_and_language_rendering() -> None:
         assert not ARABIC_RE.search(prompt)
         assert "lonora" not in prompt.lower()
     assert "You are GoldDesk" in synth_system_prompt("en", product_name="GoldDesk")
+
+
+def _image_urls(messages: list[dict]) -> list[str]:
+    found: list[str] = []
+    for message in messages:
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "image_url":
+                found.append(str(part["image_url"]["url"]))
+    return found
+
+
+def test_followup_rounds_drop_chart_images() -> None:
+    image = "data:image/png;base64," + ("A" * 8000)
+    seen: list[list[dict]] = []
+
+    async def complete(messages: list[dict]) -> str:
+        seen.append(messages)
+        if len(seen) == 1:
+            return "not json"
+        if len(seen) == 2:
+            return '{"direction":"wait","browse":{"verb":"read_zone","low":1,"high":2}}'
+        return '{"direction":"wait"}'
+
+    market = AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=[Candle(time_ms=1, open=1, high=2, low=1, close=1.5)],
+        last_close=1.5,
+        atr=0.2,
+        sync=MarketSync(ok=True),
+    )
+    parsed = asyncio.run(
+        _call_model(
+            snapshot=EvidenceSnapshot(payload={"candleCount": 1}),
+            language="en",
+            complete=complete,
+            market=market,
+            snapshots=[{"timeframe": "15m", "image": image, "context": "session high"}],
+        )
+    )
+    assert parsed == {"direction": "wait"}
+    assert _image_urls(seen[0]) == [image]
+    assert _image_urls(seen[1]) == []
+    assert _image_urls(seen[2]) == []
+    followup = json.dumps(seen[2])
+    assert image not in followup
+    assert "CHART 15m" in followup
+    assert len(json.dumps(seen[0])) > len(followup) + 7000
 
 
 def test_contract_does_not_hard_code_thresholds() -> None:

@@ -68,6 +68,33 @@ async def _runtime_complete(messages: list[dict[str, Any]]) -> str:
     return getattr(response, "content", None) or ""
 
 
+def _without_chart_images(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Follow-up synthesizer rounds keep the chart labels and drop the image bytes."""
+    cleaned: list[dict[str, Any]] = []
+    for message in messages:
+        content = message.get("content")
+        if not isinstance(content, list):
+            cleaned.append(message)
+            continue
+        parts: list[dict[str, Any]] = []
+        dropped = 0
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "image_url":
+                dropped += 1
+                continue
+            if isinstance(part, dict):
+                parts.append(part)
+        if dropped:
+            parts.append(
+                {
+                    "type": "text",
+                    "text": f"{dropped} chart image(s) were sent on the first call.",
+                }
+            )
+        cleaned.append({**message, "content": parts})
+    return cleaned
+
+
 def _browse_answer(
     verb: str,
     args: dict[str, Any],
@@ -136,7 +163,7 @@ async def _call_model(
                 "content": "Your previous reply was not valid JSON. Reply again with ONLY the JSON object.",
             }
         )
-        parsed = _extract_json(await complete(messages))
+        parsed = _extract_json(await complete(_without_chart_images(messages)))
     if parsed is None:
         return None
 
@@ -153,7 +180,7 @@ async def _call_model(
                 + json.dumps(answer, ensure_ascii=False),
             }
         )
-        parsed = _extract_json(await complete(messages)) or parsed
+        parsed = _extract_json(await complete(_without_chart_images(messages))) or parsed
         browse = parsed.get("browse") if isinstance(parsed, dict) else None
     return parsed
 
