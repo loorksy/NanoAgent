@@ -25,6 +25,18 @@ class RetryWaitEvent(AgentEvent):
 
 
 @dataclass(frozen=True)
+class TeamRoleEvent(AgentEvent):
+    """One trading-team role that actually started, finished, or failed."""
+
+    session_key: str
+    agent_id: str
+    role: str
+    status: Literal["running", "done", "failed"]
+    summary: str = ""
+    duration_ms: int | None = None
+
+
+@dataclass(frozen=True)
 class RetryStatusEvent(AgentEvent):
     """Sanitized retry lifecycle for one model request chain."""
 

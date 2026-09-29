@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from loguru import logger
 
 from mokli.agent.tools.context import current_request_context
+from mokli.events import TeamRoleEvent
 from mokli.security.workspace_access import current_workspace_scope
 from mokli.trading.i18n import tr
 from mokli.trading.teams.role_prompts import role_system_prompt
@@ -75,13 +76,35 @@ class TeamRunCollector:
         self.agents.append(wire)
 
 
+async def _publish_runtime_role(bus: Any | None, event: TeamAgentEvent) -> None:
+    """Mirror a role that actually ran onto the agent bus for the activity line."""
+    if bus is None:
+        return
+    request = current_request_context()
+    session_key = request.session_key if request is not None else None
+    if not session_key:
+        return
+    await bus.publish(
+        TeamRoleEvent(
+            session_key=session_key,
+            agent_id=event.agent_id,
+            role=event.role,
+            status=event.status,
+            summary=event.summary,
+            duration_ms=event.duration_ms,
+        )
+    )
+
+
 async def _publish_team_agent(
     publisher: TradingStagePublisher | None,
     event: TeamAgentEvent,
     collector: TeamRunCollector | None = None,
+    bus: Any | None = None,
 ) -> None:
     if collector is not None:
         collector.record(event)
+    await _publish_runtime_role(bus, event)
     if publisher is None:
         return
     await publisher.publish_team_agent(event.to_wire())
@@ -127,6 +150,7 @@ async def run_team_role(
     publisher: TradingStagePublisher | None = None,
     layer: int = 0,
     collector: TeamRunCollector | None = None,
+    bus: Any | None = None,
 ) -> str:
     """Execute one team role and return its textual summary.
 
@@ -150,6 +174,7 @@ async def run_team_role(
         publisher,
         TeamAgentEvent(agent_id=agent_id, role=role, status="running", layer=layer),
         collector,
+        bus,
     )
 
     try:
@@ -189,6 +214,7 @@ async def run_team_role(
                 duration_ms=duration_ms,
             ),
             collector,
+            bus,
         )
         return summary
     except Exception as exc:
@@ -206,5 +232,6 @@ async def run_team_role(
                 duration_ms=duration_ms,
             ),
             collector,
+            bus,
         )
         return message

@@ -106,6 +106,7 @@ class RunTradingKernelTool(Tool):
                     "gold_decision_review",
                     subagent_manager=self._subagent_manager,
                     interval=interval,
+                    bus=self._bus,
                 )
                 team_briefing = str(swarm.get("team_briefing") or "")
                 team_mode = "gold_decision_review"

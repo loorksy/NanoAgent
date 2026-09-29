@@ -17,7 +17,7 @@ from mokli.bus.runtime_events import (
     TurnRuntimeAdmitted,
     UserInputAccepted,
 )
-from mokli.events import AgentEvent, RetryStatusEvent
+from mokli.events import AgentEvent, RetryStatusEvent, TeamRoleEvent
 from mokli.session.goal_state import goal_state_ws_blob
 
 EventKind = Literal[
@@ -143,15 +143,18 @@ def tool_data(
 
 
 def subagent_data(
-    event: Literal["started", "finished"],
+    event: Literal["started", "finished", "failed"],
     *,
     id: str,
     role: str,
     summary: str | None = None,
+    duration_ms: int | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "id": id, "role": role}
     if summary is not None:
         data["summary"] = summary
+    if duration_ms is not None:
+        data["duration_ms"] = duration_ms
     return data
 
 
@@ -280,6 +283,25 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
             "session": session,
             "kind": "state",
             "data": state_data("completed", outcome=outcome_from_turn(event)),
+        }
+    if isinstance(event, TeamRoleEvent):
+        if not event.session_key:
+            return None
+        stage: Literal["started", "finished", "failed"] = {
+            "running": "started",
+            "done": "finished",
+            "failed": "failed",
+        }[event.status]
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "subagent",
+            "data": subagent_data(
+                stage,
+                id=event.agent_id,
+                role=event.role,
+                summary=event.summary or None,
+                duration_ms=event.duration_ms,
+            ),
         }
     if isinstance(event, RetryStatusEvent):
         if not event.session_key:

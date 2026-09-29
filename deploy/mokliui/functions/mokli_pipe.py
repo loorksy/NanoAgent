@@ -585,10 +585,11 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
             }
             steps.append(step)
             index[sub_id] = step
-        elif kind == "subagent" and stage == "finished":
+        elif kind == "subagent" and stage in {"finished", "failed"}:
             current = index.get(_as_str(data.get("id")))
             if current is not None:
                 current["done"] = True
+                current["failed"] = stage == "failed"
         elif kind == "retry":
             state = _as_str(data.get("state"))
             label_key = {
@@ -975,6 +976,15 @@ class Pipe:
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
     ) -> None:
         state = _as_str(data.get("state"), "working")
+        if state == "working" and turn.steps:
+            await self._emit(
+                emitter,
+                {
+                    "type": "status",
+                    "data": {"description": activity_line(turn.steps), "done": False},
+                },
+            )
+            return
         description = turn.label(f"state.{state}")
         phase = _as_str(data.get("phase"))
         provider_thinking = data.get("provider_thinking") is True
@@ -1094,6 +1104,7 @@ class Pipe:
         stage = _as_str(data.get("event"), "started")
         role = _as_str(data.get("role")) or _as_str(data.get("id"))
         summary = _as_str(data.get("summary"))
+        duration = _as_int(data.get("duration_ms"))
         sub_id = _as_str(data.get("id")) or f"sub-{len(turn.steps)}"
         label = _role_label(role, turn.label)
         existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
@@ -1105,10 +1116,12 @@ class Pipe:
                     "label": label,
                     "technical": role,
                     "done": False,
+                    "failed": False,
                 }
             )
-        elif existing is not None and stage == "finished":
+        elif existing is not None and stage in {"finished", "failed"}:
             existing["done"] = True
+            existing["failed"] = stage == "failed"
         if turn.steps:
             await self._emit(
                 emitter,
@@ -1118,6 +1131,8 @@ class Pipe:
                 },
             )
         detail = f"{label} · {role}" if role else label
+        if duration is not None:
+            detail = f"{detail} · {format_duration_ms(duration)}"
         if summary:
             detail = f"{detail} · {summary}"
         turn.timeline.append(detail)

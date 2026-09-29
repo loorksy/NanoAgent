@@ -16,8 +16,11 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
 
     order: list[str] = []
 
-    async def fake_swarm(*_args, **_kwargs):
+    seen_bus: list[object] = []
+
+    async def fake_swarm(*_args, **kwargs):
         order.append("swarm")
+        seen_bus.append(kwargs.get("bus"))
         return {"team_briefing": "technical then review"}
 
     async def fake_kernel(**kwargs):
@@ -33,11 +36,13 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
     )
     from mokli.trading.turn_session import TurnSession, turn_session_scope
 
-    tool = RunTradingKernelTool(bus=None, subagent_manager=None)
+    bus = object()
+    tool = RunTradingKernelTool(bus=bus, subagent_manager=None)
     with turn_session_scope(TurnSession()) as turn:
         payload = json.loads(asyncio.run(tool.execute(decision_review=True)))
         assert payload["decision"] == "wait"
         assert order == ["swarm", "gold_decision_review"]
+        assert seen_bus == [bus]
         assert turn.decision_wire
         again = json.loads(asyncio.run(tool.execute(decision_review=True)))
         assert again["decision"] == "wait"

@@ -318,6 +318,23 @@ def test_pipe_source_contains_no_arabic_or_fixed_rtl_text() -> None:
 # --------------------------------------------------------------------------- pipe flow
 
 
+async def test_working_state_keeps_steps_that_already_ran() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("tool", {"event": "started", "name": "web_search", "call_id": "c1",
+                            "display": "Searching"}), "1"),
+            sse(ev("state", {"state": "working", "phase": "thinking"}), "2"),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "3"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    await harness.run()
+    descriptions = [text for text, _done in harness.statuses()]
+    assert descriptions[0] == "Searching …"
+    assert descriptions[1] == "Searching …"
+    assert descriptions[-1] == "Done"
+
+
 async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     stream = ChunkStream(
         [
@@ -948,3 +965,16 @@ def test_activity_projection_matches_real_events() -> None:
     assert "✓" not in pipe_mod.activity_line([
         {"label": "Retry failed", "done": True, "failed": True},
     ])
+    agents = pipe_mod.project_activity([
+        ev("subagent", {"event": "started", "id": "technical", "role": "Technical Analyst"}),
+        ev("subagent", {"event": "finished", "id": "technical", "role": "Technical Analyst",
+                        "duration_ms": 3700}),
+        ev("subagent", {"event": "started", "id": "risk", "role": "Risk Officer"}),
+        ev("subagent", {"event": "failed", "id": "risk", "role": "Risk Officer",
+                        "duration_ms": 200}),
+    ])
+    assert [step["id"] for step in agents] == ["technical", "risk"]
+    assert agents[0]["done"] is True and agents[0]["failed"] is not True
+    assert agents[1]["failed"] is True
+    assert "✓" not in pipe_mod.activity_line([agents[1]])
+    assert pipe_mod.activity_line(agents) == "Technical Analyst ✓ · Risk Officer"

@@ -88,6 +88,7 @@ async def run_swarm(
     macro_now: Any | None = None,
     subagent_manager: Any | None = None,
     publisher: Any | None = None,
+    bus: Any | None = None,
     interval: str = "15m",
     emit: Any | None = None,
     visual_capture: Any = None,
@@ -127,6 +128,7 @@ async def run_swarm(
                 publisher=publisher,
                 layer=layer_index,
                 collector=collector,
+                bus=bus,
             )
             return task.id, summary
 

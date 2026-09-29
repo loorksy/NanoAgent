@@ -107,6 +107,7 @@ class RunTradingTeamTool(Tool):
                 publisher=publisher if publish_ui else None,
                 interval=interval,
                 emit=publisher.sync_emit if publish_ui else None,
+                bus=self._bus,
             )
         except Exception as exc:
             return ToolResult.error(f"Swarm preset failed: {exc}")
