@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -51,6 +52,18 @@ _KERNEL_PARAMETERS = tool_parameters_schema(
 _GATE_PARAMETERS = tool_parameters_schema(required=[])
 
 
+async def _prefetch_synthesis_evidence(interval: str, turn: Any) -> None:
+    """Load the synthesis nodes while the review team is still running."""
+    from mokli.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
+    from mokli.trading.unified_evidence import fetch_evidence_nodes
+
+    await fetch_evidence_nodes(
+        sorted(SYNTHESIS_REQUIRED_NODES),
+        interval=interval,
+        session=turn,
+    )
+
+
 @tool_parameters(_KERNEL_PARAMETERS)
 class RunTradingKernelTool(Tool):
     """Sole BUY/SELL path: synthesizer + G1–G20 gates + store."""
@@ -98,6 +111,10 @@ class RunTradingKernelTool(Tool):
         team_mode = "core"
         swarm_agents: list[Any] = []
         swarm_drivers: list[Any] = []
+        # Evidence does not read the team brief. Gather it while the roles run.
+        prefetch: asyncio.Task[None] | None = None
+        if decision_review and turn is not None and not turn.decision_wire:
+            prefetch = asyncio.create_task(_prefetch_synthesis_evidence(interval, turn))
         try:
             if decision_review:
                 from mokli.trading.teams.runtime import run_swarm
@@ -116,6 +133,12 @@ class RunTradingKernelTool(Tool):
                     swarm_agents = agents
                 if isinstance(drivers, list):
                     swarm_drivers = drivers
+            if prefetch is not None:
+                try:
+                    await prefetch
+                except Exception:
+                    pass
+                prefetch = None
             result = await run_trading_kernel(
                 interval=interval,
                 gather_missing=gather_missing,
@@ -129,6 +152,13 @@ class RunTradingKernelTool(Tool):
             return ToolResult.error(str(exc.reason))
         except Exception as exc:
             return ToolResult.error(f"Gold analysis failed: {exc}")
+        finally:
+            if prefetch is not None and not prefetch.done():
+                prefetch.cancel()
+                try:
+                    await prefetch
+                except (asyncio.CancelledError, Exception):
+                    pass
         if swarm_agents:
             result.team_agents = list(swarm_agents)
         if swarm_drivers:

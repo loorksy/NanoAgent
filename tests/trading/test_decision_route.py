@@ -49,6 +49,48 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
         assert order == ["swarm", "gold_decision_review"]
 
 
+def test_synthesis_evidence_overlaps_the_review_team(monkeypatch) -> None:
+    """Evidence nodes do not read the team brief, so they start with the review."""
+    from mokli.agent.tools import trading_kernel as kernel_tool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    started: list[str] = []
+    release = asyncio.Event()
+
+    async def fake_swarm(*_args, **_kwargs):
+        started.append("swarm")
+        if "evidence" in started:
+            release.set()
+        await release.wait()
+        return {"team_briefing": "ready"}
+
+    async def fake_prefetch(_interval, _turn):
+        started.append("evidence")
+        if "swarm" in started:
+            release.set()
+        await release.wait()
+
+    async def fake_kernel(**kwargs):
+        assert kwargs.get("team_briefing") == "ready"
+        return object()
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_swarm", fake_swarm)
+    monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    monkeypatch.setattr(kernel_tool, "run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(kernel_tool, "result_to_wire", lambda _result: {"decision": "wait"})
+
+    tool = kernel_tool.RunTradingKernelTool(bus=object(), subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        payload = json.loads(
+            asyncio.run(
+                asyncio.wait_for(tool.execute(decision_review=True), timeout=1)
+            )
+        )
+    assert payload["decision"] == "wait"
+    assert "swarm" in started
+    assert "evidence" in started
+
+
 def test_buy_question_runs_the_kernel_before_the_model() -> None:
     from mokli.agent.runner import AgentRunner
     from mokli.agent.tools.base import Tool
