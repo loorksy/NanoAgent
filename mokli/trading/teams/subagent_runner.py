@@ -154,9 +154,10 @@ async def run_team_role(
 ) -> str:
     """Execute one team role and return its textual summary.
 
-    ``system_prompt`` is the preset's role instruction. Inline subagents get the
-    generic subagent system prompt, so the role instruction is prepended to the
-    task; the direct-LLM fallback uses it as the system message.
+    ``system_prompt`` is the preset's role instruction. When the turn has a
+    model runtime, the role is one completion with that instruction and the
+    frozen evidence, and no tool list. The subagent manager is only the
+    fallback when that runtime is missing.
     """
     request = current_request_context()
     runtime = request.runtime if request else None
@@ -178,7 +179,14 @@ async def run_team_role(
     )
 
     try:
-        if manager is not None and runtime is not None and request is not None:
+        if runtime is not None:
+            summary = await _llm_complete(
+                role,
+                task_body,
+                runtime,
+                system_prompt=system_prompt,
+            )
+        elif manager is not None and request is not None:
             summary = await manager.run_inline(
                 task=full_task,
                 label=role,
@@ -191,13 +199,6 @@ async def run_team_role(
             )
             if summary.startswith("Error:"):
                 raise RuntimeError(summary)
-        elif runtime is not None:
-            summary = await _llm_complete(
-                role,
-                task_body,
-                runtime,
-                system_prompt=system_prompt,
-            )
         else:
             raise RuntimeError(tr("team.no_llm_runtime"))
 

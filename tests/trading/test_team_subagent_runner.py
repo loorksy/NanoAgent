@@ -9,6 +9,37 @@ from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 from mokli.utils.llm_runtime import LLMRuntime
 
 
+@pytest.mark.asyncio
+async def test_team_role_with_runtime_does_not_open_a_tool_loop() -> None:
+    provider = MagicMock()
+    provider.chat = AsyncMock(return_value=MagicMock(content="levels hold\nSTANCE: wait"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    manager = MagicMock()
+    manager.run_inline = AsyncMock(return_value="should not run")
+
+    with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+        summary = await run_team_role(
+            agent_id="risk",
+            role="Risk Officer",
+            task_text="Name blocking risks.",
+            evidence_text='{"last_close": 2300}',
+            system_prompt="role:risk",
+            manager=manager,
+        )
+
+    manager.run_inline.assert_not_awaited()
+    provider.chat.assert_awaited()
+    kwargs = provider.chat.await_args.kwargs
+    assert "tools" not in kwargs
+    assert kwargs["max_tokens"] == 1024
+    messages = kwargs["messages"]
+    assert messages[0]["role"] == "system"
+    assert "STANCE: wait" in messages[0]["content"]
+    assert "2300" in messages[1]["content"]
+    assert "Name blocking risks." in messages[1]["content"]
+    assert summary.startswith("levels hold")
+
+
 def test_non_structure_roles_do_not_receive_the_candle_dump() -> None:
     candles = [{"t": index, "o": 1, "h": 2, "l": 0, "c": 1} for index in range(40)]
     full = json.dumps({"symbol": "XAUUSD", "last_close": 2300, "candles": candles})
