@@ -31,6 +31,7 @@ EventKind = Literal[
     "notification",
     "job",
     "end",
+    "diagnostic",
 ]
 EVENT_KINDS: tuple[EventKind, ...] = (
     "delta",
@@ -43,6 +44,7 @@ EVENT_KINDS: tuple[EventKind, ...] = (
     "notification",
     "job",
     "end",
+    "diagnostic",
 )
 
 SessionState = Literal["working", "waiting", "completed"]
@@ -123,12 +125,18 @@ def tool_data(
     call_id: str,
     summary: str | None = None,
     duration_ms: int | None = None,
+    display: str | None = None,
+    arguments: str | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "name": name, "call_id": call_id}
     if summary is not None:
         data["summary"] = summary
     if duration_ms is not None:
         data["duration_ms"] = duration_ms
+    if display is not None:
+        data["display"] = display
+    if arguments is not None:
+        data["arguments"] = arguments
     return data
 
 
@@ -246,14 +254,14 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
         return {
             "session": session,
             "kind": "state",
-            "data": state_data("working", phase="thinking"),
+            "data": state_data("working", phase="processing"),
         }
     if isinstance(event, TurnRuntimeAdmitted):
         session = session_id_for_key(event.context.session_key)
         return {
             "session": session,
             "kind": "state",
-            "data": state_data("working", phase="thinking"),
+            "data": state_data("working", phase="processing"),
         }
     if isinstance(event, TurnRunStatusChanged):
         if event.status == "idle":

@@ -29,6 +29,7 @@ export interface ToolTimelineEntry {
   kind: "tool";
   call_id: string;
   name: string;
+  display?: string;
   status: TimelineStatus;
   started_at: number;
   run?: string;
@@ -155,6 +156,7 @@ function applyTool(snapshot: SessionSnapshot, event: Extract<GatewayEvent, { kin
       status: data.event === "started" ? "running" : data.event === "failed" ? "failed" : "finished",
       started_at: event.ts,
     };
+    if (data.display !== undefined) entry.display = data.display;
     if (event.run !== undefined) entry.run = event.run;
     if (data.summary !== undefined) entry.summary = data.summary;
     if (data.duration_ms !== undefined) entry.duration_ms = data.duration_ms;
@@ -166,6 +168,7 @@ function applyTool(snapshot: SessionSnapshot, event: Extract<GatewayEvent, { kin
     ...existing,
     status: data.event === "failed" ? "failed" : "finished",
   };
+  if (data.display !== undefined) updated.display = data.display;
   if (data.summary !== undefined) updated.summary = data.summary;
   if (data.duration_ms !== undefined) updated.duration_ms = data.duration_ms;
   return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };

@@ -197,6 +197,8 @@ export interface ToolData {
   call_id: string;
   summary?: string;
   duration_ms?: number;
+  display?: string;
+  arguments?: string;
 }
 
 export interface SubagentData {

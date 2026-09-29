@@ -80,7 +80,8 @@ _ANALYZE_PARAMETERS = tool_parameters_schema(
     ),
     preset=StringSchema(
         "Swarm preset when team_mode=swarm "
-        "(gold_analysis_committee, gold_debate_desk, gold_news_war_room, gold_mtf_panel)"
+        "(gold_decision_review, gold_analysis_committee, gold_debate_desk, "
+        "gold_news_war_room, gold_mtf_panel)"
     ),
     reevaluate=BooleanSchema(
         description=(

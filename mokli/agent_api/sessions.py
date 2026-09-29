@@ -15,6 +15,8 @@ from typing import Any, Protocol, TypedDict, cast
 from loguru import logger
 
 from mokli.agent.hook import AgentHook, AgentHookContext
+from mokli.agent.tools.display import phrase_for
+from mokli.agent.turn_diagnostics import latest_diagnostics
 from mokli.agent_api.approvals import ApprovalRegistry
 from mokli.agent_api.db import Database, row_to_dict
 from mokli.agent_api.errors import ApiError
@@ -116,11 +118,19 @@ class TurnHook(AgentHook):
         tool_call: ToolCallRequest,
         *,
         summary: str | None = None,
+        arguments: str | None = None,
     ) -> None:
         started = self._started.pop(tool_call.id, None)
         duration = int((time.monotonic() - started) * 1000) if started is not None else None
+        display = phrase_for(tool_call.name, event)
         if event == "started":
-            data = tool_data("started", name=tool_call.name, call_id=tool_call.id)
+            data = tool_data(
+                "started",
+                name=tool_call.name,
+                call_id=tool_call.id,
+                display=display,
+                arguments=arguments,
+            )
         elif event == "failed":
             data = tool_data(
                 "failed",
@@ -128,6 +138,7 @@ class TurnHook(AgentHook):
                 call_id=tool_call.id,
                 summary=summary,
                 duration_ms=duration,
+                display=display,
             )
         else:
             data = tool_data(
@@ -136,8 +147,18 @@ class TurnHook(AgentHook):
                 call_id=tool_call.id,
                 summary=summary,
                 duration_ms=duration,
+                display=display,
             )
         self._hub.publish(self._session, "tool", data, run=self._run)
+
+    @staticmethod
+    def _public_arguments(name: str, params: object) -> str | None:
+        if name in _SENSITIVE_TOOLS or not isinstance(params, dict):
+            return None
+        text = json.dumps(params, ensure_ascii=False, default=str)
+        if len(text) > 180:
+            return text[:179] + "…"
+        return text
 
     async def before_execute_tool(
         self,
@@ -147,8 +168,11 @@ class TurnHook(AgentHook):
         params: object,
     ) -> None:
         self._started[tool_call.id] = time.monotonic()
-        self._hub.working(self._session, f"tool:{tool_call.name}", run=self._run)
-        self._emit_tool("started", tool_call)
+        self._emit_tool(
+            "started",
+            tool_call,
+            arguments=self._public_arguments(tool_call.name, params),
+        )
         if tool_call.name in _SUBAGENT_TOOLS:
             role = ""
             if isinstance(params, dict):
@@ -184,7 +208,6 @@ class TurnHook(AgentHook):
             )
         if tool_call.name == "mt5_propose_order":
             self._register_proposal(result)
-        self._hub.working(self._session, "thinking", run=self._run)
 
     async def on_execute_tool_error(
         self,
@@ -195,7 +218,6 @@ class TurnHook(AgentHook):
         error: object,
     ) -> None:
         self._emit_tool("failed", tool_call, summary=_summary(error))
-        self._hub.working(self._session, "thinking", run=self._run)
 
     def _register_proposal(self, result: object) -> None:
         raw = str(result)
@@ -417,6 +439,9 @@ class SessionService:
             if self._run_ids.get(session_id) == run_id:
                 self._run_ids.pop(session_id, None)
                 self._runs.pop(session_id, None)
+            measured = latest_diagnostics(key)
+            if measured is not None:
+                self.hub.publish(session_id, "diagnostic", measured, run=run_id)
             self.hub.run_finished(session_id, run_id, outcome)
 
     async def cancel(self, session_id: str) -> bool:

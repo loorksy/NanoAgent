@@ -359,18 +359,21 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     timeline = chunks[-1]
     assert timeline.startswith("\n\n<details>")
     assert "<summary>Agent timeline</summary>" in timeline
-    assert "- ⚙ Running tool: web_search" in timeline
-    assert "- ⚙ Tool finished: web_search (120 ms) - 3 hits" in timeline
-    assert "- ↳ Subagent started: analyst" in timeline
+    assert "web_search" in timeline
+    assert "120 ms" in timeline
+    assert "analyst" in timeline
+    assert "⚙ Running tool: web_search" not in timeline
 
     assert harness.statuses() == [
-        ("Working · Thinking", False),
-        ("⚙ Running tool: web_search", False),
-        ("⚙ Tool finished: web_search", False),
-        ("↳ Subagent started: analyst", False),
+        ("Processing", False),
+        ("Working on a step …", False),
+        ("Step finished ✓", False),
+        ("Step finished ✓ · Specialist …", False),
         ("Done", True),
         ("Done", True),
     ]
+    for description, _done in harness.statuses():
+        assert "web_search" not in description
     embeds = [e for e in harness.emitted if e["type"] == "embeds"]
     assert embeds == [
         {"type": "embeds", "data": {"embeds": ["<html><body>card</body></html>"], "replace": True}}
@@ -889,3 +892,29 @@ def test_unknown_model_is_not_reported_as_gateway_unreachable() -> None:
     exc = httpx.HTTPStatusError("bad request", request=request, response=response)
     text = pipe_mod.Pipe._gateway_failure_text(exc, pipe_mod._Turn("s", "en", {}))
     assert text == "Unknown model: missing-model"
+
+
+def test_activity_projection_matches_real_events() -> None:
+    assert pipe_mod.project_activity([]) == []
+    assert pipe_mod.project_activity([ev("state", {"state": "working", "phase": "thinking"})]) == []
+    one = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+    ])
+    assert len(one) == 1
+    assert one[0]["label"] == "يفحص سعر الذهب الحالي…"
+    assert "get_gold_quote" not in str(one[0]["label"])
+    several = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+        ev("tool", {"event": "finished", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "تم فحص سعر الذهب"}),
+        ev("subagent", {"event": "started", "id": "sa", "role": "Risk Officer"}),
+        ev("tool", {"event": "started", "name": "not_a_real_extra", "call_id": "c2"}),
+    ])
+    assert [step["id"] for step in several] == ["c1", "sa", "c2"]
+    assert several[0]["label"] == "تم فحص سعر الذهب"
+    assert several[1]["label"] == "Risk Officer"
+    assert several[2]["label"] == "Working on a step"
+    assert pipe_mod.format_duration_ms(200) == "200 ms"
+    assert pipe_mod.format_duration_ms(3700) == "3.7 s"

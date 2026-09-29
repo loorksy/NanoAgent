@@ -38,6 +38,12 @@ RUN_SCOPED_KINDS = frozenset(
 
 DEFAULT_LABELS: dict[str, str] = {
     "state.working": "Working",
+    "state.processing": "Processing",
+    "activity.step.started": "Working on a step",
+    "activity.step.completed": "Step finished",
+    "activity.step.failed": "Step failed",
+    "activity.subagent": "Specialist",
+    "diagnostics.title": "Developer diagnostics",
     "state.waiting": "Waiting",
     "state.completed": "Completed",
     "phase.queued": "Queued",
@@ -495,6 +501,102 @@ def payload_to_markdown_table(
     return "\n".join(lines)
 
 
+def format_duration_ms(duration_ms: int) -> str:
+    """Show the measured duration. Sub-second values stay in milliseconds."""
+    if duration_ms < 1000:
+        return f"{duration_ms} ms"
+    seconds = duration_ms / 1000
+    if abs(seconds - round(seconds)) < 0.05:
+        return f"{int(round(seconds))} s"
+    return f"{seconds:.1f} s"
+
+
+def _fallback_step_label(stage: str, label: Callable[[str], str] | None = None) -> str:
+    if stage == "failed":
+        key = "activity.step.failed"
+    elif stage in {"finished", "completed"}:
+        key = "activity.step.completed"
+    else:
+        key = "activity.step.started"
+    if label is not None:
+        return label(key)
+    return DEFAULT_LABELS[key]
+
+
+def _tool_label(
+    data: Mapping[str, object],
+    stage: str,
+    label: Callable[[str], str] | None = None,
+) -> str:
+    display = _as_str(data.get("display"))
+    if display:
+        return display
+    return _fallback_step_label(stage, label)
+
+
+def _role_label(role: str, label: Callable[[str], str] | None = None) -> str:
+    if role and not ("_" in role or (role.isascii() and role.islower())):
+        return role
+    if label is not None:
+        return label("activity.subagent")
+    return DEFAULT_LABELS["activity.subagent"]
+
+
+def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, object]]:
+    """Visible activity steps derived only from real tool and subagent events."""
+    steps: list[dict[str, object]] = []
+    index: dict[str, dict[str, object]] = {}
+    for event in events:
+        kind = _as_str(event.get("kind"))
+        data = _as_dict(event.get("data"))
+        stage = _as_str(data.get("event"), "started")
+        if kind == "tool":
+            call_id = _as_str(data.get("call_id")) or f"tool-{len(steps)}"
+            if stage == "started" or call_id not in index:
+                step = {
+                    "id": call_id,
+                    "kind": "tool",
+                    "label": _tool_label(data, "started"),
+                    "technical": _as_str(data.get("name")),
+                    "done": False,
+                }
+                steps.append(step)
+                index[call_id] = step
+            if stage in {"finished", "failed"}:
+                current = index.get(call_id)
+                if current is not None:
+                    current["label"] = _tool_label(data, stage)
+                    current["done"] = True
+                    current["failed"] = stage == "failed"
+        elif kind == "subagent" and stage == "started":
+            sub_id = _as_str(data.get("id")) or f"sub-{len(steps)}"
+            if sub_id in index:
+                continue
+            step = {
+                "id": sub_id,
+                "kind": "subagent",
+                "label": _role_label(_as_str(data.get("role"))),
+                "technical": _as_str(data.get("role")),
+                "done": False,
+            }
+            steps.append(step)
+            index[sub_id] = step
+        elif kind == "subagent" and stage == "finished":
+            current = index.get(_as_str(data.get("id")))
+            if current is not None:
+                current["done"] = True
+    return steps
+
+
+def activity_line(steps: list[Mapping[str, object]]) -> str:
+    parts: list[str] = []
+    for step in steps:
+        label = _as_str(step.get("label")) or DEFAULT_LABELS["activity.step.started"]
+        mark = "✓" if step.get("done") else "…"
+        parts.append(f"{label} {mark}")
+    return " · ".join(parts)
+
+
 def _task_response(task: str, body: Mapping[str, object]) -> str:
     text, _ = extract_last_user_message(body)
     if task == "title_generation":
@@ -521,6 +623,8 @@ class _Turn:
         self.timeline: list[str] = []
         self.embeds: list[str] = []
         self.files: list[dict[str, object]] = []
+        self.steps: list[dict[str, object]] = []
+        self.diagnostics: dict[str, object] | None = None
 
     def label(self, key: str, fallback: str | None = None) -> str:
         found = self.labels.get(key) or DEFAULT_LABELS.get(key)
@@ -551,6 +655,10 @@ class Pipe:
         SHOW_TIMELINE: bool = Field(
             default=True,
             description="Append a collapsible tool/subagent timeline to each reply.",
+        )
+        SHOW_DIAGNOSTICS: bool = Field(
+            default=False,
+            description="Developer only: append measured token and timing diagnostics.",
         )
         REQUEST_TIMEOUT: float = Field(
             default=30.0, description="Connect/REST timeout in seconds (SSE reads never time out)."
@@ -740,6 +848,8 @@ class Pipe:
                 attempt += 1
             if self.valves.SHOW_TIMELINE and turn.timeline:
                 yield self._render_timeline(turn)
+            if self.valves.SHOW_DIAGNOSTICS and turn.diagnostics:
+                yield self._render_diagnostics(turn)
         except httpx.HTTPError as exc:
             log.error("mokli pipe: gateway error: %s", exc)
             detail = self._gateway_failure_text(exc, turn)
@@ -803,6 +913,9 @@ class Pipe:
             await self._on_notification(data, emitter)
         elif kind == "job":
             self._on_job(data, turn)
+        elif kind == "diagnostic":
+            if self.valves.SHOW_DIAGNOSTICS:
+                turn.diagnostics = data
         elif kind == "end":
             outcome = _as_str(data.get("outcome"), "ok")
             await self._emit(
@@ -821,10 +934,13 @@ class Pipe:
         state = _as_str(data.get("state"), "working")
         description = turn.label(f"state.{state}")
         phase = _as_str(data.get("phase"))
-        if phase:
+        provider_thinking = data.get("provider_thinking") is True
+        if state == "working" and phase in {"thinking", "processing", "tool"} and not provider_thinking:
+            description = turn.label("state.processing")
+        elif phase and not phase.startswith("tool:"):
             phase_kind, _, phase_name = phase.partition(":")
             description = f"{description} · {turn.label(f'phase.{phase_kind}', phase_kind)}"
-            if phase_name:
+            if phase_name and phase_kind != "tool":
                 description = f"{description} {phase_name}"
         waiting_for = _as_dict(data.get("waiting_for"))
         if waiting_for:
@@ -846,16 +962,40 @@ class Pipe:
         name = _as_str(data.get("name"))
         summary = _as_str(data.get("summary"))
         duration = _as_int(data.get("duration_ms"))
-        description = f"⚙ {turn.label(f'tool.{stage}')}: {name}".rstrip(": ")
+        call_id = _as_str(data.get("call_id")) or f"tool-{len(turn.steps)}"
+        label = _tool_label(data, stage, turn.label)
+        existing = next((step for step in turn.steps if step.get("id") == call_id), None)
+        if existing is None:
+            turn.steps.append(
+                {
+                    "id": call_id,
+                    "kind": "tool",
+                    "label": label,
+                    "technical": name,
+                    "done": stage in {"finished", "failed"},
+                    "failed": stage == "failed",
+                }
+            )
+        else:
+            existing["label"] = label
+            existing["done"] = stage in {"finished", "failed"}
+            existing["failed"] = stage == "failed"
         await self._emit(
-            emitter, {"type": "status", "data": {"description": description, "done": False}}
+            emitter,
+            {
+                "type": "status",
+                "data": {"description": activity_line(turn.steps), "done": False},
+            },
         )
-        entry = description
+        detail = f"{label} · {name}" if name else label
         if duration is not None:
-            entry = f"{entry} ({duration} ms)"
+            detail = f"{detail} · {format_duration_ms(duration)}"
+        arguments = _as_str(data.get("arguments"))
+        if arguments:
+            detail = f"{detail} · {arguments}"
         if summary:
-            entry = f"{entry} - {summary}"
-        turn.timeline.append(entry)
+            detail = f"{detail} · {summary}"
+        turn.timeline.append(detail)
 
     async def _on_subagent(
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
@@ -863,11 +1003,33 @@ class Pipe:
         stage = _as_str(data.get("event"), "started")
         role = _as_str(data.get("role")) or _as_str(data.get("id"))
         summary = _as_str(data.get("summary"))
-        description = f"↳ {turn.label(f'subagent.{stage}')}: {role}".rstrip(": ")
-        await self._emit(
-            emitter, {"type": "status", "data": {"description": description, "done": False}}
-        )
-        turn.timeline.append(f"{description} - {summary}" if summary else description)
+        sub_id = _as_str(data.get("id")) or f"sub-{len(turn.steps)}"
+        label = _role_label(role, turn.label)
+        existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
+        if stage == "started" and existing is None:
+            turn.steps.append(
+                {
+                    "id": sub_id,
+                    "kind": "subagent",
+                    "label": label,
+                    "technical": role,
+                    "done": False,
+                }
+            )
+        elif existing is not None and stage == "finished":
+            existing["done"] = True
+        if turn.steps:
+            await self._emit(
+                emitter,
+                {
+                    "type": "status",
+                    "data": {"description": activity_line(turn.steps), "done": False},
+                },
+            )
+        detail = f"{label} · {role}" if role else label
+        if summary:
+            detail = f"{detail} · {summary}"
+        turn.timeline.append(detail)
 
     async def _on_structured(
         self,
@@ -1054,4 +1216,14 @@ class Pipe:
         return (
             f"\n\n<details>\n<summary>{turn.label('timeline.title')}</summary>\n\n"
             f"{lines}\n\n</details>\n"
+        )
+
+    @staticmethod
+    def _render_diagnostics(turn: _Turn) -> str:
+        payload = turn.diagnostics or {}
+        body = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+        return (
+            "\n\n<details>\n<summary>"
+            f"{turn.label('diagnostics.title')}</summary>\n\n"
+            f"```json\n{body}\n```\n\n</details>\n"
         )

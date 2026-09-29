@@ -53,8 +53,11 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
       {open
         ? entries.map((entry) => {
             const tone = entry.status === "failed" ? colors.danger : entry.status === "running" ? colors.info : colors.success;
-            const name = entry.kind === "tool" ? label(`tool.${entry.name}`) : label(`subagent.${entry.role}`);
-            const display = name.startsWith("tool.") || name.startsWith("subagent.") ? (entry.kind === "tool" ? entry.name : entry.role) : name;
+            const named = entry.kind === "tool" ? label(`tool.${entry.name}`) : label(`subagent.${entry.role}`);
+            const fallback = named.startsWith("tool.") || named.startsWith("subagent.")
+              ? (entry.kind === "tool" ? "ينفّذ خطوة" : "وكيل متخصص")
+              : named;
+            const display = entry.kind === "tool" && entry.display ? entry.display : fallback;
             return (
               <View key={entry.id} style={styles.timelineRow}>
                 <View style={[styles.dot, { backgroundColor: tone }]} />
@@ -62,6 +65,7 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
                   <Text style={styles.timelineName}>
                     {t(`timeline.${entry.kind}`)} · {display}
                   </Text>
+                  {entry.kind === "tool" ? <Muted>{entry.name}</Muted> : null}
                   {entry.summary ? <Muted>{entry.summary}</Muted> : null}
                 </View>
                 <Muted>

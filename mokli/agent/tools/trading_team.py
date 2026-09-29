@@ -21,6 +21,7 @@ _TEAM_PARAMETERS = tool_parameters_schema(
         enum=[
             "gold_analysis_committee",
             "gold_debate_desk",
+            "gold_decision_review",
             "gold_news_war_room",
             "gold_mtf_panel",
         ],
@@ -61,9 +62,11 @@ class RunTradingTeamTool(Tool):
     def description(self) -> str:
         available = ", ".join(list_presets()) or "gold_analysis_committee"
         return (
-            "Run a multi-agent gold trading team preset (committee, debate desk, "
-            f"news war room, or MTF panel). Available presets: {available}. "
-            "Each role runs as a real subagent before the core recommendation pipeline. "
+            "Run a multi-agent gold trading team preset. "
+            f"Available presets: {available}. "
+            "For a buy/sell question use gold_decision_review (technical, then macro "
+            "and trend, then risk, then one review). The team returns briefs only; "
+            "run_trading_kernel is still the only BUY/SELL path. "
             "Set present_ui=true only when the operator wants the visual team/chart experience."
         ).format(available=available)
 

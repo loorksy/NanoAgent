@@ -14,6 +14,9 @@ DEFAULT_ROLE_FILE = "lead"
 
 # Ordered: the first keyword found in the normalised role label wins.
 _ROLE_KEYWORDS: tuple[tuple[str, str], ...] = (
+    ("technical", "structure"),
+    ("trend", "timeframe"),
+    ("review", "lead"),
     ("macro", "macro"),
     ("structure", "structure"),
     ("liquidity", "liquidity"),
