@@ -533,6 +533,9 @@ class AgentRunner:
                 workspace_violation_counts=workspace_violation_counts,
             )
         )
+        # The kernel already ran the review. Later model rounds answer from that
+        # result and do not receive the tool catalog, so they cannot open another loop.
+        answer_without_tools = bool(tools_used)
 
         for iteration in range(spec.max_iterations):
             context = AgentHookContext(
@@ -555,6 +558,7 @@ class AgentRunner:
                 context,
                 request_state=request_state,
                 transcript=messages,
+                omit_tools=answer_without_tools,
             )
             assert request_state.messages is not None
             messages_for_model = request_state.messages
@@ -988,8 +992,9 @@ class AgentRunner:
         request_state: ModelRequestState,
         malformed_retry: bool = False,
         transcript: list[dict[str, Any]] | None,
+        omit_tools: bool = False,
     ) -> tuple[LLMResponse, LLMUsage]:
-        tool_definitions = spec.tools.get_definitions()
+        tool_definitions = None if omit_tools else spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(
             request_state,
             messages,
@@ -1118,6 +1123,14 @@ class AgentRunner:
         request_started_at = time.perf_counter()
         try:
             response = await coro
+            if omit_tools and response.tool_calls:
+                logger.info(
+                    "Dropping {} tool call(s) because this turn already has the gold decision",
+                    len(response.tool_calls),
+                )
+                response.tool_calls = []
+                if response.finish_reason in ("tool_calls", "function_call"):
+                    response.finish_reason = "stop"
         except asyncio.CancelledError:
             _pause_generation()
             await _close_native_reasoning()
@@ -1166,6 +1179,7 @@ class AgentRunner:
                 request_state=request_state,
                 malformed_retry=True,
                 transcript=None,
+                omit_tools=omit_tools,
             )
             return retry_response, round_usage + retry_usage
         if (

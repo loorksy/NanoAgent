@@ -296,3 +296,135 @@ def test_model_brief_drops_images_and_raw_role_text() -> None:
     with_gates = brief_for_model(wire, include_gates=True)
     assert with_gates["gateChain"]["verdicts"] == [{"id": "G1", "name": "spread", "status": "pass"}]
     assert "blob" not in json.dumps(with_gates)
+
+
+def _decision_tool(name: str, result: str):
+    from mokli.agent.tools.base import Tool
+
+    class _Tool(Tool):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        @property
+        def name(self) -> str:
+            return name
+
+        @property
+        def description(self) -> str:
+            return name
+
+        @property
+        def parameters(self) -> dict:
+            return {"type": "object", "properties": {}}
+
+        async def execute(self, **_kwargs):
+            self.calls += 1
+            return result
+
+    return _Tool()
+
+
+def _recording_provider(response):
+    from mokli.providers.base import LLMProvider
+
+    class _Provider(LLMProvider):
+        def __init__(self) -> None:
+            super().__init__(provider_name="fake")
+            self.calls: list[dict] = []
+
+        def get_default_model(self) -> str:
+            return "fake"
+
+        async def chat(self, **kwargs):
+            self.calls.append(kwargs)
+            return response
+
+        async def chat_stream(self, **kwargs):
+            self.calls.append(kwargs)
+            return response
+
+    return _Provider()
+
+
+def _run_turn(text: str, provider, registry):
+    from mokli.agent.runner import AgentRunner, AgentRunSpec
+    from mokli.agent.tools.context import RequestContext, request_context
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+    from mokli.utils.llm_runtime import LLMRuntime
+
+    spec = AgentRunSpec(
+        initial_messages=[{"role": "user", "content": text}],
+        tools=registry,
+        runtime=LLMRuntime.capture(provider, "fake", context_window_tokens=8000),
+        max_iterations=3,
+        max_tool_result_chars=4000,
+        session_key="websocket:1",
+    )
+    with turn_session_scope(TurnSession(turn_id="t1")), request_context(
+        RequestContext(
+            channel="websocket",
+            chat_id="ws:1",
+            session_key="websocket:1",
+            original_user_text=text,
+        )
+    ):
+        return asyncio.run(AgentRunner().run(spec))
+
+
+def test_gold_decision_answer_omits_the_tool_catalog() -> None:
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.providers.base import LLMResponse, ToolCallRequest
+
+    kernel = _decision_tool("run_trading_kernel", '{"decision":"wait"}')
+    quote = _decision_tool("get_gold_quote", '{"mid":1}')
+    registry = ToolRegistry()
+    registry.register(kernel)
+    registry.register(quote)
+    provider = _recording_provider(
+        LLMResponse(
+            content="wait for the level",
+            tool_calls=[ToolCallRequest(id="q1", name="get_gold_quote", arguments={})],
+            finish_reason="tool_calls",
+        )
+    )
+    result = _run_turn("هل أشتري الذهب؟", provider, registry)
+    assert kernel.calls == 1
+    assert quote.calls == 0
+    assert result.final_content == "wait for the level"
+    assert len(provider.calls) == 1
+    assert provider.calls[0]["tools"] is None
+    assert registry.get_definitions()
+
+
+def test_failed_gold_decision_still_offers_tools() -> None:
+    from mokli.agent.tools.base import ToolResult
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.providers.base import LLMResponse
+
+    kernel = _decision_tool("run_trading_kernel", ToolResult.error("feed down"))
+    registry = ToolRegistry()
+    registry.register(kernel)
+    provider = _recording_provider(LLMResponse(content="the feed failed", finish_reason="stop"))
+    result = _run_turn("هل أشتري الذهب؟", provider, registry)
+    assert kernel.calls == 1
+    assert result.final_content == "the feed failed"
+    assert provider.calls[0]["tools"]
+    assert any(
+        item.get("function", {}).get("name") == "run_trading_kernel"
+        or item.get("name") == "run_trading_kernel"
+        for item in provider.calls[0]["tools"]
+    )
+
+
+def test_plain_question_still_receives_tools() -> None:
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.providers.base import LLMResponse
+
+    kernel = _decision_tool("run_trading_kernel", '{"decision":"wait"}')
+    registry = ToolRegistry()
+    registry.register(kernel)
+    provider = _recording_provider(LLMResponse(content="hello", finish_reason="stop"))
+    result = _run_turn("hello there", provider, registry)
+    assert kernel.calls == 0
+    assert result.final_content == "hello"
+    assert provider.calls[0]["tools"]
