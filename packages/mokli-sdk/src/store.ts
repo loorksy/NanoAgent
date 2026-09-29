@@ -46,9 +46,22 @@ export interface SubagentTimelineEntry {
   started_at: number;
   run?: string;
   summary?: string;
+  duration_ms?: number;
 }
 
-export type TimelineEntry = ToolTimelineEntry | SubagentTimelineEntry;
+export interface RetryTimelineEntry {
+  id: string;
+  kind: "retry";
+  retry_id: string;
+  state: "waiting" | "recovered" | "cleared" | "exhausted";
+  attempt: number;
+  error_kind: string;
+  status: TimelineStatus;
+  started_at: number;
+  run?: string;
+}
+
+export type TimelineEntry = ToolTimelineEntry | SubagentTimelineEntry | RetryTimelineEntry;
 
 export interface ApprovalEntry extends ApprovalData {
   status: ApprovalStatus;
@@ -174,6 +187,12 @@ function applyTool(snapshot: SessionSnapshot, event: Extract<GatewayEvent, { kin
   return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };
 }
 
+function subagentStatus(event: "started" | "finished" | "failed"): TimelineStatus {
+  if (event === "started") return "running";
+  if (event === "failed") return "failed";
+  return "finished";
+}
+
 function applySubagent(
   snapshot: SessionSnapshot,
   event: Extract<GatewayEvent, { kind: "subagent" }>,
@@ -188,19 +207,61 @@ function applySubagent(
       kind: "subagent",
       subagent_id: data.id,
       role: data.role,
-      status: data.event === "started" ? "running" : "finished",
+      status: subagentStatus(data.event),
       started_at: event.ts,
     };
     if (event.run !== undefined) entry.run = event.run;
     if (data.summary !== undefined) entry.summary = data.summary;
+    if (data.duration_ms !== undefined) entry.duration_ms = data.duration_ms;
     return { ...snapshot, timeline: [...snapshot.timeline, entry] };
   }
   const existing = snapshot.timeline[index] as SubagentTimelineEntry;
   const updated: SubagentTimelineEntry = {
     ...existing,
-    status: data.event === "started" ? "running" : "finished",
+    status: subagentStatus(data.event),
   };
   if (data.summary !== undefined) updated.summary = data.summary;
+  if (data.duration_ms !== undefined) updated.duration_ms = data.duration_ms;
+  return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };
+}
+
+function retryStatus(state: RetryTimelineEntry["state"]): TimelineStatus {
+  if (state === "waiting") return "running";
+  if (state === "exhausted") return "failed";
+  return "finished";
+}
+
+function applyRetry(
+  snapshot: SessionSnapshot,
+  event: Extract<GatewayEvent, { kind: "retry" }>,
+): SessionSnapshot {
+  const { data } = event;
+  const retryId = data.state === "cleared" ? "fallback" : `retry-${data.attempt}`;
+  const index = snapshot.timeline.findIndex(
+    (entry) => entry.kind === "retry" && entry.retry_id === retryId,
+  );
+  if (index === -1) {
+    const entry: RetryTimelineEntry = {
+      id: event.id,
+      kind: "retry",
+      retry_id: retryId,
+      state: data.state,
+      attempt: data.attempt,
+      error_kind: data.error_kind,
+      status: retryStatus(data.state),
+      started_at: event.ts,
+    };
+    if (event.run !== undefined) entry.run = event.run;
+    return { ...snapshot, timeline: [...snapshot.timeline, entry] };
+  }
+  const existing = snapshot.timeline[index] as RetryTimelineEntry;
+  const updated: RetryTimelineEntry = {
+    ...existing,
+    state: data.state,
+    attempt: data.attempt,
+    error_kind: data.error_kind,
+    status: retryStatus(data.state),
+  };
   return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };
 }
 
@@ -257,6 +318,9 @@ export function applyEvent(snapshot: SessionSnapshot, event: GatewayEvent): Sess
       break;
     case "subagent":
       next = applySubagent(next, event);
+      break;
+    case "retry":
+      next = applyRetry(next, event);
       break;
     case "structured": {
       const result: StructuredResult = { ...event.data, session: event.session, ts: event.ts };

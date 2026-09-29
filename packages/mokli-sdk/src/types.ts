@@ -202,10 +202,11 @@ export interface ToolData {
 }
 
 export interface SubagentData {
-  event: "started" | "finished";
+  event: "started" | "finished" | "failed";
   id: string;
   role: string;
   summary?: string;
+  duration_ms?: number;
 }
 
 export interface ArtifactData {

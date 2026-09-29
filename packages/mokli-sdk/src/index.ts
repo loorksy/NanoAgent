@@ -29,6 +29,7 @@ export type {
   Listener,
   NotificationEntry,
   SessionSnapshot,
+  RetryTimelineEntry,
   SubagentTimelineEntry,
   TimelineEntry,
   TimelineStatus,

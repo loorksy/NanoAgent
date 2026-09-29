@@ -106,6 +106,28 @@ describe("applyEvent", () => {
     expect(snap.timeline).toEqual([
       expect.objectContaining({ kind: "subagent", subagent_id: "sa1", status: "finished", summary: "no" }),
     ]);
+    snap = applyEvent(snap, ev("subagent", { event: "started", id: "risk", role: "Risk Officer" }));
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "failed", id: "risk", role: "Risk Officer", duration_ms: 200 }),
+    );
+    expect(snap.timeline[1]).toMatchObject({
+      kind: "subagent",
+      subagent_id: "risk",
+      status: "failed",
+      duration_ms: 200,
+    });
+    snap = applyEvent(snap, ev("retry", { state: "waiting", attempt: 2, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "recovered", attempt: 2, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "cleared", attempt: 4, error_kind: "server" }));
+    const retries = snap.timeline.filter((entry) => entry.kind === "retry");
+    expect(retries.map((entry) => entry.retry_id)).toEqual(["retry-2", "fallback"]);
+    expect(retries[0]).toMatchObject({ state: "recovered", status: "finished" });
+    expect(retries[1]).toMatchObject({ state: "cleared", status: "finished" });
+    snap = applyEvent(snap, ev("retry", { state: "exhausted", attempt: 3, error_kind: "timeout" }));
+    expect(snap.timeline.find((entry) => entry.kind === "retry" && entry.retry_id === "retry-3")).toMatchObject({
+      status: "failed",
+    });
     snap = applyEvent(
       snap,
       ev("structured", {
