@@ -67,6 +67,11 @@ ProviderCompactionConsolidator = Callable[
 SNIP_SAFETY_BUFFER = 1024
 # read_file has its own bound; exempt it to avoid persist->read->persist loops.
 TOOL_RESULT_OFFLOAD_EXEMPT_TOOLS = frozenset({"read_file"})
+# Older tool observations stay in the transcript. The next model call receives
+# a short reference instead of the raw body. The newest tool batch stays intact
+# so the model can still reason on what it just received.
+_REFERENCE_THRESHOLD = 1_200
+_REFERENCE_HEAD = 280
 BACKFILL_CONTENT = "[Tool result unavailable — call was interrupted or lost]"
 PLACEHOLDER_TEXTS = frozenset({
     "[Previous assistant message omitted.]",
@@ -92,6 +97,61 @@ class ContextWindowExceededError(RuntimeError):
             "Model input still exceeds the local context budget after request fitting "
             f"for {session_key or 'default'}: {estimated_tokens}/{input_budget} via {source}"
         )
+
+
+def fold_prior_tool_results(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Replace long tool results from earlier rounds with a short reference.
+
+    The tool messages that belong to the latest assistant tool batch stay
+    complete. Persisted history is not this list; callers pass the model copy.
+    """
+    last_assistant = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "assistant" and message.get("tool_calls"):
+            last_assistant = index
+    if last_assistant < 0:
+        return messages, 0, 0
+
+    updated: list[dict[str, Any]] | None = None
+    referenced = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        if index > last_assistant or message.get("role") != "tool":
+            if updated is not None:
+                updated.append(message)
+            continue
+        name = str(message.get("name") or "tool")
+        if name in TOOL_RESULT_OFFLOAD_EXEMPT_TOOLS:
+            if updated is not None:
+                updated.append(message)
+            continue
+        content = message.get("content")
+        if not isinstance(content, str) or len(content) <= _REFERENCE_THRESHOLD:
+            if updated is not None:
+                updated.append(message)
+            continue
+        if content.startswith("[مرجع نتيجة سابقة:"):
+            if updated is not None:
+                updated.append(message)
+            continue
+        head = content[:_REFERENCE_HEAD]
+        reference = (
+            f"[مرجع نتيجة سابقة: {name}، {len(content)} حرفاً. "
+            "أُرسل النص الكامل في الدورة التي أنتجته ولن يُعاد.]\n"
+            f"{head}"
+        )
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["content"] = reference
+        updated.append(cloned)
+        referenced += 1
+        saved += len(content) - len(reference)
+    if updated is None:
+        return messages, 0, 0
+    return updated, referenced, saved
 
 
 def _tool_call_name_is_valid(tool_call: Any) -> bool:
@@ -932,7 +992,14 @@ class ContextGovernor:
                 if updated is messages:
                     updated = [dict(m) for m in messages]
                 updated[idx]["content"] = normalized
-        return updated
+        folded, referenced, saved = fold_prior_tool_results(updated)
+        if referenced:
+            from mokli.agent.turn_diagnostics import current_turn_diagnostics
+
+            diag = current_turn_diagnostics()
+            if diag is not None:
+                diag.note_references(referenced, saved)
+        return folded
 
     def snip_history(
         self,

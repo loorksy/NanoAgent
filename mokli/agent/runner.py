@@ -26,6 +26,13 @@ from mokli.agent.context_governance import (
 from mokli.agent.hook import AgentHook, AgentHookContext, AgentRunHookContext
 from mokli.agent.tools.execution import execute_tool_calls
 from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.turn_diagnostics import (
+    TurnDiagnostics,
+    bind_turn_diagnostics,
+    current_turn_diagnostics,
+    remember_diagnostics,
+    reset_turn_diagnostics,
+)
 from mokli.events import NO_EVENTS, EventSink
 from mokli.llm_usage.context import (
     LLMUsageSource,
@@ -136,6 +143,7 @@ class AgentRunResult:
     provider_state: ProviderConversationState | None = field(default=None, repr=False)
     summary_checkpoint: SessionSummaryCheckpoint | None = field(default=None, repr=False)
     provider_compaction_applied: bool = field(default=False, repr=False)
+    diagnostics: dict[str, Any] | None = None
 
 
 class AgentRunner:
@@ -307,7 +315,19 @@ class AgentRunner:
 
     async def run(self, spec: AgentRunSpec) -> AgentRunResult:
         hook = spec.hook or AgentHook()
-        messages, compaction = self._initial_transcript_and_compaction(spec)
+        provider = spec.runtime.provider
+        diag = TurnDiagnostics(
+            model=spec.runtime.model,
+            provider=type(provider).__name__,
+        )
+        diag_token = bind_turn_diagnostics(diag)
+        context_started = time.perf_counter()
+        try:
+            messages, compaction = self._initial_transcript_and_compaction(spec)
+        except Exception:
+            reset_turn_diagnostics(diag_token)
+            raise
+        diag.note_context(int((time.perf_counter() - context_started) * 1000))
         context = AgentRunHookContext(messages=deepcopy(messages))
         llm_usage_source_token = bind_llm_usage_source(
             spec.llm_usage_source or source_from_session_key(spec.session_key)
@@ -316,6 +336,8 @@ class AgentRunner:
         try:
             await hook.before_run(context)
             result = await self._run_core(spec, hook, messages, compaction)
+            result.diagnostics = diag.to_dict()
+            remember_diagnostics(spec.session_key, result.diagnostics)
         except asyncio.CancelledError as exc:
             context.messages = deepcopy(messages)
             context.stop_reason = "cancelled"
@@ -358,6 +380,7 @@ class AgentRunner:
                         )
             finally:
                 reset_llm_usage_source(llm_usage_source_token)
+                reset_turn_diagnostics(diag_token)
 
     @staticmethod
     def _initial_transcript_and_compaction(
@@ -399,6 +422,7 @@ class AgentRunner:
         stop_reason = "completed"
         tool_events: list[dict[str, str]] = []
         external_lookup_counts: dict[str, int] = {}
+        tool_result_cache: dict[str, Any] = {}
         # Per-turn throttle for repeated attempts against the same outside target.
         workspace_violation_counts: dict[str, int] = {}
         empty_content_retries = 0
@@ -445,6 +469,7 @@ class AgentRunner:
                 if request_state.compaction is not None
                 else messages
             )
+            round_started = time.perf_counter()
             response, raw_usage = await self._request_model(
                 spec,
                 request_messages,
@@ -455,6 +480,12 @@ class AgentRunner:
             )
             assert request_state.messages is not None
             messages_for_model = request_state.messages
+            round_diag = current_turn_diagnostics()
+            if round_diag is not None:
+                round_diag.note_model_round(
+                    int((time.perf_counter() - round_started) * 1000),
+                    raw_usage,
+                )
             conversation_state.observe_response(response, messages)
             if request_state.compaction is not None:
                 request_state.compaction.accept_request(
@@ -509,6 +540,7 @@ class AgentRunner:
 
                 await hook.before_execute_tools(context)
 
+                tool_started = time.perf_counter()
                 results, new_events = await execute_tool_calls(
                     spec.tools,
                     response.tool_calls,
@@ -517,7 +549,15 @@ class AgentRunner:
                     workspace_violation_counts=workspace_violation_counts,
                     hook=hook,
                     context=context,
+                    result_cache=tool_result_cache,
                 )
+                tool_diag = current_turn_diagnostics()
+                if tool_diag is not None:
+                    tool_diag.note_tool_batch(
+                        int((time.perf_counter() - tool_started) * 1000),
+                        new_events,
+                        results,
+                    )
                 tool_events.extend(new_events)
                 tools_used.extend(
                     tool_call.name
@@ -878,6 +918,9 @@ class AgentRunner:
             tool_definitions=tool_definitions,
             transcript=transcript,
         )
+        prepared_diag = current_turn_diagnostics()
+        if prepared_diag is not None:
+            prepared_diag.note_prepared(messages, tool_definitions)
 
         kwargs = self._build_request_kwargs(
             spec,

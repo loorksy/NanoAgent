@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
+from mokli.agent.context_layers import layers_for_task
 from mokli.agent.memory import MemoryStore
 from mokli.agent.prompt.composer import (
     WORKSPACE_LAYER,
@@ -21,6 +22,7 @@ from mokli.agent.tools import image_generation as image_generation_tools
 from mokli.agent.tools import mcp as mcp_tools
 from mokli.agent.tools import sessions as session_tools
 from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.turn_diagnostics import current_turn_diagnostics
 from mokli.apps.cli import utils as cli_app_utils
 from mokli.bus.events import (
     INBOUND_META_RUNTIME_CONTROL,
@@ -124,6 +126,7 @@ class ContextBuilder:
         session_summary: SessionSummary | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        include_skills: bool = True,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> str:
@@ -146,19 +149,23 @@ class ContextBuilder:
                 memory_section = f"# Memory\n\n## Long-term Memory\n{memory}"
 
         active_section = ""
-        active_skills = self.skills.get_always_skills()
-        if active_skills:
-            active_content = self.skills.load_skills_for_context(active_skills)
-            if active_content:
-                active_section = f"# Active Skills\n\n{active_content}"
-
+        active_skills: list[str] = []
         skills_section = ""
-        skills_summary = self.skills.build_skills_summary(
-            exclude=set(active_skills),
-            workspace=root,
-        )
-        if skills_summary:
-            skills_section = render_template("agent/skills_section.md", skills_summary=skills_summary)
+        if include_skills:
+            active_skills = self.skills.get_always_skills()
+            if active_skills:
+                active_content = self.skills.load_skills_for_context(active_skills)
+                if active_content:
+                    active_section = f"# Active Skills\n\n{active_content}"
+
+            skills_summary = self.skills.build_skills_summary(
+                exclude=set(active_skills),
+                workspace=root,
+            )
+            if skills_summary:
+                skills_section = render_template(
+                    "agent/skills_section.md", skills_summary=skills_summary,
+                )
 
         archived = ""
         if session_summary and session_summary["text"] != "(nothing)":
@@ -167,6 +174,11 @@ class ContextBuilder:
                 f"Previous conversation summary (last active {session_summary['last_active']}):\n"
                 f"{session_summary['text']}"
             )
+
+        diag = current_turn_diagnostics()
+        if diag is not None:
+            diag.memory_chars = len(memory_section)
+            diag.skills_chars = len(active_section) + len(skills_section)
 
         return compose_system_prompt(
             PromptContext(
@@ -359,6 +371,7 @@ class ContextBuilder:
     ) -> list[dict[str, Any]]:
         """Build a model transcript while preserving the fresh-turn boundary."""
         root = workspace or self.workspace
+        layers = layers_for_task(transcript.current_message)
         messages: list[dict[str, Any]] = [
             {
                 "role": "system",
@@ -366,7 +379,8 @@ class ContextBuilder:
                     channel=channel,
                     session_summary=transcript.session_summary,
                     workspace=root,
-                    include_memory=include_memory,
+                    include_memory=include_memory and layers.include_memory,
+                    include_skills=layers.include_skills,
                     tool_names=tool_names,
                     facts=facts,
                 ),
