@@ -104,21 +104,29 @@ def fold_prior_tool_results(
 ) -> tuple[list[dict[str, Any]], int, int]:
     """Replace long tool results from earlier rounds with a short reference.
 
-    The tool messages that belong to the latest assistant tool batch stay
-    complete. Persisted history is not this list; callers pass the model copy.
+    The tool messages that belong to the latest assistant tool batch of the
+    current user turn stay complete. A batch that already sits before a later
+    user message is history: the model already answered it, so the next turn
+    receives a short reference. Persisted history is not this list; callers
+    pass the model copy.
     """
+    last_user = -1
     last_assistant = -1
     for index, message in enumerate(messages):
+        if message.get("role") == "user":
+            last_user = index
         if message.get("role") == "assistant" and message.get("tool_calls"):
             last_assistant = index
-    if last_assistant < 0:
+    if last_assistant < 0 and last_user < 0:
         return messages, 0, 0
+    # A tool batch before the newest user message belongs to a finished turn.
+    keep_after = last_assistant if last_assistant > last_user else len(messages)
 
     updated: list[dict[str, Any]] | None = None
     referenced = 0
     saved = 0
     for index, message in enumerate(messages):
-        if index > last_assistant or message.get("role") != "tool":
+        if index > keep_after or message.get("role") != "tool":
             if updated is not None:
                 updated.append(message)
             continue

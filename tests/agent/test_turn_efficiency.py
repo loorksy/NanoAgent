@@ -70,6 +70,41 @@ def test_prior_tool_results_are_referenced_instead_of_resent() -> None:
     print(f"TOKEN_FOLD before={before} after={after} saved_chars={saved}")
 
 
+def test_finished_turn_tool_result_is_not_resent_on_the_next_question() -> None:
+    bulky = "سعر " * 2000
+    follow_up = "وما الوقف؟"
+    messages = [
+        {"role": "system", "content": "system"},
+        {"role": "user", "content": "حلل الذهب"},
+        _assistant_with_tools("run_trading_kernel"),
+        _tool_message("run_trading_kernel", bulky),
+        {"role": "assistant", "content": "الانتظار أنسب الآن."},
+        {"role": "user", "content": follow_up},
+    ]
+    before = estimate_prompt_tokens(messages, None)
+    folded, referenced, saved = fold_prior_tool_results(messages)
+    after = estimate_prompt_tokens(folded, None)
+    assert referenced == 1
+    assert saved > 1000
+    assert after < before
+    assert folded[-1]["content"] == follow_up
+    assert folded[3]["content"].startswith("[مرجع نتيجة سابقة:")
+    assert bulky not in folded[3]["content"]
+    assert messages[3]["content"] == bulky
+    print(f"TOKEN_NEXT_TURN before={before} after={after} saved_chars={saved}")
+
+    current = "القرار الحالي " + ("z" * 2000)
+    continued = [
+        *messages,
+        _assistant_with_tools("get_gold_quote"),
+        _tool_message("get_gold_quote", current),
+    ]
+    folded_now, referenced_now, _saved_now = fold_prior_tool_results(continued)
+    assert referenced_now == 1
+    assert bulky not in folded_now[3]["content"]
+    assert folded_now[-1]["content"] == current
+
+
 def test_latest_tool_batch_stays_complete() -> None:
     bulky = "y" * 3000
     messages = [
