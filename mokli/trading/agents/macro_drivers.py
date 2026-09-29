@@ -10,6 +10,7 @@ a data source. COT/WGC prints are also located via web search snippets.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -362,15 +363,14 @@ async def run_macro_drivers(
     now_ts = now_fn()
     calendar = events if events is not None else fetch_upcoming_events()
     planned = select_drivers(events=calendar, now_ts=now_ts, cache=store)
-    out: list[MacroVerdict] = []
 
-    for name, why in planned:
+    async def _run_driver(name: str, why: str) -> MacroVerdict:
         query = SEARCH_QUERIES[name]
         try:
             snippets = await search_fn(query)
         except Exception as exc:
             logger.warning("macro driver {} search failed: {}", name, exc)
-            verdict = MacroVerdict(
+            return MacroVerdict(
                 driver=name,
                 bias="neutral",
                 strength=0,
@@ -379,14 +379,15 @@ async def run_macro_drivers(
                 ran=True,
                 reason=f"{why}:search_error",
             )
-        else:
-            verdict = _verdict_from_snippets(name, snippets or "", why)
-        store[name] = (now_ts, verdict)
-        out.append(verdict)
+        return _verdict_from_snippets(name, snippets or "", why)
+
+    out = list(await asyncio.gather(*[_run_driver(name, why) for name, why in planned]))
+    for verdict in out:
+        store[verdict.driver] = (now_ts, verdict)
         logger.info(
             "macro driver ran driver={} reason={} bias={} strength={}",
-            name,
-            why,
+            verdict.driver,
+            verdict.reason,
             verdict.bias,
             verdict.strength,
         )

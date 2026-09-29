@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
@@ -120,6 +121,30 @@ async def test_verdict_source_is_outlet_url() -> None:
     assert any(item.source.startswith("https://www.reuters.com") for item in ran)
     assert all("twitter" not in item.source.lower() and "x.com" not in item.source.lower() for item in ran)
     assert all(not item.one_line_rationale.startswith("Results for:") for item in ran)
+
+
+@pytest.mark.asyncio
+async def test_macro_driver_searches_overlap() -> None:
+    reset_macro_cache_for_tests()
+    started = 0
+    release = asyncio.Event()
+
+    async def search(_query: str) -> str:
+        nonlocal started
+        started += 1
+        if started >= 2:
+            release.set()
+        await asyncio.wait_for(release.wait(), timeout=1)
+        return "Gold rises on weaker dollar and dovish FOMC"
+
+    verdicts = await run_macro_drivers(
+        search=search,
+        events=[],
+        now=_friday_ts,
+        cache={},
+    )
+    assert started >= 2
+    assert any(item.ran and item.bias == "bullish" for item in verdicts)
 
 
 @pytest.mark.asyncio
