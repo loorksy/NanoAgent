@@ -40,6 +40,17 @@ async def test_team_role_with_runtime_does_not_open_a_tool_loop() -> None:
     assert summary.startswith("levels hold")
 
 
+def test_upstream_brief_keeps_the_stance_and_drops_the_rest() -> None:
+    from mokli.trading.teams.runtime import brief_for_upstream
+
+    body = "level " * 800
+    summary = f"{body}\nSTANCE: sell"
+    brief = brief_for_upstream(summary)
+    assert len(brief) < len(summary) // 5
+    assert brief.endswith("STANCE: sell")
+    assert "STANCE: sell" not in brief[:400]
+
+
 def test_non_structure_roles_do_not_receive_the_candle_dump() -> None:
     candles = [{"t": index, "o": 1, "h": 2, "l": 0, "c": 1} for index in range(40)]
     full = json.dumps({"symbol": "XAUUSD", "last_close": 2300, "candles": candles})

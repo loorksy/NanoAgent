@@ -8,6 +8,7 @@ is the only path that turns a brief into a BUY/SELL decision.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections import deque
 from pathlib import Path
@@ -24,6 +25,21 @@ from mokli.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 
 _PRESETS_DIR = Path(__file__).parent / "presets"
+_STANCE_LINE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
+_UPSTREAM_LIMIT = 400
+
+
+def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
+    """Short brief for the next role. The stance line is kept even when the body is cut."""
+    text = (summary or "").strip()
+    if not text:
+        return ""
+    match = _STANCE_LINE.search(text)
+    stance = match.group(0).strip() if match else ""
+    head = text if len(text) <= limit else text[:limit].rstrip() + "…"
+    if stance and stance not in head:
+        return f"{head}\n{stance}"
+    return head
 
 
 def list_presets() -> list[str]:
@@ -72,7 +88,7 @@ def _format_swarm_briefing(
 ) -> str:
     lines = [tr("team.swarm_preset", preset=preset_name)]
     for task_id, summary in task_summaries.items():
-        lines.append(f"- {task_id}: {summary[:500]}")
+        lines.append(f"- {task_id}: {brief_for_upstream(summary, limit=500)}")
     if macro_briefing:
         lines.append("")
         lines.append(macro_briefing)
@@ -110,7 +126,7 @@ async def run_swarm(
     for layer_index, layer in enumerate(layers):
         async def run_task(task: SwarmTask) -> tuple[str, str]:
             upstream = "\n".join(
-                f"{key}: {summaries[src]}"
+                f"{key}: {brief_for_upstream(summaries[src])}"
                 for key, src in task.input_from.items()
                 if src in summaries
             )
