@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -59,13 +60,23 @@ async def _runtime_complete(messages: list[dict[str, Any]]) -> str:
     runtime = ctx.runtime if ctx else None
     if runtime is None:
         return ""
+    started = time.perf_counter()
     response = await runtime.provider.chat(
         messages=messages,
         model=runtime.model,
         max_tokens=min(getattr(runtime.generation, "max_tokens", 4096) or 4096, 4096),
         temperature=0.2,
     )
-    return getattr(response, "content", None) or ""
+    content = getattr(response, "content", None) or ""
+    from mokli.agent.turn_diagnostics import record_nested_model_call
+
+    record_nested_model_call(
+        elapsed_ms=int((time.perf_counter() - started) * 1000),
+        messages=messages,
+        content=content,
+        usage=getattr(response, "usage", None),
+    )
+    return content
 
 
 def _without_chart_images(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

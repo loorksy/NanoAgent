@@ -130,13 +130,23 @@ async def _llm_complete(
         {"role": "system", "content": resolve_role_prompt(role, system_prompt)},
         {"role": "user", "content": task_text},
     ]
+    started = time.perf_counter()
     response = await runtime.provider.chat(
         messages=messages,
         model=runtime.model,
         max_tokens=1024,
         temperature=0.2,
     )
-    return (getattr(response, "content", None) or "").strip()
+    content = (getattr(response, "content", None) or "").strip()
+    from mokli.agent.turn_diagnostics import record_nested_model_call
+
+    record_nested_model_call(
+        elapsed_ms=int((time.perf_counter() - started) * 1000),
+        messages=messages,
+        content=content,
+        usage=getattr(response, "usage", None),
+    )
+    return content
 
 
 async def run_team_role(

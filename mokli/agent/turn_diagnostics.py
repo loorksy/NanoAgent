@@ -111,6 +111,11 @@ class TurnDiagnostics:
     memory_tokens: int = 0
     skills_tokens: int = 0
     static_resends: int = 0
+    nested_model_ms: int = 0
+    nested_rounds: int = 0
+    nested_input_tokens: int = 0
+    nested_output_tokens: int = 0
+    nested_estimated_rounds: int = 0
     _system_fingerprint: str = ""
 
     def note_context(self, elapsed_ms: int) -> None:
@@ -149,6 +154,26 @@ class TurnDiagnostics:
         self.input_tokens += usage.input_tokens
         self.output_tokens += usage.output_tokens
 
+    def note_nested_model(
+        self,
+        elapsed_ms: int,
+        *,
+        input_tokens: int,
+        output_tokens: int,
+        estimated: bool,
+    ) -> None:
+        """Record a specialist or synthesizer call that is not a parent model round.
+
+        These calls happen inside a tool, so their wait is already inside
+        ``tool_ms``. ``model_ms`` stays the parent loop only.
+        """
+        self.nested_rounds += 1
+        self.nested_model_ms += max(0, elapsed_ms)
+        self.nested_input_tokens += max(0, input_tokens)
+        self.nested_output_tokens += max(0, output_tokens)
+        if estimated:
+            self.nested_estimated_rounds += 1
+
     def note_tool_batch(
         self,
         elapsed_ms: int,
@@ -171,8 +196,20 @@ class TurnDiagnostics:
 
     def to_dict(self) -> dict[str, Any]:
         elapsed_ms = int((time.perf_counter() - self.started_at) * 1000)
-        input_cost = self.input_tokens / 1_000_000 * _INPUT_USD_PER_MILLION
-        output_cost = self.output_tokens / 1_000_000 * _OUTPUT_USD_PER_MILLION
+        request_input = self.input_tokens + self.nested_input_tokens
+        request_output = self.output_tokens + self.nested_output_tokens
+        input_cost = request_input / 1_000_000 * _INPUT_USD_PER_MILLION
+        output_cost = request_output / 1_000_000 * _OUTPUT_USD_PER_MILLION
+        components = dict(self.components)
+        components["nested_model"] = self.nested_input_tokens + self.nested_output_tokens
+        if self.nested_rounds == 0:
+            nested_usage = "none"
+        elif self.nested_estimated_rounds == 0:
+            nested_usage = "reported"
+        elif self.nested_estimated_rounds == self.nested_rounds:
+            nested_usage = "estimated"
+        else:
+            nested_usage = "mixed"
         return {
             "model": self.model,
             "provider": self.provider,
@@ -181,16 +218,23 @@ class TurnDiagnostics:
             "model_ms": self.model_ms,
             "tool_ms": self.tool_ms,
             "retry_ms": self.retry_ms,
+            "nested_model_ms": self.nested_model_ms,
+            "nested_rounds": self.nested_rounds,
+            "nested_input_tokens": self.nested_input_tokens,
+            "nested_output_tokens": self.nested_output_tokens,
+            "nested_usage": nested_usage,
             "rounds": self.rounds,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
-            "total_tokens": self.input_tokens + self.output_tokens,
+            "request_input_tokens": request_input,
+            "request_output_tokens": request_output,
+            "total_tokens": request_input + request_output,
             "tool_calls": self.tool_calls,
             "reused_tool_calls": self.reused_tool_calls,
             "referenced_tool_results": self.referenced_tool_results,
             "referenced_chars_saved": self.referenced_chars_saved,
             "tool_result_chars": list(self.tool_result_chars),
-            "components": dict(self.components),
+            "components": components,
             "memory_chars": self.memory_chars,
             "skills_chars": self.skills_chars,
             "memory_tokens": self.memory_tokens,
@@ -201,5 +245,36 @@ class TurnDiagnostics:
                 f"illustrative ${_INPUT_USD_PER_MILLION}/M input and "
                 f"${_OUTPUT_USD_PER_MILLION}/M output, not an invoice"
             ),
-            "component_note": "memory and skills are inside system and are not added again to final",
+            "component_note": (
+                "memory and skills are inside system and are not added again to final; "
+                "nested_model is specialist and synthesizer calls inside tool_ms, "
+                "not part of the parent final prompt"
+            ),
         }
+
+
+def record_nested_model_call(
+    *,
+    elapsed_ms: int,
+    messages: list[dict[str, Any]],
+    content: str,
+    usage: LLMUsage | None,
+) -> None:
+    """Attach one inner provider call to the current turn, if a turn is bound."""
+    diag = current_turn_diagnostics()
+    if diag is None:
+        return
+    if isinstance(usage, LLMUsage):
+        diag.note_nested_model(
+            elapsed_ms,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            estimated=usage.reported_tokens == 0 and usage.estimated_tokens > 0,
+        )
+        return
+    diag.note_nested_model(
+        elapsed_ms,
+        input_tokens=estimate_prompt_tokens(messages),
+        output_tokens=estimate_message_tokens({"role": "assistant", "content": content}),
+        estimated=True,
+    )

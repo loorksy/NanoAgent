@@ -256,6 +256,108 @@ async def test_provider_retry_sleep_is_recorded() -> None:
     assert diag.retry_ms >= 40
 
 
+def test_nested_model_calls_are_not_parent_rounds() -> None:
+    from mokli.agent.turn_diagnostics import TurnDiagnostics
+
+    diag = TurnDiagnostics(model="test", provider="Test")
+    diag.note_model_round(900, None)
+    diag.note_nested_model(1400, input_tokens=800, output_tokens=40, estimated=False)
+    diag.note_nested_model(300, input_tokens=120, output_tokens=10, estimated=True)
+    assert diag.model_ms == 900
+    assert diag.rounds == 1
+    assert diag.input_tokens == 0
+    payload = diag.to_dict()
+    assert payload["nested_rounds"] == 2
+    assert payload["nested_model_ms"] == 1700
+    assert payload["nested_input_tokens"] == 920
+    assert payload["nested_output_tokens"] == 50
+    assert payload["request_input_tokens"] == 920
+    assert payload["total_tokens"] == 970
+    assert payload["nested_usage"] == "mixed"
+    assert payload["components"]["nested_model"] == 970
+    assert payload["cost_estimate_usd"] > 0
+
+
+@pytest.mark.asyncio
+async def test_team_role_usage_is_recorded_on_the_turn() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from mokli.agent.tools.context import RequestContext, request_context
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+    from mokli.providers.base import LLMUsage
+    from mokli.trading.teams.subagent_runner import run_team_role
+    from mokli.utils.llm_runtime import LLMRuntime
+
+    provider = MagicMock()
+    provider.chat = AsyncMock(
+        return_value=SimpleNamespace(
+            content="STANCE: wait",
+            usage=LLMUsage.reported(input_tokens=640, output_tokens=18),
+        )
+    )
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    diag = TurnDiagnostics(model="test-model", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    try:
+        with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+            summary = await run_team_role(
+                agent_id="risk",
+                role="Risk Officer",
+                task_text="Name blocking risks.",
+                evidence_text='{"last_close": 2300}',
+                system_prompt="role:risk",
+            )
+    finally:
+        reset_turn_diagnostics(token)
+    assert summary.startswith("STANCE: wait")
+    assert diag.rounds == 0
+    assert diag.model_ms == 0
+    assert diag.nested_rounds == 1
+    assert diag.nested_input_tokens == 640
+    assert diag.nested_output_tokens == 18
+    assert diag.nested_estimated_rounds == 0
+
+
+@pytest.mark.asyncio
+async def test_synthesizer_call_without_usage_is_estimated() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from mokli.agent.tools.context import RequestContext, request_context
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+    from mokli.trading.agents.synthesizer import _runtime_complete
+    from mokli.utils.llm_runtime import LLMRuntime
+
+    provider = MagicMock()
+    provider.generation = SimpleNamespace(max_tokens=512)
+    provider.chat = AsyncMock(return_value=SimpleNamespace(content='{"decision":"wait"}', usage=None))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    diag = TurnDiagnostics(model="test-model", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    messages = [{"role": "user", "content": "FROZEN EVIDENCE"}]
+    try:
+        with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+            text = await _runtime_complete(messages)
+    finally:
+        reset_turn_diagnostics(token)
+    assert text == '{"decision":"wait"}'
+    assert diag.input_tokens == 0
+    assert diag.nested_rounds == 1
+    assert diag.nested_estimated_rounds == 1
+    assert diag.nested_input_tokens > 0
+    assert diag.nested_output_tokens > 0
+    assert diag.to_dict()["nested_usage"] == "estimated"
+
+
 def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> None:
     from mokli.agent.context import ContextBuilder
     from mokli.agent.turn_diagnostics import (
