@@ -308,6 +308,20 @@ def test_extract_last_user_message_supports_parts() -> None:
     assert pipe_mod.extract_last_user_message({"messages": []}) == ("", [])
 
 
+def test_closing_status_keeps_real_steps() -> None:
+    steps = [
+        {"label": "Checking the gold price", "done": True, "failed": False},
+        {"label": "Could not read the gold price", "done": True, "failed": True},
+    ]
+    assert pipe_mod.closing_description(steps, "Done", ok=True) == (
+        "Checking the gold price ✓ · Could not read the gold price"
+    )
+    assert pipe_mod.closing_description(steps, "Failed", ok=False) == (
+        "Checking the gold price ✓ · Could not read the gold price · Failed"
+    )
+    assert pipe_mod.closing_description([], "Done", ok=True) == "Done"
+
+
 def test_pipe_source_contains_no_arabic_or_fixed_rtl_text() -> None:
     source = PIPE_PATH.read_text(encoding="utf-8")
     assert re.search(r"[\u0600-\u06FF]", source) is None
@@ -332,7 +346,8 @@ async def test_working_state_keeps_steps_that_already_ran() -> None:
     descriptions = [text for text, _done in harness.statuses()]
     assert descriptions[0] == "Searching …"
     assert descriptions[1] == "Searching …"
-    assert descriptions[-1] == "Done"
+    assert descriptions[-1] == "Searching …"
+    assert harness.statuses()[-1][1] is True
 
 
 async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
@@ -386,8 +401,8 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
         ("Working on a step …", False),
         ("Step finished ✓", False),
         ("Step finished ✓ · Specialist …", False),
-        ("Done", True),
-        ("Done", True),
+        ("Step finished ✓ · Specialist …", True),
+        ("Step finished ✓ · Specialist …", True),
     ]
     for description, _done in harness.statuses():
         assert "web_search" not in description

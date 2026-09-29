@@ -639,6 +639,25 @@ def activity_line(steps: list[Mapping[str, object]]) -> str:
     return " · ".join(parts)
 
 
+def closing_description(
+    steps: list[Mapping[str, object]],
+    outcome_label: str,
+    *,
+    ok: bool,
+) -> str:
+    """Keep the real activity line when a turn ends successfully.
+
+    A generic outcome would replace that line in the chat status history.
+    A failed or cancelled turn still names the outcome, after the steps.
+    """
+    line = activity_line(steps) if steps else ""
+    if not line:
+        return outcome_label
+    if ok:
+        return line
+    return f"{line} · {outcome_label}"
+
+
 def _task_response(task: str, body: Mapping[str, object]) -> str:
     text, _ = extract_last_user_message(body)
     if task == "title_generation":
@@ -966,7 +985,14 @@ class Pipe:
                 emitter,
                 {
                     "type": "status",
-                    "data": {"description": turn.label(f"outcome.{outcome}"), "done": True},
+                    "data": {
+                        "description": closing_description(
+                            turn.steps,
+                            turn.label(f"outcome.{outcome}"),
+                            ok=outcome == "ok",
+                        ),
+                        "done": True,
+                    },
                 },
             )
             turn.finished = True
@@ -1001,8 +1027,12 @@ class Pipe:
             if waiting_kind:
                 description = f"{description} · {turn.label(f'waiting.{waiting_kind}')}"
         outcome = _as_str(data.get("outcome"))
-        if state == "completed" and outcome:
-            description = turn.label(f"outcome.{outcome}")
+        if state == "completed" and (outcome or turn.steps):
+            description = closing_description(
+                turn.steps,
+                turn.label(f"outcome.{outcome or 'ok'}"),
+                ok=(outcome or "ok") == "ok",
+            )
         await self._emit(
             emitter,
             {"type": "status", "data": {"description": description, "done": state == "completed"}},
