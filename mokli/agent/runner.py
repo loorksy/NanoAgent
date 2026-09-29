@@ -77,6 +77,7 @@ _ARREARAGE_ERROR_MESSAGE = (
 )
 _PERSISTED_MODEL_ERROR_PLACEHOLDER = "[Assistant reply unavailable due to model error.]"
 _MAX_EMPTY_RETRIES = 2
+_DECISION_ANSWER_TOOLS = frozenset({"analyze_gold", "run_trading_kernel"})
 _MAX_LENGTH_RECOVERIES = 3
 _MAX_INJECTIONS_PER_TURN = 3
 _MAX_INJECTION_CYCLES = 5
@@ -646,6 +647,11 @@ class AgentRunner:
                     for tool_call, event in zip(response.tool_calls, new_events)
                     if event.get("status") == "ok"
                 )
+                if any(
+                    event.get("status") == "ok" and event.get("name") in _DECISION_ANSWER_TOOLS
+                    for event in new_events
+                ):
+                    answer_without_tools = True
                 context.tool_results = list(results)
                 context.tool_events = list(new_events)
                 completed_tool_results: list[dict[str, Any]] = []

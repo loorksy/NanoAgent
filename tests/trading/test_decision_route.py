@@ -416,6 +416,82 @@ def test_failed_gold_decision_still_offers_tools() -> None:
     )
 
 
+def _scripted_provider(responses: list):
+    from mokli.providers.base import LLMProvider
+
+    class _Provider(LLMProvider):
+        def __init__(self) -> None:
+            super().__init__(provider_name="fake")
+            self.calls: list[dict] = []
+            self._responses = list(responses)
+
+        def get_default_model(self) -> str:
+            return "fake"
+
+        async def chat(self, **kwargs):
+            return await self.chat_stream(**kwargs)
+
+        async def chat_stream(self, **kwargs):
+            self.calls.append(kwargs)
+            return self._responses.pop(0)
+
+    return _Provider()
+
+
+def test_successful_analysis_stops_the_next_tool_round() -> None:
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.providers.base import LLMResponse, ToolCallRequest
+
+    analysis = _decision_tool("analyze_gold", '{"decision":"wait"}')
+    quote = _decision_tool("get_gold_quote", '{"mid":1}')
+    registry = ToolRegistry()
+    registry.register(analysis)
+    registry.register(quote)
+    provider = _scripted_provider(
+        [
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="a1", name="analyze_gold", arguments={})],
+                finish_reason="tool_calls",
+            ),
+            LLMResponse(
+                content="wait",
+                tool_calls=[ToolCallRequest(id="q1", name="get_gold_quote", arguments={})],
+                finish_reason="tool_calls",
+            ),
+        ]
+    )
+    result = _run_turn("حلل الذهب الآن", provider, registry)
+    assert analysis.calls == 1
+    assert quote.calls == 0
+    assert result.final_content == "wait"
+    assert provider.calls[0]["tools"]
+    assert provider.calls[1]["tools"] is None
+
+
+def test_price_tool_does_not_stop_the_next_round() -> None:
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.providers.base import LLMResponse, ToolCallRequest
+
+    quote = _decision_tool("get_gold_quote", '{"mid":1}')
+    registry = ToolRegistry()
+    registry.register(quote)
+    provider = _scripted_provider(
+        [
+            LLMResponse(
+                content=None,
+                tool_calls=[ToolCallRequest(id="q1", name="get_gold_quote", arguments={})],
+                finish_reason="tool_calls",
+            ),
+            LLMResponse(content="the mid is 1", finish_reason="stop"),
+        ]
+    )
+    result = _run_turn("ما السعر؟", provider, registry)
+    assert quote.calls == 1
+    assert result.final_content == "the mid is 1"
+    assert provider.calls[1]["tools"]
+
+
 def test_plain_question_still_receives_tools() -> None:
     from mokli.agent.tools.registry import ToolRegistry
     from mokli.providers.base import LLMResponse
