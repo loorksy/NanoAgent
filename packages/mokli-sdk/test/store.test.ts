@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   SessionStore,
+  activityLine,
   addUserMessage,
   applyEvent,
   applyEvents,
@@ -230,6 +231,37 @@ describe("applyEvent", () => {
     expect(snap.approvals[0]?.status).toBe("confirmed");
     expect(snap.approvals[0]?.actions).toEqual([]);
     expect(snap.state.state).toBe("working");
+  });
+});
+
+describe("activityLine", () => {
+  test("groups only the entries that ran, using their display text", () => {
+    let snap = initialSnapshot("s_1");
+    snap = applyEvent(
+      snap,
+      ev("tool", { event: "finished", name: "get_gold_quote", call_id: "c1", display: "تم فحص سعر الذهب" }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("tool", { event: "failed", name: "get_gate_report", call_id: "c2", display: "تعذر فحص شروط القرار" }),
+    );
+    const line = activityLine(snap.timeline, (entry) =>
+      entry.kind === "tool" ? (entry.display ?? entry.name) : entry.kind,
+    );
+    expect(line).toBe("تم فحص سعر الذهب ✓ · تعذر فحص شروط القرار");
+    expect(line).not.toContain("get_gold_quote");
+    expect(line).not.toContain("get_gate_report");
+  });
+
+  test("a running step stays unmarked and an empty timeline stays empty", () => {
+    const snap = applyEvent(
+      initialSnapshot("s_1"),
+      ev("tool", { event: "started", name: "run_trading_kernel", call_id: "c1", display: "يشغّل محرك التحليل" }),
+    );
+    expect(activityLine(snap.timeline, (entry) => (entry.kind === "tool" ? entry.display ?? "" : ""))).toBe(
+      "يشغّل محرك التحليل …",
+    );
+    expect(activityLine([], () => "unused")).toBe("");
   });
 });
 

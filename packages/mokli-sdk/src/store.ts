@@ -63,6 +63,22 @@ export interface RetryTimelineEntry {
 
 export type TimelineEntry = ToolTimelineEntry | SubagentTimelineEntry | RetryTimelineEntry;
 
+/** One quiet line from entries that already exist. The label comes from the caller. */
+export function activityLine(
+  entries: readonly TimelineEntry[],
+  labelFor: (entry: TimelineEntry) => string,
+): string {
+  const parts: string[] = [];
+  for (const entry of entries) {
+    const label = labelFor(entry).trim();
+    if (!label) continue;
+    if (entry.status === "failed") parts.push(label);
+    else if (entry.status === "finished") parts.push(`${label} ✓`);
+    else parts.push(`${label} …`);
+  }
+  return parts.join(" · ");
+}
+
 export interface ApprovalEntry extends ApprovalData {
   status: ApprovalStatus;
   ts: number;

@@ -1,4 +1,4 @@
-import type { ArtifactEntry, ChatMessage, StateData, TimelineEntry } from "@mokli/sdk";
+import { activityLine, type ArtifactEntry, type ChatMessage, type StateData, type TimelineEntry } from "@mokli/sdk";
 import type { SubscribeStatus } from "@mokli/sdk";
 import * as Linking from "expo-linking";
 import { useState } from "react";
@@ -67,8 +67,10 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   if (entries.length === 0) return null;
+  const line = activityLine(entries, (entry) => stepDisplay(entry, t, label));
   return (
     <View style={styles.timeline}>
+      {line ? <Text style={styles.timelineName}>{line}</Text> : null}
       <Pressable onPress={() => setOpen((value) => !value)} accessibilityRole="button">
         <Muted style={{ color: colors.accent }}>{open ? t("timeline.hide") : t("timeline.show", { count: entries.length })}</Muted>
       </Pressable>
