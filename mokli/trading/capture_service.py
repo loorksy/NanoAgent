@@ -196,4 +196,17 @@ async def run_chart_capture(
 
 
 def chart_capture_tool_result(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, indent=2)
+    """Model-facing capture result. The image already went to the operator UI."""
+    snapshots = payload.get("chartSnapshots")
+    frames = len(snapshots) if isinstance(snapshots, list) else 0
+    brief = {
+        "ok": payload.get("ok") is True,
+        "interval": payload.get("interval"),
+        "frames": frames,
+        "delivered": payload.get("ok") is True,
+        "instruction": (
+            "The chart image was delivered to the operator interface. "
+            "Price levels are not in this result; do not invent them from pixels."
+        ),
+    }
+    return json.dumps(brief, ensure_ascii=False)
