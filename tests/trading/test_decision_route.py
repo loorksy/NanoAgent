@@ -91,6 +91,149 @@ def test_synthesis_evidence_overlaps_the_review_team(monkeypatch) -> None:
     assert "evidence" in started
 
 
+def _overlap_pair():
+    """Two tasks that each wait until the other has started."""
+    started: list[str] = []
+    release = asyncio.Event()
+
+    async def mark(name: str) -> None:
+        started.append(name)
+        if len(started) >= 2:
+            release.set()
+        await release.wait()
+
+    return started, mark
+
+
+def test_analyze_gold_debate_overlaps_synthesis_evidence(monkeypatch) -> None:
+    """A debate brief does not read evidence, so the nodes start with the crew."""
+    from types import SimpleNamespace
+
+    from mokli.agent.tools import trading_kernel as kernel_tool
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    started, mark = _overlap_pair()
+
+    async def fake_debate(**_kwargs):
+        await mark("debate")
+        return SimpleNamespace(briefing="bull then bear")
+
+    async def fake_prefetch(_interval, _turn):
+        await mark("evidence")
+
+    async def fake_kernel(**kwargs):
+        assert kwargs.get("team_briefing") == "bull then bear"
+        assert kwargs.get("team_mode") == "debate"
+        return object()
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_debate_crew", fake_debate)
+    monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+
+    tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        payload = json.loads(
+            asyncio.run(asyncio.wait_for(tool.execute(team_mode="debate"), timeout=1))
+        )
+    assert payload["decision"] == "wait"
+    assert started == ["evidence", "debate"] or set(started) == {"evidence", "debate"}
+
+
+def test_analyze_gold_core_does_not_prefetch_evidence(monkeypatch) -> None:
+    """Core mode has no team to overlap, so the kernel gathers evidence itself."""
+    from mokli.agent.tools import trading_kernel as kernel_tool
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    called: list[str] = []
+
+    async def fake_prefetch(_interval, _turn):
+        called.append("evidence")
+
+    async def fake_kernel(**kwargs):
+        assert kwargs.get("team_mode") == "core"
+        assert kwargs.get("team_briefing") is None
+        return object()
+
+    monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+
+    tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        payload = json.loads(asyncio.run(tool.execute(team_mode="core")))
+    assert payload["decision"] == "wait"
+    assert called == []
+
+
+def test_analyze_gold_swarm_without_preset_does_not_prefetch(monkeypatch) -> None:
+    from mokli.agent.tools import trading_kernel as kernel_tool
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    called: list[str] = []
+
+    async def fake_prefetch(_interval, _turn):
+        called.append("evidence")
+
+    monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        raw = asyncio.run(tool.execute(team_mode="swarm"))
+    assert "preset" in raw.lower()
+    assert called == []
+
+
+def test_trading_team_overlaps_synthesis_evidence(monkeypatch) -> None:
+    from mokli.agent.tools import trading_kernel as kernel_tool
+    from mokli.agent.tools.context import RequestContext, request_context
+    from mokli.agent.tools.trading_team import RunTradingTeamTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    started, mark = _overlap_pair()
+
+    async def fake_swarm(*_args, **_kwargs):
+        await mark("swarm")
+        return {"team_briefing": "committee"}
+
+    async def fake_prefetch(_interval, _turn):
+        await mark("evidence")
+
+    async def fake_kernel(**kwargs):
+        assert kwargs.get("team_briefing") == "committee"
+        return object()
+
+    monkeypatch.setattr("mokli.agent.tools.trading_team.run_swarm", fake_swarm)
+    monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    monkeypatch.setattr("mokli.trading.kernel.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_team.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+
+    tool = RunTradingTeamTool(bus=object(), subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1")
+    with request_context(ctx), turn_session_scope(TurnSession()):
+        payload = json.loads(
+            asyncio.run(
+                asyncio.wait_for(
+                    tool.execute(preset="gold_analysis_committee"),
+                    timeout=1,
+                )
+            )
+        )
+    assert payload["final"]["decision"] == "wait"
+    assert set(started) == {"swarm", "evidence"}
+
+
 def test_buy_question_runs_the_kernel_before_the_model() -> None:
     from mokli.agent.runner import AgentRunner
     from mokli.agent.tools.base import Tool

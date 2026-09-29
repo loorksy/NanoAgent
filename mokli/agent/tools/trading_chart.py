@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -577,6 +578,27 @@ class AnalyzeGoldTool(Tool):
         visual_capture = resolve_visual_capture(publisher) if publish_ui else None
         briefing = None
         resolved_mode = team_mode or "core"
+        if team_mode == "swarm" and not preset:
+            return tool_error(
+                REASON_PRESET_REQUIRED,
+                instruction=(
+                    "team_mode=swarm requires an explicit preset parameter; "
+                    "pick one of the run_trading_team presets."
+                ),
+            )
+        from mokli.agent.tools.trading_kernel import (
+            cancel_synthesis_prefetch,
+            finish_synthesis_prefetch,
+            start_synthesis_prefetch,
+        )
+        from mokli.trading.turn_session import current_turn_session
+
+        # Debate and swarm briefs do not read evidence. The kernel still gathers
+        # anything the overlap missed. Core mode has no team wait, so the kernel fetches.
+        turn = current_turn_session()
+        prefetch: asyncio.Task[None] | None = None
+        if team_mode in {"debate", "swarm"} and turn is not None:
+            prefetch = start_synthesis_prefetch(interval, turn)
         try:
             if team_mode == "debate":
                 debate = await run_debate_crew(
@@ -593,14 +615,6 @@ class AnalyzeGoldTool(Tool):
                 briefing = debate.briefing
                 resolved_mode = "debate"
             elif team_mode == "swarm":
-                if not preset:
-                    return tool_error(
-                        REASON_PRESET_REQUIRED,
-                        instruction=(
-                            "team_mode=swarm requires an explicit preset parameter; "
-                            "pick one of the run_trading_team presets."
-                        ),
-                    )
                 swarm = await run_swarm(
                     preset,
                     subagent_manager=self._subagent_manager,
@@ -611,6 +625,8 @@ class AnalyzeGoldTool(Tool):
                 )
                 briefing = swarm.get("team_briefing")
                 resolved_mode = f"swarm:{preset}"
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
             result = await run_trading_kernel(
                 interval=interval,
                 team_mode=resolved_mode,
@@ -636,6 +652,8 @@ class AnalyzeGoldTool(Tool):
                 instruction="Gold analysis failed; tell the operator and do not invent a plan.",
                 error=str(exc),
             )
+        finally:
+            await cancel_synthesis_prefetch(prefetch)
         if result is None:
             return tool_error(
                 REASON_NO_RESULT,

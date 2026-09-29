@@ -53,7 +53,7 @@ _GATE_PARAMETERS = tool_parameters_schema(required=[])
 
 
 async def _prefetch_synthesis_evidence(interval: str, turn: Any) -> None:
-    """Load the synthesis nodes while the review team is still running."""
+    """Load the synthesis nodes while a team brief is still running."""
     from mokli.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
     from mokli.trading.unified_evidence import fetch_evidence_nodes
 
@@ -62,6 +62,31 @@ async def _prefetch_synthesis_evidence(interval: str, turn: Any) -> None:
         interval=interval,
         session=turn,
     )
+
+
+def start_synthesis_prefetch(interval: str, turn: Any) -> asyncio.Task[None]:
+    """Evidence does not read the team brief, so it can run beside the roles."""
+    return asyncio.create_task(_prefetch_synthesis_evidence(interval, turn))
+
+
+async def finish_synthesis_prefetch(prefetch: asyncio.Task[None] | None) -> None:
+    """Wait for the overlap. A failed fetch leaves the kernel to gather what is missing."""
+    if prefetch is None:
+        return
+    try:
+        await prefetch
+    except Exception:
+        pass
+
+
+async def cancel_synthesis_prefetch(prefetch: asyncio.Task[None] | None) -> None:
+    if prefetch is None or prefetch.done():
+        return
+    prefetch.cancel()
+    try:
+        await prefetch
+    except (asyncio.CancelledError, Exception):
+        pass
 
 
 @tool_parameters(_KERNEL_PARAMETERS)
@@ -114,7 +139,7 @@ class RunTradingKernelTool(Tool):
         # Evidence does not read the team brief. Gather it while the roles run.
         prefetch: asyncio.Task[None] | None = None
         if decision_review and turn is not None and not turn.decision_wire:
-            prefetch = asyncio.create_task(_prefetch_synthesis_evidence(interval, turn))
+            prefetch = start_synthesis_prefetch(interval, turn)
         try:
             if decision_review:
                 from mokli.trading.teams.runtime import run_swarm
@@ -133,12 +158,8 @@ class RunTradingKernelTool(Tool):
                     swarm_agents = agents
                 if isinstance(drivers, list):
                     swarm_drivers = drivers
-            if prefetch is not None:
-                try:
-                    await prefetch
-                except Exception:
-                    pass
-                prefetch = None
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
             result = await run_trading_kernel(
                 interval=interval,
                 gather_missing=gather_missing,
@@ -153,12 +174,7 @@ class RunTradingKernelTool(Tool):
         except Exception as exc:
             return ToolResult.error(f"Gold analysis failed: {exc}")
         finally:
-            if prefetch is not None and not prefetch.done():
-                prefetch.cancel()
-                try:
-                    await prefetch
-                except (asyncio.CancelledError, Exception):
-                    pass
+            await cancel_synthesis_prefetch(prefetch)
         if swarm_agents:
             result.team_agents = list(swarm_agents)
         if swarm_drivers:

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -100,22 +101,34 @@ class RunTradingTeamTool(Tool):
         if not preset_name:
             return ToolResult.error("preset is required.")
 
-        try:
-            swarm = await run_swarm(
-                preset_name,
-                subagent_manager=self._subagent_manager,
-                publisher=publisher if publish_ui else None,
-                interval=interval,
-                emit=publisher.sync_emit if publish_ui else None,
-                bus=self._bus,
-            )
-        except Exception as exc:
-            return ToolResult.error(f"Swarm preset failed: {exc}")
-
+        from mokli.agent.tools.trading_kernel import (
+            cancel_synthesis_prefetch,
+            finish_synthesis_prefetch,
+            start_synthesis_prefetch,
+        )
         from mokli.trading.kernel import run_trading_kernel
         from mokli.trading.policy_guard import PolicyViolation
+        from mokli.trading.turn_session import current_turn_session
 
+        turn = current_turn_session()
+        prefetch: asyncio.Task[None] | None = (
+            start_synthesis_prefetch(interval, turn) if turn is not None else None
+        )
         try:
+            try:
+                swarm = await run_swarm(
+                    preset_name,
+                    subagent_manager=self._subagent_manager,
+                    publisher=publisher if publish_ui else None,
+                    interval=interval,
+                    emit=publisher.sync_emit if publish_ui else None,
+                    bus=self._bus,
+                )
+            except Exception as exc:
+                return ToolResult.error(f"Swarm preset failed: {exc}")
+
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
             final = await run_trading_kernel(
                 interval=interval,
                 team_mode=f"swarm:{preset_name}",
@@ -128,6 +141,8 @@ class RunTradingTeamTool(Tool):
             return ToolResult.error(str(exc.reason))
         except Exception as exc:
             return ToolResult.error(f"Swarm preset failed: {exc}")
+        finally:
+            await cancel_synthesis_prefetch(prefetch)
         if final is None:
             return ToolResult.error("Swarm produced no final analysis")
 
