@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 # Serial layers; nodes within a layer execute concurrently.
+# news depends only on market_data, so it shares the second layer.
 DEFAULT_ANALYSIS_LAYERS: tuple[tuple[str, ...], ...] = (
     ("market_data",),
-    ("structure", "liquidity", "supply_demand", "multi_timeframe"),
-    ("news",),
+    ("structure", "liquidity", "supply_demand", "multi_timeframe", "news"),
     ("geometry",),
     ("risk",),
     ("visual_capture",),

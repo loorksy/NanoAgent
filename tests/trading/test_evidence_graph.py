@@ -16,8 +16,7 @@ from mokli.trading.evidence.graph import DEFAULT_ANALYSIS_LAYERS
 def test_default_graph_matches_legacy_layer_order():
     assert DEFAULT_ANALYSIS_LAYERS == (
         ("market_data",),
-        ("structure", "liquidity", "supply_demand", "multi_timeframe"),
-        ("news",),
+        ("structure", "liquidity", "supply_demand", "multi_timeframe", "news"),
         ("geometry",),
         ("risk",),
         ("visual_capture",),
