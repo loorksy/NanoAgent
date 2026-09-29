@@ -36,10 +36,9 @@ async def gold_intent_runtime_context(
             content=wrap_runtime_context_lines(
                 [
                     "The operator asked for a gold buy/sell decision.",
-                    "Call run_trading_kernel with decision_review=true.",
-                    "That flag runs gold_decision_review (technical, macro, trend, risk, review) "
-                    "and then the kernel. The kernel is the only BUY/SELL path.",
-                    "Do not answer the side from prose before that tool returns.",
+                    "The runtime runs run_trading_kernel with decision_review=true before you answer.",
+                    "That runs gold_decision_review, then the kernel. The kernel is the only BUY/SELL path.",
+                    "Use the tool result already in this turn. Do not call the kernel again.",
                 ]
             ),
         )

@@ -89,8 +89,15 @@ class RunTradingKernelTool(Tool):
         decision_review: bool = False,
         **kwargs: Any,
     ) -> str:
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        if decision_review and turn is not None and turn.decision_wire:
+            return turn.decision_wire
         team_briefing: str | None = None
         team_mode = "core"
+        swarm_agents: list[Any] = []
+        swarm_drivers: list[Any] = []
         try:
             if decision_review:
                 from mokli.trading.teams.runtime import run_swarm
@@ -102,6 +109,12 @@ class RunTradingKernelTool(Tool):
                 )
                 team_briefing = str(swarm.get("team_briefing") or "")
                 team_mode = "gold_decision_review"
+                agents = swarm.get("team_agents")
+                drivers = swarm.get("macro_drivers")
+                if isinstance(agents, list):
+                    swarm_agents = agents
+                if isinstance(drivers, list):
+                    swarm_drivers = drivers
             result = await run_trading_kernel(
                 interval=interval,
                 gather_missing=gather_missing,
@@ -115,7 +128,14 @@ class RunTradingKernelTool(Tool):
             return ToolResult.error(str(exc.reason))
         except Exception as exc:
             return ToolResult.error(f"Gold analysis failed: {exc}")
-        return json.dumps(result_to_wire(result), indent=2)
+        if swarm_agents:
+            result.team_agents = list(swarm_agents)
+        if swarm_drivers:
+            result.macro_drivers = list(swarm_drivers)
+        payload = json.dumps(result_to_wire(result), indent=2)
+        if decision_review and turn is not None:
+            turn.decision_wire = payload
+        return payload
 
 
 @tool_parameters(_GATE_PARAMETERS)

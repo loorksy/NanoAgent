@@ -45,6 +45,7 @@ from mokli.providers.base import (
     LLMResponse,
     LLMUsage,
     ProviderConversationState,
+    ToolCallRequest,
 )
 from mokli.providers.conversation_state import ProviderConversationStateController
 from mokli.session.summary import SessionSummaryCheckpoint
@@ -406,6 +407,70 @@ class AgentRunner:
             raise ValueError("consolidate_history requires transcript_input")
         return list(spec.initial_messages), None
 
+    async def _prepend_gold_decision(
+        self,
+        *,
+        tools: ToolRegistry,
+        messages: list[dict[str, Any]],
+        hook: AgentHook,
+        session_key: str | None,
+        concurrent_tools: bool,
+        tool_result_cache: dict[str, Any],
+        external_lookup_counts: dict[str, int],
+        workspace_violation_counts: dict[str, int],
+    ) -> list[str]:
+        """Run the kernel once when the operator asked for a gold buy/sell decision."""
+        from mokli.agent.tools.context import current_request_context
+        from mokli.trading.decision_route import is_gold_decision_question
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        request = current_request_context()
+        text = (request.original_user_text if request else "") or ""
+        if turn is None or turn.is_subagent or not is_gold_decision_question(text):
+            return []
+        if not tools.has("run_trading_kernel"):
+            return []
+        call = ToolCallRequest(
+            id="gold-decision",
+            name="run_trading_kernel",
+            arguments={"decision_review": True, "gather_missing": True},
+        )
+        context = AgentHookContext(iteration=0, messages=messages, session_key=session_key)
+        await hook.before_execute_tools(context)
+        started = time.perf_counter()
+        results, events = await execute_tool_calls(
+            tools,
+            [call],
+            concurrent=concurrent_tools,
+            external_lookup_counts=external_lookup_counts,
+            workspace_violation_counts=workspace_violation_counts,
+            hook=hook,
+            context=context,
+            result_cache=tool_result_cache,
+        )
+        diag = current_turn_diagnostics()
+        if diag is not None:
+            diag.note_tool_batch(int((time.perf_counter() - started) * 1000), events, results)
+        messages.append(
+            build_assistant_message(
+                "",
+                tool_calls=[call.to_openai_tool_call()],
+            )
+        )
+        content = results[0] if results else ""
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": call.name,
+                "content": content if isinstance(content, str) else str(content),
+            }
+        )
+        if events and events[0].get("status") == "ok":
+            return ["run_trading_kernel"]
+        return []
+
     async def _run_core(
         self,
         spec: AgentRunSpec,
@@ -454,6 +519,19 @@ class AgentRunner:
             conversation=conversation_state,
             compaction=compaction,
             events=spec.events,
+        )
+
+        tools_used.extend(
+            await self._prepend_gold_decision(
+                tools=spec.tools,
+                messages=messages,
+                hook=hook,
+                session_key=spec.session_key,
+                concurrent_tools=spec.concurrent_tools,
+                tool_result_cache=tool_result_cache,
+                external_lookup_counts=external_lookup_counts,
+                workspace_violation_counts=workspace_violation_counts,
+            )
         )
 
         for iteration in range(spec.max_iterations):

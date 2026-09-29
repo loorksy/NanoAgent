@@ -20,6 +20,31 @@ def _jsonable(value: Any) -> Any:
     return None
 
 
+def _risk_percent(decision: Any) -> float | None:
+    chain = getattr(decision, "gate_chain", None)
+    verdicts = getattr(chain, "verdicts", None) or []
+    for verdict in verdicts:
+        evidence = getattr(verdict, "evidence", None)
+        if not isinstance(evidence, dict):
+            continue
+        value = evidence.get("risk_pct")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        return float(value)
+    return None
+
+
+def _data_sources(result: AgentFinalResult) -> list[str]:
+    sources: list[str] = []
+    market = result.market
+    if market is not None:
+        sources.append(f"market:{market.symbol}:{market.interval}")
+    for stage in result.stages or []:
+        if isinstance(stage, dict) and stage.get("stage"):
+            sources.append(str(stage["stage"]))
+    return sources
+
+
 def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
     ctx = current_request_context()
     operator_text = (ctx.original_user_text if ctx else "") or ""
@@ -103,6 +128,12 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
         "rr": getattr(rec, "rr", None),
         "netRr": getattr(rec, "net_rr", None),
     }
+    risk_percent = _risk_percent(d)
+    if risk_percent is not None:
+        payload["recommendation"]["riskPercent"] = risk_percent
+    sources = _data_sources(result)
+    if sources:
+        payload["dataSources"] = sources
     review = getattr(d, "visual_review", None)
     if review is not None:
         try:

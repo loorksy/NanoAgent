@@ -48,6 +48,7 @@ class TurnSession:
     kernel_ran: bool = False
     kernel_decision: str | None = None
     kernel_result: Any | None = None
+    decision_wire: str | None = None
     quote_display: dict[str, str | None] = field(default_factory=dict)
 
     def ensure_pipeline(self, *, interval: str | None = None) -> PipelineContext:
