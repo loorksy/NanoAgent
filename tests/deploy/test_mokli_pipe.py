@@ -918,3 +918,18 @@ def test_activity_projection_matches_real_events() -> None:
     assert several[2]["label"] == "Working on a step"
     assert pipe_mod.format_duration_ms(200) == "200 ms"
     assert pipe_mod.format_duration_ms(3700) == "3.7 s"
+    failed = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c9",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+        ev("tool", {"event": "failed", "name": "get_gold_quote", "call_id": "c9",
+                    "display": "تعذر الحصول على سعر الذهب", "duration_ms": 200}),
+    ])
+    assert len(failed) == 1
+    assert failed[0]["failed"] is True
+    assert failed[0]["label"] == "تعذر الحصول على سعر الذهب"
+    line = pipe_mod.activity_line(failed)
+    assert line == "تعذر الحصول على سعر الذهب"
+    assert "✓" not in line
+    visible_ids = {step["id"] for step in several}
+    event_ids = {"c1", "sa", "c2"}
+    assert visible_ids == event_ids

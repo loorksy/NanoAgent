@@ -592,8 +592,12 @@ def activity_line(steps: list[Mapping[str, object]]) -> str:
     parts: list[str] = []
     for step in steps:
         label = _as_str(step.get("label")) or DEFAULT_LABELS["activity.step.started"]
-        mark = "✓" if step.get("done") else "…"
-        parts.append(f"{label} {mark}")
+        if step.get("failed"):
+            parts.append(label)
+        elif step.get("done"):
+            parts.append(f"{label} ✓")
+        else:
+            parts.append(f"{label} …")
     return " · ".join(parts)
 
 
