@@ -51,7 +51,9 @@ class TurnSession:
     decision_wire: str | None = None
     quote_display: dict[str, str | None] = field(default_factory=dict)
     candle_reuses: int = 0
+    calendar_reuses: int = 0
     _candle_cache: dict[tuple[str, str, int], tuple[Any, ...]] = field(default_factory=dict)
+    _calendar_cache: dict[int, tuple[dict[str, Any], ...]] = field(default_factory=dict)
 
     def take_cached_candles(self, symbol: str, interval: str, limit: int) -> tuple[Any, ...] | None:
         """Candles already fetched in this turn for the same symbol, interval, and limit."""
@@ -63,6 +65,17 @@ class TurnSession:
 
     def remember_candles(self, symbol: str, interval: str, limit: int, candles: list[Any]) -> None:
         self._candle_cache[(symbol, interval, limit)] = tuple(candles)
+
+    def take_cached_calendar(self, limit: int) -> tuple[dict[str, Any], ...] | None:
+        """Calendar rows already downloaded in this turn for the same limit."""
+        hit = self._calendar_cache.get(limit)
+        if hit is None:
+            return None
+        self.calendar_reuses += 1
+        return hit
+
+    def remember_calendar(self, limit: int, events: list[dict[str, Any]]) -> None:
+        self._calendar_cache[limit] = tuple(dict(row) for row in events)
 
     def ensure_pipeline(self, *, interval: str | None = None) -> PipelineContext:
         if interval:
