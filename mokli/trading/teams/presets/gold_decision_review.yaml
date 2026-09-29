@@ -22,30 +22,30 @@ agents:
 tasks:
   - id: task-technical
     agent_id: technical
-    prompt_template: "Technical read of {target}. Return direction, levels, and what would invalidate them. Do not place an order."
+    prompt_template: "Technical read of {target}. Return direction, levels, and what would invalidate them. Do not place an order. End with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: []
   - id: task-macro
     agent_id: macro
-    prompt_template: "Macro and news for {target}. Use the evidence and the technical note.\n{upstream_context}"
+    prompt_template: "Macro and news for {target}. Use the evidence and the technical note.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-technical]
     input_from:
       technical: task-technical
   - id: task-trend
     agent_id: trend
-    prompt_template: "Trend read of {target} across timeframes. Do not repeat the whole technical note.\n{upstream_context}"
+    prompt_template: "Trend read of {target} across timeframes. Do not repeat the whole technical note.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-technical]
     input_from:
       technical: task-technical
   - id: task-risk
     agent_id: risk
-    prompt_template: "Risk review for {target}. Name blocking risks and whether the views conflict.\n{upstream_context}"
+    prompt_template: "Risk review for {target}. Name blocking risks and whether the views conflict.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-macro, task-trend]
     input_from:
       macro: task-macro
       trend: task-trend
   - id: task-review
     agent_id: review
-    prompt_template: "One review pass for {target}. If views conflict, state the conflict and the condition that resolves it. Do not open a second round.\n{upstream_context}"
+    prompt_template: "One review pass for {target}. If views conflict, state the conflict and the condition that resolves it. Do not open a second round.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-risk]
     input_from:
       risk: task-risk

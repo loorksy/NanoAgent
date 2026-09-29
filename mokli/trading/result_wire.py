@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict
 from typing import Any
 
 from mokli.agent.tools.context import current_request_context
+from mokli.trading.explain import build_trading_explain
 from mokli.trading.locale import active_locale
 from mokli.trading.types import AgentFinalResult
+
+_STANCE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
 
 
 def _jsonable(value: Any) -> Any:
@@ -32,6 +36,21 @@ def _risk_percent(decision: Any) -> float | None:
             continue
         return float(value)
     return None
+
+
+def _agreement(agents: list[Any]) -> dict[str, Any] | None:
+    """Count explicit STANCE lines. Missing lines omit the score instead of guessing."""
+    done = [row for row in agents if isinstance(row, dict) and row.get("status") == "done"]
+    if len(done) < 2:
+        return None
+    votes: list[str] = []
+    for row in done:
+        match = _STANCE.search(str(row.get("summary") or ""))
+        if match is None:
+            return None
+        votes.append(match.group(1).lower())
+    stance = max(set(votes), key=votes.count)
+    return {"stance": stance, "agreeing": votes.count(stance), "votes": len(votes)}
 
 
 def _data_sources(result: AgentFinalResult) -> list[str]:
@@ -157,4 +176,8 @@ def result_to_wire(result: AgentFinalResult) -> dict[str, Any]:
             for frame in snapshots
             if isinstance(frame, dict)
         ]
+    agreement = _agreement(list(result.team_agents or []))
+    if agreement is not None:
+        payload["agreement"] = agreement
+    payload["operatorSummary"] = build_trading_explain(payload, locale=str(payload.get("locale") or "en"))
     return _jsonable(payload)

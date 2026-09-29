@@ -187,6 +187,43 @@ def test_wire_includes_market_source_and_gate_risk() -> None:
     assert payload["dataSources"][0] == "market:XAUUSD:15m"
     assert "final_decision" in payload["dataSources"]
     assert payload["keyReasons"] == ["spread"]
+    assert "WAIT" in payload["operatorSummary"]
+    assert "agreement" not in payload
+
+
+def test_agreement_counts_only_explicit_stances() -> None:
+    from mokli.trading.result_wire import result_to_wire
+    from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+
+    decision = FinalDecisionResult(
+        decision="buy",
+        confidence=0.6,
+        summary="buy",
+        key_reasons=[],
+        risk_warnings=[],
+        recommendation=AgentRecommendation(action="buy"),
+    )
+    agreed = result_to_wire(
+        AgentFinalResult(
+            decision=decision,
+            team_agents=[
+                {"status": "done", "summary": "levels hold\nSTANCE: buy"},
+                {"status": "done", "summary": "news clear\nSTANCE: buy"},
+                {"status": "done", "summary": "conflict\nSTANCE: wait"},
+            ],
+        )
+    )
+    assert agreed["agreement"] == {"stance": "buy", "agreeing": 2, "votes": 3}
+    missing = result_to_wire(
+        AgentFinalResult(
+            decision=decision,
+            team_agents=[
+                {"status": "done", "summary": "STANCE: buy"},
+                {"status": "done", "summary": "no stance line"},
+            ],
+        )
+    )
+    assert "agreement" not in missing
 
 
 def test_buy_gold_question_routes_to_kernel_review() -> None:
