@@ -933,3 +933,18 @@ def test_activity_projection_matches_real_events() -> None:
     visible_ids = {step["id"] for step in several}
     event_ids = {"c1", "sa", "c2"}
     assert visible_ids == event_ids
+    quiet = pipe_mod.project_activity([ev("state", {"state": "working"})])
+    assert all(step.get("kind") != "retry" for step in quiet)
+    retry = pipe_mod.project_activity([
+        ev("retry", {"state": "waiting", "attempt": 2, "error_kind": "connection"}),
+        ev("retry", {"state": "recovered", "attempt": 2, "error_kind": "connection"}),
+        ev("retry", {"state": "cleared", "attempt": 4, "error_kind": "server"}),
+    ])
+    assert [step["id"] for step in retry] == ["retry-2", "fallback"]
+    assert retry[0]["label"] == "Retry succeeded"
+    assert retry[0]["done"] is True
+    assert retry[0]["failed"] is False
+    assert retry[1]["label"] == "Using another provider"
+    assert "✓" not in pipe_mod.activity_line([
+        {"label": "Retry failed", "done": True, "failed": True},
+    ])

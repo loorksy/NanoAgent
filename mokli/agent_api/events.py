@@ -17,7 +17,7 @@ from mokli.bus.runtime_events import (
     TurnRuntimeAdmitted,
     UserInputAccepted,
 )
-from mokli.events import AgentEvent
+from mokli.events import AgentEvent, RetryStatusEvent
 from mokli.session.goal_state import goal_state_ws_blob
 
 EventKind = Literal[
@@ -32,6 +32,7 @@ EventKind = Literal[
     "job",
     "end",
     "diagnostic",
+    "retry",
 ]
 EVENT_KINDS: tuple[EventKind, ...] = (
     "delta",
@@ -45,6 +46,7 @@ EVENT_KINDS: tuple[EventKind, ...] = (
     "job",
     "end",
     "diagnostic",
+    "retry",
 )
 
 SessionState = Literal["working", "waiting", "completed"]
@@ -278,6 +280,21 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
             "session": session,
             "kind": "state",
             "data": state_data("completed", outcome=outcome_from_turn(event)),
+        }
+    if isinstance(event, RetryStatusEvent):
+        if not event.session_key:
+            return None
+        data: JsonObject = {
+            "state": event.state,
+            "attempt": event.attempt,
+            "error_kind": event.error_kind,
+        }
+        if event.max_attempts is not None:
+            data["max_attempts"] = event.max_attempts
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "retry",
+            "data": data,
         }
     if isinstance(event, GoalStateChanged):
         session = session_id_for_key(event.context.session_key)

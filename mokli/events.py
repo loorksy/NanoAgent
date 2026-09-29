@@ -33,6 +33,7 @@ class RetryStatusEvent(AgentEvent):
     max_attempts: int | None
     error_kind: str
     next_retry_at: float | None = None
+    session_key: str = ""
 
 
 @dataclass(frozen=True)

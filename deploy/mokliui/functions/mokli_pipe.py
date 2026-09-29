@@ -44,6 +44,10 @@ DEFAULT_LABELS: dict[str, str] = {
     "activity.step.failed": "Step failed",
     "activity.subagent": "Specialist",
     "diagnostics.title": "Developer diagnostics",
+    "retry.waiting": "Retrying the model",
+    "retry.recovered": "Retry succeeded",
+    "retry.exhausted": "Retry failed",
+    "retry.cleared": "Using another provider",
     "state.waiting": "Waiting",
     "state.completed": "Completed",
     "phase.queued": "Queued",
@@ -585,6 +589,39 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
             current = index.get(_as_str(data.get("id")))
             if current is not None:
                 current["done"] = True
+        elif kind == "retry":
+            state = _as_str(data.get("state"))
+            label_key = {
+                "waiting": "retry.waiting",
+                "recovered": "retry.recovered",
+                "exhausted": "retry.exhausted",
+                "cleared": "retry.cleared",
+            }.get(state)
+            if label_key is None:
+                continue
+            attempt_n = _as_int(data.get("attempt"))
+            attempt = str(attempt_n if attempt_n is not None else 0)
+            step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
+            label = DEFAULT_LABELS[label_key]
+            done = state in {"recovered", "exhausted", "cleared"}
+            failed = state == "exhausted"
+            current = index.get(step_id)
+            if current is None:
+                current = {
+                    "id": step_id,
+                    "kind": "retry",
+                    "label": label,
+                    "technical": state,
+                    "done": done,
+                    "failed": failed,
+                }
+                steps.append(current)
+                index[step_id] = current
+            else:
+                current["label"] = label
+                current["technical"] = state
+                current["done"] = done
+                current["failed"] = failed
     return steps
 
 
@@ -905,6 +942,8 @@ class Pipe:
             await self._on_state(data, turn, emitter)
         elif kind == "tool":
             await self._on_tool(data, turn, emitter)
+        elif kind == "retry":
+            await self._on_retry(data, turn, emitter)
         elif kind == "subagent":
             await self._on_subagent(data, turn, emitter)
         elif kind == "structured":
@@ -999,6 +1038,54 @@ class Pipe:
             detail = f"{detail} · {arguments}"
         if summary:
             detail = f"{detail} · {summary}"
+        turn.timeline.append(detail)
+
+    async def _on_retry(
+        self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
+    ) -> None:
+        state = _as_str(data.get("state"))
+        label_key = {
+            "waiting": "retry.waiting",
+            "recovered": "retry.recovered",
+            "exhausted": "retry.exhausted",
+            "cleared": "retry.cleared",
+        }.get(state)
+        if label_key is None:
+            return
+        attempt_n = _as_int(data.get("attempt"))
+        attempt = str(attempt_n if attempt_n is not None else 0)
+        step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
+        label = turn.label(label_key)
+        done = state in {"recovered", "exhausted", "cleared"}
+        failed = state == "exhausted"
+        existing = next((step for step in turn.steps if step.get("id") == step_id), None)
+        if existing is None:
+            turn.steps.append(
+                {
+                    "id": step_id,
+                    "kind": "retry",
+                    "label": label,
+                    "technical": state,
+                    "done": done,
+                    "failed": failed,
+                }
+            )
+        else:
+            existing["label"] = label
+            existing["technical"] = state
+            existing["done"] = done
+            existing["failed"] = failed
+        await self._emit(
+            emitter,
+            {
+                "type": "status",
+                "data": {"description": activity_line(turn.steps), "done": False},
+            },
+        )
+        detail = f"{label} · {attempt}"
+        error_kind = _as_str(data.get("error_kind"))
+        if error_kind:
+            detail = f"{detail} · {error_kind}"
         turn.timeline.append(detail)
 
     async def _on_subagent(

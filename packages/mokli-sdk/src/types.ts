@@ -253,6 +253,13 @@ export interface EndData {
   outcome: RunOutcome;
 }
 
+export interface RetryData {
+  state: "waiting" | "recovered" | "cleared" | "exhausted";
+  attempt: number;
+  error_kind: string;
+  max_attempts?: number;
+}
+
 export interface EventDataMap {
   delta: DeltaData;
   state: StateData;
@@ -264,6 +271,7 @@ export interface EventDataMap {
   notification: NotificationData;
   job: JobData;
   end: EndData;
+  retry: RetryData;
 }
 
 export type EventKind = keyof EventDataMap;
