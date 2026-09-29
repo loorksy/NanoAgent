@@ -61,3 +61,48 @@ def test_failed_calendar_download_is_not_cached(monkeypatch) -> None:
     assert second[0]["title"] == "CPI"
     assert calls["n"] == 2
     assert turn.calendar_reuses == 0
+
+
+def test_overlapping_calendar_reads_download_once(monkeypatch) -> None:
+    import contextvars
+    import threading
+    import time
+
+    from mokli.trading.turn_session import turn_session_scope
+
+    monkeypatch.setenv("FOREX_FACTORY_ENABLED", "1")
+    entered = {"n": 0}
+    release = threading.Event()
+    payload = b'[{"country":"USD","impact":"High","title":"CPI","date":"t"}]'
+
+    def urlopen(*_args, **_kwargs):
+        entered["n"] += 1
+        assert release.wait(timeout=1)
+        return _Body(payload)
+
+    monkeypatch.setattr("mokli.trading.news.forex_factory.urllib.request.urlopen", urlopen)
+    errors: list[BaseException] = []
+    with turn_session_scope() as turn:
+        contexts = [contextvars.copy_context() for _ in range(2)]
+
+        def _run(ctx: contextvars.Context) -> None:
+            try:
+                ctx.run(fetch_upcoming_events)
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_run, args=(ctx,)) for ctx in contexts]
+        for thread in threads:
+            thread.start()
+        deadline = time.time() + 1
+        while entered["n"] < 1 and time.time() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.05)
+        assert entered["n"] == 1
+        release.set()
+        for thread in threads:
+            thread.join(timeout=1)
+            assert not thread.is_alive()
+    assert errors == []
+    assert entered["n"] == 1
+    assert turn.calendar_reuses == 1

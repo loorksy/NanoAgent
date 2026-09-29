@@ -66,14 +66,15 @@ def build_agent_market_context(
     from mokli.trading.turn_session import current_turn_session
 
     turn = current_turn_session()
-    cached = turn.take_cached_candles(symbol, interval, limit) if turn is not None else None
-    if cached is not None:
-        candles = list(cached)
-    else:
+
+    def _fetch_rows() -> list[Candle]:
         candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
-        candles = [_to_candle(c) for c in candles_raw]
-        if turn is not None:
-            turn.remember_candles(symbol, interval, limit, candles)
+        return [_to_candle(row) for row in candles_raw]
+
+    if turn is None:
+        candles = _fetch_rows()
+    else:
+        candles = turn.load_candles(symbol, interval, limit, _fetch_rows)
     quote, _source = resolve_live_quote(symbol, config)
 
     sync = MarketSync(ok=True)

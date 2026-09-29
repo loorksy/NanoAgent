@@ -6,6 +6,8 @@ The ContextVar is bound per operator turn by ``AgentLoop._process_message``.
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
@@ -54,6 +56,11 @@ class TurnSession:
     calendar_reuses: int = 0
     _candle_cache: dict[tuple[str, str, int], tuple[Any, ...]] = field(default_factory=dict)
     _calendar_cache: dict[int, tuple[dict[str, Any], ...]] = field(default_factory=dict)
+    _fetch_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _candle_inflight: dict[tuple[str, str, int], threading.Event] = field(
+        default_factory=dict, repr=False
+    )
+    _calendar_inflight: dict[int, threading.Event] = field(default_factory=dict, repr=False)
 
     def take_cached_candles(self, symbol: str, interval: str, limit: int) -> tuple[Any, ...] | None:
         """Candles already fetched in this turn for the same symbol, interval, and limit."""
@@ -76,6 +83,86 @@ class TurnSession:
 
     def remember_calendar(self, limit: int, events: list[dict[str, Any]]) -> None:
         self._calendar_cache[limit] = tuple(dict(row) for row in events)
+
+    def load_candles(
+        self,
+        symbol: str,
+        interval: str,
+        limit: int,
+        fetch: Callable[[], list[Any]],
+    ) -> list[Any]:
+        """One in-flight download per symbol, interval, and limit."""
+
+        def _fetch() -> tuple[Any, ...]:
+            return tuple(fetch())
+
+        loaded = self._join(
+            (symbol, interval, limit),
+            self._candle_cache,
+            self._candle_inflight,
+            _fetch,
+            lambda: setattr(self, "candle_reuses", self.candle_reuses + 1),
+        )
+        return [] if loaded is None else list(loaded)
+
+    def load_calendar(
+        self,
+        limit: int,
+        fetch: Callable[[], list[dict[str, Any]] | None],
+    ) -> list[dict[str, Any]] | None:
+        """One in-flight calendar download per limit. A failure is not stored."""
+
+        def _fetch() -> tuple[dict[str, Any], ...] | None:
+            rows = fetch()
+            if rows is None:
+                return None
+            return tuple(dict(row) for row in rows)
+
+        loaded = self._join(
+            limit,
+            self._calendar_cache,
+            self._calendar_inflight,
+            _fetch,
+            lambda: setattr(self, "calendar_reuses", self.calendar_reuses + 1),
+        )
+        if loaded is None:
+            return None
+        return [dict(row) for row in loaded]
+
+    def _join(
+        self,
+        key: Any,
+        cache: dict[Any, Any],
+        inflight: dict[Any, threading.Event],
+        fetch: Callable[[], Any],
+        on_reuse: Callable[[], None],
+    ) -> Any:
+        while True:
+            with self._fetch_lock:
+                hit = cache.get(key)
+                if hit is not None:
+                    on_reuse()
+                    return hit
+                event = inflight.get(key)
+                leader = event is None
+                if leader:
+                    event = threading.Event()
+                    inflight[key] = event
+            if not leader:
+                event.wait()
+                continue
+            try:
+                value = fetch()
+                if value is None:
+                    return None
+                with self._fetch_lock:
+                    cache[key] = value
+                return value
+            finally:
+                with self._fetch_lock:
+                    if inflight.get(key) is event:
+                        inflight.pop(key, None)
+                event.set()
 
     def ensure_pipeline(self, *, interval: str | None = None) -> PipelineContext:
         if interval:

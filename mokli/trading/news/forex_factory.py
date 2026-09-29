@@ -21,16 +21,11 @@ def fetch_upcoming_events(limit: int = 12) -> list[dict[str, Any]]:
     from mokli.trading.turn_session import current_turn_session
 
     turn = current_turn_session()
-    if turn is not None:
-        cached = turn.take_cached_calendar(limit)
-        if cached is not None:
-            return [dict(row) for row in cached]
-    events = _download_upcoming_events(limit)
-    if events is None:
-        return []
-    if turn is not None:
-        turn.remember_calendar(limit, events)
-    return events
+    if turn is None:
+        events = _download_upcoming_events(limit)
+        return [] if events is None else events
+    events = turn.load_calendar(limit, lambda: _download_upcoming_events(limit))
+    return [] if events is None else events
 
 
 def _download_upcoming_events(limit: int) -> list[dict[str, Any]] | None:

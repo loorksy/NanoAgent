@@ -163,3 +163,60 @@ def test_without_a_turn_each_call_fetches_candles(monkeypatch) -> None:
     build_agent_market_context()
     build_agent_market_context()
     assert fetches["candles"] == 2
+
+
+def test_overlapping_reads_of_one_window_fetch_once(monkeypatch) -> None:
+    import contextvars
+    import threading
+    import time
+
+    from mokli.trading.turn_session import turn_session_scope
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    entered = {"n": 0}
+    release = threading.Event()
+
+    def _fetch(*_args, **_kwargs):
+        entered["n"] += 1
+        assert release.wait(timeout=1)
+        return _candles(), False
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", _fetch)
+    monkeypatch.setattr(
+        "mokli.trading.market_context.fetch_quote",
+        lambda *_args, **_kwargs: OandaQuote(
+            symbol="XAUUSD", bid=1, ask=2, mid=1.5, tradeable=True
+        ),
+    )
+
+    errors: list[BaseException] = []
+
+    with turn_session_scope() as turn:
+        contexts = [contextvars.copy_context() for _ in range(2)]
+
+        def _run(ctx: contextvars.Context) -> None:
+            try:
+                ctx.run(build_agent_market_context, "XAUUSD", "15m", 24)
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_run, args=(ctx,)) for ctx in contexts]
+        for thread in threads:
+            thread.start()
+        deadline = time.time() + 1
+        while entered["n"] < 1 and time.time() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.05)
+        assert entered["n"] == 1
+        release.set()
+        for thread in threads:
+            thread.join(timeout=1)
+            assert not thread.is_alive()
+
+    assert errors == []
+    assert entered["n"] == 1
+    assert turn.candle_reuses == 1
