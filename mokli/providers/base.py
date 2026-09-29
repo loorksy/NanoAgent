@@ -1697,8 +1697,40 @@ class LLMProvider(ABC):
         on_retry_wait: RetryEventCallback | None = None,
         on_retry_status: RetryStatusCallback | None = None,
     ) -> None:
+        started = time.perf_counter()
         next_retry_at = time.time() + max(0.0, delay)
         remaining = max(0.0, delay)
+        try:
+            await self._wait_retry(
+                remaining,
+                next_retry_at,
+                attempt,
+                persistent,
+                error_kind,
+                max_attempts,
+                on_retry_wait,
+                on_retry_status,
+            )
+        finally:
+            waited_ms = int((time.perf_counter() - started) * 1000)
+            if waited_ms:
+                from mokli.agent.turn_diagnostics import current_turn_diagnostics
+
+                diag = current_turn_diagnostics()
+                if diag is not None:
+                    diag.note_retry_wait(waited_ms)
+
+    async def _wait_retry(
+        self,
+        remaining: float,
+        next_retry_at: float,
+        attempt: int,
+        persistent: bool,
+        error_kind: str,
+        max_attempts: int | None,
+        on_retry_wait: RetryEventCallback | None,
+        on_retry_status: RetryStatusCallback | None,
+    ) -> None:
         while remaining > 0:
             if on_retry_wait:
                 kind = "persistent retry" if persistent else "retry"

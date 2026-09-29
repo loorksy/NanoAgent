@@ -95,6 +95,8 @@ class TurnDiagnostics:
     context_ms: int = 0
     model_ms: int = 0
     tool_ms: int = 0
+    retry_ms: int = 0
+    _retry_ms_this_round: int = 0
     rounds: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -131,9 +133,17 @@ class TurnDiagnostics:
         elif fingerprint:
             self._system_fingerprint = fingerprint
 
+    def note_retry_wait(self, elapsed_ms: int) -> None:
+        """Record provider retry sleep separately from model generation time."""
+        waited = max(0, elapsed_ms)
+        self.retry_ms += waited
+        self._retry_ms_this_round += waited
+
     def note_model_round(self, elapsed_ms: int, usage: LLMUsage | None) -> None:
         self.rounds += 1
-        self.model_ms += max(0, elapsed_ms)
+        waited = self._retry_ms_this_round
+        self._retry_ms_this_round = 0
+        self.model_ms += max(0, elapsed_ms - waited)
         if usage is None:
             return
         self.input_tokens += usage.input_tokens
@@ -170,6 +180,7 @@ class TurnDiagnostics:
             "context_ms": self.context_ms,
             "model_ms": self.model_ms,
             "tool_ms": self.tool_ms,
+            "retry_ms": self.retry_ms,
             "rounds": self.rounds,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,

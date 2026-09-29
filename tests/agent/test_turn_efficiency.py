@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -204,6 +205,55 @@ async def test_read_only_tool_is_not_executed_twice_in_one_turn() -> None:
     assert second_events[0]["status"] == "reused"
     assert "لم تُعد الأداة" in str(second[0])
     assert first[0] == "bid 2400"
+
+
+def test_retry_wait_is_not_counted_as_model_time() -> None:
+    from mokli.agent.turn_diagnostics import TurnDiagnostics
+
+    diag = TurnDiagnostics(model="test", provider="Test")
+    diag.note_retry_wait(1800)
+    diag.note_model_round(2500, None)
+    assert diag.retry_ms == 1800
+    assert diag.model_ms == 700
+    payload = diag.to_dict()
+    assert payload["retry_ms"] == 1800
+    assert payload["model_ms"] == 700
+
+
+@pytest.mark.asyncio
+async def test_provider_retry_sleep_is_recorded() -> None:
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+    from mokli.providers.base import LLMProvider
+
+    class _Provider(LLMProvider):
+        def get_default_model(self) -> str:
+            return "test"
+
+        async def chat(self, *args: object, **kwargs: object) -> object:
+            del args, kwargs
+            return None
+
+        async def _wait_retry(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+            await asyncio.sleep(0.05)
+
+    diag = TurnDiagnostics(model="test", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    try:
+        await _Provider(provider_name="test")._sleep_with_heartbeat(
+            0.05,
+            attempt=1,
+            persistent=False,
+            error_kind="rate_limit",
+            max_attempts=3,
+        )
+    finally:
+        reset_turn_diagnostics(token)
+    assert diag.retry_ms >= 40
 
 
 def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> None:
