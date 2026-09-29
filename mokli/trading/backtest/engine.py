@@ -22,7 +22,10 @@ def replay(
     spread_points: float = 20.0,
     rr: float = 2.0,
     lookback: int = 5,
+    rules: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if rules:
+        return _replay_rules(candles, rules, spread_points=spread_points)
     window = candles[-MAX_BARS:]
     if len(window) < MIN_BARS:
         return {
@@ -102,4 +105,78 @@ def replay(
     card["candles"] = len(window)
     card["strategy"] = "atr_breakout"
     card["rs"] = [row["r"] for row in trades]
+    return card
+
+
+def _replay_rules(
+    candles: list[Candle],
+    rules: dict[str, Any],
+    *,
+    spread_points: float,
+) -> dict[str, Any]:
+    """Interpret a checked spec. Long break of the prior high, stop under the swing low."""
+    window = candles[-MAX_BARS:]
+    if len(window) < MIN_BARS:
+        return {
+            "ok": False,
+            "reason_key": "backtest.not_enough_bars",
+            "candles": len(window),
+            "trades": 0,
+            "strategy": str(rules.get("name") or "spec"),
+        }
+    if rules.get("entry") != "break_prior_high":
+        return {
+            "ok": False,
+            "reason_key": "strategy.unsupported_entry",
+            "candles": len(window),
+            "trades": 0,
+            "strategy": str(rules.get("name") or "spec"),
+        }
+    lookback = int(rules.get("lookback") or 5)
+    confirm_bars = int(rules.get("confirm_bars") or 4)
+    rr = float(rules.get("target_rr") or 2.0)
+    spread = spread_points * GOLD_POINT
+    buffer = GOLD_POINT
+    trades: list[dict[str, float]] = []
+    start = max(lookback, confirm_bars, 15)
+    index = start
+    while index < len(window) - 1:
+        bar = window[index]
+        prior = window[index - lookback : index]
+        prior_high = max(item.high for item in prior)
+        swing_low = min(item.low for item in prior)
+        earlier = window[index - confirm_bars].close
+        if bar.close <= prior_high or bar.close <= earlier:
+            index += 1
+            continue
+        entry = bar.close + spread
+        stop = swing_low - buffer
+        risk = entry - stop
+        if risk <= 0:
+            index += 1
+            continue
+        target = entry + rr * risk
+        pnl = 0.0
+        exit_index = index
+        for step in range(index + 1, len(window)):
+            probe = window[step]
+            exit_index = step
+            if probe.low <= stop:
+                pnl += stop - entry
+                break
+            if probe.high >= target:
+                pnl += target - entry
+                break
+        else:
+            pnl += window[-1].close - entry
+        trades.append({"pnl": pnl, "r": pnl / risk})
+        index = exit_index + 1
+    from mokli.trading.reports.scorecard import build_scorecard
+
+    card = build_scorecard([{"pnl": row["pnl"], "r": row["r"]} for row in trades], period="replay")
+    card["ok"] = True
+    card["candles"] = len(window)
+    card["strategy"] = str(rules.get("name") or "spec")
+    card["rs"] = [row["r"] for row in trades]
+    card["risk_percent"] = rules.get("risk_percent")
     return card
