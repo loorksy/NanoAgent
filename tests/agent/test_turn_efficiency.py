@@ -169,3 +169,62 @@ async def test_read_only_tool_is_not_executed_twice_in_one_turn() -> None:
     assert second_events[0]["status"] == "reused"
     assert "لم تُعد الأداة" in str(second[0])
     assert first[0] == "bid 2400"
+
+
+def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> None:
+    from mokli.agent.context import ContextBuilder
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+
+    memory_dir = tmp_path / "memory"
+    memory_dir.mkdir()
+    (memory_dir / "MEMORY.md").write_text("The operator trades XAUUSD from Dubai.\n", encoding="utf-8")
+    diag = TurnDiagnostics(model="test", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    try:
+        ContextBuilder(workspace=tmp_path).build_system_prompt()
+        diag.note_context(12)
+        diag.note_prepared(
+            [{"role": "system", "content": "identity"}, {"role": "user", "content": "hi"}],
+            None,
+        )
+    finally:
+        reset_turn_diagnostics(token)
+    assert diag.context_ms == 12
+    assert diag.memory_chars > 0
+    assert diag.memory_tokens > 0
+    payload = diag.to_dict()
+    assert payload["memory_tokens"] == diag.memory_tokens
+    assert payload["components"]["memory"] == diag.memory_tokens
+    assert payload["components"]["final"] == (
+        payload["components"]["system"]
+        + payload["components"]["conversation"]
+        + payload["components"]["tool_results"]
+        + payload["components"]["subagent"]
+        + payload["components"]["other"]
+        + payload["components"]["tool_definitions"]
+    )
+
+
+def test_component_tokens_count_subagent_results_apart_from_tools() -> None:
+    from mokli.agent.turn_diagnostics import component_tokens
+
+    parts = component_tokens(
+        [
+            {"role": "system", "content": "identity"},
+            {"role": "user", "content": "hello"},
+            {"role": "tool", "name": "get_gold_quote", "content": "2300"},
+            {"role": "tool", "name": "spawn", "content": "Risk Officer says wait for the level."},
+        ],
+        None,
+    )
+    assert parts["subagent"] > 0
+    assert parts["tool_results"] > 0
+    assert parts["subagent"] != parts["tool_results"]
+    assert parts["final"] == (
+        parts["system"] + parts["conversation"] + parts["tool_results"]
+        + parts["subagent"] + parts["other"] + parts["tool_definitions"]
+    )

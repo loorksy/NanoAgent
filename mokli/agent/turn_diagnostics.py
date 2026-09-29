@@ -13,6 +13,7 @@ from mokli.utils.helpers import estimate_message_tokens, estimate_prompt_tokens
 # Illustrative rates so a developer can compare turns. Not an invoice.
 _INPUT_USD_PER_MILLION = 3.0
 _OUTPUT_USD_PER_MILLION = 15.0
+_SUBAGENT_RESULT_TOOLS = frozenset({"spawn", "run_trading_team", "trading_team"})
 
 _CURRENT: ContextVar[TurnDiagnostics | None] = ContextVar(
     "mokli_turn_diagnostics",
@@ -59,12 +60,15 @@ def component_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     system = 0
     conversation = 0
     tool_results = 0
+    subagent = 0
     other = 0
     for message in messages:
         tokens = estimate_message_tokens(message)
         role = message.get("role")
         if role == "system":
             system += tokens
+        elif role == "tool" and str(message.get("name") or "") in _SUBAGENT_RESULT_TOOLS:
+            subagent += tokens
         elif role == "tool":
             tool_results += tokens
         elif role in {"user", "assistant"}:
@@ -75,10 +79,11 @@ def component_tokens(messages: list[dict[str, Any]], tools: list[dict[str, Any]]
     return {
         "system": system,
         "conversation": conversation,
-        "tool_results": tool_results,
-        "other": other,
         "tool_definitions": tool_definitions,
-        "final": system + conversation + tool_results + other + tool_definitions,
+        "tool_results": tool_results,
+        "subagent": subagent,
+        "other": other,
+        "final": system + conversation + tool_results + subagent + other + tool_definitions,
     }
 
 
@@ -101,19 +106,14 @@ class TurnDiagnostics:
     components: dict[str, int] = field(default_factory=dict)
     memory_chars: int = 0
     skills_chars: int = 0
+    memory_tokens: int = 0
+    skills_tokens: int = 0
     static_resends: int = 0
     _system_fingerprint: str = ""
 
-    def note_context(
-        self,
-        elapsed_ms: int,
-        *,
-        memory_chars: int = 0,
-        skills_chars: int = 0,
-    ) -> None:
+    def note_context(self, elapsed_ms: int) -> None:
+        """Record context-build time. Memory sizes are set while the prompt is built."""
         self.context_ms += max(0, elapsed_ms)
-        self.memory_chars = memory_chars
-        self.skills_chars = skills_chars
 
     def note_prepared(
         self,
@@ -121,6 +121,8 @@ class TurnDiagnostics:
         tools: list[dict[str, Any]] | None,
     ) -> None:
         components = component_tokens(messages, tools)
+        components["memory"] = self.memory_tokens
+        components["skills"] = self.skills_tokens
         self.components = components
         system = next((m.get("content") for m in messages if m.get("role") == "system"), "")
         fingerprint = system if isinstance(system, str) else str(system)
@@ -180,10 +182,13 @@ class TurnDiagnostics:
             "components": dict(self.components),
             "memory_chars": self.memory_chars,
             "skills_chars": self.skills_chars,
+            "memory_tokens": self.memory_tokens,
+            "skills_tokens": self.skills_tokens,
             "static_resends": self.static_resends,
             "cost_estimate_usd": round(input_cost + output_cost, 6),
             "cost_rate_note": (
                 f"illustrative ${_INPUT_USD_PER_MILLION}/M input and "
                 f"${_OUTPUT_USD_PER_MILLION}/M output, not an invoice"
             ),
+            "component_note": "memory and skills are inside system and are not added again to final",
         }

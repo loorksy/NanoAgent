@@ -38,7 +38,7 @@ from mokli.security.workspace_access import WorkspaceScopeResolver
 from mokli.session.keys import last_channel_from_metadata
 from mokli.session.manager import Session
 from mokli.session.summary import SessionSummary
-from mokli.utils.helpers import detect_image_mime, load_bundled_template
+from mokli.utils.helpers import detect_image_mime, estimate_message_tokens, load_bundled_template
 from mokli.utils.prompt_templates import render_template
 
 
@@ -179,6 +179,15 @@ class ContextBuilder:
         if diag is not None:
             diag.memory_chars = len(memory_section)
             diag.skills_chars = len(active_section) + len(skills_section)
+            diag.memory_tokens = (
+                estimate_message_tokens({"role": "system", "content": memory_section})
+                if memory_section else 0
+            )
+            skills_text = "\n".join(part for part in (active_section, skills_section) if part)
+            diag.skills_tokens = (
+                estimate_message_tokens({"role": "system", "content": skills_text})
+                if skills_text else 0
+            )
 
         return compose_system_prompt(
             PromptContext(
