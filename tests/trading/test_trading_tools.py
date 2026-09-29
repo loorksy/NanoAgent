@@ -53,7 +53,10 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
     fake_result.cards = []
     fake_result.stages = []
     fake_result.team_mode = "core"
+    fake_result.team_agents = []
     fake_result.drawings = []
+    image = "data:image/png;base64," + ("A" * 4000)
+    fake_result.visual_snapshots = [{"timeframe": "15m", "image": image}]
 
     with request_context(ctx):
         with patch(
@@ -64,6 +67,13 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
             raw = await tool.execute(interval="15m", present_ui=True)
     payload = json.loads(raw)
     assert payload["decision"] == "wait"
+    assert "data:image" not in raw
+    assert "chartSnapshots" not in payload
+    published = json.dumps(
+        [call.args[0].metadata for call in bus.publish_outbound.await_args_list],
+        default=str,
+    )
+    assert image in published
     assert bus.publish_outbound.await_count >= 2
 
 

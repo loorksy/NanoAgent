@@ -29,7 +29,7 @@ from mokli.trading.recommendations.lifecycle import (
     prepare_for_new_recommendation,
     sync_session_live_plan,
 )
-from mokli.trading.result_wire import result_to_wire
+from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
@@ -644,7 +644,7 @@ class AnalyzeGoldTool(Tool):
         wire = result_to_wire(result)
         if publish_ui:
             await publisher.publish_result(wire)
-        return json.dumps(wire, indent=2)
+        return json.dumps(brief_for_model(wire), indent=2)
 
 
 @tool_parameters(_CAPTURE_PARAMETERS)
