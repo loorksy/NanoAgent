@@ -29,6 +29,18 @@ _STANCE_LINE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
 _UPSTREAM_LIMIT = 400
 
 
+async def _timed_macro_drivers(
+    *,
+    search: Any | None,
+    events: list[dict[str, Any]] | None,
+    now: Any | None,
+) -> tuple[list[Any], int]:
+    """Time the macro searches themselves, not the wait for team roles."""
+    started = time.perf_counter()
+    verdicts = await run_macro_drivers(search=search, events=events, now=now)
+    return list(verdicts), int((time.perf_counter() - started) * 1000)
+
+
 def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
     """Short brief for the next role. The stance line is kept even when the body is cut."""
     text = (summary or "").strip()
@@ -122,45 +134,56 @@ async def run_swarm(
 
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
     evidence_text = format_market_evidence(market)
-
-    for layer_index, layer in enumerate(layers):
-        async def run_task(task: SwarmTask) -> tuple[str, str]:
-            upstream = "\n".join(
-                f"{key}: {brief_for_upstream(summaries[src])}"
-                for key, src in task.input_from.items()
-                if src in summaries
-            )
-            agent = next((a for a in preset.agents if a.id == task.agent_id), None)
-            role = agent.role if agent else task.agent_id
-            system_prompt = agent.system_prompt if agent else ""
-            prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
-            summary = await run_team_role(
-                agent_id=task.agent_id,
-                role=role,
-                task_text=prompt,
-                evidence_text=scope_market_evidence(evidence_text, role, system_prompt),
-                system_prompt=system_prompt,
-                manager=subagent_manager,
-                publisher=publisher,
-                layer=layer_index,
-                collector=collector,
-                bus=bus,
-            )
-            return task.id, summary
-
-        results = await asyncio.gather(*[run_task(task) for task in layer])
-        for task_id, summary in results:
-            summaries[task_id] = summary
-
-    started = time.time()
-    verdicts = await run_macro_drivers(
-        search=macro_search,
-        events=macro_events,
-        now=macro_now,
+    # Macro searches do not read role summaries. Start them with the first layer.
+    macro_task = asyncio.create_task(
+        _timed_macro_drivers(
+            search=macro_search,
+            events=macro_events,
+            now=macro_now,
+        )
     )
+
+    try:
+        for layer_index, layer in enumerate(layers):
+
+            async def run_task(task: SwarmTask) -> tuple[str, str]:
+                upstream = "\n".join(
+                    f"{key}: {brief_for_upstream(summaries[src])}"
+                    for key, src in task.input_from.items()
+                    if src in summaries
+                )
+                agent = next((a for a in preset.agents if a.id == task.agent_id), None)
+                role = agent.role if agent else task.agent_id
+                system_prompt = agent.system_prompt if agent else ""
+                prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
+                summary = await run_team_role(
+                    agent_id=task.agent_id,
+                    role=role,
+                    task_text=prompt,
+                    evidence_text=scope_market_evidence(evidence_text, role, system_prompt),
+                    system_prompt=system_prompt,
+                    manager=subagent_manager,
+                    publisher=publisher,
+                    layer=layer_index,
+                    collector=collector,
+                    bus=bus,
+                )
+                return task.id, summary
+
+            results = await asyncio.gather(*[run_task(task) for task in layer])
+            for task_id, summary in results:
+                summaries[task_id] = summary
+        verdicts, duration_ms = await macro_task
+    finally:
+        if not macro_task.done():
+            macro_task.cancel()
+            try:
+                await macro_task
+            except asyncio.CancelledError:
+                pass
+
     macro_briefing = format_team_briefing(verdicts)
     team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
-    duration_ms = int((time.time() - started) * 1000)
     return {
         "preset": preset_name,
         "task_summaries": summaries,

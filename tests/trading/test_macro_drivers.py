@@ -226,3 +226,70 @@ async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
     assert swarm["final"] is None
     assert swarm["task_summaries"]
     assert swarm["team_agents"]
+
+
+@pytest.mark.asyncio
+async def test_macro_searches_overlap_team_roles(monkeypatch) -> None:
+    """Macro searches do not read role summaries, so they start with the first role."""
+    reset_macro_cache_for_tests()
+    started: list[str] = []
+    release = asyncio.Event()
+
+    async def search(query: str) -> str:
+        del query
+        started.append("macro")
+        if "role" in started:
+            release.set()
+        await release.wait()
+        return "DXY falling, gold ETF inflows, PBOC buying"
+
+    async def fake_team_role(**kwargs: object) -> str:
+        started.append("role")
+        if "macro" in started:
+            release.set()
+        await release.wait()
+        agent_id = str(kwargs.get("agent_id", "agent"))
+        collector = kwargs.get("collector")
+        if collector is not None:
+            from mokli.trading.teams.subagent_runner import TeamAgentEvent
+
+            collector.record(
+                TeamAgentEvent(
+                    agent_id=agent_id,
+                    role=str(kwargs.get("role", "Agent")),
+                    status="done",
+                    summary=f"summary for {agent_id}",
+                )
+            )
+        return f"summary for {agent_id}"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: __import__(
+            "mokli.trading.types",
+            fromlist=["AgentMarketContext", "MarketSync"],
+        ).AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=2650.0,
+            atr=5.0,
+            sync=__import__(
+                "mokli.trading.types", fromlist=["MarketSync"]
+            ).MarketSync(ok=True),
+        ),
+    )
+    swarm = await asyncio.wait_for(
+        run_swarm(
+            "gold_decision_review",
+            macro_search=search,
+            macro_events=[],
+            macro_now=_friday_ts,
+        ),
+        timeout=1,
+    )
+    assert "macro" in started
+    assert "role" in started
+    assert swarm["final"] is None
+    assert "macroDrivers" in str(swarm["team_briefing"])
