@@ -112,3 +112,29 @@ def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> 
     assert "PASS — no tools" in body
     assert "rounds=1" in body and "in=120" in body
     assert "| 1 | سؤال بلا أدوات |" in body
+
+
+def test_patch_preserves_real_report_row_1_arabic_columns() -> None:
+    """Regression: §11 row 1 in docs/mokli-agent-upgrade-report.md must be patchable."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_report_text
+
+    report_path = ROOT / "docs" / "mokli-agent-upgrade-report.md"
+    text = report_path.read_text(encoding="utf-8")
+    row1_lines = [ln for ln in text.splitlines() if ln.startswith("| 1 |")]
+    assert len(row1_lines) == 1
+    row1 = row1_lines[0]
+    assert "`diagnostic`" in row1
+    assert row1.rstrip().endswith("| | |")
+
+    snippet = (
+        "| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام |\n"
+        f"{row1}\n"
+    )
+    payloads = {1: ("PASS VPS", "rounds=1 in=500 out=20 tools=0")}
+    updated, changed = patch_report_text(snippet, payloads)
+    assert changed == 1
+    assert "PASS VPS" in updated
+    assert "rounds=1 in=500" in updated
+    assert "`diagnostic`" in updated
+    assert "«ما اسمك؟»" in updated
