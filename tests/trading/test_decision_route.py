@@ -6,9 +6,154 @@ import asyncio
 import json
 
 from mokli.agent.hook import AgentHook
-from mokli.agent.tools.context import RequestContext
+from mokli.agent.tools.context import RequestContext, request_context
 from mokli.trading.decision_route import is_gold_decision_question
 from mokli.trading.gold_intent_context import gold_intent_runtime_context
+
+
+def test_live_plan_skips_the_review_team(tmp_path, monkeypatch) -> None:
+    """A live plan is graded once. The review team does not run and is not discarded."""
+    from mokli.agent.tools.trading_kernel import RunTradingKernelTool
+    from mokli.trading.recommendations.store import store_recommendation
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+    from mokli.trading.types import (
+        AgentMarketContext,
+        AgentRecommendation,
+        FinalDecisionResult,
+        MarketSync,
+    )
+
+    session_key = "websocket:live-blocks-review"
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    store_recommendation(
+        FinalDecisionResult(
+            decision="sell",
+            confidence=0.7,
+            summary="live sell",
+            key_reasons=[],
+            risk_warnings=[],
+            recommendation=AgentRecommendation(
+                action="sell",
+                entry=2400,
+                stop_loss=2415,
+                targets=[2380],
+                execution_state="valid_now",
+            ),
+        ),
+        [],
+        AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=2402.0,
+            atr=8.0,
+            sync=MarketSync(ok=True),
+        ),
+        session_key=session_key,
+    )
+    calls = {"swarm": 0, "evidence": 0, "resolve": 0, "kernel": 0}
+
+    async def fake_swarm(*_args, **_kwargs):
+        calls["swarm"] += 1
+        return {"team_briefing": "should not run"}
+
+    async def fake_prefetch(_interval, _turn):
+        calls["evidence"] += 1
+
+    async def fake_kernel(**_kwargs):
+        calls["kernel"] += 1
+        return object()
+
+    def _resolve(*_args, **_kwargs):
+        calls["resolve"] += 1
+        quote = type("Q", (), {"mid": 2402.0, "bid": 2401.5, "ask": 2402.5})()
+        return quote, "metaapi"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_swarm", fake_swarm)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel._prefetch_synthesis_evidence",
+        fake_prefetch,
+    )
+    monkeypatch.setattr("mokli.agent.tools.trading_kernel.run_trading_kernel", fake_kernel)
+    def _direct(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("direct OANDA quote")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
+
+    tool = RunTradingKernelTool(bus=object(), subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key=session_key)
+    with request_context(ctx), turn_session_scope(TurnSession()):
+        first = json.loads(asyncio.run(tool.execute(decision_review=True)))
+        second = json.loads(asyncio.run(tool.execute(decision_review=True)))
+    assert first["reason_key"] == "trading.live_plan_active"
+    assert second["reason_key"] == "trading.live_plan_active"
+    assert calls == {"swarm": 0, "evidence": 0, "resolve": 1, "kernel": 0}
+    print("LIVE_PLAN_TEAM swarm=0 evidence=0 quotes=1")
+
+
+def test_force_new_plan_still_runs_the_review_team(tmp_path, monkeypatch) -> None:
+    from mokli.agent.tools.trading_kernel import RunTradingKernelTool
+    from mokli.trading.recommendations.store import store_recommendation
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+    from mokli.trading.types import (
+        AgentMarketContext,
+        AgentRecommendation,
+        FinalDecisionResult,
+        MarketSync,
+    )
+
+    session_key = "websocket:force-new-still-reviews"
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    store_recommendation(
+        FinalDecisionResult(
+            decision="sell",
+            confidence=0.7,
+            summary="live sell",
+            key_reasons=[],
+            risk_warnings=[],
+            recommendation=AgentRecommendation(
+                action="sell",
+                entry=2400,
+                stop_loss=2415,
+                targets=[2380],
+            ),
+        ),
+        [],
+        AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=2402.0,
+            atr=8.0,
+            sync=MarketSync(ok=True),
+        ),
+        session_key=session_key,
+    )
+    called: list[str] = []
+
+    async def fake_swarm(*_args, **_kwargs):
+        called.append("swarm")
+        return {"team_briefing": "replacement"}
+
+    async def fake_kernel(**kwargs):
+        called.append(str(kwargs.get("force_new_plan")))
+        return object()
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_swarm", fake_swarm)
+    monkeypatch.setattr("mokli.agent.tools.trading_kernel.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+    tool = RunTradingKernelTool(bus=object(), subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key=session_key)
+    with request_context(ctx), turn_session_scope(TurnSession()):
+        payload = json.loads(asyncio.run(tool.execute(decision_review=True, force_new_plan=True)))
+    assert payload["decision"] == "wait"
+    assert called == ["swarm", "True"]
 
 
 def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:

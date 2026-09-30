@@ -48,6 +48,23 @@ def resolve_live_price(live_price: float | None = None) -> float | None:
         return None
 
 
+async def blocking_live_plan(
+    session_key: str | None,
+    *,
+    reevaluate: bool = False,
+    force_new_plan: bool = False,
+) -> dict[str, Any] | None:
+    """Grade once and return a row that still blocks a new plan.
+
+    ``reevaluate`` and ``force_new_plan`` are the kernel's own overrides, so
+    this returns None and does not download. No stored row means no download.
+    """
+    if reevaluate or force_new_plan or not session_key:
+        return None
+    live, _quote = await grade_session_plan(session_key)
+    return live
+
+
 async def grade_session_plan(
     session_key: str | None,
 ) -> tuple[dict[str, Any] | None, OandaQuote | None]:

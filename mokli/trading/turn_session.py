@@ -51,6 +51,7 @@ class TurnSession:
     kernel_decision: str | None = None
     kernel_result: Any | None = None
     decision_wire: str | None = None
+    live_plan_block: str | None = None
     quote_display: dict[str, str | None] = field(default_factory=dict)
     candle_reuses: int = 0
     calendar_reuses: int = 0

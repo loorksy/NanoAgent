@@ -131,6 +131,17 @@ class RunTradingKernelTool(Tool):
         turn = current_turn_session()
         if decision_review and turn is not None and turn.decision_wire:
             return turn.decision_wire
+        if decision_review:
+            from mokli.agent.tools.context import current_request_session_key
+            from mokli.trading.tool_errors import live_plan_block_if_any
+
+            blocked = await live_plan_block_if_any(
+                current_request_session_key(),
+                reevaluate=reevaluate,
+                force_new_plan=force_new_plan,
+            )
+            if blocked is not None:
+                return blocked
         team_briefing: str | None = None
         team_mode = "core"
         swarm_agents: list[Any] = []

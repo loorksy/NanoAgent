@@ -81,6 +81,11 @@ class RunTradingTeamTool(Tool):
         ctx = current_request_context()
         if ctx is None:
             return ToolResult.error("run_trading_team requires an active chat session")
+        from mokli.trading.tool_errors import live_plan_block_if_any
+
+        blocked = await live_plan_block_if_any(ctx.session_key)
+        if blocked is not None:
+            return blocked
 
         from mokli.trading.locale import active_locale
 

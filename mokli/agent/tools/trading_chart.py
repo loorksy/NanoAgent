@@ -43,6 +43,7 @@ from mokli.trading.tool_errors import (
     REASON_PRESET_REQUIRED,
     REASON_UNKNOWN_ACTION,
     live_plan_active_error,
+    live_plan_block_if_any,
     tool_error,
 )
 from mokli.trading.unified_evidence import fetch_evidence_nodes
@@ -565,6 +566,14 @@ class AnalyzeGoldTool(Tool):
         **kwargs: Any,
     ) -> str:
         session_key = current_request_session_key()
+        if team_mode in {"debate", "swarm"}:
+            blocked = await live_plan_block_if_any(
+                session_key,
+                reevaluate=reevaluate,
+                force_new_plan=force_new_plan,
+            )
+            if blocked is not None:
+                return blocked
         channel, chat_id = _request_route()
         locale = _operator_locale()
         publisher = TradingStagePublisher(

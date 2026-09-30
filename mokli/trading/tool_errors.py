@@ -36,6 +36,39 @@ def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResu
     return ToolResult.error(json.dumps(payload, indent=2, default=str))
 
 
+async def live_plan_block_if_any(
+    session_key: str | None,
+    *,
+    reevaluate: bool = False,
+    force_new_plan: bool = False,
+) -> ToolResult | None:
+    """Refuse a new plan before a team or evidence download starts.
+
+    A second call in the same turn returns the same refusal and does not
+    grade again. Re-evaluation and an explicit replacement still pass through.
+    """
+    if reevaluate or force_new_plan:
+        return None
+    from mokli.trading.recommendations.lifecycle import blocking_live_plan
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    cached = turn.live_plan_block if turn is not None else None
+    if cached:
+        return ToolResult.error(cached)
+    live = await blocking_live_plan(
+        session_key,
+        reevaluate=reevaluate,
+        force_new_plan=force_new_plan,
+    )
+    if not live:
+        return None
+    result = live_plan_active_error(live)
+    if turn is not None:
+        turn.live_plan_block = str(result)
+    return result
+
+
 def live_plan_active_error(live: dict[str, Any]) -> ToolResult:
     """One live plan per conversation — returned instead of running the kernel."""
     return tool_error(
