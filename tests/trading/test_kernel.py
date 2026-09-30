@@ -172,6 +172,82 @@ async def test_first_live_check_reuses_the_gate_quote(monkeypatch) -> None:
     assert seen["after_second"] == 2
 
 
+@pytest.mark.asyncio
+async def test_gate_quote_leaves_the_event_loop_free(monkeypatch) -> None:
+    """The turn waits for the broker read, and the event loop keeps running."""
+    import asyncio
+    import threading
+    import time
+
+    from mokli.trading.gates.build_gates import GateInputs, build_gates
+    from mokli.trading.kernel import load_quote_for_gates
+    from mokli.trading.types import EntryPlan, VisualReview
+
+    order: list[tuple[str, ...]] = []
+    calls = {"n": 0}
+
+    def fake_quote(symbol: str, **_kwargs: object) -> OandaQuote:
+        calls["n"] += 1
+        time.sleep(0.2)
+        order.append(
+            (
+                "quote",
+                "main" if threading.current_thread() is threading.main_thread() else "worker",
+            )
+        )
+        return OandaQuote(symbol=symbol, bid=2399.5, ask=2400.5, mid=2400.0, tradeable=True)
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append(("tick",))
+
+    monkeypatch.setattr("mokli.trading.kernel.fetch_quote", fake_quote)
+    started = time.perf_counter()
+    pending = asyncio.create_task(tick())
+    quote, fetch_live = await load_quote_for_gates("XAUUSD")
+    await pending
+    assert quote is not None and quote.mid == 2400.0
+    assert order[0] == ("tick",)
+    assert order[1] == ("quote", "worker")
+    assert time.perf_counter() - started < 0.35
+    assert calls["n"] == 1
+
+    plan = EntryPlan(
+        direction="buy",
+        entry_type="market",
+        entry=2400.0,
+        stop_loss=2385.0,
+        targets=[2420.0],
+    )
+    gates = build_gates(
+        GateInputs(
+            now_ms=1_700_000_000_000,
+            news=None,
+            structure=None,
+            liquidity=None,
+            supply_demand=None,
+            mtf=None,
+            plan=plan,
+            atr=8.0,
+            visual=VisualReview(state="not_checked"),
+            fetch_live_price=fetch_live,
+        )
+    )
+    live = next(gate for gate in gates if gate.id == "G7")
+    await live.run()
+    assert calls["n"] == 1
+
+    order.clear()
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    await live.run()
+    await pending
+    assert calls["n"] == 2
+    assert order[0] == ("tick",)
+    assert order[1] == ("quote", "worker")
+    assert time.perf_counter() - started < 0.35
+
+
 def test_quote_for_gates_refreshes_after_the_first_check(monkeypatch) -> None:
     calls = {"n": 0}
 

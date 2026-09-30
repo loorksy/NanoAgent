@@ -8,6 +8,7 @@ supersede approve) goes through it. Does not import or call MT5 execution helper
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
@@ -137,6 +138,17 @@ def quote_for_gates(symbol: str) -> tuple[OandaQuote | None, Callable[[], float 
         return float(current.mid)
 
     return quote, fetch_live
+
+
+async def load_quote_for_gates(
+    symbol: str,
+) -> tuple[OandaQuote | None, Callable[[], float | None]]:
+    """Read the gate quote on a worker thread.
+
+    The turn still waits for this broker read. The event loop stays free for
+    other work. A later check, such as another reprice round, reads again.
+    """
+    return await asyncio.to_thread(quote_for_gates, symbol)
 
 
 def _quote_age(quote: object) -> float | None:
@@ -357,7 +369,7 @@ async def run_trading_kernel(
     )
 
     now_ms = int(time.time() * 1000)
-    quote, fetch_live = quote_for_gates(symbol)
+    quote, fetch_live = await load_quote_for_gates(symbol)
     stored = get_risk_store().snapshot()
     spread = None
     if quote is not None and quote.bid is not None and quote.ask is not None:
