@@ -1,5 +1,8 @@
 """Tests for Phase H evidence graph runtime."""
 
+import asyncio
+import threading
+
 import pytest
 
 from mokli.trading.evidence import (
@@ -156,3 +159,84 @@ async def test_orchestrator_blocks_repeat_lesson(monkeypatch):
     result = await run_trading_kernel(store=False)
     assert result.decision.decision == "wait"
     assert "losing" in (result.decision.summary or "").lower()
+
+
+def _wait_until_both(name: str, started: list[str], release: threading.Event) -> None:
+    started.append(name)
+    if len(started) >= 2:
+        release.set()
+    if not release.wait(timeout=1):
+        raise TimeoutError(name)
+
+
+@pytest.mark.asyncio
+async def test_screenshot_overlaps_risk(monkeypatch) -> None:
+    """A chart capture needs market data only, so it does not wait for risk."""
+    from evidence_stubs import install_evidence_stubs
+
+    from mokli.trading.types import VisualReview
+
+    install_evidence_stubs(monkeypatch)
+    started: list[str] = []
+    release = threading.Event()
+
+    async def fake_capture(*_args, **_kwargs):
+        await asyncio.to_thread(_wait_until_both, "visual", started, release)
+        review = VisualReview(state="not_checked", requested=["15m"], captured=[], missing=["15m"])
+        return review, []
+
+    def fake_risk(*_args, **_kwargs):
+        _wait_until_both("risk", started, release)
+        from mokli.trading.types import RiskAgentResult, TradeCandidate, TradeValidationResult
+
+        buy = TradeCandidate("cand-bull-1", "buy", 2400, "market", 2385, [2420], 2.0, 0.8)
+        return RiskAgentResult(
+            proposed_trade=buy,
+            validation=TradeValidationResult(accepted=True, reasons=[]),
+            selected_candidate=buy,
+            candidates=[buy],
+        )
+
+    monkeypatch.setattr("mokli.trading.evidence.nodes.capture_visual_evidence", fake_capture)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_risk_agent", fake_risk)
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    await asyncio.wait_for(run_evidence_graph(ctx), timeout=2)
+    assert set(started) == {"visual", "risk"}
+    assert ctx.visual is not None
+    assert ctx.risk is not None
+
+
+@pytest.mark.asyncio
+async def test_risk_overlaps_a_slow_higher_timeframe_fetch(monkeypatch) -> None:
+    """Risk depends on structure and supply, not on the higher-timeframe download."""
+    from evidence_stubs import install_evidence_stubs
+
+    install_evidence_stubs(monkeypatch)
+    started: list[str] = []
+    release = threading.Event()
+
+    def fake_mtf(*_args, **_kwargs):
+        _wait_until_both("mtf", started, release)
+        from mokli.trading.types import MultiTimeframeResult
+
+        return MultiTimeframeResult("bullish", "bullish", "bullish", False)
+
+    def fake_risk(*_args, **_kwargs):
+        _wait_until_both("risk", started, release)
+        from mokli.trading.types import RiskAgentResult, TradeCandidate, TradeValidationResult
+
+        buy = TradeCandidate("cand-bull-1", "buy", 2400, "market", 2385, [2420], 2.0, 0.8)
+        return RiskAgentResult(
+            proposed_trade=buy,
+            validation=TradeValidationResult(accepted=True, reasons=[]),
+            selected_candidate=buy,
+            candidates=[buy],
+        )
+
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_multi_timeframe_agent", fake_mtf)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_risk_agent", fake_risk)
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    await asyncio.wait_for(run_evidence_graph(ctx), timeout=2)
+    assert set(started) == {"mtf", "risk"}
