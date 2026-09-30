@@ -92,8 +92,9 @@ Mokli upgrade work on this repo often cannot reach live LLM, OANDA, or MetaAPI k
 # Agent API default 8766 when gateway runs with agentApi enabled
 cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 curl -s http://127.0.0.1:5173/api/v2/health
-/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py -q
+/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/test_mokli_upgrade_diagnostic_extract.py -q
+python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
 ```
 
-Aggregate pytest target: 2293 passed (after consolidator workspace-layer fix). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; do not mark the upgrade complete without them.
+Aggregate pytest target: 2296 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
 - Tests mirror the `mokli/` package structure.
