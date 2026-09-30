@@ -13,6 +13,7 @@ from mokli.trading.agents.apply_model_decision import apply_model_decision
 from mokli.trading.agents.evidence import build_evidence_snapshot, evidence_json_for_model
 from mokli.trading.agents.synth_prompt import synth_system_prompt
 from mokli.trading.i18n import tr
+from mokli.trading.tool_errors import model_json
 from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
@@ -106,6 +107,19 @@ def _without_chart_images(messages: list[dict[str, Any]]) -> list[dict[str, Any]
     return cleaned
 
 
+# Same window the structure role already reads. A browse must not pull the
+# rest of the series back into the decision call.
+_BROWSE_CANDLE_CAP = 40
+
+
+def _browse_candle_count(raw: Any) -> int:
+    try:
+        count = int(raw) if raw is not None else _BROWSE_CANDLE_CAP
+    except (TypeError, ValueError):
+        return _BROWSE_CANDLE_CAP
+    return max(1, min(count, _BROWSE_CANDLE_CAP))
+
+
 def _browse_answer(
     verb: str,
     args: dict[str, Any],
@@ -113,10 +127,12 @@ def _browse_answer(
 ) -> dict[str, Any]:
     candles = market.candles
     if verb == "read_candles":
-        count = int(args.get("count") or 40)
+        count = _browse_candle_count(args.get("count"))
         rows = candles[-count:]
         return {
             "verb": verb,
+            "bars": len(rows),
+            "omitted": max(0, len(candles) - len(rows)),
             "candles": [
                 {
                     "t": c.time_ms,
@@ -188,7 +204,7 @@ async def _call_model(
             {
                 "role": "user",
                 "content": "BROWSE RESULT (re-issue the FULL decision JSON):\n"
-                + json.dumps(answer, ensure_ascii=False),
+                + model_json(answer),
             }
         )
         parsed = _extract_json(await complete(_without_chart_images(messages))) or parsed

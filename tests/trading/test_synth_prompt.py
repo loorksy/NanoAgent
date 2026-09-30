@@ -9,7 +9,8 @@ import re
 from mokli.agent.prompt.composer import compose_decision_prompt, decision_contract_template
 from mokli.trading.agents.apply_model_decision import apply_model_decision
 from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT, synth_system_prompt
-from mokli.trading.agents.synthesizer import _call_model, _extract_json
+from mokli.trading.agents.synthesizer import _browse_answer, _call_model, _extract_json
+from mokli.trading.tool_errors import model_json
 from mokli.trading.types import AgentMarketContext, Candle, EvidenceSnapshot, MarketSync
 from mokli.utils.helpers import estimate_prompt_tokens
 
@@ -234,3 +235,65 @@ def test_decision_contract_names_the_zone_and_calendar_fields() -> None:
     print(f"DECISION_FIELDS before={before} after={after}")
     assert "validated POI" in old
     assert before < after
+
+
+def _series(count: int) -> list[Candle]:
+    return [
+        Candle(
+            time_ms=1_700_000_000_000 + index * 900_000,
+            open=2300 + index * 0.4,
+            high=2301 + index * 0.4,
+            low=2299 + index * 0.4,
+            close=2300.2 + index * 0.4,
+            volume=10,
+            complete=True,
+        )
+        for index in range(count)
+    ]
+
+
+def _spaced_candle_dump(candles: list[Candle], count: int) -> str:
+    rows = candles[-count:]
+    return json.dumps(
+        {
+            "verb": "read_candles",
+            "candles": [
+                {"t": bar.time_ms, "o": bar.open, "h": bar.high, "l": bar.low, "c": bar.close}
+                for bar in rows
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+
+def test_browse_candles_stay_inside_the_role_window() -> None:
+    """A decision browse must not put the whole series back into the model call."""
+    import tiktoken
+
+    candles = _series(240)
+    market = AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=candles,
+        last_close=candles[-1].close,
+        atr=1.2,
+        sync=MarketSync(ok=True),
+    )
+    answer = _browse_answer("read_candles", {"count": 240}, market)
+    text = model_json(answer)
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(_spaced_candle_dump(candles, 240)))
+    after = len(enc.encode(text))
+    print(f"BROWSE_CANDLES before_tokens={before} after_tokens={after}")
+    assert answer["bars"] == 40
+    assert answer["omitted"] == 200
+    assert answer["candles"][0]["t"] == candles[-40].time_ms
+    assert answer["candles"][-1]["c"] == candles[-1].close
+    assert candles[0].time_ms not in {row["t"] for row in answer["candles"]}
+    assert before > 10_000
+    assert after < 1_600
+    short = _browse_answer("read_candles", {"count": 10}, market)
+    assert short["bars"] == 10
+    assert short["omitted"] == 230
+    fallback = _browse_answer("read_candles", {"count": "all"}, market)
+    assert fallback["bars"] == 40
