@@ -748,7 +748,7 @@ class GatewayHTTPHandler:
     async def _dispatch_session_routes(self, request: WsRequest, got: str) -> Response | None:
         m = re.match(r"^/api/sessions/([^/]+)/mokli-thread$", got)
         if m:
-            return self._handle_mokli_thread_get(request, m.group(1))
+            return await asyncio.to_thread(self._handle_mokli_thread_get, request, m.group(1))
 
         m = re.match(r"^/api/sessions/([^/]+)/context$", got)
         if m:
