@@ -47,6 +47,7 @@ DEFAULT_LABELS: dict[str, str] = {
     "retry.waiting": "Retrying the model",
     "retry.recovered": "Retry succeeded",
     "retry.exhausted": "Retry failed",
+    "retry.cancelled": "Retry cancelled",
     "retry.cleared": "Using another provider",
     "state.waiting": "Waiting",
     "state.completed": "Completed",
@@ -606,6 +607,7 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
                 "waiting": "retry.waiting",
                 "recovered": "retry.recovered",
                 "exhausted": "retry.exhausted",
+                "cancelled": "retry.cancelled",
                 "cleared": "retry.cleared",
             }.get(state)
             if label_key is None:
@@ -614,8 +616,8 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
             attempt = str(attempt_n if attempt_n is not None else 0)
             step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
             label = DEFAULT_LABELS[label_key]
-            done = state in {"recovered", "exhausted", "cleared"}
-            failed = state == "exhausted"
+            done = state in {"recovered", "exhausted", "cleared", "cancelled"}
+            failed = state in {"exhausted", "cancelled"}
             current = index.get(step_id)
             if current is None:
                 current = {
@@ -1171,6 +1173,7 @@ class Pipe:
             "waiting": "retry.waiting",
             "recovered": "retry.recovered",
             "exhausted": "retry.exhausted",
+            "cancelled": "retry.cancelled",
             "cleared": "retry.cleared",
         }.get(state)
         if label_key is None:
@@ -1179,8 +1182,8 @@ class Pipe:
         attempt = str(attempt_n if attempt_n is not None else 0)
         step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
         label = turn.label(label_key)
-        done = state in {"recovered", "exhausted", "cleared"}
-        failed = state == "exhausted"
+        done = state in {"recovered", "exhausted", "cleared", "cancelled"}
+        failed = state in {"exhausted", "cancelled"}
         existing = next((step for step in turn.steps if step.get("id") == step_id), None)
         if existing is None:
             existing = {

@@ -67,6 +67,7 @@
   "retry.waiting": "Retrying the model",
   "retry.recovered": "Retry succeeded",
   "retry.exhausted": "Retry failed",
+  "retry.cancelled": "Retry cancelled",
   "retry.cleared": "Using another provider",
   "artifact.open": "Open {title}",
   "card.market.title": "Market",

@@ -400,6 +400,7 @@
   "retry.waiting": "Retrying the model",
   "retry.recovered": "Retry succeeded",
   "retry.exhausted": "Retry failed",
+  "retry.cancelled": "Retry cancelled",
   "retry.cleared": "Using another provider",
   "activity.step.started": "Working on a step",
   "activity.step.completed": "Step finished",

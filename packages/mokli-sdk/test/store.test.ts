@@ -160,6 +160,13 @@ describe("applyEvent", () => {
     expect(snap.timeline.find((entry) => entry.kind === "retry" && entry.retry_id === "retry-3")).toMatchObject({
       status: "failed",
     });
+    snap = applyEvent(snap, ev("retry", { state: "waiting", attempt: 1, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "cancelled", attempt: 1, error_kind: "cancelled" }));
+    expect(snap.timeline.find((entry) => entry.kind === "retry" && entry.retry_id === "retry-1")).toMatchObject({
+      state: "cancelled",
+      status: "failed",
+      error_kind: "cancelled",
+    });
     snap = applyEvent(
       snap,
       ev("structured", {

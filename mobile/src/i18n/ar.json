@@ -67,6 +67,7 @@
   "retry.waiting": "يعيد المحاولة…",
   "retry.recovered": "نجحت إعادة المحاولة",
   "retry.exhausted": "تعذرت إعادة المحاولة",
+  "retry.cancelled": "أُلغيت إعادة المحاولة",
   "retry.cleared": "يستخدم مزودًا آخر",
   "artifact.open": "فتح {title}",
   "card.market.title": "السوق",

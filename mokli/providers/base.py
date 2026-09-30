@@ -36,6 +36,29 @@ ProviderCompactionScope = Literal["prior_context", "current_request"]
 RetryStatusCallback = Callable[[RetryStatusEvent], Awaitable[None]]
 
 
+async def _close_cancelled_retry(
+    on_retry_status: RetryStatusCallback | None,
+    event: RetryStatusEvent,
+) -> None:
+    """Finish a retry row that already showed waiting when the turn is cancelled.
+
+    A cancelling task raises again at the next await. Drop one cancellation
+    request so the terminal event can be published, then let the caller re-raise.
+    The model request does not return a successful response for this wait.
+    """
+    if on_retry_status is None:
+        return
+    task = asyncio.current_task()
+    if task is not None and task.cancelling():
+        task.uncancel()
+    try:
+        await on_retry_status(event)
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("failed to close cancelled model retry")
+
+
 def resolve_stream_idle_timeout_s(
     *,
     env_value: str | None = None,
@@ -1731,26 +1754,43 @@ class LLMProvider(ABC):
         on_retry_wait: RetryEventCallback | None,
         on_retry_status: RetryStatusCallback | None,
     ) -> None:
-        while remaining > 0:
-            if on_retry_wait:
-                kind = "persistent retry" if persistent else "retry"
-                await on_retry_wait(
-                    f"Model request failed, {kind} in {max(1, int(round(remaining)))}s "
-                    f"(attempt {attempt})."
-                )
-            if on_retry_status:
-                await on_retry_status(
+        published_waiting = False
+        try:
+            while remaining > 0:
+                if on_retry_wait:
+                    kind = "persistent retry" if persistent else "retry"
+                    await on_retry_wait(
+                        f"Model request failed, {kind} in {max(1, int(round(remaining)))}s "
+                        f"(attempt {attempt})."
+                    )
+                if on_retry_status:
+                    await on_retry_status(
+                        RetryStatusEvent(
+                            state="waiting",
+                            attempt=attempt,
+                            max_attempts=max_attempts,
+                            error_kind=error_kind,
+                            next_retry_at=next_retry_at,
+                        )
+                    )
+                    published_waiting = True
+                chunk = min(remaining, self._RETRY_HEARTBEAT_CHUNK)
+                await asyncio.sleep(chunk)
+                remaining -= chunk
+        except asyncio.CancelledError:
+            # The waiting row already went out. Close it before the cancel
+            # propagates, and do not invent a row when that event never landed.
+            if published_waiting:
+                await _close_cancelled_retry(
+                    on_retry_status,
                     RetryStatusEvent(
-                        state="waiting",
+                        state="cancelled",
                         attempt=attempt,
                         max_attempts=max_attempts,
-                        error_kind=error_kind,
-                        next_retry_at=next_retry_at,
-                    )
+                        error_kind="cancelled",
+                    ),
                 )
-            chunk = min(remaining, self._RETRY_HEARTBEAT_CHUNK)
-            await asyncio.sleep(chunk)
-            remaining -= chunk
+            raise
 
     @classmethod
     def public_error_kind(cls, response: LLMResponse) -> str:

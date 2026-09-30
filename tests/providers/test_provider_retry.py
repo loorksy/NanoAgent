@@ -100,6 +100,40 @@ async def test_chat_with_retry_emits_structured_retry_lifecycle(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
+async def test_cancel_during_retry_wait_closes_the_row() -> None:
+    provider = ScriptedProvider([
+        LLMResponse(
+            content="network connection failed",
+            finish_reason="error",
+            error_kind="connection",
+        ),
+    ])
+    provider._CHAT_RETRY_DELAYS = (30,)
+    statuses: list[RetryStatusEvent] = []
+    entered = asyncio.Event()
+
+    async def _status(status: RetryStatusEvent) -> None:
+        statuses.append(status)
+        if status.state == "waiting":
+            entered.set()
+
+    task = asyncio.create_task(provider.chat_with_retry(
+        messages=[{"role": "user", "content": "hello"}],
+        on_retry_status=_status,
+    ))
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert [status.state for status in statuses] == ["waiting", "cancelled"]
+    assert statuses[1].attempt == 1
+    assert statuses[1].max_attempts == 2
+    assert statuses[1].error_kind == "cancelled"
+    assert provider.calls == 1
+
+
+@pytest.mark.asyncio
 async def test_chat_with_retry_clears_waiting_status_on_terminal_non_transient_error(
     monkeypatch,
 ) -> None:

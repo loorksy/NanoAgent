@@ -55,7 +55,7 @@ export interface RetryTimelineEntry {
   id: string;
   kind: "retry";
   retry_id: string;
-  state: "waiting" | "recovered" | "cleared" | "exhausted";
+  state: "waiting" | "recovered" | "cleared" | "exhausted" | "cancelled";
   attempt: number;
   error_kind: string;
   status: TimelineStatus;
@@ -262,7 +262,7 @@ function applySubagent(
 
 function retryStatus(state: RetryTimelineEntry["state"]): TimelineStatus {
   if (state === "waiting") return "running";
-  if (state === "exhausted") return "failed";
+  if (state === "exhausted" || state === "cancelled") return "failed";
   return "finished";
 }
 

@@ -258,7 +258,7 @@ export interface EndData {
 }
 
 export interface RetryData {
-  state: "waiting" | "recovered" | "cleared" | "exhausted";
+  state: "waiting" | "recovered" | "cleared" | "exhausted" | "cancelled";
   attempt: number;
   error_kind: string;
   max_attempts?: number;

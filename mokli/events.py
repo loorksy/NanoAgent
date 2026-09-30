@@ -41,7 +41,7 @@ class TeamRoleEvent(AgentEvent):
 class RetryStatusEvent(AgentEvent):
     """Sanitized retry lifecycle for one model request chain."""
 
-    state: Literal["waiting", "recovered", "cleared", "exhausted"]
+    state: Literal["waiting", "recovered", "cleared", "exhausted", "cancelled"]
     attempt: int
     max_attempts: int | None
     error_kind: str

@@ -1004,6 +1004,16 @@ def test_activity_projection_matches_real_events() -> None:
     assert retry[0]["done"] is True
     assert retry[0]["failed"] is False
     assert retry[1]["label"] == "Using another provider"
+    cancelled_retry = pipe_mod.project_activity([
+        ev("retry", {"state": "waiting", "attempt": 1, "error_kind": "connection"}),
+        ev("retry", {"state": "cancelled", "attempt": 1, "error_kind": "cancelled"}),
+    ])
+    assert len(cancelled_retry) == 1
+    assert cancelled_retry[0]["id"] == "retry-1"
+    assert cancelled_retry[0]["label"] == "Retry cancelled"
+    assert cancelled_retry[0]["done"] is True
+    assert cancelled_retry[0]["failed"] is True
+    assert "✓" not in pipe_mod.activity_line(cancelled_retry)
     assert "✓" not in pipe_mod.activity_line([
         {"label": "Retry failed", "done": True, "failed": True},
     ])
