@@ -171,7 +171,7 @@ def evidence_json_for_model(payload: dict[str, Any], *, limit: int = _MODEL_EVID
 
 
 def _briefing_that_fits(payload: dict[str, Any], briefing: str, limit: int) -> str:
-    narrative, tail = _split_trailing_json(briefing)
+    narrative, tail = split_trailing_json(briefing)
     stances = _stance_lines(narrative)
     # Stance lines are appended after the head, so the head search stays monotonic.
     narrative = _without_stance_lines(narrative)
@@ -224,7 +224,7 @@ def _briefing_that_fits(payload: dict[str, Any], briefing: str, limit: int) -> s
     return best
 
 
-def _split_trailing_json(briefing: str) -> tuple[str, str]:
+def split_trailing_json(briefing: str) -> tuple[str, str]:
     """Separate a trailing one-line JSON object, usually the macro-driver block."""
     stripped = briefing.strip()
     if stripped.startswith("{") and stripped.endswith("}"):
