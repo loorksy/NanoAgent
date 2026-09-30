@@ -86,6 +86,7 @@ def prepare_responses_input(
     # the output from the round that produced it. Replace that payload when
     # the prepared transcript already has a shorter copy for the same call.
     _shrink_replayed_tool_payloads(replayed_items, messages)
+    _shrink_replayed_announcements(replayed_items, messages)
     return instructions, [*replayed_items, *delta_items], True
 
 
@@ -156,6 +157,79 @@ def _shrink_replayed_tool_payloads(
             replacement = arguments.get(call_id)
             if replacement is not None and len(replacement) < _payload_chars(item.get("arguments")):
                 item["arguments"] = replacement
+
+
+# Kept in step with ``context_governance`` announcement marks. A folded
+# reference starts with the second; the saved announcement starts with the first.
+_ANNOUNCE_PREFIX = "[Subagent "
+_ANNOUNCE_MARK = "[مرجع نتيجة وكيل سابق:"
+
+
+def _announcement_body(text: str) -> str | None:
+    if text.startswith(_ANNOUNCE_PREFIX) or text.startswith(_ANNOUNCE_MARK):
+        return text
+    return None
+
+
+def _prepared_announcement(message: dict[str, Any]) -> str | None:
+    if message.get("role") != "assistant":
+        return None
+    content = message.get("content")
+    if not isinstance(content, str):
+        return None
+    return _announcement_body(content)
+
+
+def _stored_announcement_text(content: Any) -> str | None:
+    """Return one announcement string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return _announcement_body(content)
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict) or block.get("type") != "output_text":
+        return None
+    text = block.get("text")
+    if not isinstance(text, str):
+        return None
+    return _announcement_body(text)
+
+
+def _shrink_replayed_announcements(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared announcement onto the matching stored message.
+
+    Alignment is by order, and only when both sides have the same count of
+    announcement-shaped assistant texts. A normal answer is absent from both
+    lists. An unread announcement is still the full text on both sides, so
+    the prepared copy is not shorter and the stored item stays. A count
+    mismatch leaves every item unchanged.
+    """
+    prepared = [
+        text
+        for message in messages
+        if (text := _prepared_announcement(message)) is not None
+    ]
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        if item.get("type") != "message" or item.get("role") != "assistant":
+            continue
+        text = _stored_announcement_text(item.get("content"))
+        if text is None:
+            continue
+        stored.append((item, text))
+    if len(prepared) != len(stored):
+        return
+    for (item, current), replacement in zip(stored, prepared, strict=True):
+        if len(replacement) >= len(current):
+            continue
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
 
 
 def build_responses_state(

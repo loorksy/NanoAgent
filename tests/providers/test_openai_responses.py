@@ -1102,6 +1102,133 @@ class TestResponsesConversationState:
         assert replayed_now is True
         assert current_items[3]["output"] == bulky
 
+    def test_replay_uses_the_folded_subagent_announcement(self):
+        from mokli.agent.context_governance import fold_prior_subagent_announcements
+        from mokli.utils.helpers import estimate_prompt_tokens
+
+        body = "نتيجة البحث " * 400
+        announce = (
+            "[Subagent 'research' completed successfully]\n"
+            "Task: ابحث\nResult: " + body
+        )
+        assert len(announce) > 1200
+        messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "ابحث"},
+            {"role": "assistant", "content": announce},
+            {"role": "assistant", "content": "الانتظار."},
+            {"role": "user", "content": "وما بعد؟"},
+        ]
+        folded, referenced, _saved = fold_prior_subagent_announcements(messages)
+        assert referenced == 1
+        prior_items = [
+            {"role": "user", "content": [{"type": "input_text", "text": "ابحث"}]},
+            {"type": "reasoning", "id": "rs_1", "encrypted_content": "opaque-secret"},
+            {
+                "type": "message",
+                "id": "msg_ann",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": announce}],
+            },
+            {
+                "type": "message",
+                "id": "msg_multi",
+                "role": "assistant",
+                "status": "completed",
+                "content": [
+                    {"type": "output_text", "text": announce},
+                    {"type": "output_text", "text": "تفاصيل"},
+                ],
+            },
+            {
+                "type": "message",
+                "id": "msg_1",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": "الانتظار."}],
+            },
+        ]
+        state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        ).with_pending_messages([{"role": "user", "content": "وما بعد؟"}])
+        before = estimate_prompt_tokens(
+            [{"role": "assistant", "content": announce}],
+            None,
+        )
+        _instructions, items, replayed = prepare_responses_input(
+            folded,
+            state=state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        announced = next(item for item in items if item.get("id") == "msg_ann")
+        after_text = announced["content"][0]["text"]
+        after = estimate_prompt_tokens(
+            [{"role": "assistant", "content": after_text}],
+            None,
+        )
+        multi = next(item for item in items if item.get("id") == "msg_multi")
+        answer = next(item for item in items if item.get("id") == "msg_1")
+        assert replayed is True
+        assert items[1]["id"] == "rs_1"
+        assert items[1]["encrypted_content"] == "opaque-secret"
+        assert after_text.startswith("[مرجع نتيجة وكيل سابق:")
+        assert body not in after_text
+        assert after < before
+        assert multi["content"][0]["text"] == announce
+        assert multi["content"][1]["text"] == "تفاصيل"
+        assert answer["content"][0]["text"] == "الانتظار."
+        assert messages[2]["content"] == announce
+        print(f"TOKEN_RESPONSES_ANNOUNCE before={before} after={after}")
+
+        string_items = [
+            {
+                "type": "message",
+                "id": "msg_str",
+                "role": "assistant",
+                "content": announce,
+            },
+        ]
+        string_state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=string_items,
+            output_items=[],
+        ).with_pending_messages([{"role": "user", "content": "وما بعد؟"}])
+        _instructions, string_replay, _replayed = prepare_responses_input(
+            folded,
+            state=string_state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        assert string_replay[0]["content"].startswith("[مرجع نتيجة وكيل سابق:")
+        assert body not in string_replay[0]["content"]
+
+        unread = messages[:3]
+        kept, referenced_now, _saved_now = fold_prior_subagent_announcements(unread)
+        assert referenced_now == 0
+        unread_state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        )
+        _instructions, unread_items, replayed_now = prepare_responses_input(
+            kept,
+            state=unread_state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        assert replayed_now is True
+        unread_text = next(
+            item for item in unread_items if item.get("id") == "msg_ann"
+        )["content"][0]["text"]
+        assert unread_text == announce
+
     def test_replayed_and_delta_reasoning_items_keep_array_content(self):
         # Regression for PR #5214: token consolidation clears
         # ``provider_state``, so the next turn converts the full history
