@@ -111,6 +111,41 @@ def test_decision_review_asks_for_a_stance_the_risk_prompt_allows() -> None:
     assert "STANCE: wait" in risk
     assert "never place an order" in risk
     assert "You never choose buy or sell" not in risk
+    by_id = {task.id: task for task in preset.tasks}
+    assert by_id["task-risk"].input_from == {
+        "technical": "task-technical",
+        "macro": "task-macro",
+        "trend": "task-trend",
+    }
+    assert by_id["task-review"].input_from == {
+        "technical": "task-technical",
+        "macro": "task-macro",
+        "trend": "task-trend",
+        "risk": "task-risk",
+    }
+    from mokli.trading.teams.runtime import brief_for_upstream
+
+    technical = ("level " * 200) + "\nSTANCE: sell"
+    summaries = {
+        "task-technical": technical,
+        "task-macro": "STANCE: wait",
+        "task-trend": "STANCE: buy",
+        "task-risk": "conflict on the hour\nSTANCE: wait",
+    }
+    risk_upstream = "\n".join(
+        f"{key}: {brief_for_upstream(summaries[src])}"
+        for key, src in by_id["task-risk"].input_from.items()
+    )
+    review_upstream = "\n".join(
+        f"{key}: {brief_for_upstream(summaries[src])}"
+        for key, src in by_id["task-review"].input_from.items()
+    )
+    assert "STANCE: sell" in risk_upstream
+    assert "candles" not in risk_upstream
+    assert len(brief_for_upstream(technical)) < len(technical)
+    assert "STANCE: sell" in review_upstream
+    assert "STANCE: wait" in review_upstream
+    assert "STANCE: buy" in review_upstream
 
 
 def test_role_files_cover_the_legacy_role_set() -> None:

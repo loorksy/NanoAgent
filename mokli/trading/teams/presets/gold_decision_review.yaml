@@ -41,6 +41,7 @@ tasks:
     prompt_template: "Risk review for {target}. Name blocking risks and whether the views conflict.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-macro, task-trend]
     input_from:
+      technical: task-technical
       macro: task-macro
       trend: task-trend
   - id: task-review
@@ -48,6 +49,9 @@ tasks:
     prompt_template: "One review pass for {target}. If views conflict, state the conflict and the condition that resolves it. Do not open a second round.\n{upstream_context}\nEnd with one line: STANCE: buy, STANCE: sell, or STANCE: wait."
     depends_on: [task-risk]
     input_from:
+      technical: task-technical
+      macro: task-macro
+      trend: task-trend
       risk: task-risk
 
 variables:
