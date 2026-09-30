@@ -162,10 +162,12 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
     order: list[str] = []
 
     seen_bus: list[object] = []
+    seen_rounds: list[object] = []
 
     async def fake_swarm(*_args, **kwargs):
         order.append("swarm")
         seen_bus.append(kwargs.get("bus"))
+        seen_rounds.append(kwargs.get("max_review_rounds"))
         return {"team_briefing": "technical then review"}
 
     async def fake_kernel(**kwargs):
@@ -188,6 +190,9 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
         assert payload["decision"] == "wait"
         assert order == ["swarm", "gold_decision_review"]
         assert seen_bus == [bus]
+        from mokli.trading.teams.runtime import review_round_limit
+
+        assert seen_rounds == [review_round_limit()]
         assert turn.decision_wire
         again = json.loads(asyncio.run(tool.execute(decision_review=True)))
         assert again["decision"] == "wait"

@@ -129,6 +129,8 @@ class RunTradingTeamTool(Tool):
         )
         try:
             try:
+                from mokli.trading.teams.runtime import review_round_limit
+
                 swarm = await run_swarm(
                     preset_name,
                     subagent_manager=self._subagent_manager,
@@ -136,6 +138,7 @@ class RunTradingTeamTool(Tool):
                     interval=interval,
                     emit=publisher.sync_emit if publish_ui else None,
                     bus=self._bus,
+                    max_review_rounds=review_round_limit(),
                 )
             except Exception as exc:
                 return ToolResult.error(f"Swarm preset failed: {exc}")

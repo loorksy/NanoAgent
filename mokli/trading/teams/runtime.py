@@ -199,6 +199,21 @@ def _format_swarm_briefing(
     return "\n".join(lines)
 
 
+def review_round_limit() -> int:
+    """Operator cap for the conflict review.
+
+    Zero skips that role. One allows the single pass. The swarm does not
+    start a second round, so a saved value above one is clamped here too.
+    """
+    from mokli.config.loader import load_config
+
+    try:
+        value = int(load_config().trading_risk_parameters.max_review_rounds)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 1
+    return 0 if value < 1 else 1
+
+
 async def run_swarm(
     preset_name: str,
     variables: dict[str, str] | None = None,

@@ -30,7 +30,7 @@ from mokli.trading.recommendations.lifecycle import (
 )
 from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
-from mokli.trading.teams.runtime import run_swarm
+from mokli.trading.teams.runtime import review_round_limit, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
 from mokli.trading.tool_errors import (
     REASON_ANALYSIS_FAILED,
@@ -643,6 +643,7 @@ class AnalyzeGoldTool(Tool):
                     interval=interval,
                     emit=publisher.sync_emit if publish_ui else None,
                     visual_capture=visual_capture,
+                    max_review_rounds=review_round_limit(),
                 )
                 briefing = swarm.get("team_briefing")
                 resolved_mode = f"swarm:{preset}"

@@ -184,13 +184,14 @@ class RunTradingKernelTool(Tool):
             prefetch = start_synthesis_prefetch(interval, turn)
         try:
             if decision_review:
-                from mokli.trading.teams.runtime import run_swarm
+                from mokli.trading.teams.runtime import review_round_limit, run_swarm
 
                 swarm = await run_swarm(
                     "gold_decision_review",
                     subagent_manager=self._subagent_manager,
                     interval=interval,
                     bus=self._bus,
+                    max_review_rounds=review_round_limit(),
                 )
                 team_briefing = str(swarm.get("team_briefing") or "")
                 team_mode = "gold_decision_review"
