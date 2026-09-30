@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
@@ -114,6 +115,34 @@ async def _publish_team_agent(
     if publisher is None:
         return
     await publisher.publish_team_agent(event.to_wire())
+
+
+def _elapsed_ms(started: float) -> int:
+    """Measured role duration. ``round`` keeps 3.7s at 3700 and 200ms at 200."""
+    return round((time.time() - started) * 1000)
+
+
+async def _finish_cancelled_role(
+    publisher: TradingStagePublisher | None,
+    event: TeamAgentEvent,
+    collector: TeamRunCollector | None,
+    bus: Any | None,
+) -> None:
+    """Close a role row that already started when the turn is cancelled.
+
+    A cancelling task raises again at the next await. Drop one cancellation
+    request so the failure event can be published, then let the caller re-raise.
+    The role does not return a summary for this call.
+    """
+    task = asyncio.current_task()
+    if task is not None and task.cancelling():
+        task.uncancel()
+    try:
+        await _publish_team_agent(publisher, event, collector, bus)
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("failed to close cancelled team role {}", event.agent_id)
 
 
 def _summary_for_event(summary: str, *, limit: int = 2000) -> str:
@@ -254,7 +283,7 @@ async def run_team_role(
             raise RuntimeError(tr("team.no_llm_runtime"))
 
         summary = summary.strip() or tr("team.no_summary", role=role)
-        duration_ms = int((time.time() - started) * 1000)
+        duration_ms = _elapsed_ms(started)
         await _publish_team_agent(
             publisher,
             _role_event(
@@ -270,9 +299,25 @@ async def run_team_role(
             bus,
         )
         return summary
+    except asyncio.CancelledError:
+        await _finish_cancelled_role(
+            publisher,
+            _role_event(
+                agent_id=agent_id,
+                role=role,
+                status="failed",
+                system_prompt=system_prompt,
+                layer=layer,
+                summary="cancelled",
+                duration_ms=_elapsed_ms(started),
+            ),
+            collector,
+            bus,
+        )
+        raise
     except Exception as exc:
         logger.warning("Team agent {} ({}) failed: {}", agent_id, role, exc)
-        duration_ms = int((time.time() - started) * 1000)
+        duration_ms = _elapsed_ms(started)
         message = tr("team.agent_failed", role=role, error=exc)
         await _publish_team_agent(
             publisher,

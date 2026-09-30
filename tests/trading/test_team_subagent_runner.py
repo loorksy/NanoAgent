@@ -1,3 +1,4 @@
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock
 
@@ -305,6 +306,63 @@ async def test_run_team_role_publishes_only_roles_that_run() -> None:
             bus=quiet,
         )
     quiet.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_team_role_closes_the_row(monkeypatch) -> None:
+    from mokli.events import TeamRoleEvent
+    from mokli.trading.teams import subagent_runner as runner_mod
+    from mokli.trading.teams.role_display import role_phrase
+
+    clock = {"now": 10.0}
+    monkeypatch.setattr(runner_mod.time, "time", lambda: clock["now"])
+    entered = asyncio.Event()
+
+    async def slow_chat(*_args: object, **_kwargs: object) -> MagicMock:
+        clock["now"] = 13.7
+        entered.set()
+        await asyncio.sleep(30)
+        return MagicMock(content="late")
+
+    provider = MagicMock()
+    provider.chat = slow_chat
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    bus = MagicMock()
+    bus.publish = AsyncMock()
+    collector = TeamRunCollector()
+
+    async def _run() -> str:
+        with request_context(
+            RequestContext(
+                channel="agent_api",
+                chat_id="chat",
+                session_key="agent_api:chat",
+                runtime=runtime,
+            )
+        ):
+            return await run_team_role(
+                agent_id="risk",
+                role="Risk Officer",
+                task_text="Name blocking risks.",
+                evidence_text="{}",
+                bus=bus,
+                collector=collector,
+            )
+
+    task = asyncio.create_task(_run())
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    events = [call.args[0] for call in bus.publish.await_args_list]
+    assert [event.status for event in events] == ["running", "failed"]
+    assert all(isinstance(event, TeamRoleEvent) for event in events)
+    assert events[1].duration_ms == 3700
+    assert events[1].summary == "cancelled"
+    assert events[1].display == role_phrase("Risk Officer", "failed")
+    assert collector.agents[-1]["status"] == "failed"
+    assert collector.agents[-1]["durationMs"] == 3700
 
 
 def _candle(time_ms: int, close: float) -> Candle:
