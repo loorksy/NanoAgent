@@ -42,7 +42,7 @@
 
 ## بعد كل سينario من §11
 
-1. احفظ تيار الأحداث JSONL (سطر JSON لكل حدث gateway/pipe).
+1. احفظ تيار الأحداث JSONL (سطر JSON لكل حدث gateway/pipe). شكل التشخيص المتوقع: `{"kind":"diagnostic","data":{…}}` كما في `TurnDiagnostics.to_dict()` — مثال في `tests/fixtures/section11_turn_diagnostics_sample.jsonl`.
 2. `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` → سطر «الأرقام».
 3. بعد عدة سينarios: احفظ `01-….jsonl` … `13-….jsonl` في مجلد واحد. انسخ `docs/section11-results.example.json` إلى `section11-results.json` واملأ «النتيجة» لكل صف.  
    `python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --results section11-results.json --markdown`  

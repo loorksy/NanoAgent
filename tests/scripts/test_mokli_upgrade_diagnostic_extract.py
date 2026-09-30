@@ -57,3 +57,48 @@ def test_extracts_last_diagnostic_one_liner() -> None:
     assert "in=5000" in out
     assert "tools=2" in out
     assert "nested_in=800" in out
+
+
+def test_extracts_turn_diagnostics_to_dict_wire_format() -> None:
+    """§11 JSONL should match pipe/gateway: kind diagnostic + TurnDiagnostics.to_dict()."""
+    from mokli.agent.turn_diagnostics import TurnDiagnostics
+
+    diag = TurnDiagnostics(model="anthropic/claude-opus-4-5", provider="anthropic")
+    diag.rounds = 2
+    diag.input_tokens = 4000
+    diag.output_tokens = 120
+    diag.nested_input_tokens = 900
+    diag.tool_calls = 1
+    diag.context_ms = 35
+    diag.model_ms = 800
+    diag.tool_ms = 150
+    diag.retry_ms = 100
+    wire = json.dumps({"kind": "diagnostic", "data": diag.to_dict()})
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT)],
+        input=wire,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout.strip()
+    assert "rounds=2" in out
+    assert "in=4900" in out  # input + nested_input
+    assert "out=120" in out
+    assert "tools=1" in out
+    assert "ctx_ms=35" in out
+    assert "retry_ms=100" in out
+    assert "nested_in=900" in out
+
+
+def test_sample_fixture_jsonl_for_operator() -> None:
+    fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--file", str(fixture)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout.strip()
+    assert "rounds=1" in out
+    assert "in=9500" in out
