@@ -1229,6 +1229,87 @@ class TestResponsesConversationState:
         )["content"][0]["text"]
         assert unread_text == announce
 
+    def test_replay_folds_the_user_item_that_carried_the_announcement(self):
+        from mokli.agent.context_governance import fold_prior_subagent_announcements
+        from mokli.utils.helpers import estimate_prompt_tokens
+
+        body = "نتيجة البحث " * 400
+        announce = (
+            "[Subagent 'research' completed successfully]\n"
+            "Task: ابحث\nResult: " + body
+        )
+        assert len(announce) > 1200
+        messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "ابحث"},
+            {"role": "assistant", "content": announce},
+            {"role": "assistant", "content": "تم"},
+            {"role": "user", "content": "وما بعد؟"},
+        ]
+        folded, referenced, _saved = fold_prior_subagent_announcements(messages)
+        assert referenced == 1
+        prior_items = [
+            {"role": "user", "content": [{"type": "input_text", "text": "ابحث"}]},
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": announce}],
+            },
+            {"type": "reasoning", "id": "rs_1", "encrypted_content": "opaque-secret"},
+            {
+                "type": "message",
+                "id": "msg_1",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": "تم"}],
+            },
+        ]
+        state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        ).with_pending_messages([{"role": "user", "content": "وما بعد؟"}])
+        before = estimate_prompt_tokens([{"role": "user", "content": announce}], None)
+        _instructions, items, replayed = prepare_responses_input(
+            folded,
+            state=state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        carried = items[1]["content"][0]["text"]
+        after = estimate_prompt_tokens([{"role": "user", "content": carried}], None)
+        assert replayed is True
+        assert carried.startswith("[مرجع نتيجة وكيل سابق:")
+        assert body not in carried
+        assert items[0]["content"][0]["text"] == "ابحث"
+        assert items[2]["encrypted_content"] == "opaque-secret"
+        assert items[3]["content"][0]["text"] == "تم"
+        assert after < before
+        assert messages[2]["content"] == announce
+        print(f"TOKEN_RESPONSES_USER_ANNOUNCE before={before} after={after}")
+
+        current = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "ابحث"},
+            {"role": "user", "content": announce},
+        ]
+        kept, referenced_now, _saved_now = fold_prior_subagent_announcements(current)
+        assert referenced_now == 0
+        current_state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items[:2],
+            output_items=[],
+        )
+        _instructions, current_items, replayed_now = prepare_responses_input(
+            kept,
+            state=current_state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        assert replayed_now is True
+        assert current_items[1]["content"][0]["text"] == announce
+
     def test_replay_drops_turn_local_user_context(self):
         from mokli.runtime_context import (
             RuntimeContextBlock,

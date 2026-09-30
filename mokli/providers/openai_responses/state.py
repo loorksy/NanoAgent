@@ -188,7 +188,9 @@ def _stored_announcement_text(content: Any) -> str | None:
     if not isinstance(content, list) or len(content) != 1:
         return None
     block = content[0]
-    if not isinstance(block, dict) or block.get("type") != "output_text":
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"output_text", "input_text", "text"}:
         return None
     text = block.get("text")
     if not isinstance(text, str):
@@ -196,17 +198,34 @@ def _stored_announcement_text(content: Any) -> str | None:
     return _announcement_body(text)
 
 
+def _stored_announcement(item: dict[str, Any]) -> str | None:
+    """Assistant message items and the user item from the follow-up turn."""
+    role = item.get("role")
+    kind = item.get("type")
+    if role == "assistant":
+        if kind != "message":
+            return None
+    elif role == "user":
+        if kind not in {None, "message"}:
+            return None
+    else:
+        return None
+    return _stored_announcement_text(item.get("content"))
+
+
 def _shrink_replayed_announcements(
     items: list[dict[str, Any]],
     messages: list[dict[str, Any]],
 ) -> None:
-    """Copy a shorter prepared announcement onto the matching stored message.
+    """Copy a shorter prepared announcement onto the matching stored item.
 
-    Alignment is by order, and only when both sides have the same count of
-    announcement-shaped assistant texts. A normal answer is absent from both
-    lists. An unread announcement is still the full text on both sides, so
-    the prepared copy is not shorter and the stored item stays. A count
-    mismatch leaves every item unchanged.
+    The follow-up turn sends the announcement as the current user message, so
+    the stored item is a user item. The next question folds the saved
+    assistant copy. Alignment is by order, and only when both sides have the
+    same count. A normal answer is absent from both lists. An unread
+    announcement is still the full text on both sides, so the prepared copy
+    is not shorter and the stored item stays. A count mismatch leaves every
+    item unchanged.
     """
     prepared = [
         text
@@ -215,9 +234,7 @@ def _shrink_replayed_announcements(
     ]
     stored: list[tuple[dict[str, Any], str]] = []
     for item in items:
-        if item.get("type") != "message" or item.get("role") != "assistant":
-            continue
-        text = _stored_announcement_text(item.get("content"))
+        text = _stored_announcement(item)
         if text is None:
             continue
         stored.append((item, text))
