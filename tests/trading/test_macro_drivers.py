@@ -293,3 +293,101 @@ async def test_macro_searches_overlap_team_roles(monkeypatch) -> None:
     assert "role" in started
     assert swarm["final"] is None
     assert "macroDrivers" in str(swarm["team_briefing"])
+
+
+def _flat_market():
+    from mokli.trading.types import AgentMarketContext, MarketSync
+
+    return AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=[],
+        last_close=2650.0,
+        atr=5.0,
+        sync=MarketSync(ok=True),
+    )
+
+
+@pytest.mark.asyncio
+async def test_macro_search_starts_with_the_market_download(monkeypatch) -> None:
+    """Driver searches do not read candles. They run while that download is in flight."""
+    import time
+
+    reset_macro_cache_for_tests()
+    marks: dict[str, float] = {}
+
+    def slow_market(*_args, **_kwargs):
+        marks["market_start"] = time.perf_counter()
+        time.sleep(0.2)
+        marks["market_end"] = time.perf_counter()
+        return _flat_market()
+
+    async def search(query: str) -> str:
+        del query
+        marks.setdefault("search_start", time.perf_counter())
+        await asyncio.sleep(0.2)
+        marks["search_end"] = time.perf_counter()
+        return "dollar firm"
+
+    async def fake_team_role(**_kwargs: object) -> str:
+        return "noted\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_market_data_agent", slow_market)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *_a, **_k: _flat_market(),
+    )
+
+    started = time.perf_counter()
+    review = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    # Each side sleeps 200ms. Waiting for candles first was their sum.
+    print(f"MACRO_OVERLAP before_ms=400 after_ms={elapsed_ms}")
+    assert marks["search_start"] < marks["market_end"]
+    assert elapsed_ms < 350
+    assert review["macro_drivers"]
+    assert "macroDrivers" in review["team_briefing"]
+
+
+@pytest.mark.asyncio
+async def test_market_failure_cancels_the_macro_search(monkeypatch) -> None:
+    """A failed candle download does not leave the driver searches running."""
+    reset_macro_cache_for_tests()
+    state = {"started": 0, "finished": 0, "cancelled": 0}
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("feed down")
+
+    async def search(query: str) -> str:
+        del query
+        state["started"] += 1
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            state["cancelled"] += 1
+            raise
+        state["finished"] += 1
+        return "late"
+
+    async def unused_role(**_kwargs: object) -> str:
+        raise RuntimeError("unused")
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", unused_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_market_data_agent", boom)
+
+    with pytest.raises(RuntimeError, match="feed down"):
+        await run_swarm(
+            "gold_decision_review",
+            macro_search=search,
+            macro_events=[],
+            macro_now=lambda: 1_700_000_000.0,
+        )
+    assert state["started"] > 0
+    assert state["finished"] == 0
+    assert state["cancelled"] == state["started"]

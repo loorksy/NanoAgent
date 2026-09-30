@@ -228,21 +228,20 @@ async def run_swarm(
     layers = topological_layers(preset.tasks)
     collector = TeamRunCollector()
 
-    market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
-    evidence_text = format_market_evidence(market)
-    # Macro searches do not read role summaries. Start them with the first layer
-    # only when a role in this preset reads the driver list.
+    # Macro searches do not read candles, the quote, or role summaries.
+    # Start them with the market download only when a role reads the driver list.
     macro_task: asyncio.Task[tuple[list[Any], int]] | None = None
-    if _preset_needs_macro(preset):
-        macro_task = asyncio.create_task(
-            _timed_macro_drivers(
-                search=macro_search,
-                events=macro_events,
-                now=macro_now,
-            )
-        )
-
     try:
+        if _preset_needs_macro(preset):
+            macro_task = asyncio.create_task(
+                _timed_macro_drivers(
+                    search=macro_search,
+                    events=macro_events,
+                    now=macro_now,
+                )
+            )
+        market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
+        evidence_text = format_market_evidence(market)
         for layer_index, layer in enumerate(layers):
 
             async def run_task(task: SwarmTask) -> tuple[str, str | None]:
@@ -297,6 +296,17 @@ async def run_swarm(
             verdicts, duration_ms = [], 0
         else:
             verdicts, duration_ms = await macro_task
+        macro_briefing = format_team_briefing(verdicts) if verdicts else ""
+        team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
+        return {
+            "preset": preset_name,
+            "task_summaries": summaries,
+            "macro_drivers": [item.to_wire() for item in verdicts],
+            "team_briefing": team_briefing,
+            "team_agents": list(collector.agents),
+            "final": None,
+            "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
+        }
     finally:
         if macro_task is not None and not macro_task.done():
             macro_task.cancel()
@@ -304,15 +314,3 @@ async def run_swarm(
                 await macro_task
             except asyncio.CancelledError:
                 pass
-
-    macro_briefing = format_team_briefing(verdicts) if verdicts else ""
-    team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
-    return {
-        "preset": preset_name,
-        "task_summaries": summaries,
-        "macro_drivers": [item.to_wire() for item in verdicts],
-        "team_briefing": team_briefing,
-        "team_agents": list(collector.agents),
-        "final": None,
-        "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
-    }
