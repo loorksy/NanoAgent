@@ -87,6 +87,17 @@ def test_quote_and_candles_use_terminal_fields() -> None:
     assert candles[0]["volume"] == 3
 
 
+def test_schema_does_not_send_a_gold_price_through_mt5() -> None:
+    catalog = Mt5ListSymbolsTool().description
+    market = Mt5MarketTool().description
+    assert "get_gold_quote" in catalog
+    assert "get_gold_quote" in market
+    assert "analysis" in catalog
+    assert "Not the XAUUSD analysis feed" in market
+    assert "Call mt5_list_symbols first" not in market
+    assert "OANDA" in market
+
+
 def test_older_chart_window_fetches_back_to_that_window() -> None:
     now_ms = int(time.time() * 1000)
     from_ms = now_ms - 2 * 24 * 3600 * 1000
@@ -124,6 +135,7 @@ async def test_agent_reads_every_symbol_from_the_account() -> None:
     try:
         listed = json.loads(await Mt5ListSymbolsTool().execute(q="eur"))
         assert listed["symbols"][0]["name"] == "EURUSD"
+        assert "get_gold_quote" in listed["instruction"]
         market = json.loads(await Mt5MarketTool().execute(symbol="EURUSD", interval="15m"))
         assert market["source"] == "mt5"
         assert market["bid"] == 10.0
