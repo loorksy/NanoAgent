@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from loguru import logger
 
@@ -35,6 +35,19 @@ class TeamRoleEvent(AgentEvent):
     summary: str = ""
     duration_ms: int | None = None
     display: str = ""
+
+
+@dataclass(frozen=True)
+class DecisionCompletedEvent(AgentEvent):
+    """A kernel decision that was actually produced.
+
+    The tool call that ran the kernel is a separate event. This one exists
+    only after that call returns a verdict. A cached replay and a live-plan
+    refusal do not emit it.
+    """
+
+    session_key: str
+    payload: Mapping[str, Any]
 
 
 @dataclass(frozen=True)

@@ -17,7 +17,7 @@ from mokli.bus.runtime_events import (
     TurnRuntimeAdmitted,
     UserInputAccepted,
 )
-from mokli.events import AgentEvent, RetryStatusEvent, TeamRoleEvent
+from mokli.events import AgentEvent, DecisionCompletedEvent, RetryStatusEvent, TeamRoleEvent
 from mokli.session.goal_state import goal_state_ws_blob
 
 EventKind = Literal[
@@ -310,6 +310,14 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
                 duration_ms=event.duration_ms,
                 display=event.display or None,
             ),
+        }
+    if isinstance(event, DecisionCompletedEvent):
+        if not event.session_key:
+            return None
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "structured",
+            "data": structured_data("decision", "", dict(event.payload)),
         }
     if isinstance(event, RetryStatusEvent):
         if not event.session_key:

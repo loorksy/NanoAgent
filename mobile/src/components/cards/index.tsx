@@ -206,6 +206,39 @@ export function DecisionCard({ payload }: { payload: DecisionPayload }) {
           ))}
         </View>
       ) : null}
+      {payload.summary ? <Row label={t("card.decision.summary")} value={payload.summary} /> : null}
+      {payload.entry_zone ? (
+        <Row
+          label={t("card.decision.zone")}
+          value={`${formatNumber(payload.entry_zone.low, locale, { decimals: 2 })} – ${formatNumber(payload.entry_zone.high, locale, { decimals: 2 })}`}
+        />
+      ) : null}
+      {payload.risk_pct != null ? (
+        <Row label={t("card.decision.risk")} value={formatPercent(payload.risk_pct, locale, 2)} />
+      ) : null}
+      {(payload.rr ?? payload.net_rr) != null ? (
+        <Row
+          label={t("card.decision.rr")}
+          value={formatNumber(payload.rr ?? payload.net_rr, locale, { decimals: 2 })}
+        />
+      ) : null}
+      {payload.agreement ? (
+        <Row
+          label={t("card.decision.agreement")}
+          value={`${payload.agreement.agreeing}/${payload.agreement.votes}`}
+        />
+      ) : null}
+      {payload.invalidation ? <Row label={t("card.decision.invalidation")} value={payload.invalidation} /> : null}
+      {payload.validity_candles != null ? (
+        <Row label={t("card.decision.validity")} value={String(payload.validity_candles)} />
+      ) : null}
+      {payload.data_sources && payload.data_sources.length > 0 ? (
+        <Row label={t("card.decision.sources")} value={payload.data_sources.join(" · ")} />
+      ) : null}
+      {payload.blockers && payload.blockers.length > 0 ? (
+        <Row label={t("card.decision.blockers")} value={payload.blockers.join(" · ")} />
+      ) : null}
+      {payload.alternative ? <Row label={t("card.decision.alternative")} value={payload.alternative} /> : null}
     </Card>
   );
 }

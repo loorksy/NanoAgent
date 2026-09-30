@@ -110,9 +110,22 @@ export interface DecisionPayload {
   entry: number | null;
   stop: number | null;
   targets: number[];
-  confidence: number;
+  confidence: number | null;
   reasons: string[];
   gates_passed: string[];
+  permission_level?: PermissionLevel | null;
+  plan_id?: string | null;
+  summary?: string;
+  entry_zone?: { low: number; high: number };
+  risk_pct?: number;
+  rr?: number | null;
+  net_rr?: number | null;
+  agreement?: { stance: Verdict; agreeing: number; votes: number };
+  invalidation?: string;
+  validity_candles?: number;
+  data_sources?: string[];
+  blockers?: string[];
+  alternative?: string;
 }
 
 export type ApprovalType = "execution" | "modify" | "close" | "generic";

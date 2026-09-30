@@ -5,17 +5,20 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from loguru import logger
+
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
 from mokli.agent.tools.context import (
     ToolContext,
     current_request_session_key,
 )
 from mokli.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
+from mokli.events import DecisionCompletedEvent
 from mokli.trading.kernel import run_trading_kernel
 from mokli.trading.locale import active_locale
 from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.gate_report import build_gate_report_result
-from mokli.trading.result_wire import brief_for_model, result_to_wire
+from mokli.trading.result_wire import brief_for_model, decision_card_payload, result_to_wire
 from mokli.trading.tool_delivery import should_publish_trading_ui
 from mokli.trading.tool_errors import model_json
 
@@ -77,6 +80,29 @@ async def finish_synthesis_prefetch(prefetch: asyncio.Task[None] | None) -> None
         await prefetch
     except Exception:
         pass
+
+
+async def publish_kernel_decision(bus: Any | None, result: Any) -> None:
+    """Publish the decision card when the kernel returned a verdict.
+
+    A missing bus, a missing session, or a result that is not a verdict
+    publishes nothing. A publish failure does not replace the tool result.
+    """
+    card = decision_card_payload(result)
+    if card is None or bus is None or not hasattr(bus, "publish"):
+        return
+    from mokli.agent.tools.context import current_request_context
+
+    request = current_request_context()
+    session_key = request.session_key if request is not None else None
+    if not session_key:
+        return
+    try:
+        await bus.publish(DecisionCompletedEvent(session_key=session_key, payload=card))
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception("kernel decision card was not published")
 
 
 async def cancel_synthesis_prefetch(prefetch: asyncio.Task[None] | None) -> None:
@@ -195,6 +221,7 @@ class RunTradingKernelTool(Tool):
             result.team_agents = list(swarm_agents)
         if swarm_drivers:
             result.macro_drivers = list(swarm_drivers)
+        await publish_kernel_decision(self._bus, result)
         payload = model_json(brief_for_model(result_to_wire(result)))
         if decision_review and turn is not None:
             turn.decision_wire = payload
