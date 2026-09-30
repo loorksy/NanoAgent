@@ -17,6 +17,7 @@
 1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
 2. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 3. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
+4. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
 
 ## بعد كل سينario من §11
 
@@ -33,5 +34,5 @@
 ## ما لا يُعتبر إغلاقاً
 
 - pytest وحده.
-- health `curl /api/v2/health` بدون محادثة مزود.
+- health على `8766` أو عبر Vite `5173` بدون محادثة مزود (مفاتيح LLM فارغة في Cloud Agent).
 - اختبار §11.1 (ارتباط CI) بدل الصفوف 1–13 الحية.
