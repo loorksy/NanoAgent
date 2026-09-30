@@ -65,3 +65,50 @@ def test_patch_script_dry_run_after_validate(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     assert "would update 1 row" in proc.stdout
     assert "PASS — greeting" not in report.read_text(encoding="utf-8")
+
+
+def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "request_input_tokens": 120, "request_output_tokens": 8},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "section11-results.json"
+    results.write_text(json.dumps({"1": "PASS — no tools"}), encoding="utf-8")
+    report = tmp_path / "report.md"
+    report.write_text(
+        "| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام (توكن/جولات/أدوات/مراحل) |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| 1 | سؤال بلا أدوات | تحية | `diagnostic` بجولة واحدة | | |\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(PATCH),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(report),
+            "--require-through",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(ROOT),
+    )
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    body = report.read_text(encoding="utf-8")
+    assert "PASS — no tools" in body
+    assert "rounds=1" in body and "in=120" in body
+    assert "| 1 | سؤال بلا أدوات |" in body
