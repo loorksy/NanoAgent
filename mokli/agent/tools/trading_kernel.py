@@ -38,8 +38,9 @@ _KERNEL_PARAMETERS = tool_parameters_schema(
     ),
     decision_review=BooleanSchema(
         description=(
-            "For a buy/sell question, run the gold_decision_review team first "
-            "and pass its brief into the kernel. The kernel remains the only BUY/SELL path."
+            "When true, this call runs the gold_decision_review team and then the kernel. "
+            "Do not call run_trading_team first. A later call in this turn returns the "
+            "decision already made unless force_new_plan or reevaluate is set."
         ),
     ),
     present_ui=BooleanSchema(
@@ -129,7 +130,12 @@ class RunTradingKernelTool(Tool):
         from mokli.trading.turn_session import current_turn_session
 
         turn = current_turn_session()
-        if decision_review and turn is not None and turn.decision_wire:
+        if (
+            turn is not None
+            and turn.decision_wire
+            and not reevaluate
+            and not force_new_plan
+        ):
             return turn.decision_wire
         if decision_review:
             from mokli.agent.tools.context import current_request_session_key

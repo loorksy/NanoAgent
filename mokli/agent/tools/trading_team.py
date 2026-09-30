@@ -63,13 +63,15 @@ class RunTradingTeamTool(Tool):
     def description(self) -> str:
         available = ", ".join(list_presets()) or "gold_analysis_committee"
         return (
-            "Run a multi-agent gold trading team preset. "
+            "Run a gold trading team preset, then the kernel. "
             f"Available presets: {available}. "
-            "For a buy/sell question use gold_decision_review (technical, then macro "
-            "and trend, then risk, then one review). The team returns briefs only; "
-            "run_trading_kernel is still the only BUY/SELL path. "
+            "gold_decision_review is technical, then macro and trend, then risk, "
+            "then one review when stances conflict. "
+            "The returned final object is the decision. "
+            "Do not call run_trading_kernel again in this turn. "
+            "A second preset in this turn returns the decision already made. "
             "Set present_ui=true only when the operator wants the visual team/chart experience."
-        ).format(available=available)
+        )
 
     async def execute(
         self,
@@ -106,6 +108,15 @@ class RunTradingTeamTool(Tool):
         if not preset_name:
             return ToolResult.error("preset is required.")
 
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        if turn is not None and turn.decision_wire:
+            return json.dumps(
+                {"preset": preset_name, "final": json.loads(turn.decision_wire)},
+                indent=2,
+            )
+
         from mokli.agent.tools.trading_kernel import (
             cancel_synthesis_prefetch,
             finish_synthesis_prefetch,
@@ -113,9 +124,6 @@ class RunTradingTeamTool(Tool):
         )
         from mokli.trading.kernel import run_trading_kernel
         from mokli.trading.policy_guard import PolicyViolation
-        from mokli.trading.turn_session import current_turn_session
-
-        turn = current_turn_session()
         prefetch: asyncio.Task[None] | None = (
             start_synthesis_prefetch(interval, turn) if turn is not None else None
         )
@@ -154,10 +162,13 @@ class RunTradingTeamTool(Tool):
         wire = result_to_wire(final)
         if publish_ui:
             await publisher.publish_result(wire)
+        brief = brief_for_model(wire)
+        if turn is not None:
+            turn.decision_wire = json.dumps(brief, indent=2)
         return json.dumps(
             {
                 "preset": preset_name,
-                "final": brief_for_model(wire),
+                "final": brief,
             },
             indent=2,
         )

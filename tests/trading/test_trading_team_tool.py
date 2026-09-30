@@ -96,3 +96,49 @@ async def test_run_trading_team_executes_swarm() -> None:
     payload = json.loads(raw)
     assert payload["preset"] == "gold_analysis_committee"
     assert payload["final"]["decision"] == "wait"
+
+
+@pytest.mark.asyncio
+async def test_team_decision_is_not_analyzed_again(monkeypatch) -> None:
+    """The team tool already ran the kernel. A later kernel call must not run it again."""
+    from mokli.agent.tools.trading_kernel import RunTradingKernelTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"swarm": 0, "kernel": 0}
+
+    async def fake_swarm(*_args, **_kwargs):
+        calls["swarm"] += 1
+        return {"team_briefing": "noted"}
+
+    async def fake_kernel(**_kwargs):
+        calls["kernel"] += 1
+        return object()
+
+    monkeypatch.setattr("mokli.agent.tools.trading_team.run_swarm", fake_swarm)
+    monkeypatch.setattr("mokli.trading.kernel.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr("mokli.agent.tools.trading_kernel.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_team.result_to_wire",
+        lambda _result: {"decision": "wait", "summary": "once"},
+    )
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel.result_to_wire",
+        lambda _result: {"decision": "wait", "summary": "once"},
+    )
+    team = RunTradingTeamTool(bus=MagicMock(), subagent_manager=None)
+    kernel = RunTradingKernelTool(bus=MagicMock(), subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1")
+    with request_context(ctx), turn_session_scope(TurnSession()):
+        first = json.loads(await team.execute(preset="gold_analysis_committee"))
+        again = json.loads(await kernel.execute())
+        other = json.loads(await team.execute(preset="gold_mtf_panel"))
+        replaced = json.loads(await kernel.execute(force_new_plan=True))
+    assert first["final"]["decision"] == "wait"
+    assert again["decision"] == "wait"
+    assert other["preset"] == "gold_mtf_panel"
+    assert other["final"]["decision"] == "wait"
+    assert replaced["decision"] == "wait"
+    assert calls == {"swarm": 1, "kernel": 2}
+    print(f"KERNEL_REPEAT swarm={calls['swarm']} kernel={calls['kernel'] - 1}")
+    assert "Do not call run_trading_kernel again" in team.description
+    assert "Do not call run_trading_team first" in kernel.parameters["properties"]["decision_review"]["description"]
