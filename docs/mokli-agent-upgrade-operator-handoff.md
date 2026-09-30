@@ -10,14 +10,15 @@
 - `docs/mokli-agent-upgrade-audit.md` — تدقيق المرحلة 0
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
-- pytest: **2296** ناجية (مجمّع + `tests/scripts/test_mokli_upgrade_diagnostic_extract.py`)
+- pytest: **2297** ناجية (مجمّع + سكربتا §11 `diagnostic_extract` و`preflight`)
 
 ## قبل المحادثة الحية
 
 1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
-2. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
-3. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
-4. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
+2. `bash scripts/mokli_upgrade_preflight.sh` — صحة Agent API، تحذير إن مفاتيح المزود فارغة، تذكير بسكربت الأرقام (لا يستدعي LLM).
+3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
+4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
+5. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
 
 ## بعد كل سينario من §11
 
