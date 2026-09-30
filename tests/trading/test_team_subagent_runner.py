@@ -747,3 +747,59 @@ async def test_debate_desk_advocates_read_the_technical_brief(monkeypatch) -> No
     after = estimate_prompt_tokens([{"role": "user", "content": bull_task}])
     print(f"DEBATE_DESK before={before} after={after}")
     assert after > before
+
+
+@pytest.mark.asyncio
+async def test_presets_without_a_macro_role_do_not_search(monkeypatch) -> None:
+    """MTF and the debate desk do not read the driver list, so they do not search."""
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    searches = {"n": 0}
+
+    async def fake_team_role(**_kwargs: object) -> str:
+        return "noted\nSTANCE: wait"
+
+    async def search(query: str) -> str:
+        del query
+        searches["n"] += 1
+        return "dollar firm"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *_a, **_k: _market("1h", 112, 2310.0),
+    )
+
+    mtf = await run_swarm(
+        "gold_mtf_panel",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    debate = await run_swarm(
+        "gold_debate_desk",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    assert searches["n"] == 0
+    assert "macroDrivers" not in mtf["team_briefing"]
+    assert "macroDrivers" not in debate["team_briefing"]
+    assert mtf["macro_drivers"] == []
+    assert debate["macro_drivers"] == []
+
+    review = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    assert searches["n"] > 0
+    assert "macroDrivers" in review["team_briefing"]
+    print(f"MACRO_SKIP panel=0 desk=0 review={searches['n']}")

@@ -78,6 +78,14 @@ def _is_conflict_review(role: str, system_prompt: str) -> bool:
     return "review" in role.lower() and resolve_role_file(role, system_prompt) == "lead"
 
 
+def _preset_needs_macro(preset: SwarmPreset) -> bool:
+    """Web searches run only when a role in this preset reads the driver list."""
+    return any(
+        resolve_role_file(agent.role, agent.system_prompt) in _MACRO_EVIDENCE_FILES
+        for agent in preset.agents
+    )
+
+
 def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
     """Short brief for the next role. The stance line is kept even when the body is cut."""
     text = (summary or "").strip()
@@ -213,14 +221,17 @@ async def run_swarm(
 
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
     evidence_text = format_market_evidence(market)
-    # Macro searches do not read role summaries. Start them with the first layer.
-    macro_task = asyncio.create_task(
-        _timed_macro_drivers(
-            search=macro_search,
-            events=macro_events,
-            now=macro_now,
+    # Macro searches do not read role summaries. Start them with the first layer
+    # only when a role in this preset reads the driver list.
+    macro_task: asyncio.Task[tuple[list[Any], int]] | None = None
+    if _preset_needs_macro(preset):
+        macro_task = asyncio.create_task(
+            _timed_macro_drivers(
+                search=macro_search,
+                events=macro_events,
+                now=macro_now,
+            )
         )
-    )
 
     try:
         for layer_index, layer in enumerate(layers):
@@ -245,7 +256,10 @@ async def run_swarm(
                     system_prompt,
                 )
                 if resolve_role_file(role, system_prompt) in _MACRO_EVIDENCE_FILES:
-                    driver_verdicts, _macro_ms = await macro_task
+                    if macro_task is None:
+                        driver_verdicts: list[Any] = []
+                    else:
+                        driver_verdicts, _macro_ms = await macro_task
                     role_evidence = evidence_with_macro_drivers(
                         role_evidence,
                         format_team_briefing(driver_verdicts),
@@ -269,16 +283,19 @@ async def run_swarm(
                 if summary is None:
                     continue
                 summaries[task_id] = summary
-        verdicts, duration_ms = await macro_task
+        if macro_task is None:
+            verdicts, duration_ms = [], 0
+        else:
+            verdicts, duration_ms = await macro_task
     finally:
-        if not macro_task.done():
+        if macro_task is not None and not macro_task.done():
             macro_task.cancel()
             try:
                 await macro_task
             except asyncio.CancelledError:
                 pass
 
-    macro_briefing = format_team_briefing(verdicts)
+    macro_briefing = format_team_briefing(verdicts) if verdicts else ""
     team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
     return {
         "preset": preset_name,
