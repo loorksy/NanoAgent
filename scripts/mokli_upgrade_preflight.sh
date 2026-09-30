@@ -26,8 +26,14 @@ else
   echo "SKIP Vite proxy (5173 not running — start: cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173)"
 fi
 
-python3 <<'PY'
+PYTHON="${ROOT}/.venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+  PYTHON=python3
+fi
+
+"$PYTHON" <<'PY'
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -54,15 +60,39 @@ for name, block in providers.items():
 
 if not has_key:
     print("WARN all provider apiKey fields empty — §11 chat paths need LLM credentials")
+
+try:
+    from mokli.config.loader import load_config
+
+    cfg = load_config()
+    oanda = cfg.trading_oanda.public_view()
+    meta = cfg.trading_metaapi.public_view()
+    if oanda.get("configured"):
+        print(f"INFO OANDA configured (env={oanda.get('env')}, account_id set={bool(oanda.get('account_id'))})")
+    else:
+        print("WARN OANDA not configured — §11 rows 4/9/10 need candles (OANDA or warehouse fallback)")
+    if meta.get("configured"):
+        print("INFO MetaAPI token configured")
+    else:
+        print("WARN MetaAPI not configured — live quote paths may use OANDA only")
+except Exception as exc:
+    print(f"SKIP mokli config loader ({exc.__class__.__name__}) — check tradingOanda/tradingMetaapi manually")
+    oanda_block = config.get("tradingOanda") or config.get("trading_oanda") or {}
+    if isinstance(oanda_block, dict) and (oanda_block.get("apiToken") or oanda_block.get("api_token")):
+        print("INFO OANDA apiToken present in config.json (not validated)")
+    elif os.environ.get("OANDA_API_TOKEN") or os.environ.get("OANDA_API_KEY"):
+        print("INFO OANDA token in environment")
+    else:
+        print("WARN no OANDA token in config.json or OANDA_* env")
 PY
 
 if [[ -x "${ROOT}/.venv/bin/pytest" ]]; then
   echo "INFO aggregate pytest (optional): pytest tests/agent tests/trading tests/agent_api \\"
-  echo "  tests/deploy/test_mokli_pipe.py tests/scripts/test_mokli_upgrade_diagnostic_extract.py \\"
-  echo "  tests/scripts/test_mokli_upgrade_preflight.py -q"
+  echo "  tests/deploy/test_mokli_pipe.py tests/scripts/ -q"
 fi
 
 echo "INFO after each live turn: SHOW_DIAGNOSTICS on pipe → save JSONL →"
 echo "  python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl"
+echo "  python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --markdown"
 
 exit "$fail"
