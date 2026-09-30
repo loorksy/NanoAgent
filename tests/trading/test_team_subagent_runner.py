@@ -688,6 +688,71 @@ def test_macro_roles_do_not_invent_a_plan_validity_window() -> None:
 
 
 @pytest.mark.asyncio
+async def test_scenario_role_uses_candles_and_the_event_note(monkeypatch) -> None:
+    """The planner has candles and the event note, not structure or liquidity briefs."""
+    from pathlib import Path
+
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams import role_prompts
+    from mokli.trading.teams.runtime import run_swarm
+
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    prompt = (roles_dir / "scenario.md").read_text(encoding="utf-8")
+    assert "structure and liquidity evidence" not in prompt
+    assert "candle list" in prompt
+    assert "event note" in prompt
+    assert "Do not invent a structure brief" in prompt
+    old = (
+        "## Focus: scenario planning\n\n"
+        "Lay out bull, base, and bear scenarios for the coming sessions using the event analysis and the\n"
+        "structure and liquidity evidence: for each, the trigger that would confirm it, the level that\n"
+        "would invalidate it, and the target area it would reach. Keep the scenarios mutually\n"
+        "exclusive and tied to evidence levels. You describe the map; the structured decision call\n"
+        "picks the path.\n"
+    )
+    before = estimate_prompt_tokens([{"role": "user", "content": old}])
+    after = estimate_prompt_tokens([{"role": "user", "content": prompt}])
+    print(f"SCENARIO_PROMPT before={before} after={after}")
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append(
+            (
+                str(kwargs.get("role")),
+                str(kwargs.get("task_text")),
+                str(kwargs.get("evidence_text")),
+            )
+        )
+        return "gap risk on the release\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "FOMC holds"
+
+    await run_swarm(
+        "gold_news_war_room",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = {role: (task, evidence) for role, task, evidence in seen}
+    task, evidence = by_role["Scenario Planner"]
+    parsed = json.loads(evidence)
+    assert "candles" in parsed
+    assert "macroDrivers" not in parsed
+    assert "gap risk on the release" in task
+    assert "STANCE: wait" in task
+
+
+@pytest.mark.asyncio
 async def test_committee_lead_reads_every_specialist_brief(monkeypatch) -> None:
     """The lead attributes points to each brief. Risk's note is not a substitute."""
     from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
