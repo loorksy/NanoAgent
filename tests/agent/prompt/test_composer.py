@@ -287,6 +287,27 @@ def test_tool_contract_table_handles_empty_registry() -> None:
     assert "No platform tools are registered" in table
 
 
+def test_answer_round_drops_the_tool_menu_and_keeps_policy() -> None:
+    from mokli.agent.prompt.composer import messages_without_tool_menu
+    from mokli.utils.helpers import estimate_message_tokens
+
+    prompt = compose_system_prompt(PromptContext())
+    original = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "هل أشتري الذهب؟"},
+    ]
+    sent = messages_without_tool_menu(original)
+    assert "| Tool | Call when" in original[0]["content"]
+    assert "| `get_gold_quote` |" not in sent[0]["content"]
+    assert "No platform tools are registered" in sent[0]["content"]
+    assert "## Execution permission levels" in sent[0]["content"]
+    assert "`recommend`" in sent[0]["content"]
+    assert sent[1] is original[1]
+    before = estimate_message_tokens({"role": "system", "content": prompt})
+    after = estimate_message_tokens({"role": "system", "content": sent[0]["content"]})
+    assert before - after >= 700
+
+
 def test_tool_contract_names_are_unique() -> None:
     names = [name for contract in TOOL_CONTRACTS for name in contract.tools]
     assert len(names) == len(set(names))

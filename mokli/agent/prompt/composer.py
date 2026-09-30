@@ -12,6 +12,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 DEFAULT_PRODUCT_NAME = "Mokli"
 DEFAULT_REPLY_LANGUAGE = "auto"
@@ -434,6 +435,40 @@ def render_tool_contracts(tool_names: Sequence[str] | None) -> str:
         )
     header = "| Tool | Call when | Returns | Never |\n|------|-----------|---------|-------|"
     return "\n".join([header, *rows])
+
+
+_TOOL_MENU_HEADER = "| Tool | Call when | Returns | Never |"
+
+
+def without_tool_menu(system_text: str) -> str:
+    """Drop the call-when table. Permission and team policy stay."""
+    start = system_text.find(_TOOL_MENU_HEADER)
+    if start < 0:
+        return system_text
+    lines = system_text[start:].split("\n")
+    width = 0
+    for line in lines:
+        if not line.startswith("|"):
+            break
+        width += 1
+    if width == 0:
+        return system_text
+    table = "\n".join(lines[:width])
+    return system_text.replace(table, render_tool_contracts([]), 1)
+
+
+def messages_without_tool_menu(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Provider copy for a round that has no tools. The transcript list is unchanged."""
+    if not messages:
+        return messages
+    first = messages[0]
+    content = first.get("content")
+    if first.get("role") != "system" or not isinstance(content, str):
+        return messages
+    stripped = without_tool_menu(content)
+    if stripped == content:
+        return messages
+    return [{**first, "content": stripped}, *messages[1:]]
 
 
 def has_tool(tool_names: Sequence[str] | None, name: str) -> bool:

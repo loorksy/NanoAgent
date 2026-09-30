@@ -1000,6 +1000,10 @@ class AgentRunner:
         transcript: list[dict[str, Any]] | None,
         omit_tools: bool = False,
     ) -> tuple[LLMResponse, LLMUsage]:
+        if omit_tools:
+            from mokli.agent.prompt.composer import messages_without_tool_menu
+
+            messages = messages_without_tool_menu(messages)
         tool_definitions = None if omit_tools else spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(
             request_state,
