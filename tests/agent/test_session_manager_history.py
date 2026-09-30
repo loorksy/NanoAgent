@@ -549,6 +549,50 @@ def test_refreshed_runtime_context_is_not_replayed() -> None:
     print(f"TOKEN_RUNTIME_REPLAY before={before} after={after} saved_tokens={before - after}")
 
 
+def test_explicit_skill_body_is_not_replayed() -> None:
+    """The skill body belongs to the turn that named it."""
+    skill_path = (
+        Path(__file__).resolve().parents[2]
+        / "mokli"
+        / "skills"
+        / "trading-proactive"
+        / "SKILL.md"
+    )
+    skill = (
+        "[Active Skills — instructions for this user turn]\n"
+        f"{skill_path.read_text(encoding='utf-8')}\n"
+        "[/Active Skills]"
+    )
+    content, marker = append_runtime_context(
+        "$trading-proactive",
+        [RuntimeContextBlock(source="explicit_skills", content=skill)],
+    )
+    assert marker is not None
+    session = Session(key="test:explicit-skill")
+    session.messages.append({
+        "role": "user",
+        "content": content,
+        RUNTIME_CONTEXT_HISTORY_META: marker,
+    })
+    session.messages.append({"role": "assistant", "content": "تم"})
+    session.messages.append({"role": "user", "content": "وما بعد؟"})
+
+    history = session.get_history()
+    replay = "\n".join(
+        message["content"] for message in history if isinstance(message.get("content"), str)
+    )
+    assert history[0]["content"] == "$trading-proactive"
+    assert "Trading Proactive Communication" not in replay
+    assert "Trading Proactive Communication" in session.messages[0]["content"]
+    before = estimate_prompt_tokens([
+        {"role": "user", "content": content},
+        {"role": "assistant", "content": "تم"},
+        {"role": "user", "content": "وما بعد؟"},
+    ])
+    after = estimate_prompt_tokens(history)
+    print(f"TOKEN_SKILL_REPLAY before={before} after={after}")
+
+
 def test_public_history_omits_cli_app_breadcrumb():
     session = Session(key="test:legacy-capabilities")
     session.messages.append({

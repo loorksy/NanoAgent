@@ -1229,6 +1229,106 @@ class TestResponsesConversationState:
         )["content"][0]["text"]
         assert unread_text == announce
 
+    def test_replay_drops_turn_local_user_context(self):
+        from mokli.runtime_context import (
+            RuntimeContextBlock,
+            append_runtime_context,
+            wrap_runtime_context_lines,
+        )
+        from mokli.utils.helpers import estimate_prompt_tokens
+
+        goal = (
+            "[Goal Runtime Guidance — host instructions]\n"
+            + ("نفّذ الهدف. " * 80)
+            + "\n[/Goal Runtime Guidance]"
+        )
+        plan = wrap_runtime_context_lines([
+            "A live BUY XAUUSD recommendation is on file for this conversation.",
+            "Stored plan levels (plain): entry=4200.15, stop=4183.00",
+        ])
+        skill = (
+            "[Active Skills — instructions for this user turn]\n"
+            + ("قاعدة الإشعار. " * 400)
+            + "\n[/Active Skills]"
+        )
+        first, _marker = append_runtime_context(
+            "حلل",
+            [
+                RuntimeContextBlock(source="gold_intent", content=plan),
+                RuntimeContextBlock(source="goal", content=goal),
+            ],
+        )
+        second, _skill_marker = append_runtime_context(
+            "$trading-proactive",
+            [RuntimeContextBlock(source="explicit_skills", content=skill)],
+        )
+        prepared = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "حلل"},
+            {"role": "assistant", "content": "الانتظار."},
+            {"role": "user", "content": "$trading-proactive"},
+            {"role": "assistant", "content": "تم"},
+            {"role": "user", "content": "وما بعد؟"},
+        ]
+        prior_items = [
+            {"role": "user", "content": [{"type": "input_text", "text": first}]},
+            {"type": "reasoning", "id": "rs_1", "encrypted_content": "opaque-secret"},
+            {
+                "type": "message",
+                "id": "msg_1",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": "الانتظار."}],
+            },
+            {"role": "user", "content": second},
+            {
+                "type": "message",
+                "id": "msg_2",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": "تم"}],
+            },
+        ]
+        state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        ).with_pending_messages([{"role": "user", "content": "وما بعد؟"}])
+        before = estimate_prompt_tokens(
+            [
+                {"role": "user", "content": first},
+                {"role": "user", "content": second},
+            ],
+            None,
+        )
+        _instructions, items, replayed = prepare_responses_input(
+            prepared,
+            state=state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        after = estimate_prompt_tokens(
+            [
+                {"role": "user", "content": items[0]["content"][0]["text"]},
+                {"role": "user", "content": items[3]["content"]},
+            ],
+            None,
+        )
+        assert replayed is True
+        assert items[0]["content"][0]["text"] == "حلل"
+        assert "Stored plan levels" not in items[0]["content"][0]["text"]
+        assert "Goal Runtime Guidance" not in items[0]["content"][0]["text"]
+        assert items[1]["id"] == "rs_1"
+        assert items[1]["encrypted_content"] == "opaque-secret"
+        assert items[2]["content"][0]["text"] == "الانتظار."
+        assert items[3]["content"] == "$trading-proactive"
+        assert "قاعدة الإشعار" not in items[3]["content"]
+        assert items[4]["content"][0]["text"] == "تم"
+        assert items[-1]["content"][0]["text"] == "وما بعد؟"
+        assert after < before
+        print(f"TOKEN_RESPONSES_USER_CONTEXT before={before} after={after}")
+
     def test_replayed_and_delta_reasoning_items_keep_array_content(self):
         # Regression for PR #5214: token consolidation clears
         # ``provider_state``, so the next turn converts the full history

@@ -87,6 +87,7 @@ def prepare_responses_input(
     # the prepared transcript already has a shorter copy for the same call.
     _shrink_replayed_tool_payloads(replayed_items, messages)
     _shrink_replayed_announcements(replayed_items, messages)
+    _shrink_replayed_user_context(replayed_items, messages)
     return instructions, [*replayed_items, *delta_items], True
 
 
@@ -230,6 +231,83 @@ def _shrink_replayed_announcements(
             item["content"] = replacement
         elif isinstance(content, list):
             cast(dict[str, Any], content[0])["text"] = replacement
+
+
+# Suffixes get_history removes before the next request. A stored user item
+# still holds the copy from the turn that produced it.
+_TURN_CONTEXT_HEADS = (
+    "[Runtime Context",
+    "[Active Skills",
+    "[Goal Runtime Guidance",
+)
+
+
+def _single_user_text(content: Any) -> str | None:
+    """One user string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"input_text", "text", "output_text"}:
+        return None
+    text = block.get("text")
+    return text if isinstance(text, str) else None
+
+
+def _stripped_turn_context(stored: str, prepared: str) -> bool:
+    if not prepared or len(prepared) >= len(stored) or not stored.startswith(prepared):
+        return False
+    tail = stored[len(prepared):].lstrip("\n")
+    return any(tail.startswith(head) for head in _TURN_CONTEXT_HEADS)
+
+
+def _shrink_replayed_user_context(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared user text when history already dropped the suffix.
+
+    Pairing is in order. An equal text stays. A shorter text replaces the
+    stored item only when the removed tail is turn-local context. Any other
+    difference stops the walk so a later item is not guessed. The new user
+    message is not in the stored items, so its fresh context stays on the delta.
+    """
+    prepared: list[str] = []
+    for message in messages:
+        if message.get("role") != "user":
+            continue
+        text = _single_user_text(message.get("content"))
+        if text is not None:
+            prepared.append(text)
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        if item.get("role") != "user":
+            continue
+        if item.get("type") not in {None, "message"}:
+            return
+        text = _single_user_text(item.get("content"))
+        if text is None:
+            return
+        stored.append((item, text))
+    index = 0
+    for item, current in stored:
+        if index >= len(prepared):
+            return
+        replacement = prepared[index]
+        if replacement == current:
+            index += 1
+            continue
+        if not _stripped_turn_context(current, replacement):
+            return
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
+        index += 1
 
 
 def build_responses_state(
