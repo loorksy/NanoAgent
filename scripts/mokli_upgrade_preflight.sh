@@ -10,7 +10,7 @@ fail=0
 check_url() {
   local label="$1"
   local url="$2"
-  if curl -sf "$url" >/dev/null 2>&1; then
+  if curl -sf --max-time 5 "$url" >/dev/null 2>&1; then
     echo "OK  $label"
   else
     echo "FAIL $label ($url)"
@@ -20,7 +20,7 @@ check_url() {
 
 check_url "Agent API /api/v2/health" "http://127.0.0.1:8766/api/v2/health"
 
-if curl -sf "http://127.0.0.1:5173/api/v2/health" >/dev/null 2>&1; then
+if curl -sf --max-time 5 "http://127.0.0.1:5173/api/v2/health" >/dev/null 2>&1; then
   echo "OK  Vite proxy /api/v2/health (5173 → backend)"
 else
   echo "SKIP Vite proxy (5173 not running — start: cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173)"

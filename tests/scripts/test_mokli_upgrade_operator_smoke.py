@@ -1,0 +1,24 @@
+"""Smoke test for scripts/mokli_upgrade_operator_smoke.sh."""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "mokli_upgrade_operator_smoke.sh"
+
+
+def test_operator_smoke_script() -> None:
+    proc = subprocess.run(
+        ["bash", str(SCRIPT)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "OK §11 dry-run" in proc.stdout
+    assert "passed" in proc.stdout.lower()
+    assert proc.returncode in (0, 1)
+    if proc.returncode == 1:
+        assert "WARN operator smoke" in proc.stderr or "FAIL" in proc.stdout

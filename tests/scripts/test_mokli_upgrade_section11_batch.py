@@ -74,6 +74,32 @@ def test_batch_with_results_json(tmp_path: Path) -> None:
     assert "| النتيجة |" in proc.stdout
 
 
+def test_batch_markdown_includes_p0_fold_suffix(tmp_path: Path) -> None:
+    (tmp_path / "09-long.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 8,
+                    "request_input_tokens": 4000,
+                    "referenced_chars_saved": 5000,
+                    "folded_candle_chars": 3000,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--dir", str(tmp_path), "--markdown"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "ref_saved=5000" in proc.stdout
+    assert "fold_chars=3000" in proc.stdout
+
+
 def test_batch_missing_diagnostic_exits_nonzero(tmp_path: Path) -> None:
     (tmp_path / "01-empty.jsonl").write_text('{"kind":"delta"}\n', encoding="utf-8")
     proc = subprocess.run(
