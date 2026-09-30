@@ -644,6 +644,49 @@ async def test_event_role_reads_the_driver_list(monkeypatch) -> None:
     assert after > before
 
 
+def test_macro_roles_do_not_invent_a_plan_validity_window() -> None:
+    """Driver roles cite the list they receive. The plan window is produced later."""
+    from pathlib import Path
+
+    from mokli.trading.teams import role_prompts
+
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    old = {
+        "macro": (
+            "## Focus: macro drivers\n\n"
+            "Read the macro context for gold from the evidence: US dollar direction, real yields, scheduled\n"
+            "events in the calendar window, central-bank tone, and geopolitical risk items that are actually\n"
+            "present in the evidence. For each driver you cite, state its bias (bullish, bearish, or\n"
+            "neutral for gold) and how strong the evidence is. Flag any event inside the plan's validity\n"
+            "window that would make timing matter more than direction.\n"
+        ),
+        "news": (
+            "## Focus: news and event scan\n\n"
+            "Scan the calendar and headline items in the evidence for the next sessions: scheduled releases\n"
+            "with their impact rating, unscheduled headlines that already moved gold, and anything that\n"
+            "falls inside the plan's validity window. Report only items present in the evidence, with their\n"
+            "timing relative to the current session. Do not speculate on how price \"should\" react.\n"
+        ),
+        "event": (
+            "## Focus: event risk analysis\n\n"
+            "Take the scanned events and assess their risk to a gold position: which events can gap or\n"
+            "spike price inside the validity window, what the market appears to be pricing according to the\n"
+            "evidence, and where the asymmetry lies (which surprise would hurt a long, which would hurt a\n"
+            "short). Rank the events by risk to timing, not by headline size.\n"
+        ),
+    }
+    before = 0
+    after = 0
+    for stem, previous in old.items():
+        text = (roles_dir / f"{stem}.md").read_text(encoding="utf-8")
+        assert "inside the validity window" not in text
+        assert "plan's validity" not in text
+        assert "Do not invent" in text
+        before += estimate_prompt_tokens([{"role": "user", "content": previous}])
+        after += estimate_prompt_tokens([{"role": "user", "content": text}])
+    print(f"VALIDITY_PROMPT before={before} after={after}")
+
+
 @pytest.mark.asyncio
 async def test_committee_lead_reads_every_specialist_brief(monkeypatch) -> None:
     """The lead attributes points to each brief. Risk's note is not a substitute."""
