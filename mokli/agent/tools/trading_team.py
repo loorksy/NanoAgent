@@ -15,7 +15,11 @@ from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import list_presets, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
-from mokli.trading.tool_errors import model_json
+from mokli.trading.tool_errors import (
+    cached_decision_result,
+    model_json,
+    remember_decision_error,
+)
 
 _TEAM_PARAMETERS = tool_parameters_schema(
     preset=StringSchema(
@@ -70,7 +74,8 @@ class RunTradingTeamTool(Tool):
             "then one review when stances conflict. "
             "The returned final object is the decision. "
             "Do not call run_trading_kernel again in this turn. "
-            "A second preset in this turn returns the decision already made. "
+            "A second preset in this turn returns the result already produced, "
+            "including a failure. "
             "Set present_ui=true only when the operator wants the visual team/chart experience."
         )
 
@@ -84,6 +89,9 @@ class RunTradingTeamTool(Tool):
         ctx = current_request_context()
         if ctx is None:
             return ToolResult.error("run_trading_team requires an active chat session")
+        cached_failure = cached_decision_result(self.name, {})
+        if cached_failure is not None:
+            return cached_failure
         from mokli.trading.tool_errors import live_plan_block_if_any
 
         blocked = await live_plan_block_if_any(ctx.session_key)
@@ -141,7 +149,9 @@ class RunTradingTeamTool(Tool):
                     max_review_rounds=review_round_limit(),
                 )
             except Exception as exc:
-                return ToolResult.error(f"Swarm preset failed: {exc}")
+                return remember_decision_error(
+                    ToolResult.error(f"Swarm preset failed: {exc}")
+                )
 
             await finish_synthesis_prefetch(prefetch)
             prefetch = None
@@ -154,13 +164,17 @@ class RunTradingTeamTool(Tool):
                 emit=publisher.sync_emit if publish_ui else None,
             )
         except PolicyViolation as exc:
-            return ToolResult.error(str(exc.reason))
+            return remember_decision_error(ToolResult.error(str(exc.reason)))
         except Exception as exc:
-            return ToolResult.error(f"Swarm preset failed: {exc}")
+            return remember_decision_error(
+                ToolResult.error(f"Swarm preset failed: {exc}")
+            )
         finally:
             await cancel_synthesis_prefetch(prefetch)
         if final is None:
-            return ToolResult.error("Swarm produced no final analysis")
+            return remember_decision_error(
+                ToolResult.error("Swarm produced no final analysis")
+            )
 
         wire = result_to_wire(final)
         if publish_ui:
@@ -168,6 +182,7 @@ class RunTradingTeamTool(Tool):
         brief = brief_for_model(wire)
         if turn is not None:
             turn.decision_wire = model_json(brief)
+            turn.decision_error = None
         return model_json(
             {
                 "preset": preset_name,

@@ -175,6 +175,22 @@ async def _execute_tool_call(
             event,
         )
 
+    if tool_call.name in {"run_trading_kernel", "analyze_gold", "run_trading_team"}:
+        from mokli.trading.tool_errors import cached_decision_result
+
+        cached_failure = cached_decision_result(tool_call.name, params)
+        if cached_failure is not None:
+            # The analysis already failed in this turn. Do not publish a second
+            # start: the team and the kernel are not running again.
+            return (
+                cached_failure,
+                {
+                    "name": tool_call.name,
+                    "status": "reused",
+                    "detail": "cached failed analysis",
+                },
+            )
+
     await hook.before_execute_tool(context, tool_call, tool, params)
     try:
         from mokli.trading.policy_guard import validate_tool_call

@@ -24,6 +24,40 @@ REASON_TEAM_FAILED = "trading.team_failed"
 REASON_NO_RESULT = "trading.no_result"
 REASON_UNKNOWN_ACTION = "trading.unknown_action"
 
+_DECISION_ATTEMPT_TOOLS = frozenset({
+    "run_trading_kernel",
+    "analyze_gold",
+    "run_trading_team",
+})
+
+
+def cached_decision_result(tool_name: str, params: Any) -> ToolResult | None:
+    """Return this turn's failed analysis without starting the work again.
+
+    A stored success stays with the tool, which may still open a chart.
+    Re-evaluation and an explicit replacement run again.
+    """
+    if tool_name not in _DECISION_ATTEMPT_TOOLS:
+        return None
+    if isinstance(params, dict) and (params.get("reevaluate") or params.get("force_new_plan")):
+        return None
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None or turn.decision_wire or not turn.decision_error:
+        return None
+    return ToolResult.error(turn.decision_error)
+
+
+def remember_decision_error(payload: ToolResult) -> ToolResult:
+    """Keep a failed analysis for this turn. A stored success is left as-is."""
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is not None and not turn.decision_wire:
+        turn.decision_error = str(payload)
+    return payload
+
 
 def model_json(payload: Any) -> str:
     """JSON the model reads. The keys and values stay; pretty-print spaces do not."""

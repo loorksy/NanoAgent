@@ -51,6 +51,9 @@ class TurnSession:
     kernel_decision: str | None = None
     kernel_result: Any | None = None
     decision_wire: str | None = None
+    # A failed analysis in this turn. The next call returns it and does not
+    # start the team or the kernel again. A stored success wins over this.
+    decision_error: str | None = None
     live_plan_block: str | None = None
     # session key, recommendation id, graded row, quote. A later price display
     # does not read this; it fetches its own tick.

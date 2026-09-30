@@ -199,6 +199,188 @@ def test_decision_review_runs_the_team_before_the_kernel(monkeypatch) -> None:
         assert order == ["swarm", "gold_decision_review"]
 
 
+def test_failed_decision_review_does_not_run_again(monkeypatch) -> None:
+    """A failed review is remembered. The next call does not start the team."""
+    import time
+
+    from mokli.agent.hook import AgentHook, AgentHookContext
+    from mokli.agent.tools.execution import execute_tool_calls
+    from mokli.agent.tools.registry import ToolRegistry, is_tool_error_result
+    from mokli.agent.tools.trading_kernel import RunTradingKernelTool
+    from mokli.providers.base import ToolCallRequest
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"swarm": 0}
+
+    async def fake_swarm(*_args, **_kwargs):
+        calls["swarm"] += 1
+        await asyncio.sleep(0.2)
+        raise RuntimeError("feed down")
+
+    async def _noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_swarm", fake_swarm)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel._prefetch_synthesis_evidence",
+        _noop,
+    )
+
+    class _Hook(AgentHook):
+        def __init__(self) -> None:
+            self.starts = 0
+
+        async def before_execute_tool(
+            self,
+            context: AgentHookContext,
+            tool_call: ToolCallRequest,
+            tool: object,
+            params: object,
+        ) -> None:
+            self.starts += 1
+
+    tool = RunTradingKernelTool(bus=object(), subagent_manager=None)
+    registry = ToolRegistry()
+    registry.register(tool)
+    hook = _Hook()
+    call = ToolCallRequest(
+        id="k1",
+        name="run_trading_kernel",
+        arguments={"decision_review": True, "gather_missing": True},
+    )
+    started = time.perf_counter()
+    with turn_session_scope(TurnSession()):
+        first_results, first_events = asyncio.run(
+            execute_tool_calls(
+                registry,
+                [call],
+                concurrent=False,
+                external_lookup_counts={},
+                workspace_violation_counts={},
+                hook=hook,
+                context=AgentHookContext(iteration=0, messages=[]),
+            )
+        )
+        second_results, second_events = asyncio.run(
+            execute_tool_calls(
+                registry,
+                [call],
+                concurrent=False,
+                external_lookup_counts={},
+                workspace_violation_counts={},
+                hook=hook,
+                context=AgentHookContext(iteration=1, messages=[]),
+            )
+        )
+        elapsed = time.perf_counter() - started
+        assert calls["swarm"] == 1
+        assert hook.starts == 1
+        replaced = asyncio.run(
+            tool.execute(decision_review=True, force_new_plan=True)
+        )
+    assert calls["swarm"] == 2
+    assert hook.starts == 1
+    assert first_events[0]["status"] == "error"
+    assert "feed down" in str(first_results[0])
+    assert second_events[0]["status"] == "reused"
+    assert is_tool_error_result(second_results[0])
+    assert "feed down" in str(second_results[0])
+    assert "feed down" in str(replaced)
+    assert elapsed < 0.35
+    print(f"FAILED_REVIEW_REPEAT repeat_swarm=0 elapsed_ms={round(elapsed * 1000)}")
+
+
+def test_failed_analyze_gold_does_not_run_again(monkeypatch) -> None:
+    from mokli.agent.tools.registry import is_tool_error_result
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"kernel": 0}
+
+    async def fake_kernel(**_kwargs):
+        calls["kernel"] += 1
+        raise RuntimeError("feed down")
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        first = asyncio.run(tool.execute())
+        second = asyncio.run(tool.execute())
+        replaced = asyncio.run(tool.execute(reevaluate=True))
+    assert calls["kernel"] == 2
+    assert is_tool_error_result(first)
+    assert is_tool_error_result(second)
+    assert is_tool_error_result(replaced)
+    assert "feed down" in str(first)
+    assert str(second) == str(first)
+
+
+def test_missing_swarm_preset_is_not_cached(monkeypatch) -> None:
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"swarm": 0}
+
+    async def fake_swarm(*_args, **_kwargs):
+        calls["swarm"] += 1
+        return {"team_briefing": "ready"}
+
+    async def fake_kernel(**_kwargs):
+        return object()
+
+    async def _noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_swarm", fake_swarm)
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel._prefetch_synthesis_evidence",
+        _noop,
+    )
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+    tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        missing = asyncio.run(tool.execute(team_mode="swarm"))
+        ran = json.loads(asyncio.run(tool.execute(team_mode="swarm", preset="gold_mtf_panel")))
+    assert "preset" in missing.lower()
+    assert calls["swarm"] == 1
+    assert ran["decision"] == "wait"
+
+
+def test_failed_trading_team_does_not_run_again(monkeypatch) -> None:
+    from mokli.agent.tools.registry import is_tool_error_result
+    from mokli.agent.tools.trading_team import RunTradingTeamTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"swarm": 0}
+
+    async def fake_swarm(*_args, **_kwargs):
+        calls["swarm"] += 1
+        raise RuntimeError("feed down")
+
+    async def _noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("mokli.agent.tools.trading_team.run_swarm", fake_swarm)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel._prefetch_synthesis_evidence",
+        _noop,
+    )
+    tool = RunTradingTeamTool(bus=object(), subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:1")
+    with request_context(ctx), turn_session_scope(TurnSession()):
+        first = asyncio.run(tool.execute(preset="gold_analysis_committee"))
+        second = asyncio.run(tool.execute(preset="gold_mtf_panel"))
+    assert calls["swarm"] == 1
+    assert is_tool_error_result(first)
+    assert is_tool_error_result(second)
+    assert "feed down" in str(first)
+    assert str(second) == str(first)
+
+
 def test_synthesis_evidence_overlaps_the_review_team(monkeypatch) -> None:
     """Evidence nodes do not read the team brief, so they start with the review."""
     from mokli.agent.tools import trading_kernel as kernel_tool

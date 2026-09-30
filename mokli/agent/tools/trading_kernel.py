@@ -20,7 +20,11 @@ from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.gate_report import build_gate_report_result
 from mokli.trading.result_wire import brief_for_model, decision_card_payload, result_to_wire
 from mokli.trading.tool_delivery import should_publish_trading_ui
-from mokli.trading.tool_errors import model_json
+from mokli.trading.tool_errors import (
+    cached_decision_result,
+    model_json,
+    remember_decision_error,
+)
 
 _KERNEL_PARAMETERS = tool_parameters_schema(
     interval=StringSchema(
@@ -43,7 +47,8 @@ _KERNEL_PARAMETERS = tool_parameters_schema(
         description=(
             "When true, this call runs the gold_decision_review team and then the kernel. "
             "Do not call run_trading_team first. A later call in this turn returns the "
-            "decision already made unless force_new_plan or reevaluate is set."
+            "result already produced, including a failed attempt, unless force_new_plan "
+            "or reevaluate is set."
         ),
     ),
     present_ui=BooleanSchema(
@@ -163,6 +168,12 @@ class RunTradingKernelTool(Tool):
             and not force_new_plan
         ):
             return turn.decision_wire
+        cached_failure = cached_decision_result(
+            self.name,
+            {"reevaluate": reevaluate, "force_new_plan": force_new_plan},
+        )
+        if cached_failure is not None:
+            return cached_failure
         if decision_review:
             from mokli.agent.tools.context import current_request_session_key
             from mokli.trading.tool_errors import live_plan_block_if_any
@@ -213,9 +224,11 @@ class RunTradingKernelTool(Tool):
                 team_mode=team_mode,
             )
         except PolicyViolation as exc:
-            return ToolResult.error(str(exc.reason))
+            return remember_decision_error(ToolResult.error(str(exc.reason)))
         except Exception as exc:
-            return ToolResult.error(f"Gold analysis failed: {exc}")
+            return remember_decision_error(
+                ToolResult.error(f"Gold analysis failed: {exc}")
+            )
         finally:
             await cancel_synthesis_prefetch(prefetch)
         if swarm_agents:
@@ -226,6 +239,7 @@ class RunTradingKernelTool(Tool):
         payload = model_json(brief_for_model(result_to_wire(result)))
         if decision_review and turn is not None:
             turn.decision_wire = payload
+            turn.decision_error = None
         return payload
 
 

@@ -41,9 +41,11 @@ from mokli.trading.tool_errors import (
     REASON_POLICY_VIOLATION,
     REASON_PRESET_REQUIRED,
     REASON_UNKNOWN_ACTION,
+    cached_decision_result,
     live_plan_active_error,
     live_plan_block_if_any,
     model_json,
+    remember_decision_error,
     tool_error,
 )
 from mokli.trading.unified_evidence import fetch_evidence_nodes
@@ -549,8 +551,8 @@ class AnalyzeGoldTool(Tool):
             "use get_live_recommendation. If a live plan already exists this returns "
             "reason_key=trading.live_plan_active instead of a second plan. "
             "team_mode=debate runs a bull/bear debate first; team_mode=swarm requires an "
-            "explicit preset. If this turn already has a recommendation, that decision is "
-            "returned unless reevaluate or force_new_plan is set. "
+            "explicit preset. If this turn already attempted a recommendation, that result is "
+            "returned, including a failure, unless reevaluate or force_new_plan is set. "
             "Set present_ui=true to open the chart panel and stream cards."
         )
 
@@ -580,6 +582,12 @@ class AnalyzeGoldTool(Tool):
                 await publisher.open_chart(interval)
                 await publisher.publish_result(result_to_wire(turn.kernel_result))
             return turn.decision_wire
+        cached_failure = cached_decision_result(
+            self.name,
+            {"reevaluate": reevaluate, "force_new_plan": force_new_plan},
+        )
+        if cached_failure is not None:
+            return cached_failure
         if team_mode in {"debate", "swarm"}:
             blocked = await live_plan_block_if_any(
                 session_key,
@@ -662,29 +670,40 @@ class AnalyzeGoldTool(Tool):
                 emit=publisher.sync_emit if publish_ui else None,
             )
         except LivePlanActive as exc:
-            return live_plan_active_error(exc.live)
+            return remember_decision_error(live_plan_active_error(exc.live))
         except PolicyViolation as exc:
-            return tool_error(
-                getattr(exc, "reason_key", REASON_POLICY_VIOLATION),
-                instruction=str(exc.reason),
+            return remember_decision_error(
+                tool_error(
+                    getattr(exc, "reason_key", REASON_POLICY_VIOLATION),
+                    instruction=str(exc.reason),
+                )
             )
         except Exception as exc:
-            return tool_error(
-                REASON_ANALYSIS_FAILED,
-                instruction="Gold analysis failed; tell the operator and do not invent a plan.",
-                error=str(exc),
+            return remember_decision_error(
+                tool_error(
+                    REASON_ANALYSIS_FAILED,
+                    instruction="Gold analysis failed; tell the operator and do not invent a plan.",
+                    error=str(exc),
+                )
             )
         finally:
             await cancel_synthesis_prefetch(prefetch)
         if result is None:
-            return tool_error(
-                REASON_NO_RESULT,
-                instruction="Analysis produced no result; tell the operator.",
+            return remember_decision_error(
+                tool_error(
+                    REASON_NO_RESULT,
+                    instruction="Analysis produced no result; tell the operator.",
+                )
             )
         wire = result_to_wire(result)
         if publish_ui:
             await publisher.publish_result(wire)
-        return model_json(brief_for_model(wire))
+        payload = model_json(brief_for_model(wire))
+        if turn is not None:
+            turn.decision_wire = payload
+            turn.kernel_result = result
+            turn.decision_error = None
+        return payload
 
 
 @tool_parameters(_CAPTURE_PARAMETERS)
