@@ -4,7 +4,7 @@ import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { workingBadgeCopy } from "../lib/activity";
+import { timelineDetail, workingBadgeCopy } from "../lib/activity";
 import { useLabel, useLocale, useT } from "../lib/app-context";
 import { formatDuration } from "../lib/format";
 import { colors, font, radius, spacing, toneColor, type StateTone } from "../lib/theme";
@@ -83,11 +83,7 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
         ? entries.map((entry) => {
             const tone = entry.status === "failed" ? colors.danger : entry.status === "running" ? colors.info : colors.success;
             const duration = "duration_ms" in entry ? entry.duration_ms : undefined;
-            const detail = entry.kind === "tool"
-              ? entry.name
-              : entry.kind === "retry"
-                ? entry.error_kind
-                : entry.summary;
+            const detail = timelineDetail(entry);
             return (
               <View key={entry.id} style={styles.timelineRow}>
                 <View style={[styles.dot, { backgroundColor: tone }]} />

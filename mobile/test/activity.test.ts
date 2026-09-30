@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { t } from "../src/i18n";
-import { workingBadgeCopy } from "../src/lib/activity";
+import { timelineDetail, workingBadgeCopy } from "../src/lib/activity";
 
 const translate = (key: string) => t(key, undefined, "en");
 const lookup = (key: string) => key;
@@ -39,6 +39,33 @@ describe("workingBadgeCopy", () => {
       key === "phase.queued" ? "Queued" : key,
     );
     expect(copy).toEqual({ title: "Working", detail: "Queued" });
+  });
+
+  test("an expanded tool row keeps inputs and the result from the same call", () => {
+    expect(
+      timelineDetail({
+        id: "1",
+        kind: "tool",
+        call_id: "c1",
+        name: "get_gold_quote",
+        status: "finished",
+        started_at: 1,
+        arguments: "{\"symbol\":\"XAUUSD\"}",
+        summary: "bid 2401",
+        duration_ms: 200,
+      }),
+    ).toBe("get_gold_quote · {\"symbol\":\"XAUUSD\"} · bid 2401");
+    expect(
+      timelineDetail({
+        id: "2",
+        kind: "tool",
+        call_id: "c2",
+        name: "get_gate_report",
+        status: "failed",
+        started_at: 1,
+        summary: "feed down",
+      }),
+    ).toBe("get_gate_report · feed down");
   });
 
   test("a server processing phrase wins", () => {

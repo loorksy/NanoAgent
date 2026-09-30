@@ -35,6 +35,7 @@ export interface ToolTimelineEntry {
   run?: string;
   summary?: string;
   duration_ms?: number;
+  arguments?: string;
 }
 
 export interface SubagentTimelineEntry {
@@ -197,6 +198,13 @@ function applyTool(snapshot: SessionSnapshot, event: Extract<GatewayEvent, { kin
     if (event.run !== undefined) entry.run = event.run;
     if (data.summary !== undefined) entry.summary = data.summary;
     if (data.duration_ms !== undefined) entry.duration_ms = data.duration_ms;
+    if (data.arguments !== undefined) entry.arguments = data.arguments;
+    else if (index !== -1) {
+      const previous = snapshot.timeline[index];
+      if (previous?.kind === "tool" && previous.arguments !== undefined) {
+        entry.arguments = previous.arguments;
+      }
+    }
     if (index === -1) return { ...snapshot, timeline: [...snapshot.timeline, entry] };
     return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, entry) };
   }
@@ -208,6 +216,7 @@ function applyTool(snapshot: SessionSnapshot, event: Extract<GatewayEvent, { kin
   if (data.display !== undefined) updated.display = data.display;
   if (data.summary !== undefined) updated.summary = data.summary;
   if (data.duration_ms !== undefined) updated.duration_ms = data.duration_ms;
+  if (data.arguments !== undefined) updated.arguments = data.arguments;
   return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };
 }
 

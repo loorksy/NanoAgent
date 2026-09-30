@@ -1,4 +1,18 @@
+import type { TimelineEntry } from "@mokli/sdk";
+
 const UNPROVEN_PHASE = new Set(["thinking", "processing", "tool", "streaming"]);
+
+/** Expanded row: technical name, inputs, and result or error. Absent fields stay out. */
+export function timelineDetail(entry: TimelineEntry): string {
+  if (entry.kind === "tool") {
+    const parts = [entry.name];
+    if (entry.arguments) parts.push(entry.arguments);
+    if (entry.summary) parts.push(entry.summary);
+    return parts.join(" · ");
+  }
+  if (entry.kind === "retry") return entry.error_kind;
+  return entry.summary ?? "";
+}
 
 export function workingBadgeCopy(
   phase: string | undefined,

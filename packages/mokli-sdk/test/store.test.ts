@@ -96,8 +96,39 @@ describe("applyEvent", () => {
     );
     expect(snap.timeline).toHaveLength(1);
     expect(snap.timeline[0]).toMatchObject({ status: "finished", summary: "3 results", duration_ms: 420 });
+    snap = applyEvent(
+      snap,
+      ev("tool", {
+        event: "started",
+        name: "get_gold_quote",
+        call_id: "c3",
+        arguments: "{\"symbol\":\"XAUUSD\"}",
+      }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("tool", {
+        event: "finished",
+        name: "get_gold_quote",
+        call_id: "c3",
+        summary: "bid 2401",
+        duration_ms: 200,
+      }),
+    );
+    expect(snap.timeline.filter((entry) => entry.kind === "tool" && entry.call_id === "c3")).toEqual([
+      expect.objectContaining({
+        status: "finished",
+        arguments: "{\"symbol\":\"XAUUSD\"}",
+        summary: "bid 2401",
+        duration_ms: 200,
+      }),
+    ]);
     snap = applyEvent(snap, ev("tool", { event: "failed", name: "exec", call_id: "c2", summary: "timeout" }));
-    expect(snap.timeline[1]).toMatchObject({ kind: "tool", status: "failed", call_id: "c2" });
+    expect(snap.timeline.find((entry) => entry.kind === "tool" && entry.call_id === "c2")).toMatchObject({
+      kind: "tool",
+      status: "failed",
+      call_id: "c2",
+    });
   });
 
   test("subagent lifecycle and structured/artifact/notification/job events", () => {
