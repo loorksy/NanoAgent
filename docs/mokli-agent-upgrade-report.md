@@ -460,3 +460,18 @@
 **أوامر تدخين محلي (لا تغني عن الحي):** `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/test_mokli_upgrade_diagnostic_extract.py -q` (2296 ناجية آخر تشغيل على هذا الفرع).
 
 **لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). `--json` يطبع الحمولة كاملة.
+
+### 11.1 دليل اختبار وحدة (لا يملأ عمود «النتيجة»)
+
+هذه الاختبارات تثبت السلوك في CI ولا تغني عن الصفوف أعلاه على مزود ووسيط حيين.
+
+| # | ملفات pytest ذات صلة |
+| --- | --- |
+| 1–2 | `tests/agent/test_turn_efficiency.py` (طبقات قصيرة، عرض الأدوات)، `tests/agent/test_runner_core.py` |
+| 3–4 | `tests/trading/test_trading_tools.py`، `tests/agent/test_runner_hooks.py`، `tests/deploy/test_mokli_pipe.py` |
+| 5 | `tests/agent/test_runner_hooks.py` (spawn/فريق)، `tests/trading/test_i18n_catalog.py` (debate) |
+| 6–8 | `tests/agent/test_runner_hooks.py` (فشل/إلغاء/retry)، `tests/agent/test_task_cancel.py` |
+| 9 | `tests/agent/test_turn_efficiency.py` (طي النتائج والتفكير) |
+| 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_strategy_lab.py`، `fast_backtest` في `test_turn_efficiency` |
+| 12–13 | `tests/deploy/test_mokli_pipe.py`، `packages/mokli-sdk` / `mobile` activity tests |
+| 14 | سياسة التنفيذ في `tests/trading/` — لا اختبار حساب MT5 حي |
