@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
-from mokli.agent.context_layers import layers_for_task
+from mokli.agent.context_layers import ContextLayers, layers_for_task
 from mokli.agent.memory import MemoryStore
 from mokli.agent.prompt.composer import (
     WORKSPACE_LAYER,
@@ -362,6 +362,7 @@ class ContextBuilder:
         runtime_context_blocks: Sequence[RuntimeContextBlock] | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        context_layers: ContextLayers | None = None,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
@@ -378,6 +379,7 @@ class ContextBuilder:
             channel=channel,
             workspace=workspace,
             include_memory=include_memory,
+            context_layers=context_layers,
             tool_names=tool_names,
             facts=facts,
         )
@@ -406,12 +408,13 @@ class ContextBuilder:
         channel: str | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        context_layers: ContextLayers | None = None,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Build a model transcript while preserving the fresh-turn boundary."""
         root = workspace or self.workspace
-        layers = layers_for_task(transcript.current_message)
+        layers = context_layers or layers_for_task(transcript.current_message)
         messages: list[dict[str, Any]] = [
             {
                 "role": "system",

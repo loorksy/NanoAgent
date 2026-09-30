@@ -9,6 +9,7 @@ their own path in the runner.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 # A short greeting or a one-line question has no trading or memory job.
@@ -31,3 +32,16 @@ def layers_for_task(text: str | None) -> ContextLayers:
     if not body or len(body) > _SHORT_TURN_CHARS or _TASK_MARKERS.search(body):
         return ContextLayers(include_memory=True, include_skills=True)
     return ContextLayers(include_memory=False, include_skills=False)
+
+
+def layers_for_archived_history(history: Sequence[object]) -> ContextLayers:
+    """Match task layers to the last user turn being archived, not an empty tail."""
+    for message in reversed(history):
+        if not isinstance(message, dict):
+            continue
+        if message.get("role") != "user" or message.get("_command"):
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            return layers_for_task(content)
+    return layers_for_task(None)
