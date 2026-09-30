@@ -498,6 +498,54 @@ def test_model_brief_drops_images_and_raw_role_text() -> None:
     assert "blob" not in json.dumps(with_gates)
 
 
+def test_model_brief_does_not_repeat_the_operator_summary() -> None:
+    from mokli.trading.result_wire import brief_for_model, result_to_wire
+    from mokli.trading.types import (
+        AgentFinalResult,
+        AgentMarketContext,
+        AgentRecommendation,
+        Candle,
+        FinalDecisionResult,
+        MarketSync,
+    )
+    from mokli.utils.helpers import estimate_prompt_tokens
+
+    summary = "Wait for a close back above the broken high before acting. " * 12
+    decision = FinalDecisionResult(
+        decision="wait",
+        confidence=0.4,
+        summary=summary,
+        key_reasons=["The hour is still inside the prior range."] * 4,
+        risk_warnings=["News is due before the next candle."] * 2,
+        recommendation=AgentRecommendation(action="wait", interval="15m"),
+    )
+    wire = result_to_wire(
+        AgentFinalResult(
+            decision=decision,
+            market=AgentMarketContext(
+                symbol="XAUUSD",
+                interval="15m",
+                candles=[Candle(1, 2300, 2301, 2299, 2300)],
+                last_close=2300.0,
+                atr=4.0,
+                sync=MarketSync(ok=True),
+            ),
+        )
+    )
+    brief = brief_for_model(wire)
+    assert "operatorSummary" in wire
+    assert "operatorSummary" not in brief
+    assert brief["summary"] == summary.strip() or brief["summary"] == summary
+    before = estimate_prompt_tokens(
+        [{"role": "tool", "content": json.dumps({**brief, "operatorSummary": wire["operatorSummary"]})}]
+    )
+    after = estimate_prompt_tokens(
+        [{"role": "tool", "content": json.dumps(brief)}]
+    )
+    assert after < before
+    print(f"TOKEN_OPERATOR_SUMMARY before={before} after={after} saved={before - after}")
+
+
 def _decision_tool(name: str, result: str):
     from mokli.agent.tools.base import Tool
 

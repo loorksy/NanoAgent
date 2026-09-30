@@ -192,7 +192,6 @@ _MODEL_KEYS = (
     "refusalSummary",
     "agreement",
     "dataSources",
-    "operatorSummary",
     "teamMode",
     "recommendationId",
     "interval",
