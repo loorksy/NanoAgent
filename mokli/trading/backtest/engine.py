@@ -114,13 +114,20 @@ def replay(
     return card
 
 
-def _higher_timeframe_rising(confirm: list[Candle], at_ms: int, *, bars: int) -> bool:
-    """The latest higher-timeframe close is above the close ``bars`` earlier.
+_HOUR_MS = 3_600_000
+_CONFIRM_BAR_MS = 4 * _HOUR_MS
 
-    One green bar after a decline is not a trend. ``bars`` is the spec's
-    confirmation span, read on the higher-timeframe series.
+
+def _higher_timeframe_rising(confirm: list[Candle], at_ms: int, *, bars: int) -> bool:
+    """The latest closed higher-timeframe close is above the close ``bars`` earlier.
+
+    ``at_ms`` is the entry bar's open. That close is known one hour later. A
+    four-hour bar is known four hours after its open, so a bar that is still
+    forming cannot confirm or block the trend. One green bar after a decline
+    is not a trend. ``bars`` is the spec's confirmation span.
     """
-    prior = [bar for bar in confirm if bar.time_ms <= at_ms]
+    known_at = at_ms + _HOUR_MS
+    prior = [bar for bar in confirm if bar.time_ms + _CONFIRM_BAR_MS <= known_at]
     span = max(1, bars)
     if len(prior) <= span:
         return False

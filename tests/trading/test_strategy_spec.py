@@ -286,6 +286,55 @@ def _four_hour_bounce() -> list[Candle]:
     return rows
 
 
+def _four_hour_closes(closes: list[float]) -> list[Candle]:
+    rows: list[Candle] = []
+    for index, close in enumerate(closes):
+        rows.append(
+            Candle(
+                time_ms=index * 4 * 3_600_000,
+                open=close - 1,
+                high=close + 0.5,
+                low=close - 2,
+                close=close,
+            )
+        )
+    return rows
+
+
+def _hour_break_at_38() -> list[Candle]:
+    rows: list[Candle] = []
+    for index in range(40):
+        rows.append(
+            Candle(
+                time_ms=index * 3_600_000,
+                open=100.0,
+                high=101.0,
+                low=99.0,
+                close=100.5,
+            )
+        )
+    rows[38] = Candle(
+        time_ms=38 * 3_600_000,
+        open=100.5,
+        high=106.0,
+        low=100.0,
+        close=105.0,
+    )
+    return rows
+
+
+def test_unclosed_four_hour_bar_does_not_change_the_trend() -> None:
+    """The four-hour bar still forming at the hour close is not evidence."""
+    from mokli.trading.strategy_spec import rules_from_spec
+
+    rules = rules_from_spec(spec_from_description(_EXAMPLE, name="gold_hour_break"))
+    hours = _hour_break_at_38()
+    forming_spike = _four_hour_closes([100, 99, 98, 97, 96, 95, 94, 93, 92, 200])
+    forming_crash = _four_hour_closes([100, 101, 102, 103, 104, 105, 106, 107, 108, 1])
+    assert replay(hours, rules=rules, confirm_candles=forming_spike)["trades"] == 0
+    assert replay(hours, rules=rules, confirm_candles=forming_crash)["trades"] == 1
+
+
 def test_one_higher_four_hour_close_is_not_a_trend() -> None:
     from mokli.trading.strategy_spec import rules_from_spec
 
