@@ -867,6 +867,85 @@ async def test_mtf_synthesizer_reads_the_three_briefs_not_a_lead_chart(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_trend_role_reads_windows_not_an_invented_swing(monkeypatch) -> None:
+    """The trend role compares compact windows. A named chart still gets its own candles."""
+    from pathlib import Path
+
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams import role_prompts
+    from mokli.trading.teams.runtime import run_swarm
+
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    prompt = (roles_dir / "timeframe.md").read_text(encoding="utf-8")
+    assert "higher-timeframe windows" in prompt
+    assert "Do not invent a swing" in prompt
+    assert "one timeframe's candles" in prompt
+    assert "Do not borrow conclusions from other timeframes" not in prompt
+
+    old = (
+        "## Focus: your assigned timeframe\n\n"
+        "Analyse only the timeframe named in your task (for example H1, H4, or D1) using the evidence for\n"
+        "that timeframe: bias, structure, the last completed swing, and the nearest levels above and\n"
+        "below the current price. State whether the timeframe currently supports continuation or a\n"
+        "pullback and which level would flip its bias. Do not borrow conclusions from other timeframes.\n"
+    )
+    before = estimate_prompt_tokens([{"role": "user", "content": old}])
+    after = estimate_prompt_tokens([{"role": "user", "content": prompt}])
+    print(f"TREND_PROMPT before={before} after={after}")
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        return "window holds\nSTANCE: wait"
+
+    def fake_context(*args: object, **kwargs: object):
+        interval = str(kwargs.get("interval") or (args[1] if len(args) > 1 else "1h"))
+        closes = {"1h": 2310.0, "4h": 2320.0, "1d": 2330.0, "15m": 2300.0}
+        return _market(interval, 1, closes.get(interval, 2310.0))
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        fake_context,
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "DXY steady"
+
+    await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = {role: json.loads(evidence) for role, evidence in seen}
+    trend = by_role["Trend Analyst"]
+    assert "candles" not in trend
+    assert [row["interval"] for row in trend["higher_timeframes"]] == ["1h", "4h", "1d"]
+    assert "window_high" in trend["higher_timeframes"][0]
+    assert "spread_points" not in trend
+
+    seen.clear()
+    await run_swarm(
+        "gold_mtf_panel",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    panel = {role: json.loads(evidence) for role, evidence in seen}
+    assert "candles" in panel["H1 Analyst"]
+    assert "higher_timeframes" not in panel["H1 Analyst"]
+    assert "candles" not in panel["MTF Synthesizer"]
+
+
+@pytest.mark.asyncio
 async def test_risk_role_reads_the_quote_spread_not_a_gate(monkeypatch) -> None:
     """Risk sees bid, ask, and spread. It does not see candles, drivers, or a gate verdict."""
     from pathlib import Path
