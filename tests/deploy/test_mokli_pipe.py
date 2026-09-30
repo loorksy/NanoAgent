@@ -686,6 +686,68 @@ async def test_events_from_other_runs_are_ignored_but_notifications_pass() -> No
     assert "Task update: cron j1 finished" in chunks[-1]
 
 
+async def test_decision_card_uses_catalog_labels_and_adds_no_tool_row() -> None:
+    payload = {
+        "verdict": "buy",
+        "entry": 2301.5,
+        "reasons": ["hour break"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.verdict": "الحكم",
+        "label.result.decision.entry": "الدخول",
+        "label.result.decision.reasons": "الأسباب",
+        "label.decision.buy": "شراء",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    failed = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([failed], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    messages = [e for e in harness.emitted if e["type"] == "message"]
+    content = str(messages[0]["data"]["content"])  # type: ignore[index]
+    assert "**القرار**" in content
+    assert "| الدخول | 2301.5 |" in content
+    assert "| شراء |" in content or "| الحكم | شراء |" in content
+    assert "| entry |" not in content
+    assert "| verdict |" not in content
+    assert not [e for e in harness.emitted if e["type"] == "embeds"]
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    shown = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    html = "<div>القرار</div>"
+    gateway = FakeGateway([shown], html=html, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    embeds = [e for e in harness.emitted if e["type"] == "embeds"]
+    assert embeds == [{"type": "embeds", "data": {"embeds": [html], "replace": True}}]
+    assert not [e for e in harness.emitted if e["type"] == "message"]
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+
 async def test_structured_falls_back_to_markdown_table_when_html_unavailable() -> None:
     stream = ChunkStream(
         [

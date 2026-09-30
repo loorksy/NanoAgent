@@ -490,8 +490,28 @@ def _escape_cell(value: object) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
+def _field_label(result_type: str, key: str, labels: Mapping[str, str]) -> str:
+    """Use a catalog label when the gateway sent one. Otherwise keep the key."""
+    if result_type:
+        named = labels.get(f"label.result.{result_type}.{key}")
+        if named:
+            return named
+    return key
+
+
+def _value_label(key: str, value: object, labels: Mapping[str, str]) -> str:
+    if key == "verdict" and isinstance(value, str):
+        named = labels.get(f"label.decision.{value}")
+        if named:
+            return named
+    return _escape_cell(value)
+
+
 def payload_to_markdown_table(
-    payload: Mapping[str, object], labels: Mapping[str, str], title: str
+    payload: Mapping[str, object],
+    labels: Mapping[str, str],
+    title: str,
+    result_type: str = "",
 ) -> str:
     field_label = labels.get("result.field", "Field")
     value_label = labels.get("result.value", "Value")
@@ -502,7 +522,9 @@ def payload_to_markdown_table(
         "| --- | --- |",
     ]
     for key, value in payload.items():
-        lines.append(f"| {_escape_cell(key)} | {_escape_cell(value)} |")
+        field = _escape_cell(_field_label(result_type, key, labels))
+        cell = _value_label(key, value, labels)
+        lines.append(f"| {field} | {cell} |")
     return "\n".join(lines)
 
 
@@ -1279,7 +1301,10 @@ class Pipe:
         result_id = _as_str(data.get("result_id"))
         payload = _as_dict(data.get("payload"))
         title = turn.label("result.title")
-        if result_type:
+        typed = turn.labels.get(f"label.result.{result_type}") if result_type else None
+        if typed:
+            title = typed
+        elif result_type:
             title = f"{title}: {result_type}"
         html = ""
         if result_id:
@@ -1299,7 +1324,10 @@ class Pipe:
             emitter,
             {
                 "type": "message",
-                "data": {"content": "\n\n" + payload_to_markdown_table(payload, turn.labels, title)},
+                "data": {
+                    "content": "\n\n"
+                    + payload_to_markdown_table(payload, turn.labels, title, result_type)
+                },
             },
         )
 
