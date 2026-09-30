@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -645,3 +646,54 @@ def test_skills_index_drops_paths_the_registry_cannot_open() -> None:
     assert "Gold risk judgment" in after_text
     assert "### Built-in skills" in after_text
     assert "(`skills`)" not in after_text
+
+
+def test_prompt_build_reads_each_skill_file_once(tmp_path: Path) -> None:
+    """A second prompt must not open SKILL.md again when the file is unchanged."""
+    workspace = tmp_path / "ws"
+    root = workspace / "skills"
+    root.mkdir(parents=True)
+    for name in ("alpha", "beta", "gamma"):
+        _write_skill(root, name, metadata_json={"always": False}, body=f"# {name}\n")
+    builtin = tmp_path / "builtin"
+    builtin.mkdir()
+    loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
+    reads: list[str] = []
+    real = Path.read_text
+
+    def counting(self: Path, *args: object, **kwargs: object) -> str:
+        if self.name == "SKILL.md":
+            reads.append(str(self))
+        return real(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with patch.object(Path, "read_text", counting):
+        loader.get_always_skills()
+        loader.build_skills_summary()
+        first = len(reads)
+        loader.get_always_skills()
+        loader.build_skills_summary()
+        second = len(reads) - first
+    assert first == 3
+    assert second == 0
+
+
+def test_skill_cache_reloads_a_rewritten_file_and_a_new_directory(tmp_path: Path) -> None:
+    workspace = tmp_path / "ws"
+    root = workspace / "skills"
+    root.mkdir(parents=True)
+    path = root / "alpha" / "SKILL.md"
+    path.parent.mkdir()
+    path.write_text("---\ndescription: one\n---\n\n# Alpha\n", encoding="utf-8")
+    builtin = tmp_path / "builtin"
+    builtin.mkdir()
+    loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
+    first = loader.get_skill_metadata("alpha")
+    assert first is not None
+    assert first.get("description") == "one"
+    path.write_text("---\ndescription: two longer\n---\n\n# Alpha\n", encoding="utf-8")
+    second = loader.get_skill_metadata("alpha")
+    assert second is not None
+    assert second.get("description") == "two longer"
+    _write_skill(root, "delta", body="# Delta")
+    names = {entry["name"] for entry in loader.list_skills(filter_unavailable=False)}
+    assert names == {"alpha", "delta"}
