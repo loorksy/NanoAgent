@@ -203,6 +203,31 @@ def _is_provider_state_record_line(line: str) -> bool:
     return _PROVIDER_STATE_RECORD_PREFIX_RE.match(line) is not None
 
 
+def _preview_from_lines(handle: Any) -> str:
+    """First visible user line, or the first assistant line if none appears.
+
+    Stops once that user line is known so a later transcript is not parsed.
+    """
+    fallback = ""
+    for line in handle:
+        if not line.strip() or _is_provider_state_record_line(line):
+            continue
+        raw_item: object = json.loads(line)
+        item = _json_object(raw_item)
+        if item.get("_type") in {"metadata", _PROVIDER_STATE_RECORD_TYPE}:
+            continue
+        if is_hidden_history_message(item):
+            continue
+        text = _message_preview_text(item)
+        if not text:
+            continue
+        if item.get("role") == "user":
+            return text
+        if not fallback and item.get("role") == "assistant":
+            fallback = text
+    return fallback
+
+
 def _sanitize_assistant_replay_text(content: str) -> str:
     """Remove internal replay artifacts that the model may have copied before.
 
@@ -549,6 +574,8 @@ class SessionStore(Protocol):
     def list_sessions(self) -> list[SessionInfo]: ...
 
     def list_session_clocks(self) -> list[tuple[str, str | None]]: ...
+
+    def read_preview(self, key: str) -> str: ...
 
 
 class JsonlSessionStore:
@@ -1492,6 +1519,21 @@ class JsonlSessionStore:
                 return self.session_payload(repaired)
             return None
 
+    def read_preview(self, key: str) -> str:
+        """Return the chat preview without parsing lines after the first user message."""
+        with self._session_files_lock:
+            path = self.get_session_path(key)
+            if not path.is_file():
+                return ""
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    return _preview_from_lines(handle)
+            except FileNotFoundError:
+                return ""
+            except _SESSION_DATA_ERRORS as exc:
+                logger.warning("Failed to read session preview {}: {}", key, exc)
+                return ""
+
     def read_metadata(self, key: str) -> SessionMetadataPayload | None:
         with self._session_files_lock:
             return self._read_metadata_unlocked(key)
@@ -1997,6 +2039,10 @@ class SessionManager:
     def read_session_metadata(self, key: str) -> dict[str, Any] | None:
         """Read session metadata without loading the transcript."""
         return cast(dict[str, Any] | None, self._store.read_metadata(key))
+
+    def read_session_preview(self, key: str) -> str:
+        """Return the chat preview without parsing lines after the first user message."""
+        return self._store.read_preview(key)
 
     def update_session_metadata(
         self,

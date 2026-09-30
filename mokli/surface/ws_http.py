@@ -1021,7 +1021,7 @@ class GatewayHTTPHandler:
         got: str,
     ) -> Response | None:
         if got == "/api/mokli/automations":
-            return self._handle_mokli_automations(request)
+            return await asyncio.to_thread(self._handle_mokli_automations, request)
         m = re.match(r"^/api/mokli/automations/(enable|disable|delete|run|update)$", got)
         if m:
             return await self._handle_mokli_automation_action(request, m.group(1))
@@ -1089,7 +1089,7 @@ class GatewayHTTPHandler:
             return _http_error(400, "missing automation id")
         trigger = self.local_trigger_store.get(job_id) if self.local_trigger_store else None
         if trigger is not None:
-            return self._handle_local_trigger_action(request, action, trigger)
+            return await self._handle_local_trigger_action(request, action, trigger)
 
         if self.cron_service is None:
             return _http_error(404, "automation not found")
@@ -1136,9 +1136,9 @@ class GatewayHTTPHandler:
         else:
             return _http_error(404, "unknown automation action")
 
-        return self._handle_mokli_automations(request)
+        return await asyncio.to_thread(self._handle_mokli_automations, request)
 
-    def _handle_local_trigger_action(
+    async def _handle_local_trigger_action(
         self,
         request: WsRequest,
         action: str,
@@ -1170,7 +1170,7 @@ class GatewayHTTPHandler:
         else:
             return _http_error(404, "unknown automation action")
 
-        return self._handle_mokli_automations(request)
+        return await asyncio.to_thread(self._handle_mokli_automations, request)
 
     @staticmethod
     def _log_automation_run_result(task: asyncio.Task[bool]) -> None:
