@@ -91,6 +91,34 @@ def test_truncate_text_to_tokens_uses_utf8_byte_budget_fallback(monkeypatch) -> 
     assert len(result.encode("utf-8")) <= 40
 
 
+def test_estimate_prompt_tokens_counts_thinking_blocks_once() -> None:
+    text = "مستوى " * 800
+    blocks_only = estimate_prompt_tokens(
+        [
+            {
+                "role": "assistant",
+                "content": "",
+                "thinking_blocks": [{"type": "thinking", "thinking": text, "signature": "sig"}],
+            }
+        ],
+    )
+    plain = estimate_prompt_tokens([{"role": "assistant", "content": ""}])
+    duplicated = estimate_prompt_tokens(
+        [
+            {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": text,
+                "thinking_blocks": [{"type": "thinking", "thinking": text, "signature": "sig"}],
+            }
+        ],
+    )
+    assert blocks_only > plain + 200
+    assert duplicated < blocks_only + estimate_prompt_tokens(
+        [{"role": "assistant", "content": text}],
+    )
+
+
 def test_estimate_prompt_tokens_counts_image_data_urls() -> None:
     url = "data:image/png;base64," + ("A" * 4000)
     text_only = estimate_prompt_tokens(
