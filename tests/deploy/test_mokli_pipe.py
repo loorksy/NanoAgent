@@ -837,6 +837,7 @@ async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
         "entry_zone": {"low": 2298.5, "high": 2302},
         "targets": [2310, 2320.5],
         "risk_pct": 1.0,
+        "confidence": 0.72,
         "reasons": ["hour break"],
         "gates_passed": ["G9"],
         "data_sources": ["market:XAUUSD:15m"],
@@ -847,6 +848,7 @@ async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
         "label.result.decision.zone": "منطقة الدخول",
         "label.result.decision.targets": "الأهداف",
         "label.result.decision.risk": "المخاطرة",
+        "label.result.decision.confidence": "الثقة",
         "label.result.decision.reasons": "الأسباب",
         "label.result.decision.gates_passed": "البوابات المجتازة",
         "label.result.decision.sources": "المصادر",
@@ -868,6 +870,7 @@ async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
     assert "| منطقة الدخول | 2,298.50 – 2,302 |" in content
     assert "| الأهداف | 2,310 · 2,320.50 |" in content
     assert "| المخاطرة | 1.00% |" in content
+    assert "| الثقة | 72% |" in content
     assert "| الأسباب | hour break |" in content
     assert "| البوابات المجتازة | حارس السبريد |" in content
     assert "| المصادر | market:XAUUSD:15m |" in content
@@ -915,6 +918,25 @@ async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
     await harness.run()
     content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
     assert '"note"' in content
+
+    raw = {"confidence": "high"}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": raw}), "1"),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| الثقة | high |" in content
+    assert "72%" not in content
 
 
 async def test_structured_falls_back_to_markdown_table_when_html_unavailable() -> None:

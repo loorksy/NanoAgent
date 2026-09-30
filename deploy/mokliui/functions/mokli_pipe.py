@@ -574,6 +574,10 @@ def _decision_cell(key: str, value: object, labels: Mapping[str, str]) -> str | 
     if key == "risk_pct":
         text = _plain_number(value)
         return _escape_cell(f"{text}%") if text is not None else None
+    if key == "confidence":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return _escape_cell(f"{float(value) * 100:.0f}%")
     if key in {"reasons", "data_sources", "blockers"}:
         items = _string_list(value)
         if items is None:
