@@ -29,7 +29,6 @@ from mokli.agent_api.events import (
     now_ms,
     session_id_for_key,
     session_key_for,
-    subagent_data,
     tool_data,
     translate_runtime_event,
 )
@@ -59,7 +58,6 @@ _SENSITIVE_TOOLS = frozenset({
     "mt5_close_position",
     "mt5_cancel_order",
 })
-_SUBAGENT_TOOLS = frozenset({"spawn", "trading_team"})
 
 
 class AgentLoopLike(Protocol):
@@ -95,7 +93,12 @@ def _response_text(value: object) -> str:
 
 
 class TurnHook(AgentHook):
-    """Project tool / subagent lifecycle into public ``tool`` and ``subagent`` events."""
+    """Project each real tool call into one public ``tool`` event.
+
+    Specialist rows come from ``TeamRoleEvent``. This hook does not add a
+    second subagent row for ``spawn`` or the trading team: the tool event
+    already carries the display phrase, and the task text is not a label.
+    """
 
     def __init__(
         self,
@@ -173,19 +176,6 @@ class TurnHook(AgentHook):
             tool_call,
             arguments=self._public_arguments(tool_call.name, params),
         )
-        if tool_call.name in _SUBAGENT_TOOLS:
-            role = ""
-            if isinstance(params, dict):
-                role_value = cast(dict[str, object], params).get("role") or cast(
-                    dict[str, object], params,
-                ).get("task")
-                role = str(role_value or "")[:80]
-            self._hub.publish(
-                self._session,
-                "subagent",
-                subagent_data("started", id=tool_call.id, role=role or tool_call.name),
-                run=self._run,
-            )
 
     async def after_execute_tool(
         self,
@@ -197,15 +187,6 @@ class TurnHook(AgentHook):
     ) -> None:
         summary = None if tool_call.name in _SENSITIVE_TOOLS else _summary(result)
         self._emit_tool("finished", tool_call, summary=summary)
-        if tool_call.name in _SUBAGENT_TOOLS:
-            self._hub.publish(
-                self._session,
-                "subagent",
-                subagent_data(
-                    "finished", id=tool_call.id, role=tool_call.name, summary=_summary(result),
-                ),
-                run=self._run,
-            )
         if tool_call.name == "mt5_propose_order":
             self._register_proposal(result)
 
