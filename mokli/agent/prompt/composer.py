@@ -205,15 +205,15 @@ class ToolContract:
 TOOL_CONTRACTS: tuple[ToolContract, ...] = (
     ToolContract(
         ("mt5_list_symbols", "mt5_market"),
-        "any question about available pairs, a price, a spread, or candles",
-        "the account's tradable symbols, or a live bid/ask/spread and recent candles",
-        "invent a symbol or a price; say the broker feed is down when the tool returned numbers",
+        "the operator asks which symbols the execution account lists, or for that account's own tick",
+        "the execution account's symbols, or its bid/ask/spread and candles",
+        "use it as the analysis candle source or the gold quote; invent a symbol or a price",
     ),
     ToolContract(
         ("get_gold_quote",),
-        "a gold price question when mt5_market was not used",
-        "bid/ask/mid from the connected account when it is linked",
-        "invent, round, or reformat a price",
+        "a gold price question",
+        "bid/ask/mid from MetaAPI when that account is configured, otherwise from OANDA",
+        "invent, round, or reformat a price, or call mt5_market first",
     ),
     ToolContract(
         ("fetch_evidence",),

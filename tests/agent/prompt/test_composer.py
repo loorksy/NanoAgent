@@ -308,6 +308,23 @@ def test_answer_round_drops_the_tool_menu_and_keeps_policy() -> None:
     assert before - after >= 700
 
 
+def test_gold_price_contract_does_not_send_the_model_to_mt5_first() -> None:
+    table = render_tool_contracts(["get_gold_quote", "mt5_market", "mt5_list_symbols"])
+    gold = next(line for line in table.splitlines() if "`get_gold_quote`" in line)
+    account = next(line for line in table.splitlines() if "`mt5_market`" in line)
+    gold_when = gold.split("|")[2]
+    account_when = account.split("|")[2]
+    assert "when mt5_market was not used" not in gold
+    assert "OANDA" in gold
+    assert "MetaAPI" in gold
+    assert "call mt5_market first" in gold
+    assert "price" not in account_when
+    assert "candle" not in account_when
+    assert "execution account" in account_when
+    assert "a gold price question" in gold_when
+    assert "analysis candle source" in account
+
+
 def test_tool_contract_names_are_unique() -> None:
     names = [name for contract in TOOL_CONTRACTS for name in contract.tools]
     assert len(names) == len(set(names))

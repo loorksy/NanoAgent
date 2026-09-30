@@ -1,9 +1,8 @@
 """Trading runtime facts injected into the system prompt for every turn.
 
 Facts are plain key/value rows rendered by the prompt composer. They tell the
-model the operator's current MT5 permission level and the platform run mode so
-its wording ("I recommend…" / "I propose…" / "Executed…") matches what the
-execution gate will actually allow.
+model where analysis prices come from, the operator's execution permission,
+and the platform run mode so its wording matches what the gate will allow.
 """
 
 from __future__ import annotations
@@ -48,11 +47,12 @@ def _scope_summary(perms: object) -> str:
 
 def trading_prompt_facts(request: RequestContext) -> Mapping[str, str]:
     facts: dict[str, str] = {
-        "instrument": (
-            "every tradable symbol on the connected MT5 account; "
-            "live bid/ask and candles come from that account"
+        "instrument": "analysis symbol is XAUUSD",
+        "market_data": (
+            "candles from OANDA; live quote from MetaAPI when configured, otherwise OANDA. "
+            "get_gold_quote, fetch_evidence, and run_trading_kernel use that feed. "
+            "mt5_market reads the execution account and is not this feed."
         ),
-        "market_data": "broker live prices from the operator's MT5 terminal",
     }
 
     try:
