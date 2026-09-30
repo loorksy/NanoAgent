@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyStatusUpdate, expandedStatusDone, type StatusUpdate } from './statusHistory';
+import {
+	applyStatusUpdate,
+	expandedStatusDone,
+	statusLineClamped,
+	type StatusUpdate
+} from './statusHistory';
 
 const activity = (description: string, done = false): StatusUpdate => ({
 	description,
@@ -57,6 +62,20 @@ describe('applyStatusUpdate', () => {
 		expect(history).toHaveLength(3);
 		expect(history[1]?.action).toBe('web_search');
 		expect(history[2]?.done).toBe(true);
+	});
+});
+
+describe('statusLineClamped', () => {
+	it('lets a Mokli activity group wrap', () => {
+		expect(statusLineClamped(activity('يفحص سعر الذهب الحالي… ✓ · يتحقق من شروط القرار… …'))).toBe(
+			false
+		);
+	});
+
+	it('keeps a search row on one line', () => {
+		expect(statusLineClamped({ action: 'web_search', description: 'Searched {{count}} sites' })).toBe(
+			true
+		);
 	});
 });
 

@@ -3,6 +3,7 @@
 	const i18n = getContext('i18n');
 	import WebSearchResults from '../WebSearchResults.svelte';
 	import Search from '$lib/components/icons/Search.svelte';
+	import { statusLineClamped } from '$lib/mokli/statusHistory';
 	import { t } from 'i18next';
 
 	export let status = null;
@@ -123,11 +124,13 @@
 				</div>
 			</div>
 		{:else}
-			<div class="flex flex-col justify-center -space-y-0.5">
+			<div class="flex flex-col justify-center -space-y-0.5 min-w-0 w-full">
 				<div
 					class="{(done || status?.done) === false
 						? 'shimmer'
-						: ''} text-gray-500 dark:text-gray-500 text-[0.9375rem] line-clamp-1 text-wrap"
+						: ''} text-gray-500 dark:text-gray-500 text-[0.9375rem] text-wrap {statusLineClamped(status)
+						? 'line-clamp-1'
+						: ''}"
 				>
 					<!-- $i18n.t(`Searching "{{searchQuery}}"`) -->
 					{#if status?.description?.includes('{{searchQuery}}')}

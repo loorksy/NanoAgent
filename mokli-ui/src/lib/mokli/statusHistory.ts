@@ -8,6 +8,11 @@ function hasAction(status: StatusUpdate | null | undefined): boolean {
 	return typeof status?.action === 'string' && status.action.length > 0;
 }
 
+/** Search rows stay on one line. A Mokli activity group has no action and must wrap. */
+export function statusLineClamped(status: StatusUpdate | null | undefined): boolean {
+	return hasAction(status);
+}
+
 /**
  * The pipe emits one full activity line per runtime event. Those lines have
  * no `action`. Replacing the previous line keeps a single live group.
