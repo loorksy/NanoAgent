@@ -93,6 +93,7 @@ fi
 
 echo "INFO after each live turn: SHOW_DIAGNOSTICS on pipe → save JSONL →"
 echo "  python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl"
-echo "  python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --markdown"
+echo "  python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --results section11-results.json --markdown"
+echo "  python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events/ --results section11-results.json"
 
 exit "$fail"
