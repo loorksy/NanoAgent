@@ -341,8 +341,65 @@ def test_bundled_skills_use_agent_owned_paths(tmp_path: Path) -> None:
     memory = loader.load_skill("memory")
 
     assert memory is not None
-    assert "<history-log-path>" in memory
-    assert 'path="memory/history.jsonl"' not in memory
+    assert "search_sessions" in memory
+    assert "grep" not in memory
+    assert "history.jsonl" not in memory
+    import tiktoken
+
+    enc = tiktoken.get_encoding("cl100k_base")
+    replaced = (
+        (
+            "Search the exact `History log` path from the system prompt with `grep`; a project-relative\n"
+            "`memory/history.jsonl` may belong to a different workspace. The log is append-only JSONL,\n"
+            "with `cursor`, `timestamp`, and `content` per entry, and is not loaded into context.\n\n"
+            "Start broad searches with `output_mode=\"count\"`, then narrow by topic or date and request\n"
+            "matching content. Use `fixed_strings=true` for literal timestamps or JSON fragments.\n"
+            "Page long results with `head_limit` / `offset` and use `context_before` / `context_after`\n"
+            "when nearby entries matter.\n\n"
+            "Example (replace `<history-log-path>` with the path from the system prompt):\n"
+            '`grep(pattern="project-name", path="<history-log-path>", output_mode="content", '
+            "case_insensitive=true, head_limit=20)`",
+            "Search other conversations with `search_sessions`. Quote only the excerpts that tool returns. "
+            "The history file is not loaded into this prompt.",
+        ),
+        (
+            "Read the matching reference with `grep` (`output_mode=\"count\"` first) before loading a whole file:\n\n"
+            "- Technical and price action: [references/section-1-price-action.md](references/section-1-price-action.md)\n"
+            "- Playbook entry, retest, trendlines, candles: `mokli/skills/xauusd-playbook/references/` (`P-001` …)",
+            "The steps below are the guidance for this turn.",
+        ),
+        (
+            "## Encyclopedias (English, `grep` first)\n\n"
+            "Use `grep` with `output_mode=\"count\"` first, then read the matching ids (`P-056`, `N-035`, `C-016`).",
+            "## Encyclopedias\n\nUse the skill whose row matches the question. The steps in that skill are the guidance.",
+        ),
+        (
+            "Grep `P-NNN` (zero-padded) in `references/` rather than loading every section. "
+            "Prefer `grep`/`rg` for a single id or heading, then open only that file.\n\n"
+            "## References\n\n"
+            "- [references/playbook-001-025-entry.md](references/playbook-001-025-entry.md)\n"
+            "- [references/playbook-026-055-stops.md](references/playbook-026-055-stops.md)\n"
+            "- [references/playbook-056-080-retest.md](references/playbook-056-080-retest.md)\n"
+            "- [references/playbook-081-105-trendlines.md](references/playbook-081-105-trendlines.md)\n"
+            "- [references/playbook-106-135-gold-liquidity.md](references/playbook-106-135-gold-liquidity.md)\n"
+            "- [references/playbook-136-160-targets.md](references/playbook-136-160-targets.md)\n"
+            "- [references/playbook-161-180-candle-traps.md](references/playbook-161-180-candle-traps.md)\n"
+            "- [references/playbook-181-200-discipline.md](references/playbook-181-200-discipline.md)\n"
+            "- Execution, memory, alerts, security, and multi-tasking: sibling skills `mt5-execution`, "
+            "`memory-review`, `security-resilience`, `multi-tasking-scenarios`, plus `trading-proactive`",
+            "The steps below are the field guidance for this turn. Sibling skills cover execution, review, "
+            "and alerts: `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, "
+            "and `trading-proactive`.",
+        ),
+    )
+    before = sum(len(enc.encode(old)) for old, _new in replaced)
+    after = sum(len(enc.encode(new)) for _old, new in replaced)
+    print(f"SKILL_GUIDANCE before={before} after={after}")
+    assert after < before
+    for name in ("memory", "technical-analysis", "gold-trading", "xauusd-playbook"):
+        body = loader.load_skill(name) or ""
+        assert "grep" not in body
+        assert "read_file" not in body
 
 
 def test_bundled_gold_skills_have_valid_frontmatter(tmp_path: Path) -> None:
