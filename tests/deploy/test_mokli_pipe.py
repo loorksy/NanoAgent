@@ -1010,3 +1010,12 @@ def test_activity_projection_matches_real_events() -> None:
     assert displayed[0]["label"] == "اكتملت مراجعة الهيكل"
     assert displayed[0]["technical"] == "Technical Analyst"
     assert "Technical Analyst" not in pipe_mod.activity_line(displayed)
+    assert pipe_mod.activity_line([
+        {"label": "يفحص سعر الذهب الحالي…", "done": False},
+    ]) == "يفحص سعر الذهب الحالي…"
+    assert pipe_mod.activity_line([
+        {"label": "يشغّل محرك التحليل", "done": False},
+    ]) == "يشغّل محرك التحليل …"
+    assert pipe_mod.activity_line([
+        {"label": "تم فحص سعر الذهب ✓", "done": True},
+    ]) == "تم فحص سعر الذهب ✓"

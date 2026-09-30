@@ -282,6 +282,16 @@ describe("activityLine", () => {
     expect(line).toBe("اكتملت مراجعة الهيكل ✓");
     expect(line).not.toContain("Technical Analyst");
   });
+
+  test("a running phrase that already ends with an ellipsis is not marked twice", () => {
+    const snap = applyEvent(
+      initialSnapshot("s_1"),
+      ev("tool", { event: "started", name: "get_gold_quote", call_id: "c1", display: "يفحص سعر الذهب الحالي…" }),
+    );
+    expect(activityLine(snap.timeline, (entry) => (entry.kind === "tool" ? entry.display ?? "" : ""))).toBe(
+      "يفحص سعر الذهب الحالي…",
+    );
+  });
 });
 
 describe("SessionStore", () => {

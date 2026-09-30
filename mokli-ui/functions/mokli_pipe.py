@@ -636,6 +636,16 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
     return steps
 
 
+def _marked(label: str, mark: str) -> str:
+    """Add a status mark once. Display phrases may already end with an ellipsis."""
+    text = label.rstrip()
+    if mark == "…" and (text.endswith("…") or text.endswith("...")):
+        return text
+    if mark == "✓" and text.endswith("✓"):
+        return text
+    return f"{text} {mark}"
+
+
 def activity_line(steps: list[Mapping[str, object]]) -> str:
     parts: list[str] = []
     for step in steps:
@@ -643,9 +653,9 @@ def activity_line(steps: list[Mapping[str, object]]) -> str:
         if step.get("failed"):
             parts.append(label)
         elif step.get("done"):
-            parts.append(f"{label} ✓")
+            parts.append(_marked(label, "✓"))
         else:
-            parts.append(f"{label} …")
+            parts.append(_marked(label, "…"))
     return " · ".join(parts)
 
 

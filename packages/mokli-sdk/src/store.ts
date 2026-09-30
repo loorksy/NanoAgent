@@ -65,6 +65,13 @@ export interface RetryTimelineEntry {
 export type TimelineEntry = ToolTimelineEntry | SubagentTimelineEntry | RetryTimelineEntry;
 
 /** One quiet line from entries that already exist. The label comes from the caller. */
+function marked(label: string, mark: "…" | "✓"): string {
+  const text = label.trim();
+  if (mark === "…" && (text.endsWith("…") || text.endsWith("..."))) return text;
+  if (mark === "✓" && text.endsWith("✓")) return text;
+  return `${text} ${mark}`;
+}
+
 export function activityLine(
   entries: readonly TimelineEntry[],
   labelFor: (entry: TimelineEntry) => string,
@@ -74,8 +81,8 @@ export function activityLine(
     const label = labelFor(entry).trim();
     if (!label) continue;
     if (entry.status === "failed") parts.push(label);
-    else if (entry.status === "finished") parts.push(`${label} ✓`);
-    else parts.push(`${label} …`);
+    else if (entry.status === "finished") parts.push(marked(label, "✓"));
+    else parts.push(marked(label, "…"));
   }
   return parts.join(" · ");
 }
