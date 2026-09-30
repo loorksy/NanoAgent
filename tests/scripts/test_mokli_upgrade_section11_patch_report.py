@@ -114,27 +114,44 @@ def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> 
     assert "| 1 | سؤال بلا أدوات |" in body
 
 
-def test_patch_preserves_real_report_row_1_arabic_columns() -> None:
-    """Regression: §11 row 1 in docs/mokli-agent-upgrade-report.md must be patchable."""
+def test_patch_preserves_real_report_section11_rows_1_through_14() -> None:
+    """Regression: every §11 data row in docs/mokli-agent-upgrade-report.md is patchable."""
+    import re
+
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_report_text
 
     report_path = ROOT / "docs" / "mokli-agent-upgrade-report.md"
     text = report_path.read_text(encoding="utf-8")
-    row1_lines = [ln for ln in text.splitlines() if ln.startswith("| 1 |")]
-    assert len(row1_lines) == 1
-    row1 = row1_lines[0]
-    assert "`diagnostic`" in row1
-    assert row1.rstrip().endswith("| | |")
+    row_lines: dict[int, str] = {}
+    in_live_table = False
+    for line in text.splitlines():
+        if line.startswith("## 11. مسارات حية"):
+            in_live_table = True
+            continue
+        if in_live_table and line.startswith("### 11.1"):
+            break
+        if not in_live_table:
+            continue
+        if line.startswith("| ---") or line.startswith("| # |"):
+            continue
+        match = re.match(r"^\|\s*(\d+)\s*\|", line)
+        if not match:
+            continue
+        row_id = int(match.group(1))
+        row_lines[row_id] = line
 
-    snippet = (
-        "| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام |\n"
-        f"{row1}\n"
-    )
-    payloads = {1: ("PASS VPS", "rounds=1 in=500 out=20 tools=0")}
-    updated, changed = patch_report_text(snippet, payloads)
-    assert changed == 1
-    assert "PASS VPS" in updated
-    assert "rounds=1 in=500" in updated
-    assert "`diagnostic`" in updated
-    assert "«ما اسمك؟»" in updated
+    assert row_lines[1].startswith("| 1 |")
+    assert "`diagnostic`" in row_lines[1]
+    assert min(row_lines) == 1 and max(row_lines) >= 13
+
+    header = "| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام |\n"
+    for row_id, row_line in sorted(row_lines.items()):
+        assert row_line.rstrip().endswith("| | |"), row_id
+        payloads = {row_id: (f"PASS row {row_id}", f"rounds={row_id} in=100 out=1 tools=0")}
+        updated, changed = patch_report_text(header + row_line + "\n", payloads)
+        assert changed == 1, row_id
+        assert f"PASS row {row_id}" in updated
+        assert f"rounds={row_id} in=100" in updated
+        path_cell = row_line.split("|", 3)[2].strip()
+        assert path_cell in updated
