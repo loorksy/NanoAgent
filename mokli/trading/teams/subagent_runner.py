@@ -245,20 +245,21 @@ async def run_team_role(
     )
     full_task = f"ROLE INSTRUCTIONS:\n{role_prompt}\n\nTASK:\n{task_body}"
 
-    await _publish_team_agent(
-        publisher,
-        _role_event(
-            agent_id=agent_id,
-            role=role,
-            status="running",
-            system_prompt=system_prompt,
-            layer=layer,
-        ),
-        collector,
-        bus,
+    # The activity row is the bus event. Publish it, then do the stage send
+    # inside the try: a cancel after the row is visible must still close it.
+    running = _role_event(
+        agent_id=agent_id,
+        role=role,
+        status="running",
+        system_prompt=system_prompt,
+        layer=layer,
     )
-
+    await _publish_runtime_role(bus, running)
+    if collector is not None:
+        collector.record(running)
     try:
+        if publisher is not None:
+            await publisher.publish_team_agent(running.to_wire())
         if runtime is not None:
             summary = await _llm_complete(
                 role,

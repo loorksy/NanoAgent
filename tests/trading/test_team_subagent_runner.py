@@ -365,6 +365,114 @@ async def test_cancelled_team_role_closes_the_row(monkeypatch) -> None:
     assert collector.agents[-1]["durationMs"] == 3700
 
 
+@pytest.mark.asyncio
+async def test_cancel_after_running_role_during_stage_publish_closes_the_row(
+    monkeypatch,
+) -> None:
+    """The activity row is the bus event. Cancelling the later stage send must close it."""
+    from mokli.events import TeamRoleEvent
+    from mokli.trading.teams import subagent_runner as runner_mod
+
+    clock = {"now": 10.0}
+    monkeypatch.setattr(runner_mod.time, "time", lambda: clock["now"])
+    stage_entered = asyncio.Event()
+    stage_statuses: list[str] = []
+
+    class _Stage:
+        async def publish_team_agent(self, payload: dict[str, object]) -> None:
+            status = str(payload["status"])
+            stage_statuses.append(status)
+            if status == "running":
+                clock["now"] = 13.7
+                stage_entered.set()
+                await asyncio.sleep(30)
+
+    provider = MagicMock()
+    provider.chat = AsyncMock(side_effect=AssertionError("model must not run"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    bus = MagicMock()
+    bus.publish = AsyncMock()
+    collector = TeamRunCollector()
+
+    async def _run() -> str:
+        with request_context(
+            RequestContext(
+                channel="agent_api",
+                chat_id="chat",
+                session_key="agent_api:chat",
+                runtime=runtime,
+            )
+        ):
+            return await run_team_role(
+                agent_id="risk",
+                role="Risk Officer",
+                task_text="Name blocking risks.",
+                evidence_text="{}",
+                bus=bus,
+                publisher=_Stage(),
+                collector=collector,
+            )
+
+    task = asyncio.create_task(_run())
+    await asyncio.wait_for(stage_entered.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    events = [call.args[0] for call in bus.publish.await_args_list]
+    assert [event.status for event in events] == ["running", "failed"]
+    assert all(isinstance(event, TeamRoleEvent) for event in events)
+    assert events[1].summary == "cancelled"
+    assert events[1].duration_ms == 3700
+    assert stage_statuses == ["running", "failed"]
+    assert collector.agents[-1]["status"] == "failed"
+    provider.chat.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cancel_before_the_running_role_event_publishes_no_row() -> None:
+    """A cancel during the bus publish, before the event is recorded, adds no row."""
+    entered = asyncio.Event()
+    published: list[object] = []
+
+    async def publish(event: object) -> None:
+        entered.set()
+        await asyncio.sleep(30)
+        published.append(event)
+
+    provider = MagicMock()
+    provider.chat = AsyncMock(side_effect=AssertionError("model must not run"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    bus = MagicMock()
+    bus.publish = publish
+
+    async def _run() -> str:
+        with request_context(
+            RequestContext(
+                channel="agent_api",
+                chat_id="chat",
+                session_key="agent_api:chat",
+                runtime=runtime,
+            )
+        ):
+            return await run_team_role(
+                agent_id="risk",
+                role="Risk Officer",
+                task_text="Name blocking risks.",
+                evidence_text="{}",
+                bus=bus,
+            )
+
+    task = asyncio.create_task(_run())
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert published == []
+    provider.chat.assert_not_awaited()
+
+
 def _candle(time_ms: int, close: float) -> Candle:
     return Candle(
         time_ms=time_ms,
