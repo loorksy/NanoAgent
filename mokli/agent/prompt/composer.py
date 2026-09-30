@@ -457,6 +457,25 @@ def without_tool_menu(system_text: str) -> str:
     return system_text.replace(table, render_tool_contracts([]), 1)
 
 
+# Skill catalogs tell the model which tool to open. A round with no tools cannot open them.
+_SKILL_SECTION_TITLES = ("# Skills", "# Active Skills")
+
+
+def without_skill_catalog(system_text: str) -> str:
+    """Drop skill-index sections. Identity, memory, and hard law stay."""
+    kept: list[str] = []
+    changed = False
+    for part in system_text.split(SECTION_SEPARATOR):
+        head = part.strip().splitlines()[0] if part.strip() else ""
+        if head.startswith(_SKILL_SECTION_TITLES):
+            changed = True
+            continue
+        kept.append(part)
+    if not changed:
+        return system_text
+    return SECTION_SEPARATOR.join(kept)
+
+
 def messages_without_tool_menu(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Provider copy for a round that has no tools. The transcript list is unchanged."""
     if not messages:
@@ -465,7 +484,7 @@ def messages_without_tool_menu(messages: list[dict[str, Any]]) -> list[dict[str,
     content = first.get("content")
     if first.get("role") != "system" or not isinstance(content, str):
         return messages
-    stripped = without_tool_menu(content)
+    stripped = without_skill_catalog(without_tool_menu(content))
     if stripped == content:
         return messages
     return [{**first, "content": stripped}, *messages[1:]]

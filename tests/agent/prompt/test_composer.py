@@ -308,6 +308,51 @@ def test_answer_round_drops_the_tool_menu_and_keeps_policy() -> None:
     assert before - after >= 700
 
 
+def test_answer_round_drops_the_skill_catalog_it_cannot_open(tmp_path) -> None:
+    import tiktoken
+
+    from mokli.agent.context import ContextBuilder
+    from mokli.agent.prompt.composer import (
+        SECTION_SEPARATOR,
+        messages_without_tool_menu,
+        without_skill_catalog,
+        without_tool_menu,
+    )
+
+    names = ["web_search", "web_fetch", "run_trading_kernel", "get_gold_quote"]
+    prompt = ContextBuilder(tmp_path).build_system_prompt(tool_names=names)
+    original = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": "هل أشتري الذهب؟"},
+    ]
+    with_catalog = without_tool_menu(prompt)
+    sent = messages_without_tool_menu(original)
+    body = sent[0]["content"]
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(with_catalog))
+    after = len(enc.encode(body))
+    print(f"ANSWER_SKILLS before={before} after={after}")
+
+    assert "risk-guardrails" in prompt
+    assert "The following skill descriptions are the full guidance for this turn." in prompt
+    assert "risk-guardrails" not in body
+    assert "# Skills" not in body
+    assert "# Active Skills" not in body
+    assert "# Hard law" in body
+    assert "## Execution permission levels" in body
+    assert "No platform tools are registered" in body
+    assert sent[1] is original[1]
+    assert after < before
+    synthetic = SECTION_SEPARATOR.join(
+        ["# Hard law\n\nStay.", "# Active Skills\n\nOpen a tool.", "# Memory\n\nPrefer Arabic."]
+    )
+    kept = without_skill_catalog(synthetic)
+    assert "# Active Skills" not in kept
+    assert "Open a tool." not in kept
+    assert "# Hard law" in kept
+    assert "# Memory" in kept
+
+
 def test_gold_price_contract_does_not_send_the_model_to_mt5_first() -> None:
     table = render_tool_contracts(["get_gold_quote", "mt5_market", "mt5_list_symbols"])
     gold = next(line for line in table.splitlines() if "`get_gold_quote`" in line)
