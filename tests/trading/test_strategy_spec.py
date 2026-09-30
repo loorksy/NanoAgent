@@ -323,6 +323,43 @@ def _hour_break_at_38() -> list[Candle]:
     return rows
 
 
+def test_one_percent_risk_sizes_a_two_r_winner() -> None:
+    """A 2R win at 1% risk is +0.02 of starting equity, not the price distance."""
+    from mokli.trading.strategy_spec import rules_from_spec
+
+    rows: list[Candle] = []
+    for index in range(40):
+        rows.append(
+            Candle(
+                time_ms=index * 3_600_000,
+                open=100.0,
+                high=101.0,
+                low=99.0,
+                close=100.5,
+            )
+        )
+    rows[20] = Candle(
+        time_ms=20 * 3_600_000,
+        open=101.0,
+        high=106.0,
+        low=100.0,
+        close=105.0,
+    )
+    rows[21] = Candle(
+        time_ms=21 * 3_600_000,
+        open=105.0,
+        high=130.0,
+        low=104.0,
+        close=120.0,
+    )
+    rules = rules_from_spec(spec_from_description(_EXAMPLE, name="gold_hour_break"))
+    card = replay(rows, rules=rules, confirm_candles=_four_hour("up"))
+    assert card["trades"] == 1
+    assert card["rs"] == [2.0]
+    assert card["pnl"] == 0.02
+    assert card["expectancy"] == 0.02
+
+
 def test_unclosed_four_hour_bar_does_not_change_the_trend() -> None:
     """The four-hour bar still forming at the hour close is not evidence."""
     from mokli.trading.strategy_spec import rules_from_spec

@@ -118,6 +118,27 @@ _HOUR_MS = 3_600_000
 _CONFIRM_BAR_MS = 4 * _HOUR_MS
 
 
+def _account_pnls(trades: list[dict[str, float]], risk_percent: object) -> list[dict[str, float]]:
+    """Size each trade as a fraction of current equity.
+
+    A full stop at 1% changes equity by -0.01. The R multiple stays the
+    price result divided by the stop distance. Missing risk leaves the
+    price result unchanged.
+    """
+    if isinstance(risk_percent, bool) or not isinstance(risk_percent, (int, float)):
+        return trades
+    fraction = float(risk_percent) / 100.0
+    if fraction <= 0:
+        return trades
+    equity = 1.0
+    sized: list[dict[str, float]] = []
+    for row in trades:
+        change = float(row["r"]) * equity * fraction
+        sized.append({"pnl": change, "r": float(row["r"])})
+        equity += change
+    return sized
+
+
 def _higher_timeframe_rising(confirm: list[Candle], at_ms: int, *, bars: int) -> bool:
     """The latest closed higher-timeframe close is above the close ``bars`` earlier.
 
@@ -214,11 +235,13 @@ def _replay_rules(
         index = exit_index + 1
     from mokli.trading.reports.scorecard import build_scorecard
 
-    card = build_scorecard([{"pnl": row["pnl"], "r": row["r"]} for row in trades], period="replay")
+    rs = [row["r"] for row in trades]
+    sized = _account_pnls(trades, rules.get("risk_percent"))
+    card = build_scorecard([{"pnl": row["pnl"], "r": row["r"]} for row in sized], period="replay")
     card["ok"] = True
     card["candles"] = len(window)
     card["strategy"] = str(rules.get("name") or "spec")
-    card["rs"] = [row["r"] for row in trades]
+    card["rs"] = rs
     card["risk_percent"] = rules.get("risk_percent")
     if confirm_candles is not None:
         card["confirm_timeframe"] = "4h"
