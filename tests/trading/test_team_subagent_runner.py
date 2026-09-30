@@ -496,3 +496,77 @@ async def test_trend_windows_do_not_download_a_quote(monkeypatch) -> None:
         named = await evidence_for_team_role(lead, "H1 Analyst", "role:timeframe")
     assert quotes["n"] == 1
     assert "candles" in json.loads(named)
+
+
+@pytest.mark.asyncio
+async def test_review_runs_only_when_stances_conflict(monkeypatch) -> None:
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import review_needed, run_swarm
+
+    assert review_needed({"a": "STANCE: buy", "b": "STANCE: buy"}) is False
+    assert review_needed({"a": "STANCE: buy", "b": "STANCE: sell"}) is True
+    assert review_needed({"a": "no line"}) is False
+
+    reset_macro_cache_for_tests()
+    calls: list[str] = []
+    sides = {
+        "Technical Analyst": "buy",
+        "Macro News Analyst": "sell",
+        "Trend Analyst": "buy",
+        "Risk Officer": "buy",
+    }
+
+    async def fake_team_role(**kwargs: object) -> str:
+        role = str(kwargs.get("role"))
+        calls.append(role)
+        return f"note\nSTANCE: {sides.get(role, 'wait')}"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *a, **k: _market("1h", 1, 2310.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "DXY steady"
+
+    conflicted = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    assert calls.count("Review Analyst") == 1
+    assert "task-review" in conflicted["task_summaries"]
+
+    calls.clear()
+    sides.update({
+        "Technical Analyst": "wait",
+        "Macro News Analyst": "wait",
+        "Trend Analyst": "wait",
+        "Risk Officer": "wait",
+    })
+    agreed = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    assert "Review Analyst" not in calls
+    assert "task-review" not in agreed["task_summaries"]
+
+    calls.clear()
+    sides["Macro News Analyst"] = "sell"
+    await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+        max_review_rounds=0,
+    )
+    assert "Review Analyst" not in calls

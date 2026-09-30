@@ -55,6 +55,28 @@ async def _timed_macro_drivers(
     return list(verdicts), int((time.perf_counter() - started) * 1000)
 
 
+def explicit_stances(summaries: dict[str, str]) -> list[str]:
+    """Stance words actually published. A note without the line is not a vote."""
+    found: list[str] = []
+    for text in summaries.values():
+        match = _STANCE_LINE.search(text or "")
+        if match:
+            found.append(match.group(1).lower())
+    return found
+
+
+def review_needed(summaries: dict[str, str]) -> bool:
+    """A review round is warranted when two or more stances disagree."""
+    stances = explicit_stances(summaries)
+    if len(stances) < 2:
+        return False
+    return len(set(stances)) > 1
+
+
+def _is_conflict_review(role: str, system_prompt: str) -> bool:
+    return "review" in role.lower() and resolve_role_file(role, system_prompt) == "lead"
+
+
 def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
     """Short brief for the next role. The stance line is kept even when the body is cut."""
     text = (summary or "").strip()
@@ -172,8 +194,12 @@ async def run_swarm(
     interval: str = "15m",
     emit: Any | None = None,
     visual_capture: Any = None,
+    max_review_rounds: int = 1,
 ) -> dict[str, Any]:
     """Run every role of a preset and return their briefs (never a BUY/SELL).
+
+    A conflict review runs only when prior stances disagree, and at most
+    ``max_review_rounds`` times. Agreement does not call that role.
 
     ``emit`` and ``visual_capture`` are accepted for call-site compatibility; the
     caller passes the returned ``team_briefing`` to ``run_trading_kernel``.
@@ -198,7 +224,7 @@ async def run_swarm(
     try:
         for layer_index, layer in enumerate(layers):
 
-            async def run_task(task: SwarmTask) -> tuple[str, str]:
+            async def run_task(task: SwarmTask) -> tuple[str, str | None]:
                 upstream = "\n".join(
                     f"{key}: {brief_for_upstream(summaries[src])}"
                     for key, src in task.input_from.items()
@@ -207,6 +233,10 @@ async def run_swarm(
                 agent = next((a for a in preset.agents if a.id == task.agent_id), None)
                 role = agent.role if agent else task.agent_id
                 system_prompt = agent.system_prompt if agent else ""
+                if _is_conflict_review(role, system_prompt) and (
+                    max_review_rounds < 1 or not review_needed(summaries)
+                ):
+                    return task.id, None
                 prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
                 role_evidence = await evidence_for_team_role(
                     evidence_text,
@@ -235,6 +265,8 @@ async def run_swarm(
 
             results = await asyncio.gather(*[run_task(task) for task in layer])
             for task_id, summary in results:
+                if summary is None:
+                    continue
                 summaries[task_id] = summary
         verdicts, duration_ms = await macro_task
     finally:
