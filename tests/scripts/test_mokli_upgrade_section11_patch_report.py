@@ -114,6 +114,26 @@ def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> 
     assert "| 1 | سؤال بلا أدوات |" in body
 
 
+def test_apply_section11_patch_updates_header_when_rows_complete() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import apply_section11_patch
+
+    text = (
+        "## 11. مسارات حية (لم تُنفَّذ في Cloud Agent)\n"
+        "| # | a | b | c | d | e | f |\n"
+        "| 1 | p | q | r | | |\n"
+        "| 2 | x | y | z | | |\n"
+    )
+    payloads = {
+        1: ("PASS 1", "rounds=1 in=10"),
+        2: ("PASS 2", "rounds=2 in=20"),
+    }
+    updated, changed = apply_section11_patch(text, payloads, require_through=2)
+    assert changed == 3
+    assert "تم التعبئة من تشغيل VPS" in updated
+    assert "لم تُنفَّذ في Cloud Agent" not in updated
+
+
 def test_patch_preserves_real_report_section11_rows_1_through_14() -> None:
     """Regression: every §11 data row in docs/mokli-agent-upgrade-report.md is patchable."""
     import re

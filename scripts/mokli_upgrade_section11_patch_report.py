@@ -24,6 +24,8 @@ if str(_SCRIPT_DIR) not in sys.path:
 from mokli_upgrade_section11_batch import gather_section11_rows  # noqa: E402
 
 _ROW_LINE = re.compile(r"^\|\s*(\d+)\s*\|")
+_PENDING_HEADER = "(لم تُنفَّذ في Cloud Agent)"
+_FILLED_HEADER = "(تم التعبئة من تشغيل VPS — راجع الأرقام واللقطات)"
 
 
 def _patch_table_line(line: str, payloads: dict[int, tuple[str, str]]) -> str:
@@ -55,6 +57,38 @@ def patch_report_text(text: str, payloads: dict[int, tuple[str, str]]) -> tuple[
             changed += 1
         out_lines.append(new_line)
     return "\n".join(out_lines) + ("\n" if text.endswith("\n") else ""), changed
+
+
+def _maybe_update_section_header(
+    text: str,
+    payloads: dict[int, tuple[str, str]],
+    require_through: int,
+) -> tuple[str, bool]:
+    required = set(range(1, require_through + 1))
+    if not required.issubset(payloads.keys()):
+        return text, False
+    for row_id in sorted(required):
+        result_text, numbers = payloads[row_id]
+        if not str(result_text).strip() or not str(numbers).strip():
+            return text, False
+        if "dry-run" in str(result_text).lower():
+            return text, False
+    if _PENDING_HEADER not in text:
+        return text, False
+    return text.replace(_PENDING_HEADER, _FILLED_HEADER, 1), True
+
+
+def apply_section11_patch(
+    text: str,
+    payloads: dict[int, tuple[str, str]],
+    *,
+    require_through: int = 13,
+) -> tuple[str, int]:
+    updated, changed = patch_report_text(text, payloads)
+    updated, header_changed = _maybe_update_section_header(updated, payloads, require_through)
+    if header_changed:
+        changed += 1
+    return updated, changed
 
 
 def main() -> int:
@@ -122,7 +156,9 @@ def main() -> int:
 
     try:
         original = report_path.read_text(encoding="utf-8")
-        updated, changed = patch_report_text(original, payloads)
+        updated, changed = apply_section11_patch(
+            original, payloads, require_through=args.require_through
+        )
     except ValueError as exc:
         print(f"ERROR {exc}", file=sys.stderr)
         return 1
