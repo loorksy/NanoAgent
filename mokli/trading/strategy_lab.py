@@ -36,6 +36,20 @@ def _strategies_dir():
     return path
 
 
+def _strategy_file(strategy_id: str) -> Any:
+    """A strategy id is a file name inside the strategies directory, never a path."""
+    token = str(strategy_id or "").strip()
+    if not token or len(token) > 80 or token in {".", ".."} or ".." in token:
+        return None
+    if any(char in token for char in "/\\") or not token.replace("-", "").replace("_", "").isalnum():
+        return None
+    root = _strategies_dir().resolve()
+    path = (root / f"{token}.json").resolve()
+    if path.parent != root:
+        return None
+    return path
+
+
 def _replay_succeeded(record: dict[str, object]) -> bool:
     backtest = record.get("backtest")
     return isinstance(backtest, dict) and backtest.get("ok") is True
@@ -307,18 +321,20 @@ def save_strategy(proposal: dict[str, object]) -> dict[str, object]:
     if not _replay_succeeded(proposal) or not _replay_matches_spec(proposal):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     strategy_id = str(proposal.get("id") or uuid.uuid4())
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "invalid_id"}
     proposal = dict(proposal)
     proposal["id"] = strategy_id
     proposal["run_state"] = "saved"
     proposal["executed"] = False
-    path = _strategies_dir() / f"{strategy_id}.json"
     path.write_text(json.dumps(proposal, ensure_ascii=False), encoding="utf-8")
     return {"ok": True, "id": strategy_id, "executed": False, "path": str(path)}
 
 
 def load_strategy(strategy_id: str) -> dict[str, Any] | None:
-    path = _strategies_dir() / f"{strategy_id}.json"
-    if not path.exists():
+    path = _strategy_file(strategy_id)
+    if path is None or not path.is_file():
         return None
     loaded = json.loads(path.read_text(encoding="utf-8"))
     return loaded if isinstance(loaded, dict) else None
@@ -335,11 +351,13 @@ def start_paper(strategy_id: str) -> dict[str, object]:
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
     if not _replay_succeeded(record) or not _replay_matches_spec(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "missing"}
     entry = record_paper_action(strategy_id, "paper", note=str(record.get("name") or ""))
     record["run_state"] = "paper"
     record["executed"] = False
     record["broker_order"] = False
-    path = _strategies_dir() / f"{strategy_id}.json"
     path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
     return {"ok": True, "executed": False, "broker_order": False, "paper": entry, "run_state": "paper"}
 
@@ -367,13 +385,15 @@ def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, objec
             "broker_order": False,
             "reason": "paper_required",
         }
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "missing"}
     record["run_state"] = "approval_recorded"
     record["executed"] = False
     record["broker_order"] = False
     changelog = record.get("changelog")
     if isinstance(changelog, list):
         changelog.append("operator approval recorded; broker execution refused")
-    path = _strategies_dir() / f"{strategy_id}.json"
     path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
     return {
         "ok": True,

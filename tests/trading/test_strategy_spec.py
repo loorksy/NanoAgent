@@ -299,6 +299,30 @@ def test_live_without_a_paper_ledger_is_refused(tmp_path, monkeypatch) -> None:
     assert recorded["reason"] == "approval_recorded_no_broker_order"
 
 
+def test_strategy_id_cannot_escape_the_strategies_directory(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.trading.strategy_lab.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.paper._LEDGER", tmp_path / "paper_ledger.jsonl")
+    proposal = propose_strategy("gold_hour_break", _rising(), description=_EXAMPLE)
+    outside = tmp_path / "trading" / "secret.json"
+    outside.parent.mkdir(parents=True)
+    original = json.dumps({"status": "proposed", "name": "outside"})
+    outside.write_text(original, encoding="utf-8")
+    escaped = dict(proposal)
+    escaped["id"] = "../secret"
+    saved = save_strategy(escaped)
+    assert saved["ok"] is False
+    assert saved["broker_order"] is False
+    assert saved["reason"] == "invalid_id"
+    assert outside.read_text(encoding="utf-8") == original
+    assert start_paper("../secret")["reason"] == "missing"
+    assert request_live("../secret", approved=False)["reason"] == "missing"
+    live = request_live("../secret", approved=True)
+    assert live["reason"] == "missing"
+    assert live["broker_order"] is False
+    assert outside.read_text(encoding="utf-8") == original
+    assert not (tmp_path / "paper_ledger.jsonl").exists()
+
+
 def test_incomplete_description_does_not_backtest() -> None:
     proposal = propose_strategy("partial", _rising(), description="استراتيجية للذهب")
     assert proposal["status"] == "invalid"
