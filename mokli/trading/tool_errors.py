@@ -25,6 +25,11 @@ REASON_NO_RESULT = "trading.no_result"
 REASON_UNKNOWN_ACTION = "trading.unknown_action"
 
 
+def model_json(payload: Any) -> str:
+    """JSON the model reads. The keys and values stay; pretty-print spaces do not."""
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
+
+
 def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResult:
     """Build an error ``ToolResult`` whose body is machine-readable JSON.
 
@@ -33,7 +38,7 @@ def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResu
     """
     payload: dict[str, Any] = {"ok": False, "reason_key": reason_key, **details}
     payload["instruction"] = instruction
-    return ToolResult.error(json.dumps(payload, indent=2, default=str))
+    return ToolResult.error(model_json(payload))
 
 
 async def live_plan_block_if_any(

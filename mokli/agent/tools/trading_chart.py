@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import TYPE_CHECKING, Any
 
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
@@ -44,6 +43,7 @@ from mokli.trading.tool_errors import (
     REASON_UNKNOWN_ACTION,
     live_plan_active_error,
     live_plan_block_if_any,
+    model_json,
     tool_error,
 )
 from mokli.trading.unified_evidence import fetch_evidence_nodes
@@ -239,7 +239,7 @@ class GetGoldQuoteTool(Tool):
 
         quote, source = resolve_live_quote(symbol or DATA_SYMBOL, config)
         if quote is not None and quote.bid is not None and quote.ask is not None:
-            return json.dumps(
+            return model_json(
                 {
                     "symbol": quote.symbol,
                     "bid": quote.bid,
@@ -252,7 +252,6 @@ class GetGoldQuoteTool(Tool):
                         "Quote it verbatim. Do not invent a price."
                     ),
                 },
-                indent=2,
             )
         if not config.oanda_configured and getattr(config, "metaapi_configured", False) is not True:
             return tool_error(
@@ -299,7 +298,7 @@ class GetGoldQuoteTool(Tool):
             artifacts=artifacts,
             present_ui=present_ui,
         )
-        return json.dumps(
+        return model_json(
             {
                 **quote_data,
                 "locale": locale,
@@ -314,7 +313,6 @@ class GetGoldQuoteTool(Tool):
                 ),
                 "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
             },
-            indent=2,
         )
 
 
@@ -356,12 +354,11 @@ class GetLiveRecommendationTool(Tool):
 
         live, quote = await grade_session_plan(session_key)
         if not live:
-            return json.dumps(
+            return model_json(
                 {
                     "has_live_plan": False,
                     "locale": locale,
                 },
-                indent=2,
             )
 
         live_price = float(quote.mid) if quote is not None and quote.mid is not None else None
@@ -444,7 +441,7 @@ class GetLiveRecommendationTool(Tool):
                 present_ui=True,
             )
         payload["artifacts"] = artifacts
-        return json.dumps(payload, indent=2)
+        return model_json(payload)
 
 
 @tool_parameters(_MANAGE_PLAN_PARAMETERS)
@@ -521,7 +518,7 @@ class ManageTradingPlanTool(Tool):
             "After prepare_new or closing a terminal plan, call analyze_gold "
             "(force_new_plan=true if a live plan was superseded)."
         )
-        return json.dumps(payload, indent=2)
+        return model_json(payload)
 
 
 @tool_parameters(_ANALYZE_PARAMETERS)
@@ -686,7 +683,7 @@ class AnalyzeGoldTool(Tool):
         wire = result_to_wire(result)
         if publish_ui:
             await publisher.publish_result(wire)
-        return json.dumps(brief_for_model(wire), indent=2)
+        return model_json(brief_for_model(wire))
 
 
 @tool_parameters(_CAPTURE_PARAMETERS)

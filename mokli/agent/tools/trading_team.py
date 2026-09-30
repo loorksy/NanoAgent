@@ -15,6 +15,7 @@ from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import list_presets, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
+from mokli.trading.tool_errors import model_json
 
 _TEAM_PARAMETERS = tool_parameters_schema(
     preset=StringSchema(
@@ -112,9 +113,8 @@ class RunTradingTeamTool(Tool):
 
         turn = current_turn_session()
         if turn is not None and turn.decision_wire:
-            return json.dumps(
+            return model_json(
                 {"preset": preset_name, "final": json.loads(turn.decision_wire)},
-                indent=2,
             )
 
         from mokli.agent.tools.trading_kernel import (
@@ -164,11 +164,10 @@ class RunTradingTeamTool(Tool):
             await publisher.publish_result(wire)
         brief = brief_for_model(wire)
         if turn is not None:
-            turn.decision_wire = json.dumps(brief, indent=2)
-        return json.dumps(
+            turn.decision_wire = model_json(brief)
+        return model_json(
             {
                 "preset": preset_name,
                 "final": brief,
             },
-            indent=2,
         )

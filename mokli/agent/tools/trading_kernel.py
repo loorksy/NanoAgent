@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
@@ -18,6 +17,7 @@ from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.gate_report import build_gate_report_result
 from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.tool_delivery import should_publish_trading_ui
+from mokli.trading.tool_errors import model_json
 
 _KERNEL_PARAMETERS = tool_parameters_schema(
     interval=StringSchema(
@@ -195,7 +195,7 @@ class RunTradingKernelTool(Tool):
             result.team_agents = list(swarm_agents)
         if swarm_drivers:
             result.macro_drivers = list(swarm_drivers)
-        payload = json.dumps(brief_for_model(result_to_wire(result)), indent=2)
+        payload = model_json(brief_for_model(result_to_wire(result)))
         if decision_review and turn is not None:
             turn.decision_wire = payload
         return payload
@@ -228,4 +228,4 @@ class GetGateReportTool(Tool):
 
         live, _quote = await grade_session_plan(current_request_session_key())
         result = build_gate_report_result(live, operator_text="", locale=locale)
-        return json.dumps(brief_for_model(result_to_wire(result), include_gates=True), indent=2)
+        return model_json(brief_for_model(result_to_wire(result), include_gates=True))
