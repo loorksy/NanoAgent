@@ -54,6 +54,7 @@ class TurnSession:
     quote_display: dict[str, str | None] = field(default_factory=dict)
     candle_reuses: int = 0
     calendar_reuses: int = 0
+    quote_reuses: int = 0
     _candle_cache: dict[tuple[str, str, int], tuple[Any, ...]] = field(default_factory=dict)
     _calendar_cache: dict[int, tuple[dict[str, Any], ...]] = field(default_factory=dict)
     _fetch_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -61,6 +62,7 @@ class TurnSession:
         default_factory=dict, repr=False
     )
     _calendar_inflight: dict[int, threading.Event] = field(default_factory=dict, repr=False)
+    _shared_inflight: dict[Any, dict[str, Any]] = field(default_factory=dict, repr=False)
 
     def take_cached_candles(self, symbol: str, interval: str, limit: int) -> tuple[Any, ...] | None:
         """Candles already fetched in this turn for the same symbol, interval, and limit."""
@@ -163,6 +165,64 @@ class TurnSession:
                     if inflight.get(key) is event:
                         inflight.pop(key, None)
                 event.set()
+
+    def share_inflight(
+        self,
+        key: Any,
+        fetch: Callable[[], Any],
+        *,
+        on_reuse: Callable[[], None] | None = None,
+    ) -> Any:
+        """Join a download that is already running. A finished download is not reused."""
+        while True:
+            with self._fetch_lock:
+                state = self._shared_inflight.get(key)
+                if state is None:
+                    state = {
+                        "event": threading.Event(),
+                        "waiters": 0,
+                        "value": None,
+                        "error": None,
+                        "ready": False,
+                    }
+                    self._shared_inflight[key] = state
+                    leader = True
+                    event = state["event"]
+                else:
+                    state["waiters"] += 1
+                    leader = False
+                    event = state["event"]
+            if leader:
+                try:
+                    value = fetch()
+                except Exception as exc:
+                    state["error"] = exc
+                    raise
+                else:
+                    state["value"] = value
+                    return value
+                finally:
+                    with self._fetch_lock:
+                        state["ready"] = True
+                        if state["waiters"] == 0 and self._shared_inflight.get(key) is state:
+                            self._shared_inflight.pop(key, None)
+                    event.set()
+            event.wait()
+            error = state["error"]
+            value = state["value"]
+            with self._fetch_lock:
+                state["waiters"] -= 1
+                if (
+                    state["waiters"] == 0
+                    and state["ready"]
+                    and self._shared_inflight.get(key) is state
+                ):
+                    self._shared_inflight.pop(key, None)
+            if error is not None:
+                raise error
+            if on_reuse is not None:
+                on_reuse()
+            return value
 
     def ensure_pipeline(self, *, interval: str | None = None) -> PipelineContext:
         if interval:

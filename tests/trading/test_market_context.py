@@ -220,3 +220,59 @@ def test_overlapping_reads_of_one_window_fetch_once(monkeypatch) -> None:
     assert errors == []
     assert entered["n"] == 1
     assert turn.candle_reuses == 1
+
+
+def test_overlapping_quotes_share_the_download_then_the_next_reads_again(monkeypatch) -> None:
+    import contextvars
+    import threading
+    import time
+
+    from mokli.trading.market_context import resolve_live_quote
+    from mokli.trading.turn_session import turn_session_scope
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    entered = {"n": 0}
+    release = threading.Event()
+
+    def _fetch(*_args, **_kwargs):
+        entered["n"] += 1
+        assert release.wait(timeout=1)
+        return OandaQuote(symbol="XAUUSD", bid=1, ask=2, mid=1.5, tradeable=True)
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_quote", _fetch)
+
+    errors: list[BaseException] = []
+
+    with turn_session_scope() as turn:
+        contexts = [contextvars.copy_context() for _ in range(2)]
+
+        def _run(ctx: contextvars.Context) -> None:
+            try:
+                ctx.run(resolve_live_quote, "XAUUSD")
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_run, args=(ctx,)) for ctx in contexts]
+        for thread in threads:
+            thread.start()
+        deadline = time.time() + 1
+        while entered["n"] < 1 and time.time() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.05)
+        assert entered["n"] == 1
+        release.set()
+        for thread in threads:
+            thread.join(timeout=1)
+            assert not thread.is_alive()
+        assert errors == []
+        assert turn.quote_reuses == 1
+
+        quote, source = resolve_live_quote("XAUUSD")
+        assert source == "oanda"
+        assert quote is not None and quote.mid == 1.5
+        assert entered["n"] == 2
+        assert turn.quote_reuses == 1

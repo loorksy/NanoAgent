@@ -36,18 +36,35 @@ def resolve_live_quote(
     symbol: str = DATA_SYMBOL,
     config: TradingConfig | None = None,
 ) -> tuple[OandaQuote | None, str]:
-    """Live gold quote and the feed that produced it."""
+    """Live gold quote and the feed that produced it.
+
+    Overlapping reads in one turn share the download already in progress.
+    A later read, after that download finishes, fetches again.
+    """
     require_gold(symbol)
     config = config or load_trading_config()
-    if getattr(config, "metaapi_configured", False) is True:
-        try:
-            quote = fetch_metaapi_quote(symbol, config=config)
-        except Exception:
-            logger.warning("MetaAPI analysis quote failed")
-            quote = None
-        if quote is not None:
-            return quote, "metaapi"
-    return fetch_quote(symbol, config=config), "oanda"
+
+    def _fetch() -> tuple[OandaQuote | None, str]:
+        if getattr(config, "metaapi_configured", False) is True:
+            try:
+                quote = fetch_metaapi_quote(symbol, config=config)
+            except Exception:
+                logger.warning("MetaAPI analysis quote failed")
+                quote = None
+            if quote is not None:
+                return quote, "metaapi"
+        return fetch_quote(symbol, config=config), "oanda"
+
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None:
+        return _fetch()
+    return turn.share_inflight(
+        ("quote", symbol),
+        _fetch,
+        on_reuse=lambda: setattr(turn, "quote_reuses", turn.quote_reuses + 1),
+    )
 
 
 def live_analysis_quote(symbol: str = DATA_SYMBOL) -> OandaQuote | None:
