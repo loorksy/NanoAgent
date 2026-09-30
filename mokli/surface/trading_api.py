@@ -601,9 +601,9 @@ def handle_trading_paper(request: WsRequest) -> Response:
 
 async def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
-        return handle_trading_klines(request)
+        return await asyncio.to_thread(handle_trading_klines, request)
     if path == "/api/trading/quote":
-        return handle_trading_quote(request)
+        return await asyncio.to_thread(handle_trading_quote, request)
     if path == "/api/trading/status":
         return handle_trading_status(request)
     if path == "/api/trading/runtime/update":
@@ -611,11 +611,11 @@ async def dispatch_trading_route(request: WsRequest, path: str) -> Response | No
     if path == "/api/trading/analyze":
         return await handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
-        return handle_trading_recommendations(request)
+        return await asyncio.to_thread(handle_trading_recommendations, request)
     if path == "/api/trading/briefing":
-        return handle_trading_briefing(request)
+        return await asyncio.to_thread(handle_trading_briefing, request)
     if path == "/api/trading/performance":
-        return handle_trading_performance(request)
+        return await asyncio.to_thread(handle_trading_performance, request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
     if path == "/api/trading/recommendations/transition":

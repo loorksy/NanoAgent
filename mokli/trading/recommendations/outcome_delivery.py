@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from mokli.bus.events import OutboundMessage
@@ -19,7 +20,7 @@ async def collect_outcome_alerts() -> list[OutboundMessage]:
     """Refresh stored recommendations and build user-visible alerts for transitions."""
     live_price: float | None = None
     try:
-        quote = live_analysis_quote(DATA_SYMBOL)
+        quote = await asyncio.to_thread(live_analysis_quote, DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None

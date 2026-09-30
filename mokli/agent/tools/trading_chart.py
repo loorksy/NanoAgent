@@ -239,7 +239,16 @@ class GetGoldQuoteTool(Tool):
             return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
         from mokli.trading.market_context import resolve_live_quote
 
-        quote, source = resolve_live_quote(symbol or DATA_SYMBOL, config)
+        try:
+            quote, source = await asyncio.to_thread(
+                resolve_live_quote,
+                symbol or DATA_SYMBOL,
+                config,
+            )
+        except GoldOnlyError as exc:
+            return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
+        except Exception:
+            quote, source = None, "oanda"
         if quote is not None and quote.bid is not None and quote.ask is not None:
             return model_json(
                 {
