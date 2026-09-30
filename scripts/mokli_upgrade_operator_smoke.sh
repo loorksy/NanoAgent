@@ -18,6 +18,15 @@ fi
 echo "== §11 dry-run (fixture row 1) =="
 bash scripts/mokli_upgrade_section11_dry_run.sh
 
+echo "== §11 init smoke (temp dir; no LLM) =="
+INIT_WORK="${TMPDIR:-/tmp}/mokli-section11-init-smoke-$$"
+mkdir -p "$INIT_WORK"
+bash scripts/mokli_upgrade_section11_init.sh \
+  --dir "$INIT_WORK/events" \
+  --results "$INIT_WORK/results.json" \
+  --require-through 2
+rm -rf "$INIT_WORK"
+
 PY="${ROOT}/.venv/bin/pytest"
 if [[ ! -x "$PY" ]]; then
   PY=pytest
@@ -31,4 +40,4 @@ if [[ "$fail" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK operator smoke (preflight + §11 dry-run + scripts pytest)"
+echo "OK operator smoke (preflight + §11 dry-run + init smoke + scripts pytest)"

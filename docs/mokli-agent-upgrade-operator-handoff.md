@@ -18,7 +18,7 @@
 
 0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
 1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
-2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight (صحة API + تحذير المفاتيح) + dry-run §11 للصف 1 + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
+2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight + dry-run §11 للصف 1 + **init smoke** (مجلد مؤقت) + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
 3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
 5. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.

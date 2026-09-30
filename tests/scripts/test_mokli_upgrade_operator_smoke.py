@@ -18,6 +18,8 @@ def test_operator_smoke_script() -> None:
         check=False,
     )
     assert "OK §11 dry-run" in proc.stdout
+    assert "§11 scaffold" in proc.stdout
+    assert "§11 progress" in proc.stdout or "§11 progress" in proc.stderr
     assert "passed" in proc.stdout.lower()
     assert proc.returncode in (0, 1)
     if proc.returncode == 1:
