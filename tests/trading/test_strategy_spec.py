@@ -9,7 +9,7 @@ import time
 from mokli.agent.tools.propose_strategy import ProposeStrategyTool
 from mokli.trading.backtest.engine import replay
 from mokli.trading.strategy_lab import propose_strategy, request_live, save_strategy, start_paper
-from mokli.trading.strategy_spec import spec_from_description
+from mokli.trading.strategy_spec import check_logic, spec_from_description
 from mokli.trading.types import AgentMarketContext, Candle, MarketSync
 from mokli.utils.helpers import estimate_prompt_tokens
 
@@ -202,6 +202,38 @@ def test_forged_logic_flag_is_not_saved_or_papered(tmp_path, monkeypatch) -> Non
     assert live["ok"] is False
     assert live["broker_order"] is False
     assert live["reason"] == "logic_failed"
+
+
+def test_unrelated_replay_is_not_saved_or_papered(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.trading.strategy_lab.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.paper._LEDGER", tmp_path / "paper_ledger.jsonl")
+    spec = spec_from_description(_EXAMPLE, name="gold_hour_break")
+    assert check_logic(spec) == []
+    borrowed = {
+        "status": "proposed",
+        "name": "gold_hour_break",
+        "id": "borrowed",
+        "backtest": {"ok": True, "trades": 0, "rs": [], "strategy": "atr_breakout"},
+        "spec": spec,
+    }
+    saved = save_strategy(borrowed)
+    assert saved["ok"] is False
+    assert saved["broker_order"] is False
+    assert saved["reason"] == "backtest_failed"
+    folder = tmp_path / "trading" / "strategies"
+    assert not (folder / "borrowed.json").exists()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "borrowed.json").write_text(json.dumps(borrowed), encoding="utf-8")
+    paper = start_paper("borrowed")
+    assert paper["ok"] is False
+    assert paper["broker_order"] is False
+    assert paper["reason"] == "backtest_failed"
+    waiting = request_live("borrowed", approved=False)
+    assert waiting["reason"] == "live_requires_explicit_approval"
+    live = request_live("borrowed", approved=True)
+    assert live["ok"] is False
+    assert live["broker_order"] is False
+    assert live["reason"] == "backtest_failed"
 
 
 def test_incomplete_description_does_not_backtest() -> None:

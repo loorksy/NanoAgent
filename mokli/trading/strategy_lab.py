@@ -51,6 +51,20 @@ def _logic_refused(record: dict[str, object]) -> bool:
     return bool(check_logic(spec))
 
 
+def _replay_matches_spec(record: dict[str, object]) -> bool:
+    """A finished card with no spec stays usable. A spec must match its own replay."""
+    spec = record.get("spec")
+    if not isinstance(spec, dict):
+        return True
+    backtest = record.get("backtest")
+    if not isinstance(backtest, dict):
+        return False
+    return (
+        backtest.get("strategy") == spec.get("name")
+        and backtest.get("risk_percent") == spec.get("risk_percent")
+    )
+
+
 def load_replay_candles(
     *,
     interval: str = "1h",
@@ -263,7 +277,7 @@ def save_strategy(proposal: dict[str, object]) -> dict[str, object]:
         return {"ok": False, "executed": False, "reason": "not_proposed"}
     if _logic_refused(proposal):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
-    if not _replay_succeeded(proposal):
+    if not _replay_succeeded(proposal) or not _replay_matches_spec(proposal):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     strategy_id = str(proposal.get("id") or uuid.uuid4())
     proposal = dict(proposal)
@@ -292,7 +306,7 @@ def start_paper(strategy_id: str) -> dict[str, object]:
         return {"ok": False, "executed": False, "reason": "missing"}
     if _logic_refused(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
-    if not _replay_succeeded(record):
+    if not _replay_succeeded(record) or not _replay_matches_spec(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     entry = record_paper_action(strategy_id, "paper", note=str(record.get("name") or ""))
     record["run_state"] = "paper"
@@ -317,7 +331,7 @@ def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, objec
         }
     if _logic_refused(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
-    if not _replay_succeeded(record):
+    if not _replay_succeeded(record) or not _replay_matches_spec(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     record["run_state"] = "approval_recorded"
     record["executed"] = False
