@@ -11,8 +11,10 @@ numeric prefix for ordering, e.g. ``01-greeting.jsonl``, ``04-gold-buy.jsonl``.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Import helpers from sibling script (same directory on PYTHONPATH when invoked as file).
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -34,6 +36,23 @@ def _collect_jsonl(directory: Path) -> list[Path]:
     return sorted(files, key=lambda p: (_row_index(p.stem) is None, _row_index(p.stem) or 0, p.name))
 
 
+def _load_results(path: Path) -> dict[int, str]:
+    """Map §11 row number → operator «النتيجة» text (JSON object keys are row ids)."""
+    raw: Any = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("results file must be a JSON object")
+    out: dict[int, str] = {}
+    for key, value in raw.items():
+        row_id = int(key)
+        if isinstance(value, str):
+            out[row_id] = value
+        elif isinstance(value, dict) and isinstance(value.get("result"), str):
+            out[row_id] = value["result"]
+        else:
+            raise ValueError(f"results[{key!r}] must be a string or {{\"result\": \"...\"}}")
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -47,6 +66,11 @@ def main() -> int:
         action="store_true",
         help="Print markdown table rows (§11 numbers column only)",
     )
+    parser.add_argument(
+        "--results",
+        type=Path,
+        help="JSON file: row id → «النتيجة» string (see docs/section11-results.example.json)",
+    )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
     if not directory.is_dir():
@@ -58,7 +82,19 @@ def main() -> int:
         print(f"No *.jsonl in {directory}", file=sys.stderr)
         return 1
 
-    rows: list[tuple[int | str, str, str]] = []
+    results_map: dict[int, str] = {}
+    if args.results:
+        results_path = args.results.expanduser().resolve()
+        if not results_path.is_file():
+            print(f"Results file not found: {results_path}", file=sys.stderr)
+            return 1
+        try:
+            results_map = _load_results(results_path)
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"Invalid results file: {exc}", file=sys.stderr)
+            return 1
+
+    rows: list[tuple[int | str, str, str, str]] = []
     missing = 0
     for path in files:
         idx = _row_index(path.stem)
@@ -70,16 +106,28 @@ def main() -> int:
             missing += 1
         else:
             numbers = one_line_summary(diag)
-        rows.append((label, path.name, numbers))
+        result_text = ""
+        if idx is not None:
+            result_text = results_map.get(idx, "")
+        rows.append((label, path.name, numbers, result_text))
 
     if args.markdown:
-        print("| # | ملف JSONL | أرقام (paste into §11) |")
-        print("| --- | --- | --- |")
-        for label, fname, numbers in rows:
-            print(f"| {label} | `{fname}` | {numbers} |")
+        if args.results:
+            print("| # | النتيجة | أرقام | ملف JSONL |")
+            print("| --- | --- | --- | --- |")
+            for label, fname, numbers, result_text in rows:
+                print(f"| {label} | {result_text} | {numbers} | `{fname}` |")
+        else:
+            print("| # | ملف JSONL | أرقام (paste into §11) |")
+            print("| --- | --- | --- |")
+            for label, fname, numbers, _result in rows:
+                print(f"| {label} | `{fname}` | {numbers} |")
     else:
-        for label, fname, numbers in rows:
-            print(f"{label}\t{fname}\t{numbers}")
+        for label, fname, numbers, result_text in rows:
+            if args.results:
+                print(f"{label}\t{result_text}\t{numbers}\t{fname}")
+            else:
+                print(f"{label}\t{fname}\t{numbers}")
 
     return 1 if missing else 0
 

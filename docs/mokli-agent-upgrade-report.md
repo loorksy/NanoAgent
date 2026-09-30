@@ -459,7 +459,7 @@
 
 **أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_preflight.sh`؛ `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q`.
 
-**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`.
+**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`. مع `docs/section11-results.example.json` → `--results section11-results.json --markdown` يدمج عمود «النتيجة» و«الأرقام».
 
 ### 11.1 دليل اختبار وحدة (لا يملأ عمود «النتيجة»)
 

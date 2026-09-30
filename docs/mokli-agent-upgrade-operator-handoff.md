@@ -44,9 +44,9 @@
 
 1. احفظ تيار الأحداث JSONL (سطر JSON لكل حدث gateway/pipe).
 2. `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` → سطر «الأرقام».
-3. بعد عدة سينarios: احفظ `01-….jsonl` … `13-….jsonl` في مجلد واحد، ثم  
-   `python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --markdown`  
-   للصق عمود الأرقام في §11 (النتيجة ما زالت يدوية).
+3. بعد عدة سينarios: احفظ `01-….jsonl` … `13-….jsonl` في مجلد واحد. انسخ `docs/section11-results.example.json` إلى `section11-results.json` واملأ «النتيجة» لكل صف.  
+   `python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --results section11-results.json --markdown`  
+   → صفوف جاهزة للصق في §11 (النتيجة + الأرقام).
 4. لقطة شاشة لسطر/تفاصيل النشاط إن أمكن.
 
 ## ما نرسله لجلسة لاحقة

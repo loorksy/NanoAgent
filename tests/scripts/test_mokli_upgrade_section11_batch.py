@@ -45,6 +45,35 @@ def test_batch_extracts_sorted_jsonl(tmp_path: Path) -> None:
     assert proc.returncode == 0
 
 
+def test_batch_with_results_json(tmp_path: Path) -> None:
+    (tmp_path / "01-greeting.jsonl").write_text(
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 50}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "OK — greeting"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--markdown",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "OK — greeting" in proc.stdout
+    assert "rounds=1" in proc.stdout
+    assert "| النتيجة |" in proc.stdout
+
+
 def test_batch_missing_diagnostic_exits_nonzero(tmp_path: Path) -> None:
     (tmp_path / "01-empty.jsonl").write_text('{"kind":"delta"}\n', encoding="utf-8")
     proc = subprocess.run(
