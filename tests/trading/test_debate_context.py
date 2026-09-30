@@ -111,3 +111,57 @@ async def test_debate_does_not_resend_candles_or_the_full_note(monkeypatch) -> N
     )
     assert after < before
     print(f"TOKEN_DEBATE before={before} after={after}")
+
+
+@pytest.mark.asyncio
+async def test_debate_roles_publish_on_the_activity_bus(monkeypatch) -> None:
+    """Roles that run are visible. A missing session still runs and publishes nothing."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from mokli.agent.tools.context import RequestContext, request_context
+    from mokli.events import TeamRoleEvent
+    from mokli.utils.llm_runtime import LLMRuntime
+    from mokli.trading.crew.debate import run_debate_crew
+    from mokli.trading.teams.role_display import role_phrase
+
+    monkeypatch.setattr(
+        "mokli.trading.crew.debate.run_market_data_agent",
+        lambda *_args, **_kwargs: _market(),
+    )
+    provider = MagicMock()
+    provider.chat = AsyncMock(return_value=MagicMock(content="STANCE: wait"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    bus = MagicMock()
+    bus.publish = AsyncMock()
+
+    with request_context(
+        RequestContext(
+            channel="agent_api",
+            chat_id="chat",
+            session_key="agent_api:chat",
+            runtime=runtime,
+        )
+    ):
+        await run_debate_crew(user_message="buy gold", bus=bus)
+
+    events = [call.args[0] for call in bus.publish.await_args_list]
+    assert all(isinstance(event, TeamRoleEvent) for event in events)
+    by_role: dict[str, list[str]] = {}
+    for event in events:
+        by_role.setdefault(event.role, []).append(event.status)
+        assert event.display == role_phrase(event.role, event.status)
+        assert event.session_key == "agent_api:chat"
+    assert by_role == {
+        "Technical Analyst": ["running", "done"],
+        "Bull Advocate": ["running", "done"],
+        "Bear Advocate": ["running", "done"],
+        "Risk Manager": ["running", "done"],
+    }
+    assert provider.chat.await_count == 4
+
+    bus.publish.reset_mock()
+    with request_context(
+        RequestContext(channel="websocket", chat_id="1", runtime=runtime)
+    ):
+        await run_debate_crew(user_message="buy gold", bus=bus)
+    bus.publish.assert_not_awaited()

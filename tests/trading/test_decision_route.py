@@ -476,6 +476,50 @@ def test_analyze_gold_debate_overlaps_synthesis_evidence(monkeypatch) -> None:
     assert started == ["evidence", "debate"] or set(started) == {"evidence", "debate"}
 
 
+def test_analyze_gold_forwards_the_activity_bus(monkeypatch) -> None:
+    """Debate and swarm roles use the same bus as the gold decision review."""
+    from types import SimpleNamespace
+
+    from mokli.agent.tools.trading_chart import AnalyzeGoldTool
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    buses: dict[str, object] = {}
+
+    async def fake_debate(**kwargs):
+        buses["debate"] = kwargs.get("bus")
+        return SimpleNamespace(briefing="notes")
+
+    async def fake_swarm(*_args, **kwargs):
+        buses["swarm"] = kwargs.get("bus")
+        return {"team_briefing": "notes"}
+
+    async def fake_kernel(**_kwargs):
+        return object()
+
+    async def _noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_debate_crew", fake_debate)
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_swarm", fake_swarm)
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_kernel._prefetch_synthesis_evidence",
+        _noop,
+    )
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait"},
+    )
+    bus = object()
+    tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
+    with turn_session_scope(TurnSession()):
+        asyncio.run(tool.execute(team_mode="debate"))
+    with turn_session_scope(TurnSession()):
+        asyncio.run(tool.execute(team_mode="swarm", preset="gold_mtf_panel"))
+    assert buses["debate"] is bus
+    assert buses["swarm"] is bus
+
+
 def test_analyze_gold_core_does_not_prefetch_evidence(monkeypatch) -> None:
     """Core mode has no team to overlap, so the kernel gathers evidence itself."""
     from mokli.agent.tools import trading_kernel as kernel_tool

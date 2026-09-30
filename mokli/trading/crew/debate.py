@@ -49,9 +49,11 @@ async def run_debate_crew(
     publisher: Any | None = None,
     interval: str = "15m",
     visual_capture: Any = None,
+    bus: Any | None = None,
 ) -> DebateResult:
     """Run technical -> bull || bear -> risk and return the briefing (no BUY/SELL).
 
+    ``bus`` publishes each role that actually starts, the same way a swarm does.
     ``emit`` and ``visual_capture`` are accepted for call-site compatibility.
     """
     market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
@@ -78,6 +80,7 @@ async def run_debate_crew(
         publisher=publisher,
         layer=0,
         collector=collector,
+        bus=bus,
     )
     messages = [DebateMessage(role="technical", content=technical, round=0)]
     technical_note = brief_for_upstream(technical)
@@ -95,6 +98,7 @@ async def run_debate_crew(
             publisher=publisher,
             layer=1,
             collector=collector,
+            bus=bus,
         ),
         run_team_role(
             agent_id="bear",
@@ -108,6 +112,7 @@ async def run_debate_crew(
             publisher=publisher,
             layer=1,
             collector=collector,
+            bus=bus,
         ),
     )
     messages.extend(
@@ -129,6 +134,7 @@ async def run_debate_crew(
         publisher=publisher,
         layer=2,
         collector=collector,
+        bus=bus,
     )
     messages.append(DebateMessage(role="risk", content=risk, round=2))
 

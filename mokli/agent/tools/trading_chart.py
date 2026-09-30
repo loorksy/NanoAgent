@@ -640,6 +640,7 @@ class AnalyzeGoldTool(Tool):
                     publisher=publisher if publish_ui else None,
                     interval=interval,
                     visual_capture=visual_capture,
+                    bus=self._bus,
                 )
                 briefing = debate.briefing
                 resolved_mode = "debate"
@@ -651,6 +652,7 @@ class AnalyzeGoldTool(Tool):
                     interval=interval,
                     emit=publisher.sync_emit if publish_ui else None,
                     visual_capture=visual_capture,
+                    bus=self._bus,
                     max_review_rounds=review_round_limit(),
                 )
                 briefing = swarm.get("team_briefing")
