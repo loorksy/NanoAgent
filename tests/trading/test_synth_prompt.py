@@ -6,11 +6,12 @@ import asyncio
 import json
 import re
 
-from mokli.agent.prompt.composer import decision_contract_template
+from mokli.agent.prompt.composer import compose_decision_prompt, decision_contract_template
 from mokli.trading.agents.apply_model_decision import apply_model_decision
 from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT, synth_system_prompt
 from mokli.trading.agents.synthesizer import _call_model, _extract_json
 from mokli.trading.types import AgentMarketContext, Candle, EvidenceSnapshot, MarketSync
+from mokli.utils.helpers import estimate_prompt_tokens
 
 ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 
@@ -201,3 +202,35 @@ def test_contract_does_not_hard_code_thresholds() -> None:
     body = SYNTH_SYSTEM_PROMPT.split("Respond with ONLY a JSON object")[0]
     assert not re.search(r"\b\d+\s*[–-]\s*\d+\s+gold points", body)
     assert "configured follow-through tolerance" in body
+
+
+def test_decision_contract_names_the_zone_and_calendar_fields() -> None:
+    """The synthesizer payload has zone objects and news.upcoming, not a validation flag."""
+    text = compose_decision_prompt(language="en")
+    assert "zones.nearestDemand" in text
+    assert "zones.nearestSupply" in text
+    assert "no validation flag" in text
+    assert "news.upcoming" in text
+    assert "validated POI" not in text
+    old = text.replace(
+        "5. Re-check the plan against executionCost and news.upcoming before you answer. If news.upcoming is missing or empty, do not invent a release.",
+        "5. Re-check the plan against the costs and the calendar before you answer.",
+    )
+    old = old.replace(
+        "1. Is the current price INSIDE zones.nearestDemand or zones.nearestSupply for my direction, with acceptable net cost, and does this evidence already say that zone was tested?",
+        "1. Is the current price INSIDE a validated POI/zone for my direction, with acceptable net cost?",
+    )
+    old = old.replace(
+        "- F. News window, only when news.upcoming names that window",
+        "- F. News window",
+    )
+    old = old.replace(
+        "- zones.nearestDemand and zones.nearestSupply are the only supply and demand objects. Each has type, low, high, and time. There is no validation flag. Do not invent a zone those objects do not contain.\n"
+        "- news.upcoming is the calendar. Each item has title, time, impact, and currency. An empty list is not a prompt to invent a session or a news window.\n",
+        "",
+    )
+    before = estimate_prompt_tokens([{"role": "user", "content": old}])
+    after = estimate_prompt_tokens([{"role": "user", "content": text}])
+    print(f"DECISION_FIELDS before={before} after={after}")
+    assert "validated POI" in old
+    assert before < after
