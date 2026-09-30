@@ -75,6 +75,7 @@ def walk_forward(
     *,
     folds: int = 3,
     rules: dict[str, object] | None = None,
+    confirm_candles: list[Candle] | None = None,
 ) -> dict[str, object]:
     """Replay contiguous folds. Each fold keeps at least ``MIN_BARS`` when possible."""
     if len(candles) < MIN_BARS:
@@ -89,7 +90,10 @@ def walk_forward(
         start = index * size
         end = len(candles) if index == fold_count - 1 else (index + 1) * size
         chunk = candles[start:end]
-        card = cast(dict[str, object], replay(chunk, rules=rules))
+        card = cast(
+            dict[str, object],
+            replay(chunk, rules=rules, confirm_candles=confirm_candles),
+        )
         rows.append(
             {
                 "fold": index,

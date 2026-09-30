@@ -23,9 +23,15 @@ def replay(
     rr: float = 2.0,
     lookback: int = 5,
     rules: dict[str, Any] | None = None,
+    confirm_candles: list[Candle] | None = None,
 ) -> dict[str, Any]:
     if rules:
-        return _replay_rules(candles, rules, spread_points=spread_points)
+        return _replay_rules(
+            candles,
+            rules,
+            spread_points=spread_points,
+            confirm_candles=confirm_candles,
+        )
     window = candles[-MAX_BARS:]
     if len(window) < MIN_BARS:
         return {
@@ -108,11 +114,20 @@ def replay(
     return card
 
 
+def _higher_timeframe_rising(confirm: list[Candle], at_ms: int) -> bool:
+    """The latest higher-timeframe bar at or before ``at_ms`` closed above the one before it."""
+    prior = [bar for bar in confirm if bar.time_ms <= at_ms]
+    if len(prior) < 2:
+        return False
+    return prior[-1].close > prior[-2].close
+
+
 def _replay_rules(
     candles: list[Candle],
     rules: dict[str, Any],
     *,
     spread_points: float,
+    confirm_candles: list[Candle] | None = None,
 ) -> dict[str, Any]:
     """Interpret a checked spec. Long break of the prior high, stop under the swing low."""
     window = candles[-MAX_BARS:]
@@ -145,10 +160,18 @@ def _replay_rules(
         prior = window[index - lookback : index]
         prior_high = max(item.high for item in prior)
         swing_low = min(item.low for item in prior)
-        earlier = window[index - confirm_bars].close
-        if bar.close <= prior_high or bar.close <= earlier:
+        if bar.close <= prior_high:
             index += 1
             continue
+        if confirm_candles is not None:
+            if not _higher_timeframe_rising(confirm_candles, bar.time_ms):
+                index += 1
+                continue
+        else:
+            earlier = window[index - confirm_bars].close
+            if bar.close <= earlier:
+                index += 1
+                continue
         entry = bar.close + spread
         stop = swing_low - buffer
         risk = entry - stop
@@ -179,4 +202,6 @@ def _replay_rules(
     card["strategy"] = str(rules.get("name") or "spec")
     card["rs"] = [row["r"] for row in trades]
     card["risk_percent"] = rules.get("risk_percent")
+    if confirm_candles is not None:
+        card["confirm_timeframe"] = "4h"
     return card

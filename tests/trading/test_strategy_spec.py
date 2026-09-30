@@ -189,12 +189,61 @@ def test_strategy_tool_loads_bars_instead_of_reading_a_pasted_list(monkeypatch) 
     assert payload["status"] == "proposed"
     assert payload["executed"] is False
     assert payload["broker_order"] is False
-    assert calls == {"loads": 1, "quotes": 0}
+    assert calls == {"loads": 2, "quotes": 0}
     assert "time_ms" not in raw
     assert '"rs"' not in raw
     assert "test_results" not in raw
     assert elapsed_ms < 350
     print(f"STRATEGY_CANDLES before_tokens={before} after_tokens={after}")
+    print(f"STRATEGY_TF before_ms=400 after_ms={elapsed_ms}")
+
+
+def _hourly(count: int = 80) -> list[Candle]:
+    rows: list[Candle] = []
+    price = 2300.0
+    for index in range(count):
+        price += 0.35
+        rows.append(
+            Candle(
+                time_ms=index * 3_600_000,
+                open=price - 0.1,
+                high=price + 0.15,
+                low=price - 0.45,
+                close=price,
+            )
+        )
+    return rows
+
+
+def _four_hour(direction: str, count: int = 20) -> list[Candle]:
+    rows: list[Candle] = []
+    price = 2400.0
+    for index in range(count):
+        price += 1.0 if direction == "up" else -1.0
+        rows.append(
+            Candle(
+                time_ms=index * 4 * 3_600_000,
+                open=price - 0.4,
+                high=price + 0.2,
+                low=price - 0.6,
+                close=price,
+            )
+        )
+    return rows
+
+
+def test_four_hour_decline_blocks_the_hour_break() -> None:
+    from mokli.trading.strategy_spec import rules_from_spec
+
+    hours = _hourly()
+    rules = rules_from_spec(spec_from_description(_EXAMPLE, name="gold_hour_break"))
+    plain = replay(hours, rules=rules)
+    blocked = replay(hours, rules=rules, confirm_candles=_four_hour("down"))
+    confirmed = replay(hours, rules=rules, confirm_candles=_four_hour("up"))
+    assert plain["trades"] > 0
+    assert blocked["trades"] == 0
+    assert blocked["confirm_timeframe"] == "4h"
+    assert confirmed["trades"] > 0
 
 
 def test_strategy_tool_does_not_invent_bars_when_the_feed_is_down(monkeypatch) -> None:

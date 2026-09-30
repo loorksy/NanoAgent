@@ -84,9 +84,10 @@ class ProposeStrategyTool(Tool):
         needs_bars = chosen in {"propose", "save"}
         if description.strip() and check_logic(spec_from_description(description, name=chosen_name)):
             needs_bars = False
+        confirm = None
         if needs_bars and not candles:
-            candles = await asyncio.to_thread(load_replay_candles)
-            if not candles:
+            candles, confirm = await asyncio.to_thread(load_replay_candles)
+            if not candles or not confirm:
                 return model_json(
                     {
                         "ok": False,
@@ -97,7 +98,12 @@ class ProposeStrategyTool(Tool):
                         "instruction": "Market candles are not configured. Do not invent prices.",
                     }
                 )
-        proposal = propose_strategy(chosen_name, candles, description=description)
+        proposal = propose_strategy(
+            chosen_name,
+            candles,
+            description=description,
+            confirm_candles=confirm,
+        )
         if chosen == "save":
             proposal = dict(proposal)
             proposal["saved"] = save_strategy(proposal)

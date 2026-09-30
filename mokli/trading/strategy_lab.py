@@ -36,19 +36,40 @@ def _strategies_dir():
     return path
 
 
-def load_replay_candles(*, interval: str = "1h", limit: int = 200) -> list[Candle]:
-    """Bars for the existing replay. That replay does not read a live quote."""
+def load_replay_candles(
+    *,
+    interval: str = "1h",
+    limit: int = 200,
+) -> tuple[list[Candle], list[Candle]]:
+    """Entry bars and the 4h confirmation bars. Neither download reads a live quote.
+
+    The two windows do not depend on each other, so they start together.
+    """
+    import contextvars
+    from concurrent.futures import ThreadPoolExecutor
+
     from mokli.trading.market_context import build_agent_market_context
 
-    market = build_agent_market_context(
-        "XAUUSD",
-        interval,
-        limit,
-        include_quote=False,
-    )
-    if not market.sync.ok:
-        return []
-    return list(market.candles)
+    def _bars(bar_interval: str, bar_limit: int) -> list[Candle]:
+        market = build_agent_market_context(
+            "XAUUSD",
+            bar_interval,
+            bar_limit,
+            include_quote=False,
+        )
+        if not market.sync.ok:
+            return []
+        return list(market.candles)
+
+    confirm_interval = "4h"
+    confirm_limit = 80
+    if interval == confirm_interval:
+        return _bars(interval, limit), []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        contexts = [contextvars.copy_context(), contextvars.copy_context()]
+        entry_task = pool.submit(contexts[0].run, _bars, interval, limit)
+        confirm_task = pool.submit(contexts[1].run, _bars, confirm_interval, confirm_limit)
+        return entry_task.result(), confirm_task.result()
 
 
 def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
@@ -92,6 +113,7 @@ def propose_strategy(
     candles: list[Candle],
     *,
     description: str = "",
+    confirm_candles: list[Candle] | None = None,
 ) -> dict[str, object]:
     spec: dict[str, Any] | None = None
     if description.strip():
@@ -110,7 +132,10 @@ def propose_strategy(
                 "program": None,
             }
         rules = rules_from_spec(spec)
-        card = cast(dict[str, object], replay(candles, rules=rules))
+        card = cast(
+            dict[str, object],
+            replay(candles, rules=rules, confirm_candles=confirm_candles),
+        )
     else:
         rules = None
         card = cast(dict[str, object], replay(candles))
@@ -125,7 +150,11 @@ def propose_strategy(
         "notice_key": "strategy.proposed",
         "backtest": card,
         "validation": {
-            "walk_forward": walk_forward(candles, rules=rules),
+            "walk_forward": walk_forward(
+                candles,
+                rules=rules,
+                confirm_candles=confirm_candles,
+            ),
             "monte_carlo": monte_carlo(series),
             "bootstrap": bootstrap_expectancy(series),
         },
