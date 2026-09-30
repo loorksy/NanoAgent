@@ -16,9 +16,9 @@ uv sync --all-extras --dev
 uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
 uv run --no-sync basedpyright
 
-# Browser client (Mokli fork). The legacy React app under mokli/src is gone.
-# Charting library assets remain at mokli/public/charting_library/.
-cd mokli-ui && npm run dev
+# Browser client (Open WebUI fork in mokli-ui/). Charting library assets remain at
+# mokli-ui/public/charting_library/.
+cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 cd mokli-ui && npm run build
 
 # Gateway
@@ -81,5 +81,19 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for contribution flow and PR guidelin
 - Provider base / new provider template: `mokli/providers/base.py`
 - Channel base / new channel template: `mokli/channels/base.py`
 - Tool registry: `mokli/agent/tools/registry.py`
-- Mokli dev proxy config: `mokli/vite.config.ts`
+- Mokli dev proxy config: `mokli-ui/vite.config.ts` (default `MOKLI_BACKEND_URL=http://localhost:8766`)
+
+## Cursor Cloud specific instructions
+
+Mokli upgrade work on this repo often cannot reach live LLM, OANDA, or MetaAPI keys. Prefer measured unit tests and local smoke without inventing credentials.
+
+```bash
+/workspace/.venv/bin/mokli gateway --background --port 18791
+# Agent API default 8766 when gateway runs with agentApi enabled
+cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
+curl -s http://127.0.0.1:5173/api/v2/health
+/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py -q
+```
+
+Aggregate pytest target: 2293 passed (after consolidator workspace-layer fix). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; do not mark the upgrade complete without them.
 - Tests mirror the `mokli/` package structure.
