@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BATCH = ROOT / "scripts" / "mokli_upgrade_section11_batch.py"
 VALIDATE = ROOT / "scripts" / "mokli_upgrade_section11_validate.py"
+PATCH = ROOT / "scripts" / "mokli_upgrade_section11_patch_report.py"
 
 
 def test_validate_then_batch_markdown(tmp_path: Path) -> None:
@@ -71,3 +72,32 @@ def test_validate_then_batch_markdown(tmp_path: Path) -> None:
     out = batch.stdout
     assert "PASS row 1" in out and "PASS row 2" in out
     assert "rounds=1" in out and "rounds=2" in out
+
+    report = tmp_path / "report.md"
+    report.write_text(
+        "| # | a | b | c | d | e | f |\n"
+        "| 1 | p | q | r | | |\n"
+        "| 2 | x | y | z | | |\n",
+        encoding="utf-8",
+    )
+    patch = subprocess.run(
+        [
+            sys.executable,
+            str(PATCH),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(report),
+            "--dry-run",
+            "--require-through",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert patch.returncode == 0, patch.stderr or patch.stdout
+    assert "would update 2 row" in patch.stdout
+    assert "PASS row 1" not in report.read_text(encoding="utf-8")
