@@ -99,6 +99,42 @@ class ContextWindowExceededError(RuntimeError):
         )
 
 
+def _image_data_url(block: dict[str, Any]) -> str | None:
+    """Return a data-URL payload when a content block embeds image bytes."""
+    if block.get("type") != "image_url":
+        return None
+    image = block.get("image_url")
+    if not isinstance(image, dict):
+        return None
+    url = image.get("url")
+    if isinstance(url, str) and url.startswith("data:"):
+        return url
+    return None
+
+
+def _without_resent_images(
+    content: list[Any],
+) -> tuple[list[Any] | None, int]:
+    """Drop image bytes the model already received on an earlier round.
+
+    Neighboring text stays. A remote image URL is short and is left in place.
+    """
+    updated: list[Any] | None = None
+    saved = 0
+    for index, block in enumerate(content):
+        url = _image_data_url(block) if isinstance(block, dict) else None
+        if url is None:
+            if updated is not None:
+                updated.append(block)
+            continue
+        note = f"[صورة أُرسلت في الدورة السابقة، {len(url)} حرفاً، ولن تُعاد.]"
+        if updated is None:
+            updated = list(content[:index])
+        updated.append({"type": "text", "text": note})
+        saved += len(url) - len(note)
+    return updated, saved
+
+
 def fold_prior_tool_results(
     messages: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], int, int]:
@@ -107,8 +143,9 @@ def fold_prior_tool_results(
     The tool messages that belong to the latest assistant tool batch of the
     current user turn stay complete. A batch that already sits before a later
     user message is history: the model already answered it, so the next turn
-    receives a short reference. Persisted history is not this list; callers
-    pass the model copy.
+    receives a short reference. Image bytes inside an earlier tool result are
+    replaced the same way: the round that produced them already showed the
+    picture. Persisted history is not this list; callers pass the model copy.
     """
     last_user = -1
     last_assistant = -1
@@ -136,6 +173,20 @@ def fold_prior_tool_results(
                 updated.append(message)
             continue
         content = message.get("content")
+        if isinstance(content, list):
+            replaced, block_saved = _without_resent_images(content)
+            if replaced is None:
+                if updated is not None:
+                    updated.append(message)
+                continue
+            if updated is None:
+                updated = [dict(item) for item in messages[:index]]
+            cloned = dict(message)
+            cloned["content"] = replaced
+            updated.append(cloned)
+            referenced += 1
+            saved += block_saved
+            continue
         if not isinstance(content, str) or len(content) <= _REFERENCE_THRESHOLD:
             if updated is not None:
                 updated.append(message)

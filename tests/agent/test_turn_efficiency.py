@@ -106,6 +106,46 @@ def test_finished_turn_tool_result_is_not_resent_on_the_next_question() -> None:
     assert folded_now[-1]["content"] == current
 
 
+def test_prior_tool_image_bytes_are_not_resent() -> None:
+    payload = "A" * 20000
+    url = f"data:image/png;base64,{payload}"
+    label = "(Image fetched from: https://example.test/chart.png)"
+    blocks: list[dict[str, Any]] = [
+        {"type": "image_url", "image_url": {"url": url}, "_meta": {"path": "/tmp/chart.png"}},
+        {"type": "text", "text": label},
+    ]
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": "انظر إلى الصورة ثم السعر"},
+        _assistant_with_tools("web_fetch"),
+        {
+            "role": "tool",
+            "tool_call_id": "call_web_fetch",
+            "name": "web_fetch",
+            "content": blocks,
+        },
+        _assistant_with_tools("get_gold_quote"),
+        _tool_message("get_gold_quote", "bid 2400"),
+    ]
+    before = estimate_prompt_tokens(messages, None)
+    folded, referenced, saved = fold_prior_tool_results(messages)
+    after = estimate_prompt_tokens(folded, None)
+    folded_blocks = folded[2]["content"]
+    assert referenced == 1
+    assert saved > 10000
+    assert after < before
+    assert url not in str(folded_blocks)
+    assert folded_blocks[1]["text"] == label
+    assert "لن تُعاد" in folded_blocks[0]["text"]
+    assert folded[-1]["content"] == "bid 2400"
+    assert messages[2]["content"][0]["image_url"]["url"] == url
+    print(f"TOKEN_IMAGE_FOLD before={before} after={after} saved_chars={saved}")
+
+    current_only = messages[:3]
+    kept, referenced_now, _saved_now = fold_prior_tool_results(current_only)
+    assert referenced_now == 0
+    assert kept[2]["content"][0]["image_url"]["url"] == url
+
+
 def test_latest_tool_batch_stays_complete() -> None:
     bulky = "y" * 3000
     messages = [
