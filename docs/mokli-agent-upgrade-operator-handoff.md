@@ -10,7 +10,7 @@
 - `docs/mokli-agent-upgrade-audit.md` — تدقيق المرحلة 0
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
-- pytest: **2297** ناجية (مجمّع + سكربتا §11 `diagnostic_extract` و`preflight`)
+- pytest: **2299** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 
 ## قبل المحادثة الحية
 
@@ -24,7 +24,10 @@
 
 1. احفظ تيار الأحداث JSONL (سطر JSON لكل حدث gateway/pipe).
 2. `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` → سطر «الأرقام».
-3. لقطة شاشة لسطر/تفاصيل النشاط إن أمكن.
+3. بعد عدة سينarios: احفظ `01-….jsonl` … `13-….jsonl` في مجلد واحد، ثم  
+   `python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --markdown`  
+   للصق عمود الأرقام في §11 (النتيجة ما زالت يدوية).
+4. لقطة شاشة لسطر/تفاصيل النشاط إن أمكن.
 
 ## ما نرسله لجلسة لاحقة
 

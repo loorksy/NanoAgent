@@ -53,6 +53,16 @@ def _scan_lines(lines: list[str]) -> dict[str, Any] | None:
     return last
 
 
+def diagnostic_from_text(text: str) -> dict[str, Any] | None:
+    """Return the last diagnostic payload found in JSONL/SSE text."""
+    return _scan_lines(text.splitlines())
+
+
+def one_line_summary(diag: dict[str, Any]) -> str:
+    """Format one §11 numbers column from a diagnostic dict."""
+    return _one_line_summary(diag)
+
+
 def _one_line_summary(diag: dict[str, Any]) -> str:
     parts = [
         f"rounds={diag.get('rounds')}",
@@ -81,14 +91,14 @@ def main() -> int:
         text = open(args.file, encoding="utf-8").read()
     else:
         text = sys.stdin.read()
-    diag = _scan_lines(text.splitlines())
+    diag = diagnostic_from_text(text)
     if diag is None:
         print("No diagnostic event found.", file=sys.stderr)
         return 1
     if args.json:
         print(json.dumps(diag, ensure_ascii=False, indent=2))
     else:
-        print(_one_line_summary(diag))
+        print(one_line_summary(diag))
     return 0
 
 

@@ -278,7 +278,7 @@
 
 ## 9. الاختبارات
 
-تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/test_mokli_upgrade_diagnostic_extract.py` و`tests/scripts/test_mokli_upgrade_preflight.py`: 2297 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
+تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2299 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
 
 تدخين محلي بلا مزود: بوابة على منفذ غير افتراضي وواجهة Vite على `5173`. الافتراضي في `mokli-ui/vite.config.ts` لـ `MOKLI_BACKEND_URL` صار Agent API على `8766` بدل `8080`، فـ `GET /api/v2/health` عبر الوكيل يعيد 200 مع `{"ok":true,...}`.
 
@@ -457,9 +457,9 @@
 | 13 | واجهة الهاتف | تطبيق mobile/SDK | نفس الأحداث؛ توسيع الصف يظهر مدخلات/نتيجة | | |
 | 14 | (اختياري) MT5 حي | فقط بعد ورق وسياسة | تأكيد صريح؛ لا تجاوز `policy_guard` | | |
 
-**أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_preflight.sh`؛ `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/test_mokli_upgrade_diagnostic_extract.py tests/scripts/test_mokli_upgrade_preflight.py -q`.
+**أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_preflight.sh`؛ `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q`.
 
-**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). `--json` يطبع الحمولة كاملة.
+**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`.
 
 ### 11.1 دليل اختبار وحدة (لا يملأ عمود «النتيجة»)
 
