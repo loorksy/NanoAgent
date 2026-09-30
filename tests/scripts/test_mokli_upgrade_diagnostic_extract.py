@@ -91,6 +91,28 @@ def test_extracts_turn_diagnostics_to_dict_wire_format() -> None:
     assert "nested_in=900" in out
 
 
+def test_extracts_sse_data_prefix_line() -> None:
+    """Operator handoff: ``grep '^data: ' … | sed 's/^data: //'`` before extract."""
+    event = {
+        "id": "e2",
+        "session": "s",
+        "run": "r",
+        "ts": 2,
+        "kind": "diagnostic",
+        "data": {"rounds": 2, "request_input_tokens": 300, "tool_calls": 1},
+    }
+    line = "data: " + json.dumps(event)
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT)],
+        input=line,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "rounds=2" in proc.stdout
+    assert "in=300" in proc.stdout
+
+
 def test_extracts_agent_api_gateway_event_shape() -> None:
     """Agent API SSE ``data:`` lines are full GatewayEvent objects."""
     event = {
