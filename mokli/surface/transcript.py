@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -183,7 +184,16 @@ def _record_json_line(record: dict[str, Any]) -> str:
     return json.dumps(record, ensure_ascii=False, separators=(",", ":"))
 
 
+# Reads and writes leave the event loop. One lock keeps a line atomic.
+_TRANSCRIPT_IO = threading.RLock()
+
+
 def _read_transcript_file(path: Path) -> list[dict[str, Any]]:
+    with _TRANSCRIPT_IO:
+        return _read_transcript_file_unlocked(path)
+
+
+def _read_transcript_file_unlocked(path: Path) -> list[dict[str, Any]]:
     lines_out: list[dict[str, Any]] = []
     try:
         with open(path, encoding="utf-8") as f:
@@ -230,6 +240,11 @@ def _records_with_replay_identity(
 
 
 def _write_records_to_path(path: Path, rows: list[dict[str, Any]]) -> None:
+    with _TRANSCRIPT_IO:
+        _write_records_to_path_unlocked(path, rows)
+
+
+def _write_records_to_path_unlocked(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     try:
@@ -658,6 +673,11 @@ def _write_transcript_lines(session_key: str, rows: list[dict[str, Any]]) -> Non
 
 
 def _append_to_active_transcript(session_key: str, obj: dict[str, Any]) -> None:
+    with _TRANSCRIPT_IO:
+        _append_to_active_transcript_unlocked(session_key, obj)
+
+
+def _append_to_active_transcript_unlocked(session_key: str, obj: dict[str, Any]) -> None:
     raw = _record_json_line(obj)
     if len(raw.encode("utf-8")) > _MAX_TRANSCRIPT_FILE_BYTES:
         msg = "mokli transcript line too large"
@@ -692,10 +712,11 @@ def _record_for_append(obj: dict[str, Any]) -> dict[str, Any]:
 
 
 def append_transcript_object(session_key: str, obj: dict[str, Any]) -> None:
-    record = _record_for_append(obj)
-    _append_to_active_transcript(session_key, record)
-    if record.get("event") == "turn_end":
-        _rotate_active_transcript_if_needed(session_key)
+    with _TRANSCRIPT_IO:
+        record = _record_for_append(obj)
+        _append_to_active_transcript(session_key, record)
+        if record.get("event") == "turn_end":
+            _rotate_active_transcript_if_needed(session_key)
 
 
 def append_session_message_input(
@@ -763,7 +784,7 @@ class MokliTranscriptRecorder:
             event["source"] = source
         self._annotate_turn(chat_id, event, metadata, phase)
 
-    def prepare_and_append(
+    def stage(
         self,
         chat_id: str,
         event: dict[str, Any],
@@ -772,7 +793,8 @@ class MokliTranscriptRecorder:
         phase: str | None = None,
         include_source: bool = False,
         transcript_overrides: dict[str, Any] | None = None,
-    ) -> bool:
+    ) -> dict[str, Any]:
+        """Annotate one event on the caller thread and return the disk record."""
         self.prepare_event(
             chat_id,
             event,
@@ -783,7 +805,54 @@ class MokliTranscriptRecorder:
         record = dict(event)
         if transcript_overrides:
             record.update(transcript_overrides)
-        return self.append(chat_id, record)
+        return record
+
+    def prepare_and_append(
+        self,
+        chat_id: str,
+        event: dict[str, Any],
+        *,
+        metadata: dict[str, Any] | None = None,
+        phase: str | None = None,
+        include_source: bool = False,
+        transcript_overrides: dict[str, Any] | None = None,
+    ) -> bool:
+        return self.append(
+            chat_id,
+            self.stage(
+                chat_id,
+                event,
+                metadata=metadata,
+                phase=phase,
+                include_source=include_source,
+                transcript_overrides=transcript_overrides,
+            ),
+        )
+
+    def stage_completed_stream(
+        self,
+        chat_id: str,
+        event: dict[str, Any],
+        *,
+        completed_text: str | None,
+        metadata: dict[str, Any] | None = None,
+        phase: str | None = None,
+        include_source: bool = False,
+    ) -> dict[str, Any] | None:
+        """Annotate a live stream event. Token deltas are not written."""
+        self.prepare_event(
+            chat_id,
+            event,
+            metadata=metadata,
+            phase=phase,
+            include_source=include_source,
+        )
+        if event.get("event") in {"delta", "reasoning_delta"}:
+            return None
+        record = dict(event)
+        if completed_text is not None:
+            record["text"] = completed_text
+        return record
 
     def prepare_and_append_stream_event(
         self,
@@ -801,19 +870,43 @@ class MokliTranscriptRecorder:
         would turn rendering cadence into disk-write cadence. The matching end
         event carries the canonical segment text used by history replay.
         """
-        self.prepare_event(
+        record = self.stage_completed_stream(
             chat_id,
             event,
+            completed_text=completed_text,
             metadata=metadata,
             phase=phase,
             include_source=include_source,
         )
-        if event.get("event") in {"delta", "reasoning_delta"}:
+        if record is None:
             return True
-        record = dict(event)
-        if completed_text is not None:
-            record["text"] = completed_text
         return self.append(chat_id, record)
+
+    def stage_user_message(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        metadata: dict[str, Any],
+        media_paths: list[str] | None = None,
+        cli_apps: list[dict[str, Any]] | None = None,
+        mcp_presets: list[dict[str, Any]] | None = None,
+        session_mentions: Sequence[Mapping[str, Any]] | None = None,
+    ) -> dict[str, Any] | None:
+        """Build the user row on the caller thread. ``None`` means do not write."""
+        if text.strip() == "/stop" and not media_paths:
+            return None
+        payload = build_user_transcript_event(
+            chat_id,
+            text,
+            media_paths=media_paths,
+            cli_apps=cli_apps,
+            mcp_presets=mcp_presets,
+            session_mentions=session_mentions,
+        )
+        if payload is None:
+            return None
+        return self.stage(chat_id, payload, metadata=metadata, phase="user")
 
     def append_user_message(
         self,
@@ -826,19 +919,18 @@ class MokliTranscriptRecorder:
         mcp_presets: list[dict[str, Any]] | None = None,
         session_mentions: Sequence[Mapping[str, Any]] | None = None,
     ) -> bool:
-        if text.strip() == "/stop" and not media_paths:
-            return False
-        payload = build_user_transcript_event(
+        record = self.stage_user_message(
             chat_id,
             text,
+            metadata=metadata,
             media_paths=media_paths,
             cli_apps=cli_apps,
             mcp_presets=mcp_presets,
             session_mentions=session_mentions,
         )
-        if payload is None:
+        if record is None:
             return False
-        return self.prepare_and_append(chat_id, payload, metadata=metadata, phase="user")
+        return self.append(chat_id, record)
 
     def append(self, chat_id: str, event: dict[str, Any]) -> bool:
         try:
