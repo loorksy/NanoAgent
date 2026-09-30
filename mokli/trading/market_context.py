@@ -6,7 +6,9 @@ account is configured, and from OANDA otherwise.
 
 from __future__ import annotations
 
+import contextvars
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from mokli.trading.config import TradingConfig, load_trading_config
 from mokli.trading.geometry.detectors import compute_atr
@@ -90,15 +92,42 @@ def build_agent_market_context(
         candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
         return [_to_candle(row) for row in candles_raw]
 
-    if turn is None:
-        candles = _fetch_rows()
-    else:
-        candles = turn.load_candles(symbol, interval, limit, _fetch_rows)
+    def _load_candles() -> list[Candle]:
+        if turn is None:
+            return _fetch_rows()
+        return turn.load_candles(symbol, interval, limit, _fetch_rows)
+
     # Callers that only need bars (a higher-timeframe bias, a trend window)
     # must not download a quote they discard. Gates still read a fresh quote.
+    # Candles and the live quote are separate feeds, so a context that needs
+    # both starts them together instead of waiting for the bars to finish.
     quote = None
     if include_quote:
-        quote, _source = resolve_live_quote(symbol, config)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            # A context can be entered by one thread only, so each feed gets its own copy.
+            candle_task = pool.submit(contextvars.copy_context().run, _load_candles)
+            quote_task = pool.submit(
+                contextvars.copy_context().run,
+                resolve_live_quote,
+                symbol,
+                config,
+            )
+            candle_error: Exception | None = None
+            quote_error: Exception | None = None
+            try:
+                candles = candle_task.result()
+            except Exception as exc:
+                candle_error = exc
+            try:
+                quote, _source = quote_task.result()
+            except Exception as exc:
+                quote_error = exc
+            if candle_error is not None:
+                raise candle_error
+            if quote_error is not None:
+                raise quote_error
+    else:
+        candles = _load_candles()
 
     sync = MarketSync(ok=True)
     if not config.oanda_configured:

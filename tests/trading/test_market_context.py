@@ -276,3 +276,97 @@ def test_overlapping_quotes_share_the_download_then_the_next_reads_again(monkeyp
         assert quote is not None and quote.mid == 1.5
         assert entered["n"] == 2
         assert turn.quote_reuses == 1
+
+
+def test_candles_and_quote_download_together(monkeypatch) -> None:
+    """The two feeds do not wait on each other. A bar-only context still skips the quote."""
+    import time
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    quote_calls = {"n": 0}
+
+    def _slow_candles(*_args, **_kwargs):
+        time.sleep(0.2)
+        return _candles(), False
+
+    def _slow_quote(*_args, **_kwargs):
+        quote_calls["n"] += 1
+        time.sleep(0.2)
+        return OandaQuote(symbol="XAUUSD", bid=10, ask=11, mid=10.5, tradeable=True)
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", _slow_candles)
+    monkeypatch.setattr("mokli.trading.market_context.fetch_quote", _slow_quote)
+
+    started = time.perf_counter()
+    context = build_agent_market_context("XAUUSD", "15m", limit=24)
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    # Each feed sleeps 200ms. Sequential was their sum. Together stays near the slower one.
+    print(f"MARKET_IO before_ms=400 after_ms={elapsed_ms}")
+    assert context.sync.ok
+    assert context.quote_mid == 10.5
+    assert len(context.candles) == 22
+    assert elapsed_ms < 350
+
+    quote_calls["n"] = 0
+    bars_only = build_agent_market_context("XAUUSD", "1h", limit=24, include_quote=False)
+    assert bars_only.quote_mid is None
+    assert quote_calls["n"] == 0
+
+
+def test_overlapping_contexts_share_one_quote_download(monkeypatch) -> None:
+    import contextvars
+    import threading
+    import time
+
+    from mokli.trading.turn_session import turn_session_scope
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    entered = {"n": 0}
+    release = threading.Event()
+
+    def _quote(*_args, **_kwargs):
+        entered["n"] += 1
+        assert release.wait(timeout=1)
+        return OandaQuote(symbol="XAUUSD", bid=1, ask=2, mid=1.5, tradeable=True)
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr(
+        "mokli.trading.market_context.fetch_candles",
+        lambda *_args, **_kwargs: (_candles(), False),
+    )
+    monkeypatch.setattr("mokli.trading.market_context.fetch_quote", _quote)
+
+    errors: list[BaseException] = []
+
+    with turn_session_scope() as turn:
+        contexts = [contextvars.copy_context() for _ in range(2)]
+
+        def _run(ctx: contextvars.Context) -> None:
+            try:
+                ctx.run(build_agent_market_context, "XAUUSD", "15m", 24)
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_run, args=(ctx,)) for ctx in contexts]
+        for thread in threads:
+            thread.start()
+        deadline = time.time() + 1
+        while entered["n"] < 1 and time.time() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.05)
+        assert entered["n"] == 1
+        release.set()
+        for thread in threads:
+            thread.join(timeout=1)
+            assert not thread.is_alive()
+
+    assert errors == []
+    assert entered["n"] == 1
+    assert turn.quote_reuses == 1
