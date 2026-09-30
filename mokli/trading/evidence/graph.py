@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 # Declared grouping for subsets and the stage list. Runtime scheduling follows
 # each node's depends_on: a node starts when those dependencies are done and
-# does not wait for unrelated work. news and visual_capture need only market data.
+# does not wait for unrelated work. The news calendar does not read candles.
+# visual_capture needs only market data.
 DEFAULT_ANALYSIS_LAYERS: tuple[tuple[str, ...], ...] = (
     ("market_data",),
     ("structure", "liquidity", "supply_demand", "multi_timeframe", "news"),

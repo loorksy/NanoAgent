@@ -91,6 +91,10 @@ async def run_evidence_graph(
             for node_id in _ready_nodes(ordered, present, remaining, set(running)):
                 remaining.remove(node_id)
                 running[node_id] = asyncio.create_task(_run_node(node_id, ctx, track_fn))
+        elif running:
+            # A failed candle download does not need the calendar that started with it.
+            for task in running.values():
+                task.cancel()
         if not running:
             break
         finished, _pending = await asyncio.wait(
@@ -102,6 +106,8 @@ async def run_evidence_graph(
             running.pop(node_id)
             try:
                 task.result()
+            except asyncio.CancelledError:
+                continue
             except Exception as exc:
                 if failure is None:
                     failure = exc

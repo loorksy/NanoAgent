@@ -240,3 +240,82 @@ async def test_risk_overlaps_a_slow_higher_timeframe_fetch(monkeypatch) -> None:
     ctx = PipelineContext(symbol="XAUUSD", interval="15m")
     await asyncio.wait_for(run_evidence_graph(ctx), timeout=2)
     assert set(started) == {"mtf", "risk"}
+
+
+@pytest.mark.asyncio
+async def test_news_calendar_starts_with_the_market_download(monkeypatch) -> None:
+    """The calendar does not read candles, so it runs while that download is in flight."""
+    import time
+
+    from evidence_stubs import fake_market, install_evidence_stubs
+
+    from mokli.trading.types import NewsMacroResult, StructureResult
+
+    install_evidence_stubs(monkeypatch)
+    marks: dict[str, float] = {}
+
+    def slow_market(*_args, **_kwargs):
+        marks["market_start"] = time.perf_counter()
+        time.sleep(0.2)
+        marks["market_end"] = time.perf_counter()
+        return fake_market()
+
+    def slow_news(*_args, **_kwargs):
+        marks["news_start"] = time.perf_counter()
+        time.sleep(0.2)
+        marks["news_end"] = time.perf_counter()
+        return NewsMacroResult("low", "unknown", [], [], True, "")
+
+    def structure_after_market(*_args, **_kwargs):
+        marks["structure_start"] = time.perf_counter()
+        return StructureResult("uptrend", [], [], [], [])
+
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_market_data_agent", slow_market)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_news_macro_agent", slow_news)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_structure_agent", structure_after_market)
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    started = time.perf_counter()
+    result = await run_evidence_graph(ctx)
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    # Each side sleeps 200ms. Waiting for candles first was their sum.
+    print(f"NEWS_IO before_ms=400 after_ms={elapsed_ms}")
+    assert marks["news_start"] < marks["market_end"]
+    assert marks["structure_start"] >= marks["market_end"]
+    assert elapsed_ms < 350
+    assert result.news is not None
+    assert result.structure is not None
+
+
+@pytest.mark.asyncio
+async def test_market_failure_does_not_wait_for_the_calendar(monkeypatch) -> None:
+    """A failed candle download cancels the calendar instead of waiting it out."""
+    import time
+
+    from mokli.trading.types import AgentMarketContext, MarketSync, NewsMacroResult
+
+    def fail_market(*_args, **_kwargs):
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            last_close=0.0,
+            atr=0.0,
+            sync=MarketSync(ok=False, reason="offline"),
+            candles=[],
+        )
+
+    def slow_news(*_args, **_kwargs):
+        time.sleep(0.5)
+        return NewsMacroResult("low", "unknown", [], [], True, "")
+
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_market_data_agent", fail_market)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_news_macro_agent", slow_news)
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    started = time.perf_counter()
+    result = await asyncio.wait_for(run_evidence_graph(ctx), timeout=0.35)
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    assert result.aborted
+    assert result.structure is None
+    assert result.news is None
+    assert elapsed_ms < 300
