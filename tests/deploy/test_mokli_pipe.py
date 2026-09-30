@@ -420,6 +420,8 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     assert "120 ms" in timeline
     assert "analyst" in timeline
     assert "⚙ Running tool: web_search" not in timeline
+    web_rows = [line for line in timeline.splitlines() if "web_search" in line]
+    assert web_rows == ["- web_search · finished · 120 ms · 3 hits"]
 
     assert harness.statuses() == [
         ("Processing", False),
@@ -1044,3 +1046,72 @@ def test_activity_projection_matches_real_events() -> None:
     assert pipe_mod.activity_line([
         {"label": "تم فحص سعر الذهب ✓", "done": True},
     ]) == "تم فحص سعر الذهب ✓"
+
+
+async def test_timeline_keeps_one_detail_row_per_real_operation() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("tool", {
+                "event": "started",
+                "name": "get_gold_quote",
+                "call_id": "c1",
+                "display": "يفحص سعر الذهب الحالي…",
+                "arguments": '{"symbol":"XAUUSD"}',
+                "source": "metaapi",
+            }), "1"),
+            sse(ev("tool", {
+                "event": "finished",
+                "name": "get_gold_quote",
+                "call_id": "c1",
+                "display": "تم فحص سعر الذهب",
+                "summary": "bid 2401",
+                "duration_ms": 200,
+            }), "2"),
+            sse(ev("tool", {
+                "event": "started",
+                "name": "get_gate_report",
+                "call_id": "c2",
+                "display": "يتحقق من شروط القرار…",
+            }), "3"),
+            sse(ev("tool", {
+                "event": "failed",
+                "name": "get_gate_report",
+                "call_id": "c2",
+                "display": "تعذر فحص شروط القرار",
+                "summary": "feed down",
+                "duration_ms": 3700,
+            }), "4"),
+            sse(ev("subagent", {
+                "event": "started",
+                "id": "risk",
+                "role": "Risk Officer",
+                "display": "يراجع المخاطر…",
+            }), "5"),
+            sse(ev("subagent", {
+                "event": "finished",
+                "id": "risk",
+                "role": "Risk Officer",
+                "display": "اكتملت مراجعة المخاطر",
+                "summary": "STANCE: wait",
+                "duration_ms": 3700,
+            }), "6"),
+            sse(ev("retry", {"state": "waiting", "attempt": 1, "error_kind": "connection"}), "7"),
+            sse(ev("retry", {"state": "recovered", "attempt": 1, "error_kind": "connection"}), "8"),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "9"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    chunks = await harness.run()
+    timeline = chunks[-1]
+    rows = [line[2:] for line in timeline.splitlines() if line.startswith("- ")]
+    assert rows == [
+        'get_gold_quote · finished · 200 ms · {"symbol":"XAUUSD"} · metaapi · bid 2401',
+        "get_gate_report · failed · 3.7 s · feed down",
+        "Risk Officer · finished · 3.7 s · STANCE: wait",
+        "retry · recovered · 1 · connection",
+    ]
+    descriptions = [text for text, _done in harness.statuses()]
+    assert "get_gold_quote" not in descriptions[0]
+    assert descriptions[-1] == (
+        "تم فحص سعر الذهب ✓ · تعذر فحص شروط القرار · اكتملت مراجعة المخاطر ✓ · Retry succeeded ✓"
+    )

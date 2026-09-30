@@ -659,6 +659,53 @@ def activity_line(steps: list[Mapping[str, object]]) -> str:
     return " · ".join(parts)
 
 
+def detail_line(step: Mapping[str, object]) -> str:
+    """One technical row for a real tool, subagent, or retry.
+
+    The chat status line stays on the human phrase. This row is the expandable
+    record: name, status, measured duration, inputs, source, result, and error.
+    A field that the runtime did not send is omitted.
+    """
+    parts: list[str] = []
+    technical = _as_str(step.get("technical"))
+    if technical:
+        parts.append(technical)
+    status = _as_str(step.get("status"))
+    if status:
+        parts.append(status)
+    duration = step.get("duration_ms")
+    if isinstance(duration, int):
+        parts.append(format_duration_ms(duration))
+    arguments = _as_str(step.get("arguments"))
+    if arguments:
+        parts.append(arguments)
+    source = _as_str(step.get("source"))
+    if source:
+        parts.append(source)
+    attempt = _as_str(step.get("attempt"))
+    if attempt:
+        parts.append(attempt)
+    if step.get("failed"):
+        error = _as_str(step.get("error"))
+        if error:
+            parts.append(error)
+    else:
+        summary = _as_str(step.get("summary"))
+        if summary:
+            parts.append(summary)
+    return " · ".join(parts)
+
+
+def _upsert_detail(turn: "_Turn", key: str, line: str) -> None:
+    """Keep one timeline row per real operation. Later events replace that row."""
+    slot = turn.detail_slots.get(key)
+    if slot is None:
+        turn.detail_slots[key] = len(turn.timeline)
+        turn.timeline.append(line)
+        return
+    turn.timeline[slot] = line
+
+
 def closing_description(
     steps: list[Mapping[str, object]],
     outcome_label: str,
@@ -705,6 +752,7 @@ class _Turn:
         self.embeds: list[str] = []
         self.files: list[dict[str, object]] = []
         self.steps: list[dict[str, object]] = []
+        self.detail_slots: dict[str, int] = {}
         self.diagnostics: dict[str, object] | None = None
 
     def label(self, key: str, fallback: str | None = None) -> str:
@@ -1075,22 +1123,37 @@ class Pipe:
         duration = _as_int(data.get("duration_ms"))
         call_id = _as_str(data.get("call_id")) or f"tool-{len(turn.steps)}"
         label = _tool_label(data, stage, turn.label)
+        arguments = _as_str(data.get("arguments"))
+        source = _as_str(data.get("source"))
         existing = next((step for step in turn.steps if step.get("id") == call_id), None)
         if existing is None:
-            turn.steps.append(
-                {
-                    "id": call_id,
-                    "kind": "tool",
-                    "label": label,
-                    "technical": name,
-                    "done": stage in {"finished", "failed"},
-                    "failed": stage == "failed",
-                }
-            )
+            existing = {
+                "id": call_id,
+                "kind": "tool",
+                "label": label,
+                "technical": name,
+                "done": stage in {"finished", "failed"},
+                "failed": stage == "failed",
+            }
+            turn.steps.append(existing)
         else:
             existing["label"] = label
             existing["done"] = stage in {"finished", "failed"}
             existing["failed"] = stage == "failed"
+        existing["status"] = stage
+        if name:
+            existing["technical"] = name
+        if arguments:
+            existing["arguments"] = arguments
+        if source:
+            existing["source"] = source
+        if duration is not None:
+            existing["duration_ms"] = duration
+        if summary:
+            if stage == "failed":
+                existing["error"] = summary
+            else:
+                existing["summary"] = summary
         await self._emit(
             emitter,
             {
@@ -1098,15 +1161,7 @@ class Pipe:
                 "data": {"description": activity_line(turn.steps), "done": False},
             },
         )
-        detail = f"{label} · {name}" if name else label
-        if duration is not None:
-            detail = f"{detail} · {format_duration_ms(duration)}"
-        arguments = _as_str(data.get("arguments"))
-        if arguments:
-            detail = f"{detail} · {arguments}"
-        if summary:
-            detail = f"{detail} · {summary}"
-        turn.timeline.append(detail)
+        _upsert_detail(turn, f"tool:{call_id}", detail_line(existing))
 
     async def _on_retry(
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
@@ -1128,21 +1183,29 @@ class Pipe:
         failed = state == "exhausted"
         existing = next((step for step in turn.steps if step.get("id") == step_id), None)
         if existing is None:
-            turn.steps.append(
-                {
-                    "id": step_id,
-                    "kind": "retry",
-                    "label": label,
-                    "technical": state,
-                    "done": done,
-                    "failed": failed,
-                }
-            )
+            existing = {
+                "id": step_id,
+                "kind": "retry",
+                "label": label,
+                "technical": "retry",
+                "done": done,
+                "failed": failed,
+            }
+            turn.steps.append(existing)
         else:
             existing["label"] = label
-            existing["technical"] = state
+            existing["technical"] = "retry"
             existing["done"] = done
             existing["failed"] = failed
+        existing["status"] = state
+        existing["technical"] = "retry"
+        existing["attempt"] = attempt
+        error_kind = _as_str(data.get("error_kind"))
+        if error_kind:
+            if failed:
+                existing["error"] = error_kind
+            else:
+                existing["summary"] = error_kind
         await self._emit(
             emitter,
             {
@@ -1150,11 +1213,7 @@ class Pipe:
                 "data": {"description": activity_line(turn.steps), "done": False},
             },
         )
-        detail = f"{label} · {attempt}"
-        error_kind = _as_str(data.get("error_kind"))
-        if error_kind:
-            detail = f"{detail} · {error_kind}"
-        turn.timeline.append(detail)
+        _upsert_detail(turn, f"retry:{step_id}", detail_line(existing))
 
     async def _on_subagent(
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
@@ -1167,22 +1226,35 @@ class Pipe:
         label = _role_label(data, turn.label)
         existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
         if stage == "started" and existing is None:
-            turn.steps.append(
-                {
-                    "id": sub_id,
-                    "kind": "subagent",
-                    "label": label,
-                    "technical": role,
-                    "done": False,
-                    "failed": False,
-                }
-            )
+            existing = {
+                "id": sub_id,
+                "kind": "subagent",
+                "label": label,
+                "technical": role,
+                "done": False,
+                "failed": False,
+            }
+            turn.steps.append(existing)
         elif existing is not None and stage in {"finished", "failed"}:
             display = _as_str(data.get("display"))
             if display:
                 existing["label"] = display
             existing["done"] = True
             existing["failed"] = stage == "failed"
+        record = existing if existing is not None else {
+            "technical": role,
+            "failed": stage == "failed",
+        }
+        record["status"] = stage
+        if role:
+            record["technical"] = role
+        if duration is not None:
+            record["duration_ms"] = duration
+        if summary:
+            if stage == "failed":
+                record["error"] = summary
+            else:
+                record["summary"] = summary
         if turn.steps:
             await self._emit(
                 emitter,
@@ -1191,12 +1263,7 @@ class Pipe:
                     "data": {"description": activity_line(turn.steps), "done": False},
                 },
             )
-        detail = f"{label} · {role}" if role else label
-        if duration is not None:
-            detail = f"{detail} · {format_duration_ms(duration)}"
-        if summary:
-            detail = f"{detail} · {summary}"
-        turn.timeline.append(detail)
+        _upsert_detail(turn, f"sub:{sub_id}", detail_line(record))
 
     async def _on_structured(
         self,
