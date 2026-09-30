@@ -96,10 +96,11 @@ bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
 /workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
 python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
+bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
 python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
 python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2308 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
+Aggregate pytest target: 2309 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
 - Tests mirror the `mokli/` package structure.

@@ -278,7 +278,7 @@
 
 ## 9. الاختبارات
 
-تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2308 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
+تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2309 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
 
 تدخين محلي بلا مزود: بوابة على منفذ غير افتراضي وواجهة Vite على `5173`. الافتراضي في `mokli-ui/vite.config.ts` لـ `MOKLI_BACKEND_URL` صار Agent API على `8766` بدل `8080`، فـ `GET /api/v2/health` عبر الوكيل يعيد 200 مع `{"ok":true,...}`.
 
@@ -475,4 +475,4 @@
 | 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_fast_backtest_tool.py`، مقاييس ATR في `tests/agent/test_turn_efficiency.py` |
 | 12–13 | `tests/deploy/test_mokli_pipe.py` (`test_activity_projection_matches_real_events`)، `packages/mokli-sdk/test/store.test.ts` (`activityLine`) |
 | 14 | سياسة التنفيذ في `tests/trading/` — لا اختبار حساب MT5 حي |
-| (سكربتات §11) | `tests/scripts/` (extract/batch/validate/workflow)، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
+| (سكربتات §11) | `tests/scripts/` (extract/batch/validate/workflow/dry_run)، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
