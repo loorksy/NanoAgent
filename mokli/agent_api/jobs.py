@@ -49,8 +49,16 @@ class CronServiceLike(Protocol):
 
 
 class SessionManagerLike(Protocol):
-    def list_sessions(self) -> list[dict[str, object]]: ...
+    def list_session_metadata(self) -> list[dict[str, object]]: ...
     def read_session_metadata(self, key: str) -> dict[str, object] | None: ...
+
+
+def _stored_goal_metadata(payload: dict[str, object]) -> dict[str, object] | None:
+    """Return the session metadata map stored inside the metadata-line envelope."""
+    nested = payload.get("metadata")
+    if isinstance(nested, dict):
+        return cast(dict[str, object], nested)
+    return None
 
 
 def cron_job_record(job: CronJob) -> JobRecord:
@@ -107,12 +115,12 @@ class JobsService:
         if self._cron is not None:
             records.extend(cron_job_record(job) for job in self._cron.list_jobs(include_disabled=True))
         if self._sessions is not None:
-            for info in self._sessions.list_sessions():
+            for info in self._sessions.list_session_metadata():
                 key = info.get("key")
                 if not isinstance(key, str):
                     continue
-                metadata = self._sessions.read_session_metadata(key)
-                if not metadata:
+                metadata = _stored_goal_metadata(info)
+                if metadata is None:
                     continue
                 goal = goal_job_record(key, metadata)
                 if goal is not None:
@@ -124,8 +132,11 @@ class JobsService:
             if self._sessions is None:
                 return None
             key = job_id[len(GOAL_PREFIX):]
-            metadata = self._sessions.read_session_metadata(key)
-            return goal_job_record(key, metadata) if metadata else None
+            payload = self._sessions.read_session_metadata(key)
+            if not payload:
+                return None
+            metadata = _stored_goal_metadata(payload)
+            return goal_job_record(key, metadata) if metadata is not None else None
         if self._cron is None:
             return None
         job = self._cron.get_job(job_id)

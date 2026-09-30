@@ -15,7 +15,8 @@ from mokli.agent_api.routes._util import json_body, ok, optional_str
 
 async def list_jobs(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    return ok({"jobs": services(request).jobs.list()})
+    records = await asyncio.to_thread(services(request).jobs.list)
+    return ok({"jobs": records})
 
 
 async def get_job(request: web.Request) -> web.Response:

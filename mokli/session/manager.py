@@ -573,6 +573,8 @@ class SessionStore(Protocol):
 
     def list_sessions(self) -> list[SessionInfo]: ...
 
+    def list_metadata(self) -> list[SessionMetadataPayload]: ...
+
     def list_session_clocks(self) -> list[tuple[str, str | None]]: ...
 
     def read_preview(self, key: str) -> str: ...
@@ -1584,6 +1586,25 @@ class JsonlSessionStore:
                 }
             return None
 
+    def list_metadata(self) -> list[SessionMetadataPayload]:
+        """Return each session's metadata line without reading later message lines."""
+        with self._session_files_lock:
+            return self._list_metadata_unlocked()
+
+    def _list_metadata_unlocked(self) -> list[SessionMetadataPayload]:
+        rows: list[SessionMetadataPayload] = []
+        for path in self.sessions_dir.glob("*.jsonl"):
+            storage_key = self.session_key_from_path(path)
+            if storage_key is None:
+                continue
+            try:
+                meta = self._read_metadata_unlocked(storage_key)
+            except FileNotFoundError:
+                continue
+            if meta is not None:
+                rows.append(meta)
+        return rows
+
     def list_session_clocks(self) -> list[tuple[str, str | None]]:
         """Return ``(key, updated_at)`` from each session's metadata line.
 
@@ -1592,16 +1613,7 @@ class JsonlSessionStore:
         """
         with self._session_files_lock:
             clocks: list[tuple[str, str | None]] = []
-            for path in self.sessions_dir.glob("*.jsonl"):
-                storage_key = self.session_key_from_path(path)
-                if storage_key is None:
-                    continue
-                try:
-                    meta = self._read_metadata_unlocked(storage_key)
-                except FileNotFoundError:
-                    continue
-                if meta is None:
-                    continue
+            for meta in self._list_metadata_unlocked():
                 updated_at = meta.get("updated_at")
                 clocks.append((
                     meta["key"],
@@ -2059,6 +2071,10 @@ class SessionManager:
 
     def list_sessions(self) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._store.list_sessions())
+
+    def list_session_metadata(self) -> list[dict[str, Any]]:
+        """Return each session's metadata line without reading message lines."""
+        return cast(list[dict[str, Any]], self._store.list_metadata())
 
     def list_session_clocks(self) -> list[tuple[str, str | None]]:
         """Return ``(key, updated_at)`` without reading message lines."""
