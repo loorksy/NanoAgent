@@ -993,6 +993,115 @@ class TestResponsesConversationState:
         }
         assert "lossy public transcript" not in str(items)
 
+    def test_replay_uses_the_folded_tool_output(self):
+        from mokli.agent.context_governance import (
+            fold_completed_candle_arguments,
+            fold_prior_tool_results,
+        )
+        from mokli.utils.helpers import estimate_prompt_tokens
+
+        bulky = "سعر " * 2000
+        candles = "[" + ",".join(['{"c":1}'] * 400) + "]"
+        assert len(candles) > 1200
+        raw_args = json.dumps({"symbol": "XAUUSD", "candles_json": candles}, ensure_ascii=False)
+        messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "حلل"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "id": "call_1|fc_1",
+                    "type": "function",
+                    "function": {"name": "run_trading_kernel", "arguments": raw_args},
+                }],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "call_1|fc_1",
+                "name": "run_trading_kernel",
+                "content": bulky,
+            },
+            {"role": "assistant", "content": "الانتظار."},
+            {"role": "user", "content": "وما الوقف؟"},
+        ]
+        folded, referenced, _saved = fold_prior_tool_results(messages)
+        folded, candle_count, _candle_saved = fold_completed_candle_arguments(folded)
+        assert referenced == 1
+        assert candle_count == 1
+        prior_items = [
+            {"role": "user", "content": [{"type": "input_text", "text": "حلل"}]},
+            {"type": "reasoning", "id": "rs_1", "encrypted_content": "opaque-secret"},
+            {
+                "type": "function_call",
+                "id": "fc_1",
+                "call_id": "call_1",
+                "name": "run_trading_kernel",
+                "arguments": raw_args,
+            },
+            {"type": "function_call_output", "call_id": "call_1", "output": bulky},
+            {
+                "type": "message",
+                "id": "msg_1",
+                "role": "assistant",
+                "status": "completed",
+                "content": [{"type": "output_text", "text": "الانتظار."}],
+            },
+        ]
+        state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        ).with_pending_messages([{"role": "user", "content": "وما الوقف؟"}])
+        before = estimate_prompt_tokens(
+            [{"role": "tool", "content": bulky}, {"role": "assistant", "content": raw_args}],
+            None,
+        )
+        _instructions, items, replayed = prepare_responses_input(
+            folded,
+            state=state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        after = estimate_prompt_tokens(
+            [
+                {"role": "tool", "content": items[3]["output"]},
+                {"role": "assistant", "content": items[2]["arguments"]},
+            ],
+            None,
+        )
+        assert replayed is True
+        assert items[1]["id"] == "rs_1"
+        assert items[1]["encrypted_content"] == "opaque-secret"
+        assert items[3]["output"].startswith("[مرجع نتيجة سابقة:")
+        assert bulky not in items[3]["output"]
+        assert items[2]["arguments"].startswith("{")
+        assert "مرجع شموع سابقة" in items[2]["arguments"]
+        assert candles not in items[2]["arguments"]
+        assert items[4]["id"] == "msg_1"
+        assert after < before
+        assert messages[3]["content"] == bulky
+        print(f"TOKEN_RESPONSES_REPLAY before={before} after={after}")
+
+        current = messages[:4]
+        kept, referenced_now, _saved_now = fold_prior_tool_results(current)
+        assert referenced_now == 0
+        current_state = build_responses_state(
+            provider="openai:test",
+            model="gpt-5.6",
+            input_items=prior_items,
+            output_items=[],
+        )
+        _instructions, current_items, replayed_now = prepare_responses_input(
+            kept,
+            state=current_state,
+            provider="openai:test",
+            model="gpt-5.6",
+        )
+        assert replayed_now is True
+        assert current_items[3]["output"] == bulky
+
     def test_replayed_and_delta_reasoning_items_keep_array_content(self):
         # Regression for PR #5214: token consolidation clears
         # ``provider_state``, so the next turn converts the full history

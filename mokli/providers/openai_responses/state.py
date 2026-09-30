@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from typing import Any, cast
 
 from loguru import logger
 
 from mokli.providers.base import LLMUsage, ProviderConversationState
-from mokli.providers.openai_responses.converters import convert_messages
+from mokli.providers.openai_responses.converters import convert_messages, split_tool_call_id
 
 RESPONSES_STATE_KIND = "openai_responses"
 RESPONSES_STATE_VERSION = 1
@@ -81,7 +82,80 @@ def prepare_responses_input(
     for item in replayed_items:
         if item.get("type") == "reasoning":
             item.pop("status", None)
+    # The chat transcript is folded before this call. Stored items still hold
+    # the output from the round that produced it. Replace that payload when
+    # the prepared transcript already has a shorter copy for the same call.
+    _shrink_replayed_tool_payloads(replayed_items, messages)
     return instructions, [*replayed_items, *delta_items], True
+
+
+def _tool_output_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    parts: list[str] = []
+    for raw_block in cast(list[object], content):
+        if not isinstance(raw_block, dict):
+            return None
+        block = cast(dict[str, Any], raw_block)
+        if block.get("type") != "text":
+            return None
+        text = block.get("text")
+        if not isinstance(text, str):
+            return None
+        parts.append(text)
+    return "\n".join(parts)
+
+
+def _payload_chars(value: Any) -> int:
+    if isinstance(value, str):
+        return len(value)
+    return len(json.dumps(value, ensure_ascii=False))
+
+
+def _shrink_replayed_tool_payloads(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Use the prepared tool text when it is shorter than the stored item."""
+    outputs: dict[str, str] = {}
+    arguments: dict[str, str] = {}
+    for message in messages:
+        role = message.get("role")
+        if role == "tool":
+            text = _tool_output_text(message.get("content"))
+            if text is None:
+                continue
+            call_id, _item_id = split_tool_call_id(message.get("tool_call_id"))
+            outputs[call_id] = text
+            continue
+        if role != "assistant":
+            continue
+        for raw_call in cast(list[object], message.get("tool_calls") or []):
+            if not isinstance(raw_call, dict):
+                continue
+            call = cast(dict[str, Any], raw_call)
+            call_id, _item_id = split_tool_call_id(call.get("id"))
+            function = call.get("function")
+            if not isinstance(function, dict):
+                continue
+            raw_args = cast(dict[str, Any], function).get("arguments")
+            if isinstance(raw_args, str):
+                arguments[call_id] = raw_args
+            elif isinstance(raw_args, dict):
+                arguments[call_id] = json.dumps(raw_args, ensure_ascii=False)
+    for item in items:
+        kind = item.get("type")
+        call_id = str(item.get("call_id") or "")
+        if kind == "function_call_output":
+            replacement = outputs.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("output")):
+                item["output"] = replacement
+        elif kind == "function_call":
+            replacement = arguments.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("arguments")):
+                item["arguments"] = replacement
 
 
 def build_responses_state(
