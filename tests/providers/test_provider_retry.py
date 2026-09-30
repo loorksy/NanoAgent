@@ -134,6 +134,85 @@ async def test_cancel_during_retry_wait_closes_the_row() -> None:
 
 
 @pytest.mark.asyncio
+async def test_cancel_during_the_attempt_after_waiting_closes_that_row(monkeypatch) -> None:
+    started = asyncio.Event()
+
+    class _Provider(ScriptedProvider):
+        async def chat(self, *args, **kwargs) -> LLMResponse:
+            self.calls += 1
+            self.last_kwargs = kwargs
+            if self._responses:
+                response = self._responses.pop(0)
+                if isinstance(response, BaseException):
+                    raise response
+                return response
+            started.set()
+            await asyncio.Event().wait()
+            raise AssertionError("the follow-up attempt should be cancelled")
+
+    provider = _Provider([
+        LLMResponse(
+            content="network connection failed",
+            finish_reason="error",
+            error_kind="connection",
+        ),
+    ])
+    provider._CHAT_RETRY_DELAYS = (30,)
+    statuses: list[RetryStatusEvent] = []
+
+    async def _sleep(_delay: float) -> None:
+        return None
+
+    async def _status(status: RetryStatusEvent) -> None:
+        statuses.append(status)
+
+    monkeypatch.setattr("mokli.providers.base.asyncio.sleep", _sleep)
+    task = asyncio.create_task(provider.chat_with_retry(
+        messages=[{"role": "user", "content": "hello"}],
+        on_retry_status=_status,
+    ))
+    await asyncio.wait_for(started.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert [status.state for status in statuses] == ["waiting", "cancelled"]
+    assert statuses[0].attempt == statuses[1].attempt == 1
+    assert statuses[1].error_kind == "cancelled"
+    assert provider.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_cancel_before_a_retry_wait_publishes_no_row() -> None:
+    started = asyncio.Event()
+
+    class _Provider(ScriptedProvider):
+        async def chat(self, *args, **kwargs) -> LLMResponse:
+            self.calls += 1
+            started.set()
+            await asyncio.Event().wait()
+            raise AssertionError("the first call should be cancelled")
+
+    provider = _Provider([])
+    statuses: list[RetryStatusEvent] = []
+
+    async def _status(status: RetryStatusEvent) -> None:
+        statuses.append(status)
+
+    task = asyncio.create_task(provider.chat_with_retry(
+        messages=[{"role": "user", "content": "hello"}],
+        on_retry_status=_status,
+    ))
+    await asyncio.wait_for(started.wait(), timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert statuses == []
+    assert provider.calls == 1
+
+
+@pytest.mark.asyncio
 async def test_chat_with_retry_clears_waiting_status_on_terminal_non_transient_error(
     monkeypatch,
 ) -> None:
