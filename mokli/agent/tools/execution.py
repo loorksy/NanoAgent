@@ -193,6 +193,9 @@ async def _execute_tool_call(
         if isinstance(exc, PolicyViolation):
             from mokli.agent.tools.base import ToolResult
 
+            # The start event already went out. A blocked call is a real failure,
+            # so the activity row must finish with the policy reason and duration.
+            await hook.on_execute_tool_error(context, tool_call, tool, params, exc)
             event = {
                 "name": tool_call.name,
                 "status": "error",

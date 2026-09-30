@@ -3,8 +3,10 @@
 import mokli.agent_api.sessions as sessions_mod
 from mokli.agent.hook import AgentHookContext
 from mokli.agent.tools.display import phrase_for
+from mokli.agent.tools.execution import _execute_tool_call
 from mokli.agent_api.sessions import TurnHook
 from mokli.providers.base import ToolCallRequest
+from mokli.trading.policy_guard import PolicyViolation
 
 
 class _Hub:
@@ -81,3 +83,40 @@ async def test_failed_tool_keeps_the_measured_duration(monkeypatch) -> None:
     assert "duration_ms" not in started["data"]
     assert failed["data"]["event"] == "failed"
     assert failed["data"]["duration_ms"] == 200
+
+
+async def test_policy_block_closes_the_started_tool_row(monkeypatch) -> None:
+    clock = {"now": 5.0}
+    monkeypatch.setattr(sessions_mod.time, "monotonic", lambda: clock["now"])
+
+    def _deny(name: str, args: dict, **kwargs: object) -> None:
+        clock["now"] = 8.7
+        raise PolicyViolation("Subagents cannot call spawn")
+
+    monkeypatch.setattr("mokli.trading.policy_guard.validate_tool_call", _deny)
+    hook, hub = _hook()
+    call = ToolCallRequest(id="c5", name="spawn", arguments={"task": "لخّص"})
+    class _Tools:
+        def get(self, name: str) -> None:
+            return None
+
+    result, event = await _execute_tool_call(
+        _Tools(),  # type: ignore[arg-type]
+        call,
+        {},
+        {},
+        hook,
+        _ctx(),
+    )
+
+    assert event["status"] == "error"
+    assert "Subagents cannot call spawn" in str(result)
+    started, failed = hub.events
+    assert [item["kind"] for item in hub.events] == ["tool", "tool"]
+    assert started["data"]["event"] == "started"
+    assert started["data"]["call_id"] == "c5"
+    assert failed["data"]["event"] == "failed"
+    assert failed["data"]["call_id"] == "c5"
+    assert failed["data"]["display"] == phrase_for("spawn", "failed")
+    assert failed["data"]["duration_ms"] == 3700
+    assert "Subagents cannot call spawn" in str(failed["data"]["summary"])
