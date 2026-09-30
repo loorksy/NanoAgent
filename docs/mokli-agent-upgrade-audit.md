@@ -179,4 +179,4 @@
 
 ## التحقق الحي (خارج هذا الفرع في Cloud Agent)
 
-قائمة المسارات والأرقام المطلوبة بعد النشر: `docs/mokli-agent-upgrade-report.md` القسم 11. pytest مجمّع على الفرع: 2296 ناجية (آخر تشغيل محلي، يشمل سكربت §11).
+قائمة المسارات والأرقام المطلوبة بعد النشر: `docs/mokli-agent-upgrade-report.md` القسم 11 و`docs/mokli-agent-upgrade-operator-handoff.md`. pytest مجمّع على الفرع: 2296 ناجية (آخر تشغيل محلي، يشمل سكربت §11).
