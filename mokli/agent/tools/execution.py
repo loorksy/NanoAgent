@@ -186,6 +186,7 @@ async def _execute_tool_call(
         else:
             result = await tools.execute(tool_call.name, params)
     except asyncio.CancelledError:
+        await _close_cancelled_tool(hook, context, tool_call, tool, params)
         raise
     except Exception as exc:
         from mokli.trading.policy_guard import PolicyViolation
@@ -250,6 +251,36 @@ async def _execute_tool_call(
     elif len(detail) > 120:
         detail = detail[:120] + "..."
     return result, {"name": tool_call.name, "status": "ok", "detail": detail}
+
+
+async def _close_cancelled_tool(
+    hook: AgentHook,
+    context: AgentHookContext,
+    tool_call: ToolCallRequest,
+    tool: object,
+    params: object,
+) -> None:
+    """Finish a tool row that already started when the call is cancelled.
+
+    A cancelling task raises again at the next await. Drop one cancellation
+    request so the failure event can be published, then let the caller re-raise.
+    The model does not receive a tool result for this call.
+    """
+    task = asyncio.current_task()
+    if task is not None and task.cancelling():
+        task.uncancel()
+    try:
+        await hook.on_execute_tool_error(
+            context,
+            tool_call,
+            tool,
+            params,
+            asyncio.CancelledError("cancelled"),
+        )
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("failed to close cancelled tool {}", tool_call.name)
 
 
 def is_ssrf_violation(text: str) -> bool:

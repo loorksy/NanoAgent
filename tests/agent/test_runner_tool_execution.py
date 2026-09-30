@@ -173,7 +173,7 @@ async def test_tool_execution_propagates_preparation_failure():
 
 
 @pytest.mark.asyncio
-async def test_tool_execution_propagates_cancellation_without_error_hook():
+async def test_tool_execution_cancellation_closes_the_row_and_propagates():
     tools = MagicMock()
     tools.prepare_call.return_value = (None, {}, None)
     tools.execute = AsyncMock(side_effect=asyncio.CancelledError)
@@ -211,7 +211,7 @@ async def test_tool_execution_propagates_cancellation_without_error_hook():
             context=AgentHookContext(iteration=0, messages=[]),
         )
 
-    assert events == ["before"]
+    assert events == ["before", "error"]
 
 
 @pytest.mark.asyncio

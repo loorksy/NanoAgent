@@ -1,5 +1,9 @@
 """A tool call is one activity row. The task text is not a second subagent."""
 
+import asyncio
+
+import pytest
+
 import mokli.agent_api.sessions as sessions_mod
 from mokli.agent.hook import AgentHookContext
 from mokli.agent.tools.display import phrase_for
@@ -120,3 +124,42 @@ async def test_policy_block_closes_the_started_tool_row(monkeypatch) -> None:
     assert failed["data"]["display"] == phrase_for("spawn", "failed")
     assert failed["data"]["duration_ms"] == 3700
     assert "Subagents cannot call spawn" in str(failed["data"]["summary"])
+
+
+async def test_cancel_closes_the_started_tool_row(monkeypatch) -> None:
+    clock = {"now": 2.0}
+    monkeypatch.setattr(sessions_mod.time, "monotonic", lambda: clock["now"])
+
+    class _Tool:
+        async def execute(self, **kwargs: object) -> str:
+            clock["now"] = 5.7
+            await asyncio.sleep(30)
+            return "late"
+
+    class _Tools:
+        def get(self, name: str) -> _Tool:
+            return _Tool()
+
+        def prepare_call(self, name: str, arguments: object) -> tuple[_Tool, object, None]:
+            return _Tool(), arguments, None
+
+    hook, hub = _hook()
+    call = ToolCallRequest(id="c6", name="get_gold_quote", arguments={"symbol": "XAUUSD"})
+
+    async def _run() -> None:
+        await _execute_tool_call(_Tools(), call, {}, {}, hook, _ctx())  # type: ignore[arg-type]
+
+    task = asyncio.create_task(_run())
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    started, failed = hub.events
+    assert [item["kind"] for item in hub.events] == ["tool", "tool"]
+    assert started["data"]["event"] == "started"
+    assert failed["data"]["event"] == "failed"
+    assert failed["data"]["call_id"] == "c6"
+    assert failed["data"]["display"] == phrase_for("get_gold_quote", "failed")
+    assert failed["data"]["duration_ms"] == 3700
+    assert "cancelled" in str(failed["data"].get("summary"))
