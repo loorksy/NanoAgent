@@ -95,7 +95,8 @@ async def test_dispatch_cancellation_restores_checkpoint():
     )
 
     loop.sessions.get_or_create = MagicMock(return_value=session)
-    loop.sessions.save = MagicMock()
+    loop.sessions.persist_to_disk = MagicMock(return_value=True)
+    loop.sessions.cache_saved = MagicMock()
 
     async def _cancel(*_args, **_kwargs):
         raise asyncio.CancelledError()
@@ -114,8 +115,9 @@ async def test_dispatch_cancellation_restores_checkpoint():
     )
     assert checkpoint_key not in session.metadata, \
         "Checkpoint metadata should be cleared after restore"
-    assert loop.sessions.save.called, \
+    assert loop.sessions.persist_to_disk.called, \
         "Session should be persisted so the restored state survives process restart"
+    assert loop.sessions.cache_saved.called
 
 
 @pytest.mark.asyncio

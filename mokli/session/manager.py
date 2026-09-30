@@ -1787,13 +1787,25 @@ class SessionManager:
         """Attempt to recover a session from a corrupt JSONL file."""
         return self._jsonl_store.repair(key, path=path)
 
+    def persist_to_disk(self, session: Session, *, fsync: bool = False) -> bool:
+        """Write the session file without touching the in-memory cache.
+
+        The cache update stays on the caller thread. A long transcript can be
+        serialized on a worker while the event loop keeps serving other sessions.
+        """
+        if not session.policy.persist:
+            return False
+        self._store.save(session, fsync=fsync)
+        return True
+
+    def cache_saved(self, session: Session) -> None:
+        """Retain a session that was just written by ``persist_to_disk``."""
+        self._remember(session)
+
     def save(self, session: Session, *, fsync: bool = False) -> None:
         """Persist a session and retain it in the cache."""
-        if not session.policy.persist:
-            return
-
-        self._store.save(session, fsync=fsync)
-        self._remember(session)
+        if self.persist_to_disk(session, fsync=fsync):
+            self.cache_saved(session)
 
     def save_runtime_checkpoint(self, session: Session) -> None:
         """Persist volatile recovery state without rewriting long history."""
