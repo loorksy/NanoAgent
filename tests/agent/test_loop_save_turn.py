@@ -1,5 +1,7 @@
 import asyncio
 import json
+import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -1843,6 +1845,57 @@ async def test_next_turn_after_crash_closes_pending_user_turn_before_new_input(t
     ]
     assert AgentLoop._PENDING_USER_TURN_KEY not in session.metadata
     assert session.provider_state is None
+
+
+@pytest.mark.asyncio
+async def test_runtime_checkpoint_write_leaves_the_event_loop_free(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tool-turn sidecar with a long result is written off the event loop."""
+    loop = _make_full_loop(tmp_path)
+    session = loop.sessions.get_or_create("cli:fat")
+    session.add_message("user", "hello")
+    loop.sessions.save(session)
+    fat = "z" * 80_000
+    session.provider_state = ProviderConversationState(
+        kind="openai_responses",
+        provider="openai:test",
+        model="test-model",
+        version=1,
+        payload={"items": []},
+        pending_messages=[{"role": "tool", "content": fat}],
+    )
+    session.metadata[AgentLoop._RUNTIME_CHECKPOINT_KEY] = {
+        "phase": "tools_completed",
+        "completed_tool_results": [{"content": fat}],
+    }
+    order: list[str] = []
+    real_save = loop.sessions.save_runtime_checkpoint
+
+    def slow(target: Session) -> None:
+        time.sleep(0.2)
+        order.append(
+            "main" if threading.current_thread() is threading.main_thread() else "worker"
+        )
+        real_save(target)
+
+    monkeypatch.setattr(loop.sessions, "save_runtime_checkpoint", slow)
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append("tick")
+
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    await loop._write_runtime_checkpoint(session)
+    await pending
+    assert order[0] == "tick"
+    assert "main" not in order
+    assert order.count("worker") == 1
+    assert time.perf_counter() - started < 0.35
+    raw = loop.sessions._get_runtime_checkpoint_path(session.key).read_text(encoding="utf-8")
+    assert raw.count(fat) == 2
+    await loop.aclose()
 
 
 @pytest.mark.asyncio

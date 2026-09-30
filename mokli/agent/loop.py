@@ -1058,7 +1058,8 @@ class AgentLoop:
                 public_payload[self._PROVIDER_STATE_CHECKPOINT_VERSION_KEY] = (
                     self._PROVIDER_STATE_CHECKPOINT_VERSION
                 )
-            self._set_runtime_checkpoint(session, public_payload)
+            session.metadata[self._RUNTIME_CHECKPOINT_KEY] = public_payload
+            await self._write_runtime_checkpoint(session)
 
         async def _drain_pending(
             *,
@@ -2470,6 +2471,14 @@ class AgentLoop:
         """Persist the latest in-flight turn state into session metadata."""
         session.metadata[self._RUNTIME_CHECKPOINT_KEY] = payload
         self.sessions.save_runtime_checkpoint(session)
+
+    async def _write_runtime_checkpoint(self, session: Session) -> None:
+        """Write the in-flight sidecar off the event loop.
+
+        The caller has already stored the checkpoint on the session. The turn
+        waits for the file before it changes that state again.
+        """
+        await asyncio.to_thread(self.sessions.save_runtime_checkpoint, session)
 
     def _mark_pending_user_turn(self, session: Session) -> None:
         session.metadata[self._PENDING_USER_TURN_KEY] = True
