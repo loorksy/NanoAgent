@@ -63,6 +63,33 @@ def one_line_summary(diag: dict[str, Any]) -> str:
     return _one_line_summary(diag)
 
 
+def _p0_fold_suffix(diag: dict[str, Any]) -> str:
+    """Extra §11 numbers for long-session / P0 checks (omitted when all zero)."""
+    extra: list[str] = []
+    ref_saved = int(diag.get("referenced_chars_saved") or 0)
+    if ref_saved:
+        extra.append(f"ref_saved={ref_saved}")
+    fold_chars = (
+        int(diag.get("folded_reasoning_chars") or 0)
+        + int(diag.get("folded_candle_chars") or 0)
+        + int(diag.get("folded_subagent_chars") or 0)
+    )
+    if fold_chars:
+        extra.append(f"fold_chars={fold_chars}")
+    static_resends = int(diag.get("static_resends") or 0)
+    if static_resends:
+        extra.append(f"static_resends={static_resends}")
+    reused = int(diag.get("reused_tool_calls") or 0)
+    if reused:
+        extra.append(f"reused_tools={reused}")
+    nested_rounds = int(diag.get("nested_rounds") or 0)
+    if nested_rounds:
+        extra.append(f"nested_rounds={nested_rounds}")
+    if not extra:
+        return ""
+    return " " + " ".join(extra)
+
+
 def _one_line_summary(diag: dict[str, Any]) -> str:
     parts = [
         f"rounds={diag.get('rounds')}",
@@ -75,7 +102,8 @@ def _one_line_summary(diag: dict[str, Any]) -> str:
         f"retry_ms={diag.get('retry_ms')}",
         f"nested_in={diag.get('nested_input_tokens')}",
     ]
-    return " ".join(str(p) for p in parts if not str(p).endswith("=None"))
+    base = " ".join(str(p) for p in parts if not str(p).endswith("=None"))
+    return base + _p0_fold_suffix(diag)
 
 
 def main() -> int:

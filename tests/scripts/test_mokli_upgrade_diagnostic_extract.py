@@ -139,6 +139,36 @@ def test_extracts_agent_api_gateway_event_shape() -> None:
     assert "in=777" in proc.stdout
 
 
+def test_one_liner_includes_p0_fold_metrics_when_nonzero() -> None:
+    payload = {
+        "kind": "diagnostic",
+        "data": {
+            "rounds": 5,
+            "request_input_tokens": 2000,
+            "request_output_tokens": 50,
+            "tool_calls": 3,
+            "referenced_chars_saved": 12000,
+            "folded_candle_chars": 8000,
+            "static_resends": 2,
+            "reused_tool_calls": 1,
+            "nested_rounds": 4,
+        },
+    }
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT)],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout.strip()
+    assert "ref_saved=12000" in out
+    assert "fold_chars=8000" in out
+    assert "static_resends=2" in out
+    assert "reused_tools=1" in out
+    assert "nested_rounds=4" in out
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(
