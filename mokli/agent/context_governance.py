@@ -9,6 +9,7 @@ session history list in place.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass, replace
@@ -211,6 +212,108 @@ def fold_prior_tool_results(
     if updated is None:
         return messages, 0, 0
     return updated, referenced, saved
+
+
+_CANDLE_ARG = "candles_json"
+_CANDLE_ARG_MARK = "[مرجع شموع سابقة:"
+
+
+def _argument_object(raw: Any) -> dict[str, Any] | None:
+    if isinstance(raw, dict):
+        return cast(dict[str, Any], raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _candle_argument_chars(value: Any) -> int:
+    if isinstance(value, str):
+        return 0 if value.startswith(_CANDLE_ARG_MARK) else len(value)
+    if isinstance(value, (list, dict)):
+        return len(json.dumps(value, ensure_ascii=False))
+    return 0
+
+
+def fold_completed_candle_arguments(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Drop a finished tool call's pasted candle list from the model copy.
+
+    The tool already consumed that argument. The saved transcript is not this
+    list. A call that has no tool result yet keeps the paste so a retry can
+    still see it. Other arguments stay.
+    """
+    completed = {
+        str(message.get("tool_call_id"))
+        for message in messages
+        if message.get("role") == "tool" and message.get("tool_call_id")
+    }
+    if not completed:
+        return messages, 0, 0
+
+    updated: list[dict[str, Any]] | None = None
+    folded = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        calls = message.get("tool_calls") if message.get("role") == "assistant" else None
+        if not isinstance(calls, list):
+            if updated is not None:
+                updated.append(message)
+            continue
+        rewritten: list[Any] | None = None
+        message_saved = 0
+        message_folded = 0
+        for call_index, call in enumerate(calls):
+            if not isinstance(call, dict) or str(call.get("id") or "") not in completed:
+                continue
+            function = call.get("function")
+            if not isinstance(function, dict):
+                continue
+            raw_args = function.get("arguments")
+            parsed = _argument_object(raw_args)
+            if parsed is None or _CANDLE_ARG not in parsed:
+                continue
+            size = _candle_argument_chars(parsed[_CANDLE_ARG])
+            if size <= _REFERENCE_THRESHOLD:
+                continue
+            note = (
+                f"{_CANDLE_ARG_MARK} {size} حرفاً. "
+                "الأداة استهلكتها ولن تُعاد.]"
+            )
+            replacement = dict(parsed)
+            replacement[_CANDLE_ARG] = note
+            if isinstance(raw_args, str):
+                new_args: Any = json.dumps(replacement, ensure_ascii=False)
+                message_saved += len(raw_args) - len(new_args)
+            else:
+                new_args = replacement
+                message_saved += size - len(note)
+            new_function = dict(function)
+            new_function["arguments"] = new_args
+            new_call = dict(call)
+            new_call["function"] = new_function
+            if rewritten is None:
+                rewritten = list(calls)
+            rewritten[call_index] = new_call
+            message_folded += 1
+        if rewritten is None:
+            if updated is not None:
+                updated.append(message)
+            continue
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["tool_calls"] = rewritten
+        updated.append(cloned)
+        folded += message_folded
+        saved += max(0, message_saved)
+    if updated is None:
+        return messages, 0, 0
+    return updated, folded, saved
 
 
 _REASONING_MARK = "[تفكير دورة سابقة:"
@@ -1124,14 +1227,17 @@ class ContextGovernor:
                     updated = [dict(m) for m in messages]
                 updated[idx]["content"] = normalized
         folded, referenced, saved = fold_prior_tool_results(updated)
+        folded, candle_count, candle_saved = fold_completed_candle_arguments(folded)
         reasoned, reason_count, reason_saved = fold_prior_assistant_reasoning(folded)
-        if referenced or reason_count:
+        if referenced or candle_count or reason_count:
             from mokli.agent.turn_diagnostics import current_turn_diagnostics
 
             diag = current_turn_diagnostics()
             if diag is not None:
                 if referenced:
                     diag.note_references(referenced, saved)
+                if candle_count:
+                    diag.note_candle_arguments(candle_count, candle_saved)
                 if reason_count:
                     diag.note_reasoning_fold(reason_count, reason_saved)
         return reasoned

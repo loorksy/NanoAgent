@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import pytest
 
 from mokli.agent.context_governance import (
+    fold_completed_candle_arguments,
     fold_prior_assistant_reasoning,
     fold_prior_tool_results,
 )
@@ -201,6 +203,136 @@ def test_prior_assistant_reasoning_is_not_resent() -> None:
     assert count_next == 1
     assert "thinking_blocks" not in folded_next[1]
     assert finished[1]["thinking_blocks"][0]["signature"] == "sig"
+
+
+def _candle_rows(count: int) -> list[dict[str, float | int]]:
+    rows: list[dict[str, float | int]] = []
+    price = 2300.0
+    for index in range(count):
+        price += 1.2
+        rows.append(
+            {
+                "time_ms": index * 60_000,
+                "open": round(price - 0.2, 4),
+                "high": round(price + 0.3, 4),
+                "low": round(price - 0.4, 4),
+                "close": round(price, 4),
+            }
+        )
+    return rows
+
+
+def test_completed_candle_arguments_are_not_resent() -> None:
+    pasted = json.dumps(_candle_rows(200), ensure_ascii=False)
+    assert len(pasted) > 1200
+    arguments = json.dumps(
+        {"description": "كسر قمة الساعة", "candles_json": pasted},
+        ensure_ascii=False,
+    )
+    call = {
+        "id": "call_replay",
+        "type": "function",
+        "function": {"name": "fast_backtest", "arguments": arguments},
+    }
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": "اختبر الخوارزمية"},
+        {"role": "assistant", "content": "", "tool_calls": [call]},
+        {
+            "role": "tool",
+            "tool_call_id": "call_replay",
+            "name": "fast_backtest",
+            "content": '{"ok": true, "trades": 3}',
+        },
+    ]
+    before = estimate_prompt_tokens(messages, None)
+    folded, count, saved = fold_completed_candle_arguments(messages)
+    after = estimate_prompt_tokens(folded, None)
+    rewritten = folded[1]["tool_calls"][0]["function"]["arguments"]
+    parsed = json.loads(rewritten)
+    assert count == 1
+    assert saved > 1000
+    assert after < before
+    assert parsed["description"] == "كسر قمة الساعة"
+    assert parsed["candles_json"].startswith("[مرجع شموع سابقة:")
+    assert pasted not in rewritten
+    assert messages[1]["tool_calls"][0]["function"]["arguments"] == arguments
+    print(f"TOKEN_CANDLE_ARGS before={before} after={after} saved_chars={saved}")
+
+    pending = messages[:2]
+    kept, pending_count, _pending_saved = fold_completed_candle_arguments(pending)
+    assert pending_count == 0
+    assert kept[1]["tool_calls"][0]["function"]["arguments"] == arguments
+
+    short = json.dumps({"candles_json": "[]"}, ensure_ascii=False)
+    short_messages: list[dict[str, Any]] = [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call_short",
+                    "type": "function",
+                    "function": {"name": "fast_backtest", "arguments": short},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_short",
+            "name": "fast_backtest",
+            "content": "{}",
+        },
+    ]
+    unchanged, short_count, _short_saved = fold_completed_candle_arguments(short_messages)
+    assert short_count == 0
+    assert unchanged[0]["tool_calls"][0]["function"]["arguments"] == short
+
+
+def test_candle_argument_fold_is_recorded_on_the_turn() -> None:
+    from types import SimpleNamespace
+
+    from mokli.agent.context_governance import ContextGovernor
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+
+    pasted = json.dumps(_candle_rows(200), ensure_ascii=False)
+    arguments = json.dumps({"candles_json": pasted}, ensure_ascii=False)
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call_replay",
+                    "type": "function",
+                    "function": {"name": "fast_backtest", "arguments": arguments},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_replay",
+            "name": "fast_backtest",
+            "content": '{"ok": true}',
+        },
+    ]
+    diag = TurnDiagnostics(model="test", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    try:
+        prepared = ContextGovernor().apply_tool_result_budget(
+            SimpleNamespace(workspace=None, session_key=None, max_tool_result_chars=16_000),  # type: ignore[arg-type]
+            messages,
+        )
+    finally:
+        reset_turn_diagnostics(token)
+    payload = diag.to_dict()
+    assert payload["folded_candle_arguments"] == 1
+    assert payload["folded_candle_chars"] > 1000
+    assert pasted not in prepared[0]["tool_calls"][0]["function"]["arguments"]
+    assert messages[0]["tool_calls"][0]["function"]["arguments"] == arguments
 
 
 def test_latest_tool_batch_stays_complete() -> None:

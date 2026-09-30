@@ -106,6 +106,8 @@ class TurnDiagnostics:
     referenced_chars_saved: int = 0
     folded_reasoning: int = 0
     folded_reasoning_chars: int = 0
+    folded_candle_arguments: int = 0
+    folded_candle_chars: int = 0
     tool_result_chars: list[dict[str, Any]] = field(default_factory=list)
     components: dict[str, int] = field(default_factory=dict)
     memory_chars: int = 0
@@ -143,6 +145,10 @@ class TurnDiagnostics:
     def note_reasoning_fold(self, count: int, chars_saved: int) -> None:
         self.folded_reasoning += max(0, count)
         self.folded_reasoning_chars += max(0, chars_saved)
+
+    def note_candle_arguments(self, count: int, chars_saved: int) -> None:
+        self.folded_candle_arguments += max(0, count)
+        self.folded_candle_chars += max(0, chars_saved)
 
     def note_retry_wait(self, elapsed_ms: int) -> None:
         """Record provider retry sleep separately from model generation time."""
@@ -241,6 +247,8 @@ class TurnDiagnostics:
             "referenced_chars_saved": self.referenced_chars_saved,
             "folded_reasoning": self.folded_reasoning,
             "folded_reasoning_chars": self.folded_reasoning_chars,
+            "folded_candle_arguments": self.folded_candle_arguments,
+            "folded_candle_chars": self.folded_candle_chars,
             "tool_result_chars": list(self.tool_result_chars),
             "components": components,
             "memory_chars": self.memory_chars,
