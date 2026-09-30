@@ -36,6 +36,32 @@ def _collect_jsonl(directory: Path) -> list[Path]:
     return sorted(files, key=lambda p: (_row_index(p.stem) is None, _row_index(p.stem) or 0, p.name))
 
 
+def gather_section11_rows(
+    directory: Path,
+    results_path: Path | None = None,
+) -> tuple[dict[int, tuple[str, str]], int]:
+    """Build ``{row_id: (result_text, numbers_line)}`` from JSONL + optional results JSON."""
+    files = _collect_jsonl(directory)
+    results_map: dict[int, str] = {}
+    if results_path is not None:
+        results_map = _load_results(results_path)
+    out: dict[int, tuple[str, str]] = {}
+    missing = 0
+    for path in files:
+        idx = _row_index(path.stem)
+        if idx is None:
+            continue
+        diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
+        if diag is None:
+            numbers = "(no diagnostic)"
+            missing += 1
+        else:
+            numbers = one_line_summary(diag)
+        result_text = results_map.get(idx, "")
+        out[idx] = (result_text, numbers)
+    return out, missing
+
+
 def _load_results(path: Path) -> dict[int, str]:
     """Map §11 row number → operator «النتيجة» text (JSON object keys are row ids)."""
     raw: Any = json.loads(path.read_text(encoding="utf-8"))
@@ -82,33 +108,27 @@ def main() -> int:
         print(f"No *.jsonl in {directory}", file=sys.stderr)
         return 1
 
-    results_map: dict[int, str] = {}
+    results_path: Path | None = None
     if args.results:
         results_path = args.results.expanduser().resolve()
         if not results_path.is_file():
             print(f"Results file not found: {results_path}", file=sys.stderr)
             return 1
-        try:
-            results_map = _load_results(results_path)
-        except (json.JSONDecodeError, ValueError) as exc:
-            print(f"Invalid results file: {exc}", file=sys.stderr)
-            return 1
+
+    try:
+        row_map, missing = gather_section11_rows(directory, results_path)
+    except (json.JSONDecodeError, ValueError) as exc:
+        print(f"Invalid results file: {exc}", file=sys.stderr)
+        return 1
 
     rows: list[tuple[int | str, str, str, str]] = []
-    missing = 0
     for path in files:
         idx = _row_index(path.stem)
         label = str(idx) if idx is not None else path.stem
-        text = path.read_text(encoding="utf-8")
-        diag = diagnostic_from_text(text)
-        if diag is None:
-            numbers = "(no diagnostic)"
-            missing += 1
+        if idx is not None and idx in row_map:
+            result_text, numbers = row_map[idx]
         else:
-            numbers = one_line_summary(diag)
-        result_text = ""
-        if idx is not None:
-            result_text = results_map.get(idx, "")
+            result_text, numbers = "", "(no diagnostic)" if idx is not None else ""
         rows.append((label, path.name, numbers, result_text))
 
     if args.markdown:
