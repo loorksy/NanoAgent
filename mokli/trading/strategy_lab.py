@@ -36,6 +36,57 @@ def _strategies_dir():
     return path
 
 
+def load_replay_candles(*, interval: str = "1h", limit: int = 200) -> list[Candle]:
+    """Bars for the existing replay. That replay does not read a live quote."""
+    from mokli.trading.market_context import build_agent_market_context
+
+    market = build_agent_market_context(
+        "XAUUSD",
+        interval,
+        limit,
+        include_quote=False,
+    )
+    if not market.sync.ok:
+        return []
+    return list(market.candles)
+
+
+def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
+    """What the model reads. Candle rows, the R series, and the copied test blob stay out."""
+    brief: dict[str, object] = {}
+    for key in (
+        "id",
+        "name",
+        "status",
+        "promoted",
+        "executed",
+        "broker_order",
+        "notice_key",
+        "run_state",
+        "version",
+        "changelog",
+        "logic_errors",
+        "program",
+        "saved",
+    ):
+        if key in proposal:
+            brief[key] = proposal[key]
+    backtest = proposal.get("backtest")
+    if isinstance(backtest, dict):
+        brief["backtest"] = {key: value for key, value in backtest.items() if key != "rs"}
+    validation = proposal.get("validation")
+    if isinstance(validation, dict):
+        brief["validation"] = validation
+    spec = proposal.get("spec")
+    if isinstance(spec, dict):
+        brief["spec"] = {
+            key: value
+            for key, value in spec.items()
+            if key not in {"description", "test_results"}
+        }
+    return brief
+
+
 def propose_strategy(
     name: str,
     candles: list[Candle],

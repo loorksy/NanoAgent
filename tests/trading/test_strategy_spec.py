@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 
 from mokli.agent.tools.propose_strategy import ProposeStrategyTool
 from mokli.trading.backtest.engine import replay
 from mokli.trading.strategy_lab import propose_strategy, request_live, save_strategy, start_paper
 from mokli.trading.strategy_spec import spec_from_description
-from mokli.trading.types import Candle
+from mokli.trading.types import AgentMarketContext, Candle, MarketSync
+from mokli.utils.helpers import estimate_prompt_tokens
 
 _EXAMPLE = (
     "أنشئ لي خوارزمية للذهب تعتمد على كسر قمة الساعة السابقة، "
@@ -129,6 +131,89 @@ def test_tool_propose_save_paper_and_live_refusal(tmp_path, monkeypatch) -> None
         )
     )
     assert live["broker_order"] is False
+
+
+def _ohlc_json(candles: list[Candle]) -> str:
+    return json.dumps(
+        [
+            {
+                "time_ms": candle.time_ms,
+                "open": candle.open,
+                "high": candle.high,
+                "low": candle.low,
+                "close": candle.close,
+            }
+            for candle in candles
+        ]
+    )
+
+
+def test_strategy_tool_loads_bars_instead_of_reading_a_pasted_list(monkeypatch) -> None:
+    calls = {"loads": 0, "quotes": 0}
+
+    def _market(*_args: object, **kwargs: object) -> AgentMarketContext:
+        calls["loads"] += 1
+        assert kwargs.get("include_quote") is False
+        time.sleep(0.2)
+        candles = _rising(200)
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="1h",
+            candles=candles,
+            last_close=candles[-1].close,
+            atr=1.0,
+            sync=MarketSync(ok=True),
+        )
+
+    def _quote(*_args: object, **_kwargs: object) -> None:
+        calls["quotes"] += 1
+        raise AssertionError("quote fetched")
+
+    monkeypatch.setattr("mokli.trading.market_context.build_agent_market_context", _market)
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _quote)
+    pasted = _ohlc_json(_rising(200))
+    full = propose_strategy("gold_hour_break", _rising(200), description=_EXAMPLE)
+    before = estimate_prompt_tokens(
+        [
+            {"role": "user", "content": pasted},
+            {"role": "tool", "content": json.dumps(full)},
+        ]
+    )
+    started = time.perf_counter()
+    raw = asyncio.run(
+        ProposeStrategyTool().execute(name="gold_hour_break", description=_EXAMPLE)
+    )
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    after = estimate_prompt_tokens([{"role": "tool", "content": raw}])
+    payload = json.loads(raw)
+    assert payload["status"] == "proposed"
+    assert payload["executed"] is False
+    assert payload["broker_order"] is False
+    assert calls == {"loads": 1, "quotes": 0}
+    assert "time_ms" not in raw
+    assert '"rs"' not in raw
+    assert "test_results" not in raw
+    assert elapsed_ms < 350
+    print(f"STRATEGY_CANDLES before_tokens={before} after_tokens={after}")
+
+
+def test_strategy_tool_does_not_invent_bars_when_the_feed_is_down(monkeypatch) -> None:
+    def _down(*_args: object, **_kwargs: object) -> AgentMarketContext:
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="1h",
+            candles=[],
+            last_close=0.0,
+            atr=0.0,
+            sync=MarketSync(ok=False, reason="OANDA not configured"),
+        )
+
+    monkeypatch.setattr("mokli.trading.market_context.build_agent_market_context", _down)
+    raw = asyncio.run(ProposeStrategyTool().execute(name="gold_hour_break", description=_EXAMPLE))
+    payload = json.loads(raw)
+    assert payload["reason_key"] == "trading.market_feed_unconfigured"
+    assert payload["broker_order"] is False
+    assert payload["executed"] is False
 
 
 def test_strategy_tool_schema_exposes_the_description_argument() -> None:
