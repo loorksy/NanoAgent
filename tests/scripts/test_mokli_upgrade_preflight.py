@@ -24,3 +24,4 @@ def test_preflight_script_runs() -> None:
     assert "mokli_upgrade_diagnostic_extract" in proc.stdout
     assert "section11_batch" in proc.stdout
     assert "section11_validate" in proc.stdout
+    assert "section11_dry_run" in proc.stdout

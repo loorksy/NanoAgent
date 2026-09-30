@@ -84,6 +84,19 @@ def main() -> int:
     if empty_result:
         errors.append(f"Empty «النتيجة» for rows: {empty_result}")
 
+    dry_run_rows: list[int] = []
+    for row_id in sorted(required):
+        text = results_map.get(row_id)
+        if text and "dry-run" in str(text).lower():
+            dry_run_rows.append(row_id)
+    if dry_run_rows and (
+        args.require_through > 1 or dry_run_rows != [1]
+    ):
+        errors.append(
+            f"Placeholder DRY-RUN in results for rows {dry_run_rows} — "
+            "replace with live §11 text before production validate"
+        )
+
     if errors:
         for msg in errors:
             print(f"ERROR {msg}", file=sys.stderr)

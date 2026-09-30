@@ -61,3 +61,33 @@ def test_validate_fails_on_empty_result(tmp_path: Path) -> None:
     )
     assert proc.returncode == 1
     assert "Empty" in proc.stderr or "Empty" in proc.stdout
+
+
+def test_validate_rejects_dry_run_when_require_multiple_rows(tmp_path: Path) -> None:
+    for row_id in (1, 2):
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({1: "DRY-RUN — fixture", 2: "PASS live"}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "DRY-RUN" in proc.stderr
