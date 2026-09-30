@@ -753,6 +753,63 @@ async def test_scenario_role_uses_candles_and_the_event_note(monkeypatch) -> Non
 
 
 @pytest.mark.asyncio
+async def test_liquidity_role_reads_candles_not_an_order_book(monkeypatch) -> None:
+    """Equal highs are in the bars. An order-book stop cluster is not."""
+    from pathlib import Path
+
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams import role_prompts
+    from mokli.trading.teams.runtime import run_swarm
+
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    prompt = (roles_dir / "liquidity.md").read_text(encoding="utf-8")
+    assert "stop clusters" not in prompt
+    assert "order-book stop cluster" in prompt
+    assert "candle evidence" in prompt
+    old = (
+        "## Focus: liquidity\n\n"
+        "Map where liquidity sits from the evidence: equal highs and lows, recent sweeps and their\n"
+        "follow-through, untested imbalances, and where stop clusters are likely relative to the\n"
+        "current price. State which side is more likely to be hunted before a real move and which\n"
+        "level, if traded through, would confirm that the sweep is complete.\n"
+    )
+    before = estimate_prompt_tokens([{"role": "user", "content": old}])
+    after = estimate_prompt_tokens([{"role": "user", "content": prompt}])
+    print(f"LIQUIDITY_PROMPT before={before} after={after}")
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        return "equal highs\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "dollar firm"
+
+    await run_swarm(
+        "gold_analysis_committee",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = {role: json.loads(evidence) for role, evidence in seen}
+    liquidity = by_role["Liquidity Analyst"]
+    assert "candles" in liquidity
+    assert "macroDrivers" not in liquidity
+    assert "spread_points" not in liquidity
+    assert "macroDrivers" in by_role["Macro Analyst"]
+    assert "candles" not in by_role["Macro Analyst"]
+
+
+@pytest.mark.asyncio
 async def test_committee_lead_reads_every_specialist_brief(monkeypatch) -> None:
     """The lead attributes points to each brief. Risk's note is not a substitute."""
     from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
