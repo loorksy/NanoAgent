@@ -142,6 +142,7 @@ def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
         "version",
         "changelog",
         "logic_errors",
+        "reason_key",
         "program",
         "saved",
     ):
@@ -194,6 +195,21 @@ def propose_strategy(
     else:
         rules = None
         card = cast(dict[str, object], replay(candles))
+    if card.get("ok") is not True:
+        refused: dict[str, object] = {
+            "name": name,
+            "status": "invalid",
+            "promoted": False,
+            "executed": False,
+            "broker_order": False,
+            "notice_key": "strategy.invalid",
+            "reason_key": card.get("reason_key"),
+            "backtest": card,
+            "program": None,
+        }
+        if spec is not None:
+            refused["spec"] = spec
+        return refused
     series = _rs(card)
     proposal: dict[str, object] = {
         "id": str(uuid.uuid4()),
@@ -230,6 +246,9 @@ def save_strategy(proposal: dict[str, object]) -> dict[str, object]:
     """Persist a proposal. Saving does not promote it and does not send an order."""
     if proposal.get("status") != "proposed":
         return {"ok": False, "executed": False, "reason": "not_proposed"}
+    backtest = proposal.get("backtest")
+    if isinstance(backtest, dict) and backtest.get("ok") is not True:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     strategy_id = str(proposal.get("id") or uuid.uuid4())
     proposal = dict(proposal)
     proposal["id"] = strategy_id
@@ -258,6 +277,9 @@ def start_paper(strategy_id: str) -> dict[str, object]:
     spec = record.get("spec")
     if isinstance(spec, dict) and spec.get("logic_ok") is False:
         return {"ok": False, "executed": False, "reason": "logic_failed"}
+    backtest = record.get("backtest")
+    if isinstance(backtest, dict) and backtest.get("ok") is not True:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     entry = record_paper_action(strategy_id, "paper", note=str(record.get("name") or ""))
     record["run_state"] = "paper"
     record["executed"] = False
@@ -282,6 +304,9 @@ def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, objec
     spec = record.get("spec")
     if isinstance(spec, dict) and spec.get("logic_ok") is False:
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
+    backtest = record.get("backtest")
+    if isinstance(backtest, dict) and backtest.get("ok") is not True:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     record["run_state"] = "approval_recorded"
     record["executed"] = False
     record["broker_order"] = False

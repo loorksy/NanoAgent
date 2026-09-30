@@ -85,6 +85,36 @@ def test_atr_replay_without_rules_is_unchanged() -> None:
     assert card["strategy"] == "atr_breakout"
 
 
+def test_failed_replay_is_not_saved_or_papered(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.trading.strategy_lab.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.paper._LEDGER", tmp_path / "paper_ledger.jsonl")
+    proposal = propose_strategy("gold_hour_break", _rising(10), description=_EXAMPLE)
+    assert proposal["status"] == "invalid"
+    assert proposal["executed"] is False
+    assert proposal["broker_order"] is False
+    backtest = proposal["backtest"]
+    assert isinstance(backtest, dict)
+    assert backtest["ok"] is False
+    assert save_strategy(proposal)["reason"] == "not_proposed"
+    forced = dict(proposal)
+    forced["status"] = "proposed"
+    assert save_strategy(forced)["reason"] == "backtest_failed"
+    strategy_id = "too-short"
+    record = dict(forced)
+    record["id"] = strategy_id
+    folder = tmp_path / "trading" / "strategies"
+    folder.mkdir(parents=True)
+    (folder / f"{strategy_id}.json").write_text(json.dumps(record), encoding="utf-8")
+    paper = start_paper(strategy_id)
+    assert paper["ok"] is False
+    assert paper["reason"] == "backtest_failed"
+    assert paper["broker_order"] is False
+    live = request_live(strategy_id, approved=True)
+    assert live["ok"] is False
+    assert live["broker_order"] is False
+    assert live["reason"] == "backtest_failed"
+
+
 def test_incomplete_description_does_not_backtest() -> None:
     proposal = propose_strategy("partial", _rising(), description="استراتيجية للذهب")
     assert proposal["status"] == "invalid"
