@@ -54,6 +54,7 @@ function stepDisplay(
     return named.startsWith("tool.") ? translate("timeline.step") : named;
   }
   if (entry.kind === "subagent") {
+    if (entry.display) return entry.display;
     const named = lookup(`subagent.${entry.role}`);
     if (!named.startsWith("subagent.")) return named;
     return isHumanRole(entry.role) ? entry.role : translate("timeline.specialist");

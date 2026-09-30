@@ -149,12 +149,15 @@ def subagent_data(
     role: str,
     summary: str | None = None,
     duration_ms: int | None = None,
+    display: str | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "id": id, "role": role}
     if summary is not None:
         data["summary"] = summary
     if duration_ms is not None:
         data["duration_ms"] = duration_ms
+    if display:
+        data["display"] = display
     return data
 
 
@@ -301,6 +304,7 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
                 role=event.role,
                 summary=event.summary or None,
                 duration_ms=event.duration_ms,
+                display=event.display or None,
             ),
         }
     if isinstance(event, RetryStatusEvent):

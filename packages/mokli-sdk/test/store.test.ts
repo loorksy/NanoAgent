@@ -263,6 +263,25 @@ describe("activityLine", () => {
     );
     expect(activityLine([], () => "unused")).toBe("");
   });
+
+  test("a specialist line uses the event display, not the role label", () => {
+    let snap = initialSnapshot("s_1");
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "started", id: "technical", role: "Technical Analyst", display: "يراجع الهيكل السعري…" }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "finished", id: "technical", role: "Technical Analyst", display: "اكتملت مراجعة الهيكل" }),
+    );
+    const entry = snap.timeline[0];
+    expect(entry?.kind).toBe("subagent");
+    const line = activityLine(snap.timeline, (item) =>
+      item.kind === "subagent" ? (item.display ?? item.role) : "",
+    );
+    expect(line).toBe("اكتملت مراجعة الهيكل ✓");
+    expect(line).not.toContain("Technical Analyst");
+  });
 });
 
 describe("SessionStore", () => {

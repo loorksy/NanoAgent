@@ -13,6 +13,7 @@ from mokli.events import TeamRoleEvent
 from mokli.security.workspace_access import current_workspace_scope
 from mokli.trading.i18n import tr
 from mokli.trading.teams.evidence_text import fit_evidence_text
+from mokli.trading.teams.role_display import role_phrase
 from mokli.trading.teams.role_prompts import role_system_prompt
 
 if TYPE_CHECKING:
@@ -48,6 +49,7 @@ class TeamAgentEvent:
     summary: str = ""
     layer: int = 0
     duration_ms: int | None = None
+    display: str = ""
 
     def to_wire(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -59,6 +61,8 @@ class TeamAgentEvent:
         }
         if self.duration_ms is not None:
             payload["durationMs"] = self.duration_ms
+        if self.display:
+            payload["display"] = self.display
         return payload
 
 
@@ -93,6 +97,7 @@ async def _publish_runtime_role(bus: Any | None, event: TeamAgentEvent) -> None:
             status=event.status,
             summary=event.summary,
             duration_ms=event.duration_ms,
+            display=event.display,
         )
     )
 
@@ -116,6 +121,27 @@ def _summary_for_event(summary: str, *, limit: int = 2000) -> str:
     from mokli.trading.teams.runtime import brief_for_upstream
 
     return brief_for_upstream(summary, limit=limit)
+
+
+def _role_event(
+    *,
+    agent_id: str,
+    role: str,
+    status: TeamAgentStatus,
+    system_prompt: str,
+    layer: int,
+    summary: str = "",
+    duration_ms: int | None = None,
+) -> TeamAgentEvent:
+    return TeamAgentEvent(
+        agent_id=agent_id,
+        role=role,
+        status=status,
+        summary=summary,
+        layer=layer,
+        duration_ms=duration_ms,
+        display=role_phrase(role, status, system_prompt=system_prompt),
+    )
 
 
 def resolve_role_prompt(role: str, system_prompt: str = "") -> str:
@@ -191,7 +217,13 @@ async def run_team_role(
 
     await _publish_team_agent(
         publisher,
-        TeamAgentEvent(agent_id=agent_id, role=role, status="running", layer=layer),
+        _role_event(
+            agent_id=agent_id,
+            role=role,
+            status="running",
+            system_prompt=system_prompt,
+            layer=layer,
+        ),
         collector,
         bus,
     )
@@ -224,12 +256,13 @@ async def run_team_role(
         duration_ms = int((time.time() - started) * 1000)
         await _publish_team_agent(
             publisher,
-            TeamAgentEvent(
+            _role_event(
                 agent_id=agent_id,
                 role=role,
                 status="done",
-                summary=_summary_for_event(summary),
+                system_prompt=system_prompt,
                 layer=layer,
+                summary=_summary_for_event(summary),
                 duration_ms=duration_ms,
             ),
             collector,
@@ -242,12 +275,13 @@ async def run_team_role(
         message = tr("team.agent_failed", role=role, error=exc)
         await _publish_team_agent(
             publisher,
-            TeamAgentEvent(
+            _role_event(
                 agent_id=agent_id,
                 role=role,
                 status="failed",
-                summary=message,
+                system_prompt=system_prompt,
                 layer=layer,
+                summary=message,
                 duration_ms=duration_ms,
             ),
             collector,

@@ -993,3 +993,20 @@ def test_activity_projection_matches_real_events() -> None:
     assert agents[1]["failed"] is True
     assert "✓" not in pipe_mod.activity_line([agents[1]])
     assert pipe_mod.activity_line(agents) == "Technical Analyst ✓ · Risk Officer"
+    displayed = pipe_mod.project_activity([
+        ev("subagent", {
+            "event": "started",
+            "id": "technical",
+            "role": "Technical Analyst",
+            "display": "يراجع الهيكل السعري…",
+        }),
+        ev("subagent", {
+            "event": "finished",
+            "id": "technical",
+            "role": "Technical Analyst",
+            "display": "اكتملت مراجعة الهيكل",
+        }),
+    ])
+    assert displayed[0]["label"] == "اكتملت مراجعة الهيكل"
+    assert displayed[0]["technical"] == "Technical Analyst"
+    assert "Technical Analyst" not in pipe_mod.activity_line(displayed)

@@ -42,6 +42,7 @@ export interface SubagentTimelineEntry {
   kind: "subagent";
   subagent_id: string;
   role: string;
+  display?: string;
   status: TimelineStatus;
   started_at: number;
   run?: string;
@@ -228,6 +229,7 @@ function applySubagent(
     };
     if (event.run !== undefined) entry.run = event.run;
     if (data.summary !== undefined) entry.summary = data.summary;
+    if (data.display !== undefined) entry.display = data.display;
     if (data.duration_ms !== undefined) entry.duration_ms = data.duration_ms;
     return { ...snapshot, timeline: [...snapshot.timeline, entry] };
   }
@@ -237,6 +239,7 @@ function applySubagent(
     status: subagentStatus(data.event),
   };
   if (data.summary !== undefined) updated.summary = data.summary;
+  if (data.display !== undefined) updated.display = data.display;
   if (data.duration_ms !== undefined) updated.duration_ms = data.duration_ms;
   return { ...snapshot, timeline: replaceAt(snapshot.timeline, index, updated) };
 }

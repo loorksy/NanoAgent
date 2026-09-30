@@ -205,6 +205,7 @@ export interface SubagentData {
   event: "started" | "finished" | "failed";
   id: string;
   role: string;
+  display?: string;
   summary?: string;
   duration_ms?: number;
 }

@@ -538,7 +538,14 @@ def _tool_label(
     return _fallback_step_label(stage, label)
 
 
-def _role_label(role: str, label: Callable[[str], str] | None = None) -> str:
+def _role_label(
+    data: Mapping[str, object],
+    label: Callable[[str], str] | None = None,
+) -> str:
+    display = _as_str(data.get("display"))
+    if display:
+        return display
+    role = _as_str(data.get("role"))
     if role and not ("_" in role or (role.isascii() and role.islower())):
         return role
     if label is not None:
@@ -579,7 +586,7 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
             step = {
                 "id": sub_id,
                 "kind": "subagent",
-                "label": _role_label(_as_str(data.get("role"))),
+                "label": _role_label(data),
                 "technical": _as_str(data.get("role")),
                 "done": False,
             }
@@ -588,6 +595,9 @@ def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, objec
         elif kind == "subagent" and stage in {"finished", "failed"}:
             current = index.get(_as_str(data.get("id")))
             if current is not None:
+                display = _as_str(data.get("display"))
+                if display:
+                    current["label"] = display
                 current["done"] = True
                 current["failed"] = stage == "failed"
         elif kind == "retry":
@@ -1136,7 +1146,7 @@ class Pipe:
         summary = _as_str(data.get("summary"))
         duration = _as_int(data.get("duration_ms"))
         sub_id = _as_str(data.get("id")) or f"sub-{len(turn.steps)}"
-        label = _role_label(role, turn.label)
+        label = _role_label(data, turn.label)
         existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
         if stage == "started" and existing is None:
             turn.steps.append(
@@ -1150,6 +1160,9 @@ class Pipe:
                 }
             )
         elif existing is not None and stage in {"finished", "failed"}:
+            display = _as_str(data.get("display"))
+            if display:
+                existing["label"] = display
             existing["done"] = True
             existing["failed"] = stage == "failed"
         if turn.steps:

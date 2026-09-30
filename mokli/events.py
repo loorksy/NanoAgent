@@ -34,6 +34,7 @@ class TeamRoleEvent(AgentEvent):
     status: Literal["running", "done", "failed"]
     summary: str = ""
     duration_ms: int | None = None
+    display: str = ""
 
 
 @dataclass(frozen=True)

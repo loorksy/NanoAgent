@@ -95,6 +95,7 @@ async def test_published_role_summary_keeps_a_trailing_stance() -> None:
     assert summary == text
     published = collector.agents[0]["summary"]
     assert published.endswith("STANCE: sell")
+    assert collector.agents[0]["display"] == "اكتملت مراجعة الهيكل"
     assert len(published) < len(text)
     decision = FinalDecisionResult(
         decision="sell",
