@@ -77,6 +77,8 @@ def build_agent_market_context(
     symbol: str = DATA_SYMBOL,
     interval: str = "15m",
     limit: int = 240,
+    *,
+    include_quote: bool = True,
 ) -> AgentMarketContext:
     require_gold(symbol)
     config = load_trading_config()
@@ -92,7 +94,11 @@ def build_agent_market_context(
         candles = _fetch_rows()
     else:
         candles = turn.load_candles(symbol, interval, limit, _fetch_rows)
-    quote, _source = resolve_live_quote(symbol, config)
+    # Callers that only need bars (a higher-timeframe bias, a trend window)
+    # must not download a quote they discard. Gates still read a fresh quote.
+    quote = None
+    if include_quote:
+        quote, _source = resolve_live_quote(symbol, config)
 
     sync = MarketSync(ok=True)
     if not config.oanda_configured:

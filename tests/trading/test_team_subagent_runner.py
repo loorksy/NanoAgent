@@ -363,8 +363,17 @@ async def test_named_timeframe_roles_load_their_own_candles(monkeypatch) -> None
         seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
         return "STANCE: wait"
 
-    def fake_context(symbol: str = "XAUUSD", interval: str = "15m", limit: int = 240):
+    quote_flags: list[bool] = []
+
+    def fake_context(
+        symbol: str = "XAUUSD",
+        interval: str = "15m",
+        limit: int = 240,
+        *,
+        include_quote: bool = True,
+    ):
         del symbol
+        quote_flags.append(include_quote)
         loads.append((interval, limit))
         closes = {"1h": 2310.0, "4h": 2320.0, "1d": 2330.0}
         stamps = {"1h": 1, "4h": 2, "1d": 3}
@@ -394,10 +403,12 @@ async def test_named_timeframe_roles_load_their_own_candles(monkeypatch) -> None
     assert d1["interval"] == "1d" and d1["candles"][0]["t"] == 3
     assert "candles" not in synth
     assert all(limit == 120 for _interval, limit in loads)
+    assert quote_flags == [True, True, True]
     assert panel["final"] is None
 
     seen.clear()
     loads.clear()
+    quote_flags.clear()
     review = await run_swarm(
         "gold_decision_review",
         macro_search=search,
@@ -411,4 +422,69 @@ async def test_named_timeframe_roles_load_their_own_candles(monkeypatch) -> None
     assert "candles" not in trend
     assert [row["interval"] for row in trend["higher_timeframes"]] == ["1h", "4h", "1d"]
     assert {interval for interval, _limit in loads} == {"1h", "4h", "1d"}
+    assert quote_flags == [False, False, False]
     assert review["final"] is None
+
+
+@pytest.mark.asyncio
+async def test_trend_windows_do_not_download_a_quote(monkeypatch) -> None:
+    """A trend window needs bars. Three sequential context builds used to quote each one."""
+    from mokli.trading.market_context import build_agent_market_context
+    from mokli.trading.oanda import OandaCandle, OandaQuote
+    from mokli.trading.teams.runtime import evidence_for_team_role
+    from mokli.trading.turn_session import turn_session_scope
+
+    class Config:
+        metaapi_configured = False
+        oanda_configured = True
+
+    quotes = {"n": 0}
+    candles = {"n": 0}
+
+    def fake_candles(*_args: object, **_kwargs: object) -> tuple[list[OandaCandle], bool]:
+        candles["n"] += 1
+        row = OandaCandle(
+            time_ms=1_700_000_000_000,
+            open=2300,
+            high=2302,
+            low=2298,
+            close=2301,
+            volume=1,
+            complete=True,
+        )
+        return [row] * 22, False
+
+    def fake_quote(*_args: object, **_kwargs: object) -> OandaQuote:
+        quotes["n"] += 1
+        return OandaQuote(symbol="XAUUSD", bid=2300, ask=2302, mid=2301, tradeable=True)
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", fake_candles)
+    monkeypatch.setattr("mokli.trading.market_context.fetch_quote", fake_quote)
+    lead = json.dumps(
+        {"symbol": "XAUUSD", "interval": "15m", "last_close": 2301.0, "quote_mid": 2301.0},
+    )
+
+    with turn_session_scope():
+        for interval in ("1h", "4h", "1d"):
+            build_agent_market_context("XAUUSD", interval, 120)
+        before = quotes["n"]
+
+    quotes["n"] = 0
+    candles["n"] = 0
+    with turn_session_scope():
+        text = await evidence_for_team_role(lead, "Trend Analyst", "role:timeframe")
+    parsed = json.loads(text)
+    assert "candles" not in parsed
+    assert parsed["quote_mid"] == 2301.0
+    assert [row["interval"] for row in parsed["higher_timeframes"]] == ["1h", "4h", "1d"]
+    assert quotes["n"] == 0
+    assert candles["n"] == 3
+    print(f"QUOTE_TREND before={before} after={quotes['n']}")
+    assert before == 3
+
+    quotes["n"] = 0
+    with turn_session_scope():
+        named = await evidence_for_team_role(lead, "H1 Analyst", "role:timeframe")
+    assert quotes["n"] == 1
+    assert "candles" in json.loads(named)

@@ -31,14 +31,23 @@ def _bias_from_context(market: AgentMarketContext) -> Bias:
 def run_multi_timeframe_agent(market: AgentMarketContext) -> MultiTimeframeResult:
     """M15 comes from the caller; H1/H4/D1 are loaded. Daily is real D1, not a resample of H1."""
     m15 = _trend_to_bias(run_structure_agent(market).trend)
-    # Each worker gets its own context copy. One shared Context cannot be entered
-    # by two threads, and a bare thread would miss the turn's in-flight quote.
+    # Each worker gets its own context copy so the candle cache is visible.
+    # The bias uses bars only, so these loads do not download a live quote.
     intervals = ("1h", "4h", "1d")
     contexts = [contextvars.copy_context() for _ in intervals]
 
     def _load(item: tuple[contextvars.Context, str]) -> AgentMarketContext:
         ctx, interval = item
-        return ctx.run(build_agent_market_context, DATA_SYMBOL, interval, 120)
+
+        def _fetch() -> AgentMarketContext:
+            return build_agent_market_context(
+                DATA_SYMBOL,
+                interval,
+                120,
+                include_quote=False,
+            )
+
+        return ctx.run(_fetch)
 
     with ThreadPoolExecutor(max_workers=len(intervals)) as pool:
         h1_ctx, h4_ctx, d1_ctx = tuple(pool.map(_load, zip(contexts, intervals, strict=True)))

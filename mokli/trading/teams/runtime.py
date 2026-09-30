@@ -74,7 +74,8 @@ async def evidence_for_team_role(
 
     H1, H4, and D1 each load their own candles. A trend role gets the lead
     quote and a short window for those three charts, not a second copy of the
-    lead bars. Structure roles keep the lead candle list.
+    lead bars and not a live quote per chart. Structure roles keep the lead
+    candle list.
     """
     named = named_chart_interval(role)
     if named is not None:
@@ -86,15 +87,18 @@ async def evidence_for_team_role(
         )
         return format_market_evidence(market)
     if resolve_role_file(role, system_prompt) == "timeframe":
-        windows = []
-        for interval in _HIGHER_TIMEFRAMES:
+
+        async def _window(interval: str) -> dict[str, object]:
             market = await asyncio.to_thread(
                 build_agent_market_context,
                 "XAUUSD",
                 interval,
                 _HIGHER_TF_LIMIT,
+                include_quote=False,
             )
-            windows.append(compact_timeframe_window(market))
+            return compact_timeframe_window(market)
+
+        windows = list(await asyncio.gather(*[_window(interval) for interval in _HIGHER_TIMEFRAMES]))
         return trend_evidence(lead_evidence, windows)
     return scope_market_evidence(lead_evidence, role, system_prompt)
 
