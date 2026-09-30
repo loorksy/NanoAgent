@@ -6,6 +6,7 @@ overview and distribution documents those screens need.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import cast
@@ -41,13 +42,12 @@ def distribution_document() -> dict[str, object]:
     return payload
 
 
-async def overview(request: web.Request) -> web.Response:
-    require_scope(request, "read")
+def overview_document() -> dict[str, object]:
     from mokli.trading.config import load_trading_config
     from mokli.trading.runtime_state import get_runtime_store
 
     cfg = load_trading_config()
-    return ok({
+    return {
         "product": "Mokli",
         "api": "v2",
         "server_version": __version__,
@@ -62,7 +62,13 @@ async def overview(request: web.Request) -> web.Response:
             "mt5": cfg.public_mt5(),
         },
         "usage": _usage_snapshot(),
-    })
+    }
+
+
+async def overview(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    # Settings opens this with the usage aggregate. The read stays off this loop.
+    return ok(await asyncio.to_thread(overview_document))
 
 
 def capabilities_view(

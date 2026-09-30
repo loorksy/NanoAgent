@@ -36,7 +36,8 @@ async def usage(request: web.Request) -> web.Response:
     from mokli.llm_usage import llm_usage_payload
 
     days = query_int(request, "days", 30, maximum=371)
-    return ok(llm_usage_payload(days=days))
+    # The usage page aggregates the call store. That read stays off this loop.
+    return ok(await asyncio.to_thread(llm_usage_payload, days=days))
 
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:
