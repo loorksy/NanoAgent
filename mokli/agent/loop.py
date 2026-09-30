@@ -779,6 +779,20 @@ class AgentLoop:
         if await asyncio.to_thread(self.sessions.persist_to_disk, session):
             self.sessions.cache_saved(session)
 
+    async def _open_session(self, key: str) -> Session:
+        """Return the cached session, or read its file off the event loop."""
+        cached = self.sessions.get_cached(key)
+        if cached is not None:
+            return cached
+        loaded = await asyncio.to_thread(self.sessions.load_from_disk, key)
+        cached = self.sessions.get_cached(key)
+        if cached is not None:
+            return cached
+        if loaded is None:
+            loaded = Session(key=key)
+        self.sessions.cache_saved(loaded)
+        return loaded
+
     def _build_transcript_input(self, ctx: TurnContext) -> TranscriptInput:
         """Capture the persisted history and fresh input as separate transcript parts."""
         assert ctx.session is not None
@@ -1847,7 +1861,7 @@ class AgentLoop:
                 if ctx.session is None:
                     raise RuntimeError("required session is not active")
             else:
-                ctx.session = self.sessions.get_or_create(ctx.session_key)
+                ctx.session = await self._open_session(ctx.session_key)
         session = ctx.session
         ctx.ephemeral = ctx.ephemeral or not session.policy.persist
         tools = ctx.tools or self.tools

@@ -84,3 +84,53 @@ async def test_turn_transcript_write_leaves_the_event_loop_free(
     persisted = loop.sessions.get_or_create("cli:desk")
     assert any(message.get("content") == "saved-off-loop" for message in persisted.messages)
     assert loop.sessions.get_cached("cli:desk") is persisted
+
+
+async def test_session_load_leaves_the_event_loop_free(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    loop = _loop(tmp_path)
+    seeded = loop.sessions.get_or_create("cli:desk")
+    seeded.add_message("user", "earlier-turn")
+    loop.sessions.save(seeded)
+    loop.sessions.invalidate("cli:desk")
+
+    order: list[str] = []
+    real = loop.sessions.load_from_disk
+
+    def slow(key: str):
+        time.sleep(0.2)
+        order.append(
+            "main" if threading.current_thread() is threading.main_thread() else "worker"
+        )
+        return real(key)
+
+    monkeypatch.setattr(loop.sessions, "load_from_disk", slow)
+
+    async def fake_run(transcript_input: TranscriptInput, **_kwargs: object) -> AgentRunResult:
+        initial = loop.context.build_transcript(transcript_input, include_memory=False)
+        return _result("loaded-off-loop", [*initial, {"role": "assistant", "content": "loaded-off-loop"}])
+
+    loop._run_agent_loop = fake_run  # type: ignore[method-assign]
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append("tick")
+
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    await loop._process_message(
+        InboundMessage(channel="cli", sender_id="user", chat_id="desk", content="hello again")
+    )
+    await pending
+    assert order[0] == "tick"
+    assert "main" not in order
+    assert order.count("worker") == 1
+    assert time.perf_counter() - started < 0.35
+
+    history = " ".join(
+        str(message.get("content") or "")
+        for message in (loop.sessions.get_cached("cli:desk") or seeded).messages
+    )
+    assert "earlier-turn" in history
+    assert "loaded-off-loop" in history

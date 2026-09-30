@@ -1755,7 +1755,7 @@ class SessionManager:
         if session is not None:
             return session
 
-        session = self._load(key)
+        session = self.load_from_disk(key)
         if session is None:
             session = Session(key=key)
 
@@ -1779,6 +1779,14 @@ class SessionManager:
             session = Session(key=key, policy=policy)
             self._remember(session)
         return session
+
+    def load_from_disk(self, key: str) -> Session | None:
+        """Read a session file without touching the in-memory cache.
+
+        The cache update stays on the caller thread so a long transcript can
+        be parsed on a worker while the event loop keeps serving other sessions.
+        """
+        return self._load(key)
 
     def _load(self, key: str) -> Session | None:
         return self._store.load(key)
