@@ -26,3 +26,4 @@ def test_preflight_script_runs() -> None:
     assert "section11_validate" in proc.stdout
     assert "section11_dry_run" in proc.stdout
     assert "section11_patch_report" in proc.stdout
+    assert "section11_close" in proc.stdout
