@@ -18,7 +18,7 @@
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2305** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | `preflight`، `diagnostic_extract`، `section11_batch`، `section11_validate` (+ `section11-results.example.json`) | منجز |
+| أدوات المشغّل §11 | `preflight`، `diagnostic_extract`، `section11_batch`، `section11_validate` (+ `docs/section11-results.example.json`، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`) | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
 
 ## أوامر تحقق سريعة (محلي)
@@ -27,6 +27,10 @@
 bash scripts/mokli_upgrade_preflight.sh
 pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
 ```
+
+## Cloud Agent (هذا الـ VM)
+
+بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. المزيد من سكربتات المشغّل أو pytest **لا يغلق** الهدف؛ الخطوة التالية على VPS فقط.
 
 ## بعد VPS
 
