@@ -77,6 +77,40 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
     assert bus.publish_outbound.await_count >= 2
 
 
+@pytest.mark.asyncio
+async def test_analyze_gold_reuses_the_turn_decision(monkeypatch) -> None:
+    """A recommendation already made this turn is not analyzed again."""
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"kernel": 0}
+
+    async def fake_kernel(**_kwargs):
+        calls["kernel"] += 1
+        return object()
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait", "summary": "stored"},
+    )
+    bus = MagicMock()
+    bus.publish_outbound = AsyncMock()
+    tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:chat-1")
+    stored = MagicMock()
+    turn = TurnSession()
+    turn.decision_wire = json.dumps({"decision": "wait", "summary": "stored"})
+    turn.kernel_result = stored
+    with request_context(ctx), turn_session_scope(turn):
+        raw = await tool.execute(present_ui=True)
+        replaced = await tool.execute(force_new_plan=True)
+    assert json.loads(raw)["decision"] == "wait"
+    assert json.loads(replaced)["summary"] == "stored"
+    assert calls["kernel"] == 1
+    assert bus.publish_outbound.await_count >= 1
+    print(f"ANALYZE_REPEAT kernel={calls['kernel'] - 1}")
+
+
 def test_stage_publisher_sync_emit_schedules_task() -> None:
     publisher = TradingStagePublisher(None, channel="websocket", chat_id="x")
     event = emit_stage("market_data", "running")

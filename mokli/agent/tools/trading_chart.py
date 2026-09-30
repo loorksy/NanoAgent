@@ -552,7 +552,9 @@ class AnalyzeGoldTool(Tool):
             "use get_live_recommendation. If a live plan already exists this returns "
             "reason_key=trading.live_plan_active instead of a second plan. "
             "team_mode=debate runs a bull/bear debate first; team_mode=swarm requires an "
-            "explicit preset. Set present_ui=true to open the chart panel and stream cards."
+            "explicit preset. If this turn already has a recommendation, that decision is "
+            "returned unless reevaluate or force_new_plan is set. "
+            "Set present_ui=true to open the chart panel and stream cards."
         )
 
     async def execute(
@@ -566,6 +568,21 @@ class AnalyzeGoldTool(Tool):
         **kwargs: Any,
     ) -> str:
         session_key = current_request_session_key()
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        if turn is not None and turn.decision_wire and not reevaluate and not force_new_plan:
+            if should_publish_trading_ui(present_ui) and turn.kernel_result is not None:
+                channel, chat_id = _request_route()
+                publisher = TradingStagePublisher(
+                    self._bus,
+                    channel=channel,
+                    chat_id=chat_id,
+                    locale=_operator_locale(),
+                )
+                await publisher.open_chart(interval)
+                await publisher.publish_result(result_to_wire(turn.kernel_result))
+            return turn.decision_wire
         if team_mode in {"debate", "swarm"}:
             blocked = await live_plan_block_if_any(
                 session_key,
@@ -601,11 +618,8 @@ class AnalyzeGoldTool(Tool):
             finish_synthesis_prefetch,
             start_synthesis_prefetch,
         )
-        from mokli.trading.turn_session import current_turn_session
-
         # Debate and swarm briefs do not read evidence. The kernel still gathers
         # anything the overlap missed. Core mode has no team wait, so the kernel fetches.
-        turn = current_turn_session()
         prefetch: asyncio.Task[None] | None = None
         if team_mode in {"debate", "swarm"} and turn is not None:
             prefetch = start_synthesis_prefetch(interval, turn)
