@@ -7,7 +7,10 @@ from typing import Any
 
 import pytest
 
-from mokli.agent.context_governance import fold_prior_tool_results
+from mokli.agent.context_governance import (
+    fold_prior_assistant_reasoning,
+    fold_prior_tool_results,
+)
 from mokli.agent.context_layers import layers_for_task
 from mokli.agent.hook import AgentHook
 from mokli.agent.tools.base import Tool
@@ -144,6 +147,60 @@ def test_prior_tool_image_bytes_are_not_resent() -> None:
     kept, referenced_now, _saved_now = fold_prior_tool_results(current_only)
     assert referenced_now == 0
     assert kept[2]["content"][0]["image_url"]["url"] == url
+
+
+def test_prior_assistant_reasoning_is_not_resent() -> None:
+    thinking = "مستوى " * 2000
+    kept = "التفكير الحالي يبقى"
+    signature = "sig-current"
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": "حلل الذهب"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{"id": "call_quote", "type": "function", "function": {"name": "get_gold_quote", "arguments": "{}"}}],
+            "reasoning_content": thinking,
+            "thinking_blocks": [{"type": "thinking", "thinking": thinking, "signature": "sig-old"}],
+        },
+        _tool_message("get_gold_quote", "bid 2400"),
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{"id": "call_kernel", "type": "function", "function": {"name": "run_trading_kernel", "arguments": "{}"}}],
+            "reasoning_content": kept,
+            "thinking_blocks": [{"type": "thinking", "thinking": kept, "signature": signature}],
+        },
+        _tool_message("run_trading_kernel", "wait"),
+    ]
+    before = estimate_prompt_tokens(messages, None)
+    folded, count, saved = fold_prior_assistant_reasoning(messages)
+    after = estimate_prompt_tokens(folded, None)
+    assert count == 1
+    assert saved > 5000
+    assert after < before
+    assert folded[1]["reasoning_content"].startswith("[تفكير دورة سابقة:")
+    assert "thinking_blocks" not in folded[1]
+    assert thinking not in folded[1]["reasoning_content"]
+    assert folded[3]["reasoning_content"] == kept
+    assert folded[3]["thinking_blocks"][0]["signature"] == signature
+    assert messages[1]["reasoning_content"] == thinking
+    assert messages[1]["thinking_blocks"][0]["signature"] == "sig-old"
+    print(f"TOKEN_REASONING before={before} after={after} saved_chars={saved}")
+
+    finished: list[dict[str, Any]] = [
+        {"role": "user", "content": "سؤال"},
+        {
+            "role": "assistant",
+            "content": "جواب",
+            "reasoning_content": thinking,
+            "thinking_blocks": [{"type": "thinking", "thinking": thinking, "signature": "sig"}],
+        },
+        {"role": "user", "content": "التالي"},
+    ]
+    folded_next, count_next, _saved_next = fold_prior_assistant_reasoning(finished)
+    assert count_next == 1
+    assert "thinking_blocks" not in folded_next[1]
+    assert finished[1]["thinking_blocks"][0]["signature"] == "sig"
 
 
 def test_latest_tool_batch_stays_complete() -> None:

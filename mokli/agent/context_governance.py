@@ -213,6 +213,78 @@ def fold_prior_tool_results(
     return updated, referenced, saved
 
 
+_REASONING_MARK = "[تفكير دورة سابقة:"
+
+
+def _thinking_chars(blocks: Any) -> int:
+    if not isinstance(blocks, list):
+        return 0
+    total = 0
+    for raw_block in cast(list[object], blocks):
+        if not isinstance(raw_block, dict):
+            continue
+        block = cast(dict[str, Any], raw_block)
+        text = block.get("thinking")
+        if isinstance(text, str):
+            total += len(text)
+        signature = block.get("signature")
+        if isinstance(signature, str):
+            total += len(signature)
+    return total
+
+
+def fold_prior_assistant_reasoning(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Drop thinking the provider already consumed on an earlier round.
+
+    The assistant message that still has pending tool calls keeps its thinking
+    and signature. A completed answer does not: the next request does not need
+    it. The caller's transcript list is not mutated.
+    """
+    last_assistant = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "assistant":
+            last_assistant = index
+    keep_at = -1
+    if last_assistant >= 0 and messages[last_assistant].get("tool_calls"):
+        keep_at = last_assistant
+
+    updated: list[dict[str, Any]] | None = None
+    folded = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or index == keep_at:
+            if updated is not None:
+                updated.append(message)
+            continue
+        reasoning = message.get("reasoning_content")
+        reasoning_text = reasoning if isinstance(reasoning, str) else ""
+        block_chars = _thinking_chars(message.get("thinking_blocks"))
+        if (
+            not reasoning_text.strip()
+            and block_chars == 0
+        ) or (
+            reasoning_text.startswith(_REASONING_MARK) and block_chars == 0
+        ):
+            if updated is not None:
+                updated.append(message)
+            continue
+        raw_chars = len(reasoning_text) + block_chars
+        note = f"{_REASONING_MARK} {raw_chars} حرفاً، لن يُعاد.]"
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["reasoning_content"] = note
+        cloned.pop("thinking_blocks", None)
+        updated.append(cloned)
+        folded += 1
+        saved += raw_chars - len(note)
+    if updated is None:
+        return messages, 0, 0
+    return updated, folded, saved
+
+
 def _tool_call_name_is_valid(tool_call: Any) -> bool:
     """Whether a persisted OpenAI-style tool_call carries a usable name.
 
@@ -1052,13 +1124,17 @@ class ContextGovernor:
                     updated = [dict(m) for m in messages]
                 updated[idx]["content"] = normalized
         folded, referenced, saved = fold_prior_tool_results(updated)
-        if referenced:
+        reasoned, reason_count, reason_saved = fold_prior_assistant_reasoning(folded)
+        if referenced or reason_count:
             from mokli.agent.turn_diagnostics import current_turn_diagnostics
 
             diag = current_turn_diagnostics()
             if diag is not None:
-                diag.note_references(referenced, saved)
-        return folded
+                if referenced:
+                    diag.note_references(referenced, saved)
+                if reason_count:
+                    diag.note_reasoning_fold(reason_count, reason_saved)
+        return reasoned
 
     def snip_history(
         self,
