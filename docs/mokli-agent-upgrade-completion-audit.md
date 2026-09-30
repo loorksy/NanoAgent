@@ -8,6 +8,7 @@
 | Phase 0 — تدقيق من الكود | `docs/mokli-agent-upgrade-audit.md` | منجز |
 | P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | `docs/mokli-agent-upgrade-report.md` §1–2؛ `tests/agent/test_turn_efficiency.py` | منجز (قياس محلي/وحدة) |
 | P0 — أرقام before/after على **مزود حي** | جدول §11 عمود «الأرقام» | **معلق** |
+| Agent API ينشر `diagnostic` في SSE | `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` | منجز (CI، ليس §11 حي) |
 | P1 — نشاط UI من أحداث وقت التشغيل فقط | `tests/deploy/test_mokli_pipe.py`؛ `mokli-ui` / `mobile` | منجز (CI)؛ **§11 صفوف 12–13 حية** |
 | P1 — طبقات سياق حسب المهمة | `mokli/agent/context_layers.py`؛ اختبارات الطبقات | منجز |
 | P1 — وكلاء تداول + نقاش/فرعي موجود | `mokli/trading/crew/`؛ `tests/trading/test_i18n_catalog.py` | منجز |
@@ -17,7 +18,7 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2307** ناجية (1 skipped) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2308** ناجية (1 skipped) | منجز |
 | أدوات المشغّل §11 | `preflight`، `diagnostic_extract`، `section11_batch`، `section11_validate` (+ `docs/section11-results.example.json`، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`) | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
 

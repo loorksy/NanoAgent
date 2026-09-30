@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import subprocess
+import sys
+from pathlib import Path
 
+import pytest
 from aiohttp.test_utils import TestClient
 
 from agent_api.conftest import BOOTSTRAP, FakeAgent, auth, parse_sse
@@ -77,6 +82,57 @@ async def test_submit_streams_delta_and_end(client: TestClient, agent: FakeAgent
     assert call["session_key"] == session_key_for(session)
     assert call["channel"] == AGENT_API_CHANNEL
     assert call["chat_id"] == session
+
+
+async def test_sse_diagnostic_matches_section11_extract(
+    client: TestClient,
+    agent: FakeAgent,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When turn diagnostics exist, SSE publishes ``diagnostic`` for §11 scripts."""
+    measured = {
+        "rounds": 2,
+        "request_input_tokens": 1200,
+        "request_output_tokens": 90,
+        "tool_calls": 1,
+        "context_ms": 30,
+        "model_ms": 800,
+    }
+    monkeypatch.setattr(
+        "mokli.agent_api.sessions.latest_diagnostics",
+        lambda _key: measured,
+    )
+    session = (await (await client.post("/api/v2/sessions", headers=auth())).json())["id"]
+    await client.post(
+        f"/api/v2/sessions/{session}/messages",
+        json={"text": "hello"},
+        headers=auth(),
+    )
+    events = parse_sse(
+        await (
+            await client.get(
+                f"/api/v2/sessions/{session}/events?until_end=1",
+                headers=auth(),
+            )
+        ).text()
+    )
+    diagnostic_events = [event for event in events if event["kind"] == "diagnostic"]
+    assert len(diagnostic_events) == 1
+    gateway_event = diagnostic_events[0]
+    assert gateway_event["data"] == measured
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "mokli_upgrade_diagnostic_extract.py"
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        input=json.dumps(gateway_event),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    summary = proc.stdout.strip()
+    assert "rounds=2" in summary
+    assert "in=1200" in summary
+    assert "tools=1" in summary
 
 
 async def test_timeline_excludes_deltas_and_supports_after(client: TestClient) -> None:
