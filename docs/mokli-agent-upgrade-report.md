@@ -278,6 +278,8 @@
 
 تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py`: 2292 ناجية، 1 متخطاة، وفشل واحد قديم (`test_reuses_real_prefix_for_unified_session_workspace`) بسبب فهرس المهارات في أرشيف طويل مقابل رسالة قصيرة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
 
+تدخين محلي بلا مزود: بوابة على منفذ غير افتراضي وواجهة Vite على `5173`. الافتراضي في `mokli-ui/vite.config.ts` لـ `MOKLI_BACKEND_URL` صار Agent API على `8766` بدل `8080`، فـ `GET /api/v2/health` عبر الوكيل يعيد 200 مع `{"ok":true,...}`.
+
 نجحت على هذا الفرع، من آخر تشغيل لكل ملف:
 
 - طي النتائج، طبقات السياق القصير، كتالوج العرض، إعادة استخدام القراءة، بقاء حجم الذاكرة بعد تسجيل الزمن، وفصل نتيجة `spawn`.
@@ -424,6 +426,7 @@
 | `mokli/trading/capture_service.py` | نتيجة لقطة الرسم للنموذج بلا بايتات الصورة |
 | `mokli/trading/intel/rss_aggregator.py` | تغذيات RSS المستقلة تُحمَّل معاً |
 | `mokli/agent/tools/trading_intel.py` | مصادر فحص الاستخبارات المستقلة تبدأ معاً |
+| `mokli-ui/vite.config.ts` | وكيل التطوير يوجّه `/api` إلى Agent API الافتراضي `8766` لا منفذ الواجهة `8080` |
 | `mokli-ui/src/lib/mokli/statusHistory.ts` | لقطات النشاط بلا إجراء تستبدل السطر الحي، والصف الجاري يبقي علمه الحقيقي، وصف المجموعة يلتف بدل قص سطر واحد |
 | `mokli-ui/src/lib/components/chat/Messages/ResponseMessage/StatusHistory/StatusItem.svelte` | صف النشاط بلا إجراء يلتف داخل العرض، وصف البحث يبقى مقصوصاً على سطر |
 | `mokli/agent_api/sessions.py` | استدعاء `spawn` لا يضيف وكيلاً ثانياً بنص المهمة. مدة الأداة تُقاس حتى الإتمام أو الفشل، لا عند حدث البدء |
