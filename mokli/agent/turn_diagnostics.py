@@ -120,6 +120,7 @@ class TurnDiagnostics:
     nested_input_tokens: int = 0
     nested_output_tokens: int = 0
     nested_estimated_rounds: int = 0
+    nested_calls: list[dict[str, Any]] = field(default_factory=list)
     _system_fingerprint: str = ""
 
     def note_context(self, elapsed_ms: int) -> None:
@@ -173,11 +174,18 @@ class TurnDiagnostics:
         input_tokens: int,
         output_tokens: int,
         estimated: bool,
+        label: str = "",
+        system_tokens: int = 0,
+        user_tokens: int = 0,
+        other_tokens: int = 0,
     ) -> None:
         """Record a specialist or synthesizer call that is not a parent model round.
 
         These calls happen inside a tool, so their wait is already inside
-        ``tool_ms``. ``model_ms`` stays the parent loop only.
+        ``tool_ms``. ``model_ms`` stays the parent loop only. ``system_tokens``,
+        ``user_tokens``, and ``other_tokens`` are a local split of that call's
+        messages so a gold review can show the contract and the candle payload
+        apart from the summed input.
         """
         self.nested_rounds += 1
         self.nested_model_ms += max(0, elapsed_ms)
@@ -185,6 +193,18 @@ class TurnDiagnostics:
         self.nested_output_tokens += max(0, output_tokens)
         if estimated:
             self.nested_estimated_rounds += 1
+        if len(self.nested_calls) < 32:
+            self.nested_calls.append(
+                {
+                    "label": label,
+                    "input_tokens": max(0, input_tokens),
+                    "output_tokens": max(0, output_tokens),
+                    "system_tokens": max(0, system_tokens),
+                    "user_tokens": max(0, user_tokens),
+                    "other_tokens": max(0, other_tokens),
+                    "estimated": estimated,
+                }
+            )
 
     def note_tool_batch(
         self,
@@ -234,6 +254,7 @@ class TurnDiagnostics:
             "nested_rounds": self.nested_rounds,
             "nested_input_tokens": self.nested_input_tokens,
             "nested_output_tokens": self.nested_output_tokens,
+            "nested_calls": list(self.nested_calls),
             "nested_usage": nested_usage,
             "rounds": self.rounds,
             "input_tokens": self.input_tokens,
@@ -269,23 +290,46 @@ class TurnDiagnostics:
         }
 
 
+def _nested_message_split(messages: list[dict[str, Any]]) -> tuple[int, int, int]:
+    """Local token split of one inner call. Not a provider invoice."""
+    system = 0
+    user = 0
+    other = 0
+    for message in messages:
+        tokens = estimate_message_tokens(message)
+        role = message.get("role")
+        if role == "system":
+            system += tokens
+        elif role == "user":
+            user += tokens
+        else:
+            other += tokens
+    return system, user, other
+
+
 def record_nested_model_call(
     *,
     elapsed_ms: int,
     messages: list[dict[str, Any]],
     content: str,
     usage: LLMUsage | None,
+    label: str = "",
 ) -> None:
     """Attach one inner provider call to the current turn, if a turn is bound."""
     diag = current_turn_diagnostics()
     if diag is None:
         return
+    system_tokens, user_tokens, other_tokens = _nested_message_split(messages)
     if isinstance(usage, LLMUsage):
         diag.note_nested_model(
             elapsed_ms,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
             estimated=usage.reported_tokens == 0 and usage.estimated_tokens > 0,
+            label=label,
+            system_tokens=system_tokens,
+            user_tokens=user_tokens,
+            other_tokens=other_tokens,
         )
         return
     diag.note_nested_model(
@@ -293,4 +337,8 @@ def record_nested_model_call(
         input_tokens=estimate_prompt_tokens(messages),
         output_tokens=estimate_message_tokens({"role": "assistant", "content": content}),
         estimated=True,
+        label=label,
+        system_tokens=system_tokens,
+        user_tokens=user_tokens,
+        other_tokens=other_tokens,
     )

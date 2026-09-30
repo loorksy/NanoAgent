@@ -76,6 +76,7 @@ async def _runtime_complete(messages: list[dict[str, Any]]) -> str:
         messages=messages,
         content=content,
         usage=getattr(response, "usage", None),
+        label="synthesizer",
     )
     return content
 

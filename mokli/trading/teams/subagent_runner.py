@@ -179,6 +179,7 @@ async def _llm_complete(
         messages=messages,
         content=content,
         usage=getattr(response, "usage", None),
+        label=role,
     )
     return content
 

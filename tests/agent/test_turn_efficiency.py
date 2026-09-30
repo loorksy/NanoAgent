@@ -505,6 +505,26 @@ def test_nested_model_calls_are_not_parent_rounds() -> None:
     assert payload["nested_usage"] == "mixed"
     assert payload["components"]["nested_model"] == 970
     assert payload["cost_estimate_usd"] > 0
+    assert payload["nested_calls"] == [
+        {
+            "label": "",
+            "input_tokens": 800,
+            "output_tokens": 40,
+            "system_tokens": 0,
+            "user_tokens": 0,
+            "other_tokens": 0,
+            "estimated": False,
+        },
+        {
+            "label": "",
+            "input_tokens": 120,
+            "output_tokens": 10,
+            "system_tokens": 0,
+            "user_tokens": 0,
+            "other_tokens": 0,
+            "estimated": True,
+        },
+    ]
 
 
 @pytest.mark.asyncio
@@ -550,6 +570,12 @@ async def test_team_role_usage_is_recorded_on_the_turn() -> None:
     assert diag.nested_input_tokens == 640
     assert diag.nested_output_tokens == 18
     assert diag.nested_estimated_rounds == 0
+    call = diag.nested_calls[0]
+    assert call["label"] == "Risk Officer"
+    assert call["input_tokens"] == 640
+    assert call["system_tokens"] > 0
+    assert call["user_tokens"] > 0
+    assert call["estimated"] is False
 
 
 @pytest.mark.asyncio
@@ -584,7 +610,11 @@ async def test_synthesizer_call_without_usage_is_estimated() -> None:
     assert diag.nested_estimated_rounds == 1
     assert diag.nested_input_tokens > 0
     assert diag.nested_output_tokens > 0
-    assert diag.to_dict()["nested_usage"] == "estimated"
+    payload = diag.to_dict()
+    assert payload["nested_usage"] == "estimated"
+    assert payload["nested_calls"][0]["label"] == "synthesizer"
+    assert payload["nested_calls"][0]["user_tokens"] > 0
+    assert payload["nested_calls"][0]["system_tokens"] == 0
 
 
 def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> None:
