@@ -864,3 +864,109 @@ async def test_mtf_synthesizer_reads_the_three_briefs_not_a_lead_chart(monkeypat
     print(f"MTF_BRIEFS before={before} after={after}")
     assert after > before
     assert "2310" in synth_task
+
+
+@pytest.mark.asyncio
+async def test_risk_role_reads_the_quote_spread_not_a_gate(monkeypatch) -> None:
+    """Risk sees bid, ask, and spread. It does not see candles, drivers, or a gate verdict."""
+    from pathlib import Path
+
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams import role_prompts
+    from mokli.trading.teams.evidence_text import format_market_evidence
+    from mokli.trading.teams.runtime import evidence_for_team_role, run_swarm
+
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    risk_prompt = (roles_dir / "risk.md").read_text(encoding="utf-8")
+    assert "likely to block" not in risk_prompt
+    assert "do not invent a spread" in risk_prompt
+    assert "do not predict which" in risk_prompt
+
+    quoted = AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=[_candle(111, 2300.0)],
+        last_close=2300.0,
+        atr=2.5,
+        sync=MarketSync(ok=True),
+        quote_mid=2300.18,
+        quote_bid=2300.0,
+        quote_ask=2300.35,
+    )
+    lead = format_market_evidence(quoted)
+    shared = json.loads(lead)
+    assert "spread_points" not in shared
+    assert "candles" in shared
+
+    risk = json.loads(
+        await evidence_for_team_role(lead, "Risk Officer", "role:risk", market=quoted)
+    )
+    technical = json.loads(
+        await evidence_for_team_role(lead, "Technical Analyst", "role:structure", market=quoted)
+    )
+    macro = json.loads(
+        await evidence_for_team_role(lead, "Macro News Analyst", "role:macro", market=quoted)
+    )
+    review = json.loads(
+        await evidence_for_team_role(lead, "Review Analyst", "role:lead", market=quoted)
+    )
+    assert risk["spread_points"] == 35.0
+    assert risk["quote_bid"] == 2300.0
+    assert risk["quote_ask"] == 2300.35
+    assert risk["atr"] == 2.5
+    assert "candles" not in risk
+    assert "macroDrivers" not in risk
+    assert "spread_points" not in technical
+    assert "candles" in technical
+    assert "spread_points" not in macro
+    assert "candles" not in macro
+    assert "macroDrivers" not in macro
+    assert "spread_points" not in review
+    assert "candles" not in review
+
+    missing = _market("15m", 111, 2300.0)
+    unchanged = await evidence_for_team_role(lead, "Risk Officer", "role:risk", market=missing)
+    assert "spread_points" not in json.loads(unchanged)
+
+    quote_only = await evidence_for_team_role(lead, "Risk Officer", "role:risk")
+    before = estimate_prompt_tokens([{"role": "user", "content": quote_only}])
+    after = estimate_prompt_tokens([{"role": "user", "content": json.dumps(risk)}])
+    print(f"RISK_SPREAD before={before} after={after}")
+    assert after > before
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        return "stop behind 2290\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: quoted,
+    )
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *_a, **_k: _market("1h", 1, 2310.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "DXY steady"
+
+    await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = {role: json.loads(evidence) for role, evidence in seen}
+    assert by_role["Risk Officer"]["spread_points"] == 35.0
+    assert "candles" not in by_role["Risk Officer"]
+    assert "macroDrivers" not in by_role["Risk Officer"]
+    assert "spread_points" not in by_role["Technical Analyst"]
+    assert "spread_points" not in by_role["Macro News Analyst"]
+    assert "spread_points" not in by_role["Trend Analyst"]
+    assert "candles" in by_role["Technical Analyst"]
+    assert "macroDrivers" in by_role["Macro News Analyst"]

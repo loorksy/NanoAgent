@@ -159,3 +159,27 @@ def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> 
         return evidence
     scoped = {key: value for key, value in payload.items() if key != "candles"}
     return json.dumps(scoped, ensure_ascii=False)
+
+
+def attach_risk_spread(evidence: str, market: AgentMarketContext) -> str:
+    """Bid, ask, and spread for the risk role only.
+
+    Gates have not run yet, so this does not add a gate verdict. A missing
+    bid or ask leaves the quote unchanged rather than inventing a spread.
+    """
+    bid = market.quote_bid
+    ask = market.quote_ask
+    if bid is None or ask is None:
+        return evidence
+    try:
+        payload = json.loads(evidence)
+    except json.JSONDecodeError:
+        payload = {}
+    if not isinstance(payload, dict):
+        return evidence
+    from mokli.trading.policy import GOLD_POINT
+
+    payload["quote_bid"] = round(float(bid), 2)
+    payload["quote_ask"] = round(float(ask), 2)
+    payload["spread_points"] = round(abs(float(ask) - float(bid)) / GOLD_POINT, 2)
+    return json.dumps(payload, ensure_ascii=False)

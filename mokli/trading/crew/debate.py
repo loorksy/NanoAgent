@@ -60,7 +60,7 @@ async def run_debate_crew(
     collector = TeamRunCollector()
 
     async def role_evidence(role: str) -> str:
-        return await evidence_for_team_role(evidence_text, role, "")
+        return await evidence_for_team_role(evidence_text, role, "", market=market)
 
     technical_evidence, bull_evidence, bear_evidence, risk_evidence = await asyncio.gather(
         role_evidence("Technical Analyst"),

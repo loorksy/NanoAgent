@@ -22,6 +22,7 @@ from mokli.trading.i18n import tr
 from mokli.trading.market_context import build_agent_market_context
 from mokli.trading.stage_events import emit_stage
 from mokli.trading.teams.evidence_text import (
+    attach_risk_spread,
     compact_timeframe_window,
     evidence_with_macro_drivers,
     format_market_evidence,
@@ -32,6 +33,7 @@ from mokli.trading.teams.evidence_text import (
 from mokli.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
 from mokli.trading.teams.role_prompts import resolve_role_file
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
+from mokli.trading.types import AgentMarketContext
 
 _PRESETS_DIR = Path(__file__).parent / "presets"
 _STANCE_LINE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
@@ -103,38 +105,45 @@ async def evidence_for_team_role(
     lead_evidence: str,
     role: str,
     system_prompt: str,
+    *,
+    market: AgentMarketContext | None = None,
 ) -> str:
     """Evidence one role reads.
 
     H1, H4, and D1 each load their own candles. A trend role gets the lead
     quote and a short window for those three charts, not a second copy of the
     lead bars and not a live quote per chart. Structure roles keep the lead
-    candle list.
+    candle list. The risk role also receives bid, ask, and spread when the
+    lead quote has them. It does not receive candles, the driver list, or a
+    gate verdict.
     """
     named = named_chart_interval(role)
     if named is not None:
-        market = await asyncio.to_thread(
+        named_market = await asyncio.to_thread(
             build_agent_market_context,
             "XAUUSD",
             named,
             _HIGHER_TF_LIMIT,
         )
-        return format_market_evidence(market)
+        return format_market_evidence(named_market)
     if resolve_role_file(role, system_prompt) == "timeframe":
 
         async def _window(interval: str) -> dict[str, object]:
-            market = await asyncio.to_thread(
+            window_market = await asyncio.to_thread(
                 build_agent_market_context,
                 "XAUUSD",
                 interval,
                 _HIGHER_TF_LIMIT,
                 include_quote=False,
             )
-            return compact_timeframe_window(market)
+            return compact_timeframe_window(window_market)
 
         windows = list(await asyncio.gather(*[_window(interval) for interval in _HIGHER_TIMEFRAMES]))
         return trend_evidence(lead_evidence, windows)
-    return scope_market_evidence(lead_evidence, role, system_prompt)
+    scoped = scope_market_evidence(lead_evidence, role, system_prompt)
+    if market is not None and resolve_role_file(role, system_prompt) == "risk":
+        return attach_risk_spread(scoped, market)
+    return scoped
 
 
 def list_presets() -> list[str]:
@@ -254,6 +263,7 @@ async def run_swarm(
                     evidence_text,
                     role,
                     system_prompt,
+                    market=market,
                 )
                 if resolve_role_file(role, system_prompt) in _MACRO_EVIDENCE_FILES:
                     if macro_task is None:
