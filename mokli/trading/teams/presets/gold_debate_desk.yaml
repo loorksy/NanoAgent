@@ -3,6 +3,9 @@ title: Gold Debate Desk
 description: Bull and bear advocates with risk officer for XAUUSD
 
 agents:
+  - id: technical
+    role: Technical Analyst
+    system_prompt: role:structure
   - id: bull_advocate
     role: Bull Advocate
     system_prompt: role:bull
@@ -14,21 +17,31 @@ agents:
     system_prompt: role:risk
 
 tasks:
+  - id: task-technical
+    agent_id: technical
+    prompt_template: "Technical read of {target} ({market}). Name the structure and the level that would invalidate it. Do not place an order."
+    depends_on: []
+
   - id: task-bull
     agent_id: bull_advocate
-    prompt_template: "Analyze {target} ({market}). Build the bull case."
-    depends_on: []
+    prompt_template: "Analyze {target} ({market}). Build the bull case from the technical note.\n{upstream_context}"
+    depends_on: [task-technical]
+    input_from:
+      technical: task-technical
 
   - id: task-bear
     agent_id: bear_advocate
-    prompt_template: "Analyze {target} ({market}). Build the bear case."
-    depends_on: []
+    prompt_template: "Analyze {target} ({market}). Build the bear case from the technical note.\n{upstream_context}"
+    depends_on: [task-technical]
+    input_from:
+      technical: task-technical
 
   - id: task-risk
     agent_id: risk_manager
     prompt_template: "Synthesize debate for {target}.\n{upstream_context}"
     depends_on: [task-bull, task-bear]
     input_from:
+      technical: task-technical
       bull_report: task-bull
       bear_report: task-bear
 

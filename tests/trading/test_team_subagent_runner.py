@@ -45,6 +45,32 @@ async def test_team_role_with_runtime_does_not_open_a_tool_loop() -> None:
     assert "2300" in messages[1]["content"]
     assert "Name blocking risks." in messages[1]["content"]
     assert summary.startswith("levels hold")
+    user = kwargs["messages"][1]["content"]
+    assert "upstream note" in user
+
+
+@pytest.mark.asyncio
+async def test_upstream_note_prices_are_allowed_beside_the_quote() -> None:
+    """A level in the prior brief is not an invented price outside the quote JSON."""
+    provider = MagicMock()
+    provider.chat = AsyncMock(return_value=MagicMock(content="noted\nSTANCE: wait"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+
+    with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+        await run_team_role(
+            agent_id="bull",
+            role="Bull Advocate",
+            task_text="Build the bull case.\ntechnical: swing high 2310\nSTANCE: buy",
+            evidence_text='{"symbol": "XAUUSD", "quote_mid": 2300}',
+            system_prompt="role:bull",
+        )
+
+    user = provider.chat.await_args.kwargs["messages"][1]["content"]
+    system = provider.chat.await_args.kwargs["messages"][0]["content"]
+    assert "swing high 2310" in user
+    assert "upstream note" in user
+    assert "upstream note" in system
+    assert "2310" not in user.split("FROZEN MARKET EVIDENCE", 1)[1]
 
 
 @pytest.mark.asyncio
@@ -666,4 +692,58 @@ async def test_committee_lead_reads_every_specialist_brief(monkeypatch) -> None:
     before = estimate_prompt_tokens([{"role": "user", "content": risk_only}])
     after = estimate_prompt_tokens([{"role": "user", "content": lead_task}])
     print(f"LEAD_BRIEFS before={before} after={after}")
+    assert after > before
+
+
+@pytest.mark.asyncio
+async def test_debate_desk_advocates_read_the_technical_brief(monkeypatch) -> None:
+    """Bull and bear argue from the technical note. They do not receive the candle list."""
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        role = str(kwargs.get("role"))
+        seen.append((role, str(kwargs.get("task_text")), str(kwargs.get("evidence_text"))))
+        if role == "Technical Analyst":
+            return "swing high 2310 holds\nSTANCE: buy"
+        return "noted\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "dollar firm"
+
+    await run_swarm(
+        "gold_debate_desk",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = {role: (task, evidence) for role, task, evidence in seen}
+    technical_task, technical_evidence = by_role["Technical Analyst"]
+    bull_task, bull_evidence = by_role["Bull Advocate"]
+    bear_task, bear_evidence = by_role["Bear Advocate"]
+    risk_task, risk_evidence = by_role["Risk Manager"]
+    assert "candles" in json.loads(technical_evidence)
+    for evidence in (bull_evidence, bear_evidence, risk_evidence):
+        parsed = json.loads(evidence)
+        assert "candles" not in parsed
+        assert "macroDrivers" not in parsed
+    note = "swing high 2310 holds\nSTANCE: buy"
+    assert note in bull_task
+    assert note in bear_task
+    assert note in risk_task
+    assert "2310" not in technical_task
+    bare = "Analyze XAUUSD (forex). Build the bull case."
+    before = estimate_prompt_tokens([{"role": "user", "content": bare}])
+    after = estimate_prompt_tokens([{"role": "user", "content": bull_task}])
+    print(f"DEBATE_DESK before={before} after={after}")
     assert after > before

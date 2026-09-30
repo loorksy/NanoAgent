@@ -210,7 +210,7 @@ async def run_team_role(
     role_prompt = resolve_role_prompt(role, system_prompt)
     task_body = (
         f"{task_text.strip()}\n\n"
-        f"FROZEN MARKET EVIDENCE (do not invent prices outside this JSON):\n"
+        f"FROZEN MARKET EVIDENCE (do not invent a price that is in neither this JSON nor an upstream note above):\n"
         f"{fit_evidence_text(evidence_text)}"
     )
     full_task = f"ROLE INSTRUCTIONS:\n{role_prompt}\n\nTASK:\n{task_body}"
