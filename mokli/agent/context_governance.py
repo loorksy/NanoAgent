@@ -21,6 +21,7 @@ from uuid import uuid4
 from loguru import logger
 
 from mokli.agent.context import TranscriptInput
+from mokli.agent.context_layers import layers_for_transcript_boundary
 from mokli.events import NO_EVENTS, ContextCompactionEvent, EventSink
 from mokli.providers.base import (
     LLMResponse,
@@ -778,9 +779,15 @@ class ContextGovernor:
         summary: str,
     ) -> list[dict[str, Any]]:
         """Rebuild only the stable system prefix around a replacement summary."""
+        source = compaction.transcript_input
+        prompt_layers = layers_for_transcript_boundary(
+            current_message=source.current_message,
+            history=source.history,
+            prompt_layers=source.prompt_layers,
+        )
         return compaction.transcript_builder(
             replace(
-                compaction.transcript_input,
+                source,
                 history=[],
                 current_message=None,
                 media=None,
@@ -789,6 +796,7 @@ class ContextGovernor:
                     "last_active": datetime.now().astimezone().isoformat(),
                 },
                 runtime_context_blocks=None,
+                prompt_layers=prompt_layers,
             )
         )
 

@@ -15,7 +15,11 @@ from mokli.agent.context_governance import (
     fold_prior_subagent_announcements,
     fold_prior_tool_results,
 )
-from mokli.agent.context_layers import layers_for_archived_history, layers_for_task
+from mokli.agent.context_layers import (
+    layers_for_archived_history,
+    layers_for_task,
+    layers_for_transcript_boundary,
+)
 from mokli.agent.hook import AgentHook
 from mokli.agent.tools.base import Tool
 from mokli.agent.tools.context import ToolContext
@@ -482,6 +486,24 @@ def test_archive_layers_follow_last_user_turn() -> None:
     layers = layers_for_archived_history(history)
     assert layers.include_memory is False
     assert layers.include_skills is False
+
+
+def test_compaction_summary_layers_follow_turn_not_empty_tail() -> None:
+    history = [{"role": "user", "content": "مرحبا"}]
+    turn_layers = layers_for_transcript_boundary(
+        current_message="كيف الحال",
+        history=history,
+    )
+    summary_layers = layers_for_transcript_boundary(
+        current_message=None,
+        history=[],
+        prompt_layers=turn_layers,
+    )
+    assert summary_layers.include_memory is False
+    assert summary_layers.include_skills is False
+    empty_tail = layers_for_transcript_boundary(current_message=None, history=[])
+    assert empty_tail.include_memory is True
+    assert empty_tail.include_skills is True
 
 
 def test_registered_tools_have_display_copy() -> None:

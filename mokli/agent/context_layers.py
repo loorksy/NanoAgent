@@ -45,3 +45,19 @@ def layers_for_archived_history(history: Sequence[object]) -> ContextLayers:
         if isinstance(content, str):
             return layers_for_task(content)
     return layers_for_task(None)
+
+
+def layers_for_transcript_boundary(
+    *,
+    current_message: str | None,
+    history: Sequence[object],
+    prompt_layers: ContextLayers | None = None,
+) -> ContextLayers:
+    """Resolve prompt layers for a transcript rebuild or archive boundary."""
+    if prompt_layers is not None:
+        return prompt_layers
+    if current_message is not None:
+        return layers_for_task(current_message)
+    if history:
+        return layers_for_archived_history(history)
+    return layers_for_task(None)

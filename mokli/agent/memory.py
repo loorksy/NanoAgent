@@ -21,7 +21,7 @@ from uuid import uuid4
 
 from loguru import logger
 
-from mokli.agent.context_layers import layers_for_archived_history
+from mokli.agent.context_layers import layers_for_transcript_boundary
 from mokli.events import NO_EVENTS, ContextCompactionEvent, EventSink
 from mokli.llm_usage.context import llm_usage_source
 from mokli.providers.base import LLMResponse, ProviderConversationState
@@ -1039,7 +1039,10 @@ class MemoryArchiver:
             channel=channel,
             session_summary=session_summary,
             workspace=workspace,
-            context_layers=layers_for_archived_history(history),
+            context_layers=layers_for_transcript_boundary(
+                current_message=None,
+                history=history,
+            ),
         )
         tools = self._get_tool_definitions()
         return await self.archive(

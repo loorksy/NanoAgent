@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
-from mokli.agent.context_layers import ContextLayers, layers_for_task
+from mokli.agent.context_layers import ContextLayers, layers_for_transcript_boundary
 from mokli.agent.memory import MemoryStore
 from mokli.agent.prompt.composer import (
     WORKSPACE_LAYER,
@@ -102,6 +102,7 @@ class TranscriptInput:
     current_role: str = "user"
     session_summary: SessionSummary | None = None
     runtime_context_blocks: Sequence[RuntimeContextBlock] | None = None
+    prompt_layers: ContextLayers | None = None
 
     @property
     def message_count(self) -> int:
@@ -414,7 +415,11 @@ class ContextBuilder:
     ) -> list[dict[str, Any]]:
         """Build a model transcript while preserving the fresh-turn boundary."""
         root = workspace or self.workspace
-        layers = context_layers or layers_for_task(transcript.current_message)
+        layers = layers_for_transcript_boundary(
+            current_message=transcript.current_message,
+            history=transcript.history,
+            prompt_layers=context_layers or transcript.prompt_layers,
+        )
         messages: list[dict[str, Any]] = [
             {
                 "role": "system",
