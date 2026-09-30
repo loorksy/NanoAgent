@@ -11,7 +11,7 @@
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2305** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2306** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 
 ## قبل المحادثة الحية
 
@@ -20,6 +20,33 @@
 3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
 5. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
+
+## مسار Agent API (تسجيل JSONL بدون أنبوب UI)
+
+رمز Bearer (`nbat_…`) من إقران جهاز/عميل Gateway. قاعدة API: `http://127.0.0.1:8766/api/v2`.
+
+```bash
+BASE="http://127.0.0.1:8766/api/v2"
+TOKEN="nbat_REPLACE_ME"
+SID="$(curl -sf -X POST "$BASE/sessions" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"section11-01"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")"
+
+mkdir -p section11-events
+curl -sfN "$BASE/sessions/$SID/events?until_end=1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -o "section11-events/raw-01.sse" &
+curl -sf -X POST "$BASE/sessions/$SID/messages" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"مرحبا، ما اسمك؟"}'
+wait
+grep '^data: ' section11-events/raw-01.sse | sed 's/^data: //' > section11-events/01-no-tools.jsonl
+python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no-tools.jsonl
+```
+
+كل سطر في `01-no-tools.jsonl` هو `GatewayEvent` (حقل `kind` و`data`). حدث `diagnostic` في `data` يطابق `TurnDiagnostics.to_dict()` — انظر `tests/fixtures/section11_turn_diagnostics_sample.jsonl`. Mokli UI + `mokli_pipe` يبقى مسار §11 للصفوف 12–13 (واجهة).
 
 ## تسمية ملفات JSONL (للـ batch)
 

@@ -91,6 +91,32 @@ def test_extracts_turn_diagnostics_to_dict_wire_format() -> None:
     assert "nested_in=900" in out
 
 
+def test_extracts_agent_api_gateway_event_shape() -> None:
+    """Agent API SSE ``data:`` lines are full GatewayEvent objects."""
+    event = {
+        "id": "evt-1",
+        "session": "sess-1",
+        "run": "run-1",
+        "ts": 1,
+        "kind": "diagnostic",
+        "data": {
+            "rounds": 1,
+            "request_input_tokens": 777,
+            "request_output_tokens": 11,
+            "tool_calls": 0,
+        },
+    }
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT)],
+        input=json.dumps(event),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "rounds=1" in proc.stdout
+    assert "in=777" in proc.stdout
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(
