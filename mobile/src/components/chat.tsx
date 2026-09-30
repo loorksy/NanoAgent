@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { workingBadgeCopy } from "../lib/activity";
 import { useLabel, useLocale, useT } from "../lib/app-context";
 import { formatDuration } from "../lib/format";
 import { colors, font, radius, spacing, toneColor, type StateTone } from "../lib/theme";
@@ -20,9 +21,12 @@ export function StateBadge({ state, stream }: { state: StateData; stream?: Subsc
   const t = useT();
   const label = useLabel();
   const tone = toneColor(stateTone(state));
+  let title = t(`state.${state.state}`);
   let detail = "";
-  if (state.state === "working" && state.phase) {
-    detail = label(`phase.${state.phase}`);
+  if (state.state === "working") {
+    const copy = workingBadgeCopy(state.phase, t, label);
+    title = copy.title;
+    detail = copy.detail;
   } else if (state.state === "waiting" && state.waiting_for) {
     detail = t(`state.waiting_for.${state.waiting_for.kind}`);
   } else if (state.state === "completed" && state.outcome) {
@@ -31,7 +35,7 @@ export function StateBadge({ state, stream }: { state: StateData; stream?: Subsc
   return (
     <View style={styles.stateRow}>
       <View style={[styles.dot, { backgroundColor: tone }]} />
-      <Text style={[styles.stateText, { color: tone }]}>{t(`state.${state.state}`)}</Text>
+      <Text style={[styles.stateText, { color: tone }]}>{title}</Text>
       {detail ? <Muted>· {detail}</Muted> : null}
       <View style={{ flex: 1 }} />
       {stream && stream !== "open" ? <Muted>{t(`agent.stream.${stream}`)}</Muted> : null}

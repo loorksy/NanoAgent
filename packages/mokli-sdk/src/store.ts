@@ -321,7 +321,7 @@ function applyApproval(
     state.waiting_for?.kind === "approval" &&
     state.waiting_for.id === data.approval_id
   ) {
-    state = { state: "working", phase: "thinking" };
+    state = { state: "working", phase: "processing" };
   }
   return { ...snapshot, approvals, state };
 }
@@ -422,7 +422,7 @@ export function setApprovalStatus(
   let state = snapshot.state;
   const waiting = state.waiting_for;
   if (state.state === "waiting" && waiting?.kind === "approval" && waiting.id === approvalId) {
-    state = { state: "working", phase: "thinking" };
+    state = { state: "working", phase: "processing" };
   }
   return { ...snapshot, approvals, state };
 }

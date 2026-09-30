@@ -511,7 +511,7 @@ class RuntimeEventBridge:
                 )
                 return
             phase = translated["data"].get("phase")
-            self._hub.working(session, str(phase or "thinking"))
+            self._hub.working(session, str(phase or "processing"))
             return
         data: JsonObject = translated["data"]
         self._hub.publish(session, translated["kind"], data)

@@ -24,6 +24,7 @@
   "tabs.connect": "الاتصال",
   "tabs.log": "السجل",
   "state.working": "يعمل",
+  "state.processing": "جاري المعالجة…",
   "state.waiting": "بانتظارك",
   "state.completed": "مكتمل",
   "state.phase.queued": "في الانتظار",

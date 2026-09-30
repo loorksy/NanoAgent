@@ -350,6 +350,31 @@ async def test_working_state_keeps_steps_that_already_ran() -> None:
     assert harness.statuses()[-1][1] is True
 
 
+async def test_in_progress_state_does_not_claim_a_reply_or_a_tool() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("state", {"state": "working", "phase": "streaming"}), "1"),
+            sse(ev("state", {"state": "working", "phase": "tool:get_gold_quote"}), "2"),
+            sse(
+                ev(
+                    "state",
+                    {"state": "working", "phase": "thinking", "provider_thinking": True},
+                ),
+                "3",
+            ),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "4"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    await harness.run()
+    descriptions = [text for text, _done in harness.statuses()]
+    assert descriptions[0] == "Processing"
+    assert descriptions[1] == "Processing"
+    assert "get_gold_quote" not in descriptions[1]
+    assert "Responding" not in descriptions[0]
+    assert descriptions[2] == "Working · Thinking"
+
+
 async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     stream = ChunkStream(
         [

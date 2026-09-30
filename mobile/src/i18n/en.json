@@ -24,6 +24,7 @@
   "tabs.connect": "Connect",
   "tabs.log": "Log",
   "state.working": "Working",
+  "state.processing": "Processing",
   "state.waiting": "Waiting",
   "state.completed": "Completed",
   "state.phase.queued": "Queued",

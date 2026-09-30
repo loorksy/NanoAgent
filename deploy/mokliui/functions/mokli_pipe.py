@@ -1034,7 +1034,15 @@ class Pipe:
         description = turn.label(f"state.{state}")
         phase = _as_str(data.get("phase"))
         provider_thinking = data.get("provider_thinking") is True
-        if state == "working" and phase in {"thinking", "processing", "tool"} and not provider_thinking:
+        phase_head = phase.split(":", 1)[0]
+        # "streaming" and "tool" here mean the turn is in progress. Tokens and
+        # tool events are the signals that a reply or a tool actually started.
+        # A provider thinking flag is that signal for the thinking phase.
+        if (
+            state == "working"
+            and phase_head in {"thinking", "processing", "tool", "streaming"}
+            and not (provider_thinking and phase_head == "thinking")
+        ):
             description = turn.label("state.processing")
         elif phase and not phase.startswith("tool:"):
             phase_kind, _, phase_name = phase.partition(":")

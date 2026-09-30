@@ -59,7 +59,7 @@ describe("applyEvent", () => {
 
     snap = setApprovalStatus(snap, "a1", "confirmed");
     expect(snap.approvals[0]?.status).toBe("confirmed");
-    expect(snap.state.state).toBe("working");
+    expect(snap.state).toEqual({ state: "working", phase: "processing" });
 
     snap = applyEvent(snap, ev("state", { state: "completed", outcome: "ok" }));
     snap = applyEvent(snap, ev("end", { run: "r_1", outcome: "ok" }));
@@ -230,7 +230,7 @@ describe("applyEvent", () => {
     );
     expect(snap.approvals[0]?.status).toBe("confirmed");
     expect(snap.approvals[0]?.actions).toEqual([]);
-    expect(snap.state.state).toBe("working");
+    expect(snap.state).toEqual({ state: "working", phase: "processing" });
   });
 });
 
