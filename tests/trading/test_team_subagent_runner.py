@@ -616,3 +616,54 @@ async def test_event_role_reads_the_driver_list(monkeypatch) -> None:
     after = estimate_prompt_tokens([{"role": "user", "content": json.dumps(event)}])
     print(f"EVENT_DRIVERS before={before} after={after}")
     assert after > before
+
+
+@pytest.mark.asyncio
+async def test_committee_lead_reads_every_specialist_brief(monkeypatch) -> None:
+    """The lead attributes points to each brief. Risk's note is not a substitute."""
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    notes = {
+        "Macro Analyst": "dollar firm\nSTANCE: sell",
+        "Structure Analyst": "lower highs\nSTANCE: sell",
+        "Liquidity Analyst": "buy-side above\nSTANCE: wait",
+        "Risk Officer": "stop is wide\nSTANCE: wait",
+    }
+    seen: list[tuple[str, str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        role = str(kwargs.get("role"))
+        seen.append((role, str(kwargs.get("task_text")), str(kwargs.get("evidence_text"))))
+        return notes.get(role, "noted\nSTANCE: wait")
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "dollar firm"
+
+    await run_swarm(
+        "gold_analysis_committee",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    lead_task, lead_evidence = next(
+        (task, evidence) for role, task, evidence in seen if role == "Lead Analyst"
+    )
+    for note in notes.values():
+        assert note in lead_task
+    parsed = json.loads(lead_evidence)
+    assert "candles" not in parsed
+    assert "macroDrivers" not in parsed
+    risk_only = "Final committee summary.\nrisk: stop is wide\nSTANCE: wait"
+    before = estimate_prompt_tokens([{"role": "user", "content": risk_only}])
+    after = estimate_prompt_tokens([{"role": "user", "content": lead_task}])
+    print(f"LEAD_BRIEFS before={before} after={after}")
+    assert after > before

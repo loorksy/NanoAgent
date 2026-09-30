@@ -45,6 +45,9 @@ tasks:
     prompt_template: "Final committee summary.\n{upstream_context}"
     depends_on: [task-risk]
     input_from:
+      macro: task-macro
+      structure: task-structure
+      liquidity: task-liquidity
       risk: task-risk
 
 variables:
