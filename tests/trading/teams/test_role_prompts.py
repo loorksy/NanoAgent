@@ -111,6 +111,33 @@ def test_decision_review_asks_for_a_stance_the_risk_prompt_allows() -> None:
     assert "STANCE: wait" in risk
     assert "never place an order" in risk
     assert "You never choose buy or sell" not in risk
+    review = role_system_prompt("Review Analyst", system_prompt="role:lead")
+    assert "unless the task asks for one STANCE line" in review
+    assert "not an order" in review
+    assert "Do not choose a direction, do not propose levels" not in review
+    committee = role_system_prompt("Lead Analyst", system_prompt="role:lead")
+    assert "unless the task asks for one STANCE line" in committee
+    from mokli.utils.helpers import estimate_prompt_tokens
+
+    old_lead = (
+        "## Focus: lead synthesis\n\n"
+        "Synthesise the upstream specialist briefs into one neutral, evidence-ordered summary for the\n"
+        "structured decision call. Rank the points of agreement, then the conflicts, then what remains\n"
+        "unknown. Attribute each point to the brief it came from and drop anything a brief asserted\n"
+        "without evidence. Do not choose a direction, do not propose levels, and do not smooth over a\n"
+        "genuine conflict between briefs.\n"
+    )
+    new_lead = (
+        Path(role_prompts.__file__).resolve().parents[2]
+        / "agent"
+        / "prompt"
+        / "team_roles"
+        / "lead.md"
+    ).read_text(encoding="utf-8")
+    before = estimate_prompt_tokens([{"role": "user", "content": old_lead}])
+    after = estimate_prompt_tokens([{"role": "user", "content": new_lead}])
+    print(f"LEAD_PROMPT before={before} after={after}")
+    assert after > before
     by_id = {task.id: task for task in preset.tasks}
     assert by_id["task-risk"].input_from == {
         "technical": "task-technical",
