@@ -40,6 +40,53 @@ async def test_team_role_with_runtime_does_not_open_a_tool_loop() -> None:
     assert summary.startswith("levels hold")
 
 
+@pytest.mark.asyncio
+async def test_published_role_summary_keeps_a_trailing_stance() -> None:
+    from mokli.trading.result_wire import result_to_wire
+    from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+
+    body = "level " * 800
+    text = f"{body}\nSTANCE: sell"
+    assert "STANCE: sell" not in text[:2000]
+    provider = MagicMock()
+    provider.chat = AsyncMock(return_value=MagicMock(content=text))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+    collector = TeamRunCollector()
+
+    with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+        summary = await run_team_role(
+            agent_id="technical",
+            role="Technical Analyst",
+            task_text="Read the structure.",
+            evidence_text='{"last_close": 2300}',
+            system_prompt="role:structure",
+            collector=collector,
+        )
+
+    assert summary == text
+    published = collector.agents[0]["summary"]
+    assert published.endswith("STANCE: sell")
+    assert len(published) < len(text)
+    decision = FinalDecisionResult(
+        decision="sell",
+        confidence=0.5,
+        summary="sell",
+        key_reasons=[],
+        risk_warnings=[],
+        recommendation=AgentRecommendation(action="sell"),
+    )
+    wire = result_to_wire(
+        AgentFinalResult(
+            decision=decision,
+            team_agents=[
+                {"status": "done", "summary": published},
+                {"status": "done", "summary": "flow supports it\nSTANCE: sell"},
+            ],
+        )
+    )
+    assert wire["agreement"] == {"stance": "sell", "agreeing": 2, "votes": 2}
+
+
 def test_upstream_brief_keeps_the_stance_and_drops_the_rest() -> None:
     from mokli.trading.teams.runtime import brief_for_upstream
 

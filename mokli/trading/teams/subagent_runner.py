@@ -110,6 +110,13 @@ async def _publish_team_agent(
     await publisher.publish_team_agent(event.to_wire())
 
 
+def _summary_for_event(summary: str, *, limit: int = 2000) -> str:
+    """Short role text for the wire. A trailing STANCE line stays so agreement can read it."""
+    from mokli.trading.teams.runtime import brief_for_upstream
+
+    return brief_for_upstream(summary, limit=limit)
+
+
 def resolve_role_prompt(role: str, system_prompt: str = "") -> str:
     """System prompt for one team role.
 
@@ -220,7 +227,7 @@ async def run_team_role(
                 agent_id=agent_id,
                 role=role,
                 status="done",
-                summary=summary[:2000],
+                summary=_summary_for_event(summary),
                 layer=layer,
                 duration_ms=duration_ms,
             ),
