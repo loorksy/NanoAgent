@@ -49,14 +49,19 @@ def sync_session_live_plan(
     session_key: str | None,
     *,
     live_price: float | None = None,
+    price_known: bool = False,
 ) -> dict[str, Any] | None:
-    """Grade the session's live row against price and persist terminal outcomes."""
+    """Grade the session's live row against price and persist terminal outcomes.
+
+    ``price_known`` means the caller already tried to read the live quote.
+    A missing price then stays missing instead of starting a second download.
+    """
     if not session_key:
         return None
     live = latest_live_recommendation(session_key)
     if not live:
         return None
-    price = resolve_live_price(live_price)
+    price = live_price if price_known else resolve_live_price(live_price)
     remaining = finalize_live_plan_if_closed(live, live_price=price)
     if remaining is None:
         return latest_live_recommendation(session_key)

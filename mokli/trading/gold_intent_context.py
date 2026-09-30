@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from mokli.agent.tools.context import RequestContext
 from mokli.runtime_context import RuntimeContextBlock, wrap_runtime_context_lines
-from mokli.trading.config import load_trading_config
 from mokli.trading.decision_route import is_gold_decision_question
 from mokli.trading.gold import DATA_SYMBOL
-from mokli.trading.oanda import fetch_quote
 from mokli.trading.recommendations.lifecycle import sync_session_live_plan
+from mokli.trading.recommendations.store import latest_live_recommendation
 
 
 def _plain_price(value: object | None) -> str | None:
@@ -23,11 +24,27 @@ def _plain_price(value: object | None) -> str | None:
 async def gold_intent_runtime_context(
     request: RequestContext,
 ) -> RuntimeContextBlock | None:
-    """Tell the LLM when a live plan exists and inject fresh platform prices."""
+    """Tell the LLM when a live plan exists.
+
+    A live row is graded with one quote read off the event loop. The tick is
+    not copied into the prompt; a price follow-up calls get_gold_quote.
+    """
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    live = sync_session_live_plan(request.session_key)
+    pending = latest_live_recommendation(request.session_key) if request.session_key else None
+    if pending is None:
+        live = None
+    else:
+        from mokli.trading.market_context import resolve_live_quote
+
+        quote, _source = await asyncio.to_thread(resolve_live_quote, DATA_SYMBOL)
+        mid = quote.mid if quote is not None else None
+        live = sync_session_live_plan(
+            request.session_key,
+            live_price=mid,
+            price_known=True,
+        )
     if not live:
         if not is_gold_decision_question(text):
             return None
@@ -64,15 +81,6 @@ async def gold_intent_runtime_context(
         if targets:
             level_bits.append("targets=" + "/".join(t for t in targets if t))
         lines.append("Stored plan levels (plain): " + ", ".join(level_bits))
-
-    config = load_trading_config()
-    if config.oanda_configured:
-        try:
-            quote = fetch_quote(DATA_SYMBOL, config=config)
-            if quote and quote.mid is not None:
-                lines.append(f"Platform live XAUUSD mid now: {_plain_price(quote.mid)}")
-        except Exception:
-            pass
 
     if request.channel == "websocket":
         from mokli.agent.delivery_targets import default_telegram_chat_id
