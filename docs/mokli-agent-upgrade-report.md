@@ -436,7 +436,7 @@
 
 ## 11. مسارات حية (لم تُنفَّذ في Cloud Agent)
 
-هذا القسم قائمة تحقق للمشغّل بعد نشر الفرع `cursor/agent-runtime-efficiency-d9e1` وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`.
+هذا القسم قائمة تحقق للمشغّل بعد نشر الفرع `cursor/agent-runtime-efficiency-d9e1` وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
 **متطلبات:** مزود LLM في `~/.mokli/config.json`، OANDA للشموع، MetaAPI أو OANDA للسعر حسب الإعداد، رمز جلسة Mokli UI أو Agent API، حساب ورقي/MT5 حسب السينario، `SHOW_DIAGNOSTICS=1` في أنبوب الدردشة عند قياس التوكن والزمن.
 

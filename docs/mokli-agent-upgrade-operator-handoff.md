@@ -10,6 +10,7 @@
 - `docs/mokli-agent-upgrade-audit.md` — تدقيق المرحلة 0
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
+- `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
 - pytest: **2299** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 
 ## قبل المحادثة الحية
