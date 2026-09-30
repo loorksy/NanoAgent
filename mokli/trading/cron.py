@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import cast
 
@@ -87,7 +88,7 @@ def register_trading_cron_jobs(
 async def run_gold_news_job() -> str | None:
     from mokli.trading.agents.news_macro import run_news_macro_agent
 
-    news = run_news_macro_agent()
+    news = await asyncio.to_thread(run_news_macro_agent)
     if news.news_risk in {"high", "medium"} and news.upcoming_events:
         first = news.upcoming_events[0]
         if isinstance(first, dict):
@@ -215,7 +216,7 @@ async def run_event_monitor_job() -> str | None:
     from mokli.trading.news.forex_factory import fetch_upcoming_events
 
     try:
-        events = fetch_upcoming_events()
+        events = await asyncio.to_thread(fetch_upcoming_events)
     except Exception:
         logger.exception("Event monitor calendar fetch failed")
         return None
@@ -228,7 +229,7 @@ async def run_event_monitor_job() -> str | None:
 async def run_cot_job() -> str | None:
     from mokli.trading.intel.cot import load_gold_cot
 
-    snapshot = load_gold_cot()
+    snapshot = await asyncio.to_thread(load_gold_cot)
     if not snapshot.get("available"):
         return None
     return f"COT: {snapshot['notice_key']}"
@@ -246,7 +247,7 @@ async def run_opportunity_scan_job() -> str | None:
 async def run_gold_scan_job() -> str | None:
     """Run one bot coordinator cycle; return alert text if any."""
     try:
-        outcome = run_bot_cycle()
+        outcome = await asyncio.to_thread(run_bot_cycle)
     except Exception:
         logger.exception("Gold scan cron failed")
         return None
