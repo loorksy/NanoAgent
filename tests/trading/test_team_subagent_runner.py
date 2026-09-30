@@ -605,10 +605,14 @@ async def test_event_role_reads_the_driver_list(monkeypatch) -> None:
     from mokli.trading.teams.runtime import run_swarm
 
     reset_macro_cache_for_tests()
-    seen: list[tuple[str, str]] = []
+    seen: list[tuple[str, str, str]] = []
 
     async def fake_team_role(**kwargs: object) -> str:
-        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        seen.append((
+            str(kwargs.get("role")),
+            str(kwargs.get("task_text")),
+            str(kwargs.get("evidence_text")),
+        ))
         return "events noted\nSTANCE: wait"
 
     monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
@@ -627,7 +631,14 @@ async def test_event_role_reads_the_driver_list(monkeypatch) -> None:
         macro_events=[],
         macro_now=lambda: 1_700_000_000.0,
     )
-    by_role = dict(seen)
+    by_role = {role: evidence for role, _task, evidence in seen}
+    news_task = next(task for role, task, _evidence in seen if role == "News Scanner")
+    assert "calendar" not in news_task.lower()
+    assert "headline" not in news_task.lower()
+    old_task = "Scan macro calendar and headlines for XAUUSD."
+    task_before = estimate_prompt_tokens([{"role": "user", "content": old_task}])
+    task_after = estimate_prompt_tokens([{"role": "user", "content": news_task}])
+    print(f"NEWS_TASK before={task_before} after={task_after}")
     news = json.loads(by_role["News Scanner"])
     event = json.loads(by_role["Event Analyst"])
     scenario = json.loads(by_role["Scenario Planner"])
