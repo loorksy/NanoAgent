@@ -30,6 +30,11 @@ export function formatPercent(value: number | null | undefined, locale: Locale, 
   }).format(value / 100);
 }
 
+/** Stance word already translated, then the counted votes. */
+export function formatAgreement(stanceLabel: string, agreeing: number, votes: number): string {
+  return `${stanceLabel} ${agreeing}/${votes}`;
+}
+
 /** 0..1 confidence to a percentage label. */
 export function formatConfidence(value: number | null | undefined, locale: Locale): string {
   if (value === null || value === undefined) return "—";

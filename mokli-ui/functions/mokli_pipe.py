@@ -499,11 +499,35 @@ def _field_label(result_type: str, key: str, labels: Mapping[str, str]) -> str:
     return key
 
 
+def _count(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def _agreement_cell(value: object, labels: Mapping[str, str]) -> str | None:
+    """Stance from the catalog, then the real counts. Any other shape stays raw."""
+    if not isinstance(value, dict) or set(value) != {"stance", "agreeing", "votes"}:
+        return None
+    stance = value.get("stance")
+    agreeing = _count(value.get("agreeing"))
+    votes = _count(value.get("votes"))
+    if not isinstance(stance, str) or not stance or agreeing is None or votes is None:
+        return None
+    named = labels.get(f"label.decision.{stance}")
+    label = named if named else stance
+    return _escape_cell(f"{label} {agreeing}/{votes}")
+
+
 def _value_label(key: str, value: object, labels: Mapping[str, str]) -> str:
     if key == "verdict" and isinstance(value, str):
         named = labels.get(f"label.decision.{value}")
         if named:
             return named
+    if key == "agreement":
+        cell = _agreement_cell(value, labels)
+        if cell is not None:
+            return cell
     return _escape_cell(value)
 
 

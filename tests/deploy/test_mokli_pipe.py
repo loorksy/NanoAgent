@@ -748,6 +748,90 @@ async def test_decision_card_uses_catalog_labels_and_adds_no_tool_row() -> None:
     assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
 
 
+async def test_decision_agreement_uses_catalog_stance_or_keeps_the_key() -> None:
+    payload = {
+        "verdict": "buy",
+        "agreement": {"stance": "buy", "agreeing": 3, "votes": 4},
+        "reasons": ["hour break"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.agreement": "توافق الوكلاء",
+        "label.decision.buy": "شراء",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    stream = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([stream], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| توافق الوكلاء | شراء 3/4 |" in content
+    assert '{"stance"' not in content
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    unlabeled = dict(labels)
+    unlabeled.pop("label.decision.buy")
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev(
+                            "structured",
+                            {"type": "decision", "result_id": "res-d", "payload": payload},
+                        ),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=unlabeled,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| توافق الوكلاء | buy 3/4 |" in content
+    assert "شراء" not in content
+
+    extra = {"agreement": {"stance": "buy", "agreeing": 3, "votes": 4, "note": "x"}}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev(
+                            "structured",
+                            {"type": "decision", "result_id": "res-d", "payload": extra},
+                        ),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert '"note"' in content
+
+
 async def test_structured_falls_back_to_markdown_table_when_html_unavailable() -> None:
     stream = ChunkStream(
         [

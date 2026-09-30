@@ -18,6 +18,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useLabel, useLocale, useT } from "../../lib/app-context";
 import {
+  formatAgreement,
   formatConfidence,
   formatDateTime,
   formatNumber,
@@ -225,7 +226,11 @@ export function DecisionCard({ payload }: { payload: DecisionPayload }) {
       {payload.agreement ? (
         <Row
           label={t("card.decision.agreement")}
-          value={`${payload.agreement.agreeing}/${payload.agreement.votes}`}
+          value={formatAgreement(
+            t(`verdict.${payload.agreement.stance}`),
+            payload.agreement.agreeing,
+            payload.agreement.votes,
+          )}
         />
       ) : null}
       {payload.invalidation ? <Row label={t("card.decision.invalidation")} value={payload.invalidation} /> : null}
