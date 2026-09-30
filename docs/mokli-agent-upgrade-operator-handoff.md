@@ -11,7 +11,7 @@
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2316** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2317** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 
 ## قبل المحادثة الحية
 
@@ -84,7 +84,7 @@ python scripts/mokli_upgrade_section11_validate.py \
 python scripts/mokli_upgrade_section11_patch_report.py \
   --dir ./section11-events --results section11-results.json \
   --report docs/mokli-agent-upgrade-report.md --dry-run
-# ثم بدون --dry-run بعد مراجعة المخرجات
+# أو: bash scripts/mokli_upgrade_section11_close.sh (validate+batch+dry-run) ثم --apply
 ```
 
 يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`.

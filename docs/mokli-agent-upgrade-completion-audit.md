@@ -18,8 +18,8 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2316** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | `operator_smoke.sh`، `preflight`، `section11_dry_run.sh`، `diagnostic_extract`، `section11_batch`، `section11_validate`، `section11_patch_report.py` (+ `docs/section11-results.example.json`، fixture JSONL) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2317** ناجية (1 skipped) | منجز |
+| أدوات المشغّل §11 | `operator_smoke.sh`، `section11_close.sh` (validate+batch+patch)، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report` (+ `section11-results.example.json`، fixture JSONL) | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
 
 ## أوامر تحقق سريعة (محلي)

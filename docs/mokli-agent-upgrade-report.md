@@ -278,7 +278,7 @@
 
 ## 9. الاختبارات
 
-تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2316 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
+تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2317 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
 
 تدخين محلي بلا مزود: بوابة على منفذ غير افتراضي وواجهة Vite على `5173`. الافتراضي في `mokli-ui/vite.config.ts` لـ `MOKLI_BACKEND_URL` صار Agent API على `8766` بدل `8080`، فـ `GET /api/v2/health` عبر الوكيل يعيد 200 مع `{"ok":true,...}`.
 
@@ -438,7 +438,7 @@
 
 هذا القسم قائمة تحقق للمشغّل بعد نشر الفرع `cursor/agent-runtime-efficiency-d9e1` وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
-**متطلبات:** مزود LLM في `~/.mokli/config.json`، OANDA للشموع، MetaAPI أو OANDA للسعر حسب الإعداد، رمز جلسة Mokli UI أو Agent API، حساب ورقي/MT5 حسب السينario، `SHOW_DIAGNOSTICS=1` في أنبوب الدردشة عند قياس التوكن والزمن.
+**متطلبات:** مزود LLM في `~/.mokli/config.json`، OANDA للشموع، MetaAPI أو OANDA للسعر حسب الإعداد، رمز جلسة Mokli UI أو Agent API، حساب ورقي/MT5 حسب السينario، `SHOW_DIAGNOSTICS=true` في أنبوب الدردشة (صمام bool في `mokli_pipe`) عند قياس التوكن والزمن.
 
 | # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام (توكن/جولات/أدوات/مراحل) |
 | --- | --- | --- | --- | --- | --- |
