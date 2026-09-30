@@ -556,3 +556,35 @@ def test_check_requirements_tolerates_null_requires_and_lists(tmp_path: Path) ->
         "missing_bins": [],
         "missing_env": [],
     }
+
+
+def test_skills_index_drops_paths_the_registry_cannot_open() -> None:
+    """Names and descriptions stay. Paths exist only so read_file can join them."""
+    import tiktoken
+
+    from mokli.utils.prompt_templates import render_template
+
+    loader = SkillsLoader(Path("/tmp/empty-ws"))
+    with_paths = loader.build_skills_summary(include_paths=True)
+    without_paths = loader.build_skills_summary(include_paths=False)
+    before_text = render_template(
+        "agent/skills_section.md",
+        skills_summary=with_paths,
+        skill_paths=True,
+    )
+    after_text = render_template(
+        "agent/skills_section.md",
+        skills_summary=without_paths,
+        skill_paths=False,
+    )
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(before_text))
+    after = len(enc.encode(after_text))
+    print(f"SKILLS_INDEX before={before} after={after}")
+    assert after < before
+    assert "read_file" not in after_text
+    assert "SKILL.md" not in after_text
+    assert "risk-guardrails" in after_text
+    assert "Gold risk judgment" in after_text
+    assert "### Built-in skills" in after_text
+    assert "(`skills`)" not in after_text

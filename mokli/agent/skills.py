@@ -206,16 +206,19 @@ class SkillsLoader:
         exclude: set[str] | None = None,
         *,
         workspace: Path | None = None,
+        include_paths: bool = True,
     ) -> str:
         """
-        Build a summary of all skills (name, description, path, availability).
+        Build a summary of skills (name, description, availability).
 
-        This is used for progressive loading - the agent can read the full
-        skill content using read_file when needed.
+        File paths are included only when the caller can open them. The gold
+        registry has no ``read_file``, so that prompt passes ``include_paths=False``
+        and keeps the name and description.
 
         Args:
             exclude: Set of skill names to omit from the summary.
             workspace: Effective project workspace used to choose safe display paths.
+            include_paths: Append the SKILL.md path the caller can open.
 
         Returns:
             Markdown-formatted skills summary.
@@ -247,7 +250,10 @@ class SkillsLoader:
                 display_root = Path("plugins" if source == "plugin" else "skills")
             else:
                 display_root = resolved_root
-            lines = [f"### {label} (`{display_root}`)"]
+            if include_paths:
+                lines = [f"### {label} (`{display_root}`)"]
+            else:
+                lines = [f"### {label}"]
             for entry in entries:
                 skill_name = entry["name"]
                 meta = self._get_skill_meta(skill_name)
@@ -257,8 +263,11 @@ class SkillsLoader:
                 if not available:
                     missing = self._get_missing_requirements(meta)
                     suffix = f" (unavailable: {missing})" if missing else " (unavailable)"
-                relative_path = Path(entry["path"]).relative_to(root).as_posix()
-                lines.append(f"- **{skill_name}** — {desc}{suffix}  `{relative_path}`")
+                line = f"- **{skill_name}** — {desc}{suffix}"
+                if include_paths:
+                    relative_path = Path(entry["path"]).relative_to(root).as_posix()
+                    line = f"{line}  `{relative_path}`"
+                lines.append(line)
             sections.append("\n".join(lines))
         return "\n\n".join(sections)
 

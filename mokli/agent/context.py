@@ -14,6 +14,7 @@ from mokli.agent.prompt.composer import (
     PromptContext,
     PromptSettings,
     compose_system_prompt,
+    has_tool,
     render_layer,
     render_placeholders,
 )
@@ -48,6 +49,18 @@ def session_extra(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
         cli_app_utils.session_extra(metadata)
         | mcp_tools.session_extra(metadata)
         | session_tools.session_extra(metadata)
+    )
+
+
+def _native_image_note(tool_names: Sequence[str] | None) -> str:
+    """Name only image-capable tools that are actually registered."""
+    names = [name for name in ("read_file", "web_fetch") if has_tool(tool_names, name)]
+    if not names:
+        return ""
+    listed = "read_file and web_fetch" if len(names) == 2 else names[0]
+    return (
+        f"- Tools like {listed} can return native image content. "
+        "Read visual resources directly when needed instead of relying on text descriptions."
     )
 
 
@@ -158,13 +171,17 @@ class ContextBuilder:
                 if active_content:
                     active_section = f"# Active Skills\n\n{active_content}"
 
+            open_skill_files = has_tool(tool_names, "read_file")
             skills_summary = self.skills.build_skills_summary(
                 exclude=set(active_skills),
                 workspace=root,
+                include_paths=open_skill_files,
             )
             if skills_summary:
                 skills_section = render_template(
-                    "agent/skills_section.md", skills_summary=skills_summary,
+                    "agent/skills_section.md",
+                    skills_summary=skills_summary,
+                    skill_paths=open_skill_files,
                 )
 
         archived = ""
@@ -195,7 +212,7 @@ class ContextBuilder:
                 channel=channel,
                 tool_names=tool_names,
                 facts=dict(facts or {}),
-                workspace=self._get_identity(workspace=root),
+                workspace=self._get_identity(workspace=root, tool_names=tool_names),
                 bootstrap=self._load_bootstrap_files(root),
                 project=project,
                 memory=memory_section,
@@ -205,7 +222,12 @@ class ContextBuilder:
             )
         )
 
-    def _get_identity(self, channel: str | None = None, workspace: Path | None = None) -> str:
+    def _get_identity(
+        self,
+        channel: str | None = None,
+        workspace: Path | None = None,
+        tool_names: Sequence[str] | None = None,
+    ) -> str:
         """Runtime and workspace facts (paths, memory contract, external-content policy)."""
         del channel
         root = workspace or self.workspace
@@ -220,14 +242,19 @@ class ContextBuilder:
         else:
             prefix = ""
             paths = []
+        history = f"- History log: {prefix}memory/history.jsonl (append-only JSONL"
+        if has_tool(tool_names, "grep"):
+            history += "; prefer built-in `grep` for search"
+        history += ")."
         paths.extend(
             [
                 f"- Agent profile: {prefix}SOUL.md and {prefix}USER.md",
                 f"- Long-term memory: {prefix}memory/MEMORY.md",
-                f"- History log: {prefix}memory/history.jsonl (append-only JSONL; prefer built-in `grep` for search).",
-                f"- Custom skills: {prefix}skills/{{skill-name}}/SKILL.md",
+                history,
             ]
         )
+        if has_tool(tool_names, "read_file"):
+            paths.append(f"- Custom skills: {prefix}skills/{{skill-name}}/SKILL.md")
         if system == "Windows":
             platform_notes = (
                 "Platform: Windows. Do not assume GNU tools like `grep`, `sed`, or `awk` exist; "
@@ -239,7 +266,7 @@ class ContextBuilder:
                 "Platform: POSIX. Prefer UTF-8 and standard shell tools; use file tools when they "
                 "are simpler or more reliable than shell commands."
             )
-        return render_layer(
+        rendered = render_layer(
             WORKSPACE_LAYER,
             {
                 "runtime": runtime,
@@ -247,6 +274,10 @@ class ContextBuilder:
                 "workspace_paths": "\n".join(paths),
             },
         )
+        image_note = _native_image_note(tool_names)
+        if image_note:
+            return f"{rendered}\n{image_note}"
+        return rendered
 
     @staticmethod
     def _merge_message_content(left: Any, right: Any) -> str | list[dict[str, Any]]:
