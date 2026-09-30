@@ -832,6 +832,91 @@ async def test_decision_agreement_uses_catalog_stance_or_keeps_the_key() -> None
     assert '"note"' in content
 
 
+async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
+    payload = {
+        "entry_zone": {"low": 2298.5, "high": 2302},
+        "targets": [2310, 2320.5],
+        "risk_pct": 1.0,
+        "reasons": ["hour break"],
+        "gates_passed": ["G9"],
+        "data_sources": ["market:XAUUSD:15m"],
+        "blockers": ["spread wide"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.zone": "منطقة الدخول",
+        "label.result.decision.targets": "الأهداف",
+        "label.result.decision.risk": "المخاطرة",
+        "label.result.decision.reasons": "الأسباب",
+        "label.result.decision.gates_passed": "البوابات المجتازة",
+        "label.result.decision.sources": "المصادر",
+        "label.result.decision.blockers": "المخاطر المانعة",
+        "label.gate.G9": "حارس السبريد",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    stream = ChunkStream(
+        [
+            sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": payload}), "1"),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([stream], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| منطقة الدخول | 2,298.50 – 2,302 |" in content
+    assert "| الأهداف | 2,310 · 2,320.50 |" in content
+    assert "| المخاطرة | 1.00% |" in content
+    assert "| الأسباب | hour break |" in content
+    assert "| البوابات المجتازة | حارس السبريد |" in content
+    assert "| المصادر | market:XAUUSD:15m |" in content
+    assert "| المخاطر المانعة | spread wide |" in content
+    assert '{"low"' not in content
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    unlabeled = dict(labels)
+    unlabeled.pop("label.gate.G9")
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev("structured", {"type": "decision", "result_id": "res-d", "payload": payload}),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=unlabeled,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| البوابات المجتازة | G9 |" in content
+    assert "حارس السبريد" not in content
+
+    extra = {"entry_zone": {"low": 1, "high": 2, "note": "x"}}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": extra}), "1"),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert '"note"' in content
+
+
 async def test_structured_falls_back_to_markdown_table_when_html_unavailable() -> None:
     stream = ChunkStream(
         [

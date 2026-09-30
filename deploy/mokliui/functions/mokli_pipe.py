@@ -490,10 +490,20 @@ def _escape_cell(value: object) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
+_DECISION_LABEL_KEYS = {
+    "entry_zone": "zone",
+    "risk_pct": "risk",
+    "net_rr": "rr",
+    "validity_candles": "validity",
+    "data_sources": "sources",
+}
+
+
 def _field_label(result_type: str, key: str, labels: Mapping[str, str]) -> str:
     """Use a catalog label when the gateway sent one. Otherwise keep the key."""
     if result_type:
-        named = labels.get(f"label.result.{result_type}.{key}")
+        catalog_key = _DECISION_LABEL_KEYS.get(key, key) if result_type == "decision" else key
+        named = labels.get(f"label.result.{result_type}.{catalog_key}")
         if named:
             return named
     return key
@@ -519,13 +529,82 @@ def _agreement_cell(value: object, labels: Mapping[str, str]) -> str | None:
     return _escape_cell(f"{label} {agreeing}/{votes}")
 
 
-def _value_label(key: str, value: object, labels: Mapping[str, str]) -> str:
+def _plain_number(value: object) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, int):
+        return f"{value:,}"
+    return f"{value:,.2f}"
+
+
+def _string_list(value: object) -> list[str] | None:
+    if not isinstance(value, list) or not value:
+        return None
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item:
+            return None
+        items.append(item)
+    return items
+
+
+def _joined_numbers(value: object) -> str | None:
+    if not isinstance(value, list) or not value:
+        return None
+    rendered: list[str] = []
+    for item in value:
+        text = _plain_number(item)
+        if text is None:
+            return None
+        rendered.append(text)
+    return " · ".join(rendered)
+
+
+def _decision_cell(key: str, value: object, labels: Mapping[str, str]) -> str | None:
+    """Match the HTML card. Any other shape stays raw JSON."""
+    if key == "entry_zone" and isinstance(value, dict) and set(value) == {"low", "high"}:
+        low = _plain_number(value.get("low"))
+        high = _plain_number(value.get("high"))
+        if low is not None and high is not None:
+            return _escape_cell(f"{low} – {high}")
+        return None
+    if key == "targets":
+        joined = _joined_numbers(value)
+        return _escape_cell(joined) if joined is not None else None
+    if key == "risk_pct":
+        text = _plain_number(value)
+        return _escape_cell(f"{text}%") if text is not None else None
+    if key in {"reasons", "data_sources", "blockers"}:
+        items = _string_list(value)
+        if items is None:
+            return None
+        labeled = [labels.get(item) or item for item in items]
+        return _escape_cell(" · ".join(labeled))
+    if key == "gates_passed":
+        items = _string_list(value)
+        if items is None:
+            return None
+        labeled = [labels.get(f"label.gate.{item}") or item for item in items]
+        return _escape_cell(" · ".join(labeled))
+    return None
+
+
+def _value_label(
+    key: str,
+    value: object,
+    labels: Mapping[str, str],
+    result_type: str = "",
+) -> str:
     if key == "verdict" and isinstance(value, str):
         named = labels.get(f"label.decision.{value}")
         if named:
             return named
     if key == "agreement":
         cell = _agreement_cell(value, labels)
+        if cell is not None:
+            return cell
+    if result_type == "decision":
+        cell = _decision_cell(key, value, labels)
         if cell is not None:
             return cell
     return _escape_cell(value)
@@ -547,7 +626,7 @@ def payload_to_markdown_table(
     ]
     for key, value in payload.items():
         field = _escape_cell(_field_label(result_type, key, labels))
-        cell = _value_label(key, value, labels)
+        cell = _value_label(key, value, labels, result_type)
         lines.append(f"| {field} | {cell} |")
     return "\n".join(lines)
 

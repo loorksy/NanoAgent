@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   formatAgreement,
   formatConfidence,
+  gateCaption,
   formatDuration,
   formatNumber,
   formatPercent,
@@ -23,6 +24,13 @@ describe("formatNumber", () => {
     const value = formatNumber(1234.5, "ar", { decimals: 1 });
     expect(value.length).toBeGreaterThan(0);
     expect(value).toMatch(/^[0-9\u0660-\u0669][0-9\u0660-\u0669,\u066B\u066C.]*$/);
+  });
+});
+
+describe("gate caption", () => {
+  test("uses the catalog label and keeps the id when that label is missing", () => {
+    expect(gateCaption((key) => (key === "label.gate.G9" ? "حارس السبريد" : key), "G9")).toBe("حارس السبريد");
+    expect(gateCaption((key) => key, "G9")).toBe("G9");
   });
 });
 

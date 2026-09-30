@@ -20,6 +20,7 @@ import { useLabel, useLocale, useT } from "../../lib/app-context";
 import {
   formatAgreement,
   formatConfidence,
+  gateCaption,
   formatDateTime,
   formatNumber,
   formatPercent,
@@ -202,7 +203,7 @@ export function DecisionCard({ payload }: { payload: DecisionPayload }) {
         <View style={styles.gates}>
           {payload.gates_passed.map((gate) => (
             <Badge key={gate} tone={colors.success}>
-              {label(gate)}
+              {gateCaption(label, gate)}
             </Badge>
           ))}
         </View>

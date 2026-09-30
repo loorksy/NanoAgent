@@ -30,6 +30,13 @@ export function formatPercent(value: number | null | undefined, locale: Locale, 
   }).format(value / 100);
 }
 
+/** Catalog label for a gate id. A missing label keeps the id. */
+export function gateCaption(resolve: (key: string) => string, gate: string): string {
+  const key = `label.gate.${gate}`;
+  const named = resolve(key);
+  return named === key ? gate : named;
+}
+
 /** Stance word already translated, then the counted votes. */
 export function formatAgreement(stanceLabel: string, agreeing: number, votes: number): string {
   return `${stanceLabel} ${agreeing}/${votes}`;
