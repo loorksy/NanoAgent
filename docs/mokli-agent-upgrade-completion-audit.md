@@ -35,4 +35,4 @@ pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py
 
 ## بعد VPS
 
-اتبع `docs/mokli-agent-upgrade-operator-handoff.md`، ثم حدّث §11 في التقرير (أو PR) بالنتائج والأرقام.
+اتبع `docs/mokli-agent-upgrade-operator-handoff.md`، املأ `section11-results.json`، ثم `bash scripts/mokli_upgrade_section11_close.sh` و`--apply` لتحديث §11 في التقرير (أو PR).
