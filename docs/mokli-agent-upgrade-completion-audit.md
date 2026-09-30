@@ -18,14 +18,14 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2311** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | `preflight`، `section11_dry_run.sh` (fixture)، `diagnostic_extract`، `section11_batch`، `section11_validate` (يرفض `DRY-RUN` عند `--require-through` ≥ 2) (+ `docs/section11-results.example.json`، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2313** ناجية (1 skipped) | منجز |
+| أدوات المشغّل §11 | `operator_smoke.sh`، `preflight` (curl `--max-time 5`)، `section11_dry_run.sh`، `diagnostic_extract` (+ لاحقة P0)، `section11_batch`، `section11_validate` (+ `docs/section11-results.example.json`، fixture JSONL) | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
 
 ## أوامر تحقق سريعة (محلي)
 
 ```bash
-bash scripts/mokli_upgrade_preflight.sh
+bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + tests/scripts (no LLM)
 pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
 ```
 

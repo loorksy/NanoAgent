@@ -11,13 +11,13 @@
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2311** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2313** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 
 ## قبل المحادثة الحية
 
 1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
 2. `bash scripts/mokli_upgrade_preflight.sh` — صحة Agent API، تحذير إن مفاتيح المزود فارغة، تذكير بسكربت الأرقام (لا يستدعي LLM).
-3. (اختياري، بلا مزود) `bash scripts/mokli_upgrade_section11_dry_run.sh` — يمرّر extract/validate/batch على `tests/fixtures/section11_turn_diagnostics_sample.jsonl` للصف 1 فقط؛ **لا يملأ §11 للإنتاج**.
+3. (اختياري، بلا مزود) `bash scripts/mokli_upgrade_section11_dry_run.sh` — يمرّر extract/validate/batch على `tests/fixtures/section11_turn_diagnostics_sample.jsonl` للصف 1 فقط؛ **لا يملأ §11 للإنتاج**. أو `bash scripts/mokli_upgrade_operator_smoke.sh` (preflight + dry-run + `pytest tests/scripts/`).
 4. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 5. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
 6. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
