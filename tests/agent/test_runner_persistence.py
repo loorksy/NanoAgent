@@ -108,7 +108,10 @@ async def test_runner_persists_large_tool_results_for_follow_up_calls(tmp_path):
         if message.get("role") == "tool"
     )
     assert replay_result.final_content == "replayed"
-    assert replay_tool["content"] == tool_message["content"]
+    assert not tool_message["content"].startswith("[مرجع نتيجة سابقة:")
+    assert replay_tool["content"].startswith("[مرجع نتيجة سابقة:")
+    assert "[tool output persisted]" in replay_tool["content"]
+    assert "[tool output persisted]" in tool_message["content"]
 
 
 def test_persist_tool_result_prunes_old_session_buckets(tmp_path):

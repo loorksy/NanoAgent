@@ -156,7 +156,11 @@ async def _execute_tool_call(
             return handled
         return payload, event
 
-    resolved = tool if tool is not None else tools.get(tool_call.name)
+    if tool is not None:
+        resolved = tool
+    else:
+        tool_lookup = getattr(tools, "get", None)
+        resolved = tool_lookup(tool_call.name) if callable(tool_lookup) else None
     cache_key = _result_cache_key(tool_call.name, params)
     read_only = getattr(resolved, "read_only", False)
     if (

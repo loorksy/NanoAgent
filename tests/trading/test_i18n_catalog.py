@@ -27,7 +27,14 @@ _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _RAW_GATE = re.compile(r"\bG\d+\b", re.I)
 
 # Owned by the keyword-router removal package (D3); it disappears with that work.
-_ARABIC_ALLOWLIST = {TRADING_DIR / "operator_keywords.py"}
+_ARABIC_ALLOWLIST = {
+    TRADING_DIR / "operator_keywords.py",
+    # User-facing phrases for team activity; not model prompt text.
+    TRADING_DIR / "teams" / "role_display.py",
+    # Arabic buy/sell and strategy description patterns matched in user text.
+    TRADING_DIR / "decision_route.py",
+    TRADING_DIR / "strategy_spec.py",
+}
 
 
 def _raw(locale: str) -> dict[str, str]:

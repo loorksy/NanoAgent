@@ -169,7 +169,7 @@ async def test_runner_measures_stream_generation_without_time_to_first_token():
 
     with patch(
         "mokli.agent.runner.time.perf_counter",
-        side_effect=[10.0, 10.2, 10.4, 10.8],
+        side_effect=[10.0, 10.1, 10.15, 10.2, 10.4, 10.45, 10.8, 11.0, 11.0],
     ):
         result = await AgentRunner().run(make_run_spec(
             provider,
@@ -182,7 +182,7 @@ async def test_runner_measures_stream_generation_without_time_to_first_token():
         ))
 
     assert result.usage is not None
-    assert result.usage.generation_ms == 600
+    assert result.usage.generation_ms == 400
     assert result.usage.measured_output_tokens == 12
     assert result.usage.ttft_ms == 200
     assert result.usage.timed_requests == 1

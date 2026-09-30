@@ -528,7 +528,11 @@ class TestSubagentCancellation:
             LLMResponse(
                 content="retrying",
                 tool_calls=[
-                    ToolCallRequest(id="call_2", name="web_fetch", arguments={"url": "https://example.com"})
+                    ToolCallRequest(
+                        id="call_2",
+                        name="web_fetch",
+                        arguments={"url": "https://example.com/retry"},
+                    )
                 ],
             ),
             LLMResponse(content="recovered after tool failure", tool_calls=[]),
