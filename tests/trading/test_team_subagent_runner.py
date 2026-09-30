@@ -570,3 +570,49 @@ async def test_review_runs_only_when_stances_conflict(monkeypatch) -> None:
         max_review_rounds=0,
     )
     assert "Review Analyst" not in calls
+
+
+@pytest.mark.asyncio
+async def test_event_role_reads_the_driver_list(monkeypatch) -> None:
+    """The event analyst ranks the driver rows. A 400-character note is not that list."""
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        return "events noted\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+
+    async def search(query: str) -> str:
+        del query
+        return "FOMC holds, dollar firm"
+
+    await run_swarm(
+        "gold_news_war_room",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = dict(seen)
+    news = json.loads(by_role["News Scanner"])
+    event = json.loads(by_role["Event Analyst"])
+    scenario = json.loads(by_role["Scenario Planner"])
+    assert "candles" not in news
+    assert "candles" not in event
+    assert isinstance(news["macroDrivers"], list) and news["macroDrivers"]
+    assert event["macroDrivers"] == news["macroDrivers"]
+    assert "candles" in scenario
+    assert "macroDrivers" not in scenario
+    quote_only = {key: value for key, value in event.items() if key != "macroDrivers"}
+    before = estimate_prompt_tokens([{"role": "user", "content": json.dumps(quote_only)}])
+    after = estimate_prompt_tokens([{"role": "user", "content": json.dumps(event)}])
+    print(f"EVENT_DRIVERS before={before} after={after}")
+    assert after > before

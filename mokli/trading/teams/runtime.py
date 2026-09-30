@@ -40,7 +40,8 @@ _UPSTREAM_LIMIT = 400
 _HIGHER_TF_LIMIT = 120
 _HIGHER_TIMEFRAMES = ("1h", "4h", "1d")
 # These roles read the driver list. Other roles get the short stance, not the list.
-_MACRO_EVIDENCE_FILES = frozenset({"macro", "news"})
+# Event analysis ranks those same items; a 400-character upstream note drops them.
+_MACRO_EVIDENCE_FILES = frozenset({"macro", "news", "event"})
 
 
 async def _timed_macro_drivers(
