@@ -92,6 +92,7 @@ Mokli upgrade work on this repo often cannot reach live LLM, OANDA, or MetaAPI k
 # Agent API default 8766 when gateway runs with agentApi enabled
 cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 curl -s http://127.0.0.1:5173/api/v2/health
+bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + tests/scripts (no LLM)
 bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
 /workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
 python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
