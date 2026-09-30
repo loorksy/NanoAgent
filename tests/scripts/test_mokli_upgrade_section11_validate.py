@@ -1,0 +1,63 @@
+"""Tests for scripts/mokli_upgrade_section11_validate.py"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "mokli_upgrade_section11_validate.py"
+
+
+def test_validate_ok_when_complete(tmp_path: Path) -> None:
+    (tmp_path / "01-greeting.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 10}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "OK §11" in proc.stdout
+
+
+def test_validate_fails_on_empty_result(tmp_path: Path) -> None:
+    (tmp_path / "01-greeting.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": ""}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Empty" in proc.stderr or "Empty" in proc.stdout
