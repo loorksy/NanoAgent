@@ -388,6 +388,69 @@ def fold_prior_assistant_reasoning(
     return updated, folded, saved
 
 
+_ANNOUNCE_PREFIX = "[Subagent "
+_ANNOUNCE_MARK = "[مرجع نتيجة وكيل سابق:"
+
+
+def fold_prior_subagent_announcements(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Replace a finished subagent announcement with a short reference.
+
+    ``get_history`` drops ``injected_event``, so a saved announcement is an
+    ordinary assistant message whose text starts with the template header.
+    The turn that first receives it still sees the full task and result: that
+    copy is the current user message, or it is the newest assistant
+    announcement when no later user message exists. A long announcement that
+    already sits before a later user message was summarized once. Older
+    announcements behind that newest unread one are referenced too. A
+    user-role copy is left intact. The saved transcript is not this list.
+    """
+    last_user = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "user":
+            last_user = index
+    latest_unread = -1
+    for index, message in enumerate(messages):
+        if index <= last_user:
+            continue
+        if message.get("role") == "assistant" and _announce_text(message.get("content")) is not None:
+            latest_unread = index
+
+    updated: list[dict[str, Any]] | None = None
+    referenced = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        content = _announce_text(message.get("content")) if message.get("role") == "assistant" else None
+        if content is None or index == latest_unread or len(content) <= _REFERENCE_THRESHOLD:
+            if updated is not None:
+                updated.append(message)
+            continue
+        header = content.split("\n", 1)[0].strip()
+        if len(header) > 160:
+            header = header[:160]
+        reference = (
+            f"{_ANNOUNCE_MARK} {header}، {len(content)} حرفاً. "
+            "أُرسل النص الكامل في الدورة التي أنتجته ولن يُعاد.]"
+        )
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["content"] = reference
+        updated.append(cloned)
+        referenced += 1
+        saved += len(content) - len(reference)
+    if updated is None:
+        return messages, 0, 0
+    return updated, referenced, saved
+
+
+def _announce_text(content: Any) -> str | None:
+    if not isinstance(content, str) or not content.startswith(_ANNOUNCE_PREFIX):
+        return None
+    return content
+
+
 def _tool_call_name_is_valid(tool_call: Any) -> bool:
     """Whether a persisted OpenAI-style tool_call carries a usable name.
 
@@ -1229,7 +1292,8 @@ class ContextGovernor:
         folded, referenced, saved = fold_prior_tool_results(updated)
         folded, candle_count, candle_saved = fold_completed_candle_arguments(folded)
         reasoned, reason_count, reason_saved = fold_prior_assistant_reasoning(folded)
-        if referenced or candle_count or reason_count:
+        announced, announce_count, announce_saved = fold_prior_subagent_announcements(reasoned)
+        if referenced or candle_count or reason_count or announce_count:
             from mokli.agent.turn_diagnostics import current_turn_diagnostics
 
             diag = current_turn_diagnostics()
@@ -1240,7 +1304,9 @@ class ContextGovernor:
                     diag.note_candle_arguments(candle_count, candle_saved)
                 if reason_count:
                     diag.note_reasoning_fold(reason_count, reason_saved)
-        return reasoned
+                if announce_count:
+                    diag.note_subagent_announcements(announce_count, announce_saved)
+        return announced
 
     def snip_history(
         self,

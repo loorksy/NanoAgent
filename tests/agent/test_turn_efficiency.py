@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from mokli.agent.context_governance import (
+    ContextGovernor,
     fold_completed_candle_arguments,
     fold_prior_assistant_reasoning,
+    fold_prior_subagent_announcements,
     fold_prior_tool_results,
 )
 from mokli.agent.context_layers import layers_for_task
@@ -203,6 +205,114 @@ def test_prior_assistant_reasoning_is_not_resent() -> None:
     assert count_next == 1
     assert "thinking_blocks" not in folded_next[1]
     assert finished[1]["thinking_blocks"][0]["signature"] == "sig"
+
+
+def _subagent_announce(label: str, task: str, result: str) -> str:
+    return (
+        f"[Subagent '{label}' completed successfully]\n\n"
+        f"Task: {task}\n\n"
+        f"Result:\n{result}\n\n"
+        "Summarize this naturally for the user. Keep it brief (1-2 sentences). "
+        'Do not mention technical details like "subagent" or task IDs.'
+    )
+
+
+def test_finished_subagent_announcement_is_not_resent() -> None:
+    task = "TASK_BODY_MARKER ابحث عن محرك الذهب " + ("تفصيل " * 400)
+    result = "RESULT_BODY_MARKER " + ("خلاصة " * 800)
+    announce = _subagent_announce("research", task, result)
+    assert len(announce) > 1200
+    older = _subagent_announce("older", "مهمة قديمة " + ("سطر " * 400), "نتيجة قديمة " + ("سطر " * 400))
+    short = _subagent_announce("brief", "مهمة قصيرة", "تم")
+    assert len(short) <= 1200
+    follow_up = "لخّص ذلك بجملة"
+    current_user_copy = _subagent_announce("live", task, result)
+    messages: list[dict[str, Any]] = [
+        {"role": "system", "content": "system"},
+        {"role": "user", "content": "ابحث"},
+        {"role": "assistant", "content": older},
+        {"role": "user", "content": "ثم؟"},
+        {"role": "assistant", "content": announce},
+        {"role": "assistant", "content": short},
+        {"role": "user", "content": follow_up},
+        {"role": "user", "content": current_user_copy},
+    ]
+    before = estimate_prompt_tokens(messages, None)
+    folded, referenced, saved = fold_prior_subagent_announcements(messages)
+    after = estimate_prompt_tokens(folded, None)
+    assert referenced == 2
+    assert saved > 1000
+    assert after < before
+    assert folded[2]["content"].startswith("[مرجع نتيجة وكيل سابق:")
+    assert "TASK_BODY_MARKER" not in folded[2]["content"]
+    assert folded[4]["content"].startswith("[مرجع نتيجة وكيل سابق:")
+    assert "[Subagent 'research' completed successfully]" in folded[4]["content"]
+    assert "RESULT_BODY_MARKER" not in folded[4]["content"]
+    assert folded[5]["content"] == short
+    assert folded[-1]["content"] == current_user_copy
+    assert folded[-2]["content"] == follow_up
+    assert messages[2]["content"] == older
+    assert messages[4]["content"] == announce
+    print(f"TOKEN_ANNOUNCE before={before} after={after} saved_chars={saved}")
+
+    next_turn = [
+        {"role": "system", "content": "system"},
+        {"role": "user", "content": "ابحث"},
+        {"role": "assistant", "content": announce},
+        {"role": "user", "content": "وما بعد؟"},
+    ]
+    before_next = estimate_prompt_tokens(next_turn, None)
+    folded_next, referenced_next, saved_next = fold_prior_subagent_announcements(next_turn)
+    after_next = estimate_prompt_tokens(folded_next, None)
+    assert referenced_next == 1
+    assert saved_next > 1000
+    assert after_next < before_next
+    assert folded_next[2]["content"].startswith("[مرجع نتيجة وكيل سابق:")
+    assert "RESULT_BODY_MARKER" not in folded_next[2]["content"]
+    assert next_turn[2]["content"] == announce
+    print(
+        f"TOKEN_ANNOUNCE_NEXT before={before_next} after={after_next} "
+        f"saved_chars={saved_next}"
+    )
+
+    unread = [
+        {"role": "user", "content": "ابحث"},
+        {"role": "assistant", "content": older},
+        {"role": "assistant", "content": announce},
+    ]
+    kept, referenced_now, _saved_now = fold_prior_subagent_announcements(unread)
+    assert referenced_now == 1
+    assert kept[-1]["content"] == announce
+    assert "RESULT_BODY_MARKER" not in kept[1]["content"]
+    assert unread[1]["content"] == older
+
+
+def test_subagent_announcement_fold_is_recorded() -> None:
+    from mokli.agent.turn_diagnostics import (
+        TurnDiagnostics,
+        bind_turn_diagnostics,
+        reset_turn_diagnostics,
+    )
+
+    announce = _subagent_announce("research", "مهمة " * 400, "نتيجة " * 400)
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": "ابحث"},
+        {"role": "assistant", "content": announce},
+        {"role": "user", "content": "وما بعد؟"},
+    ]
+    diag = TurnDiagnostics(model="test", provider="Test")
+    token = bind_turn_diagnostics(diag)
+    try:
+        folded = ContextGovernor().apply_tool_result_budget(cast(Any, object()), messages)
+    finally:
+        reset_turn_diagnostics(token)
+    assert folded[1]["content"].startswith("[مرجع نتيجة وكيل سابق:")
+    assert messages[1]["content"] == announce
+    assert diag.folded_subagent_announcements == 1
+    assert diag.folded_subagent_chars > 1000
+    payload = diag.to_dict()
+    assert payload["folded_subagent_announcements"] == 1
+    assert payload["folded_subagent_chars"] == diag.folded_subagent_chars
 
 
 def _candle_rows(count: int) -> list[dict[str, float | int]]:
