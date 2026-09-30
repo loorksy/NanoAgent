@@ -115,6 +115,46 @@ def test_failed_replay_is_not_saved_or_papered(tmp_path, monkeypatch) -> None:
     assert live["reason"] == "backtest_failed"
 
 
+def test_missing_backtest_is_not_saved_or_papered(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.trading.strategy_lab.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.paper._LEDGER", tmp_path / "paper_ledger.jsonl")
+    saved = save_strategy({"status": "proposed", "name": "gold", "id": "no-replay"})
+    assert saved["ok"] is False
+    assert saved["broker_order"] is False
+    assert saved["reason"] == "backtest_failed"
+    folder = tmp_path / "trading" / "strategies"
+    assert not (folder / "no-replay.json").exists()
+    non_dict = save_strategy(
+        {"status": "proposed", "name": "gold", "id": "text-replay", "backtest": "missing"}
+    )
+    assert non_dict["reason"] == "backtest_failed"
+    assert not (folder / "text-replay.json").exists()
+    finished = save_strategy(
+        {
+            "status": "proposed",
+            "name": "gold",
+            "id": "flat",
+            "backtest": {"ok": True, "trades": 0, "rs": []},
+        }
+    )
+    assert finished["ok"] is True
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "no-replay.json").write_text(
+        json.dumps({"status": "proposed", "name": "gold", "id": "no-replay"}),
+        encoding="utf-8",
+    )
+    paper = start_paper("no-replay")
+    assert paper["ok"] is False
+    assert paper["broker_order"] is False
+    assert paper["reason"] == "backtest_failed"
+    waiting = request_live("no-replay", approved=False)
+    assert waiting["reason"] == "live_requires_explicit_approval"
+    live = request_live("no-replay", approved=True)
+    assert live["ok"] is False
+    assert live["broker_order"] is False
+    assert live["reason"] == "backtest_failed"
+
+
 def test_incomplete_description_does_not_backtest() -> None:
     proposal = propose_strategy("partial", _rising(), description="استراتيجية للذهب")
     assert proposal["status"] == "invalid"
