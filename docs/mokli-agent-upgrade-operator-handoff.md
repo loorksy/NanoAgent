@@ -11,7 +11,7 @@
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2319** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2320** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## قبل المحادثة الحية
@@ -88,7 +88,7 @@ python scripts/mokli_upgrade_section11_patch_report.py \
 # أو: bash scripts/mokli_upgrade_section11_close.sh (validate+batch+dry-run) ثم --apply
 ```
 
-يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`.
+يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`. عند `--apply` وصفوف 1–`require-through` مكتملة، يُحدَّث عنوان §11 من «لم تُنفَّذ في Cloud Agent» إلى «تم التعبئة من تشغيل VPS».
 
 ## ما نرسله لجلسة لاحقة
 
