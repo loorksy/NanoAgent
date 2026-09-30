@@ -4,8 +4,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from mokli.agent.tools.context import RequestContext, request_context
-from mokli.trading.teams.evidence_text import scope_market_evidence
+from mokli.trading.teams.evidence_text import (
+    compact_timeframe_window,
+    named_chart_interval,
+    scope_market_evidence,
+    trend_evidence,
+)
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
+from mokli.trading.types import AgentMarketContext, Candle, MarketSync
+from mokli.utils.helpers import estimate_prompt_tokens
 from mokli.utils.llm_runtime import LLMRuntime
 
 
@@ -272,3 +279,136 @@ async def test_run_team_role_publishes_only_roles_that_run() -> None:
             bus=quiet,
         )
     quiet.publish.assert_not_awaited()
+
+
+def _candle(time_ms: int, close: float) -> Candle:
+    return Candle(
+        time_ms=time_ms,
+        open=close,
+        high=close + 1,
+        low=close - 1,
+        close=close,
+        volume=1,
+        complete=True,
+    )
+
+
+def _market(interval: str, time_ms: int, close: float) -> AgentMarketContext:
+    return AgentMarketContext(
+        symbol="XAUUSD",
+        interval=interval,
+        candles=[_candle(time_ms, close)],
+        last_close=close,
+        atr=2.5,
+        sync=MarketSync(ok=True),
+        quote_mid=close,
+    )
+
+
+def test_trend_role_does_not_reread_the_lead_candles() -> None:
+    candles = [
+        {
+            "t": 1_700_000_000_000 + index,
+            "o": 2300.0,
+            "h": 2302.0,
+            "l": 2298.0,
+            "c": 2301.0,
+        }
+        for index in range(40)
+    ]
+    lead = json.dumps(
+        {
+            "symbol": "XAUUSD",
+            "interval": "15m",
+            "last_close": 2301.0,
+            "atr": 2.5,
+            "quote_mid": 2301.0,
+            "sync_ok": True,
+            "candles": candles,
+        },
+        ensure_ascii=False,
+    )
+    windows = [
+        compact_timeframe_window(_market(interval, 10 + offset, 2400.0 + offset))
+        for offset, interval in enumerate(("1h", "4h", "1d"))
+    ]
+    scoped = trend_evidence(lead, windows)
+    parsed = json.loads(scoped)
+    assert "candles" not in parsed
+    assert parsed["quote_mid"] == 2301.0
+    assert [row["interval"] for row in parsed["higher_timeframes"]] == ["1h", "4h", "1d"]
+    assert "2302.0" not in scoped
+    before = estimate_prompt_tokens([{"role": "user", "content": lead}])
+    after = estimate_prompt_tokens([{"role": "user", "content": scoped}])
+    assert after < before
+    assert named_chart_interval("Trend Analyst") is None
+    assert named_chart_interval("H1 Analyst") == "1h"
+    assert named_chart_interval("H4 Analyst") == "4h"
+    assert named_chart_interval("D1 Analyst") == "1d"
+    synth = scope_market_evidence(lead, "MTF Synthesizer", "role:mtf_synthesizer")
+    assert "candles" not in json.loads(synth)
+    print(f"TOKEN_TREND_EVIDENCE before={before} after={after}")
+
+
+@pytest.mark.asyncio
+async def test_named_timeframe_roles_load_their_own_candles(monkeypatch) -> None:
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    seen: list[tuple[str, str]] = []
+    loads: list[tuple[str, int]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        seen.append((str(kwargs.get("role")), str(kwargs.get("evidence_text"))))
+        return "STANCE: wait"
+
+    def fake_context(symbol: str = "XAUUSD", interval: str = "15m", limit: int = 240):
+        del symbol
+        loads.append((interval, limit))
+        closes = {"1h": 2310.0, "4h": 2320.0, "1d": 2330.0}
+        stamps = {"1h": 1, "4h": 2, "1d": 3}
+        return _market(interval, stamps[interval], closes[interval])
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_market_data_agent", lambda *_a, **_k: _market("15m", 111, 2300.0))
+    monkeypatch.setattr("mokli.trading.teams.runtime.build_agent_market_context", fake_context)
+
+    async def search(query: str) -> str:
+        del query
+        return "DXY steady"
+
+    panel = await run_swarm(
+        "gold_mtf_panel",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = dict(seen)
+    h1 = json.loads(by_role["H1 Analyst"])
+    h4 = json.loads(by_role["H4 Analyst"])
+    d1 = json.loads(by_role["D1 Analyst"])
+    synth = json.loads(by_role["MTF Synthesizer"])
+    assert h1["interval"] == "1h" and h1["candles"][0]["t"] == 1
+    assert h4["interval"] == "4h" and h4["candles"][0]["t"] == 2
+    assert d1["interval"] == "1d" and d1["candles"][0]["t"] == 3
+    assert "candles" not in synth
+    assert all(limit == 120 for _interval, limit in loads)
+    assert panel["final"] is None
+
+    seen.clear()
+    loads.clear()
+    review = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    by_role = dict(seen)
+    technical = json.loads(by_role["Technical Analyst"])
+    trend = json.loads(by_role["Trend Analyst"])
+    assert technical["candles"][0]["t"] == 111
+    assert "candles" not in trend
+    assert [row["interval"] for row in trend["higher_timeframes"]] == ["1h", "4h", "1d"]
+    assert {interval for interval, _limit in loads} == {"1h", "4h", "1d"}
+    assert review["final"] is None

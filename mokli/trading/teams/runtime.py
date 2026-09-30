@@ -19,14 +19,25 @@ import yaml
 from mokli.trading.agents.macro_drivers import format_team_briefing, run_macro_drivers
 from mokli.trading.agents.market_data import run_market_data_agent
 from mokli.trading.i18n import tr
+from mokli.trading.market_context import build_agent_market_context
 from mokli.trading.stage_events import emit_stage
-from mokli.trading.teams.evidence_text import format_market_evidence, scope_market_evidence
+from mokli.trading.teams.evidence_text import (
+    compact_timeframe_window,
+    format_market_evidence,
+    named_chart_interval,
+    scope_market_evidence,
+    trend_evidence,
+)
 from mokli.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
+from mokli.trading.teams.role_prompts import resolve_role_file
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
 
 _PRESETS_DIR = Path(__file__).parent / "presets"
 _STANCE_LINE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
 _UPSTREAM_LIMIT = 400
+# Same window ``run_multi_timeframe_agent`` loads, so a team role joins that cache.
+_HIGHER_TF_LIMIT = 120
+_HIGHER_TIMEFRAMES = ("1h", "4h", "1d")
 
 
 async def _timed_macro_drivers(
@@ -52,6 +63,40 @@ def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
     if stance and stance not in head:
         return f"{head}\n{stance}"
     return head
+
+
+async def evidence_for_team_role(
+    lead_evidence: str,
+    role: str,
+    system_prompt: str,
+) -> str:
+    """Evidence one role reads.
+
+    H1, H4, and D1 each load their own candles. A trend role gets the lead
+    quote and a short window for those three charts, not a second copy of the
+    lead bars. Structure roles keep the lead candle list.
+    """
+    named = named_chart_interval(role)
+    if named is not None:
+        market = await asyncio.to_thread(
+            build_agent_market_context,
+            "XAUUSD",
+            named,
+            _HIGHER_TF_LIMIT,
+        )
+        return format_market_evidence(market)
+    if resolve_role_file(role, system_prompt) == "timeframe":
+        windows = []
+        for interval in _HIGHER_TIMEFRAMES:
+            market = await asyncio.to_thread(
+                build_agent_market_context,
+                "XAUUSD",
+                interval,
+                _HIGHER_TF_LIMIT,
+            )
+            windows.append(compact_timeframe_window(market))
+        return trend_evidence(lead_evidence, windows)
+    return scope_market_evidence(lead_evidence, role, system_prompt)
 
 
 def list_presets() -> list[str]:
@@ -160,7 +205,11 @@ async def run_swarm(
                     agent_id=task.agent_id,
                     role=role,
                     task_text=prompt,
-                    evidence_text=scope_market_evidence(evidence_text, role, system_prompt),
+                    evidence_text=await evidence_for_team_role(
+                        evidence_text,
+                        role,
+                        system_prompt,
+                    ),
                     system_prompt=system_prompt,
                     manager=subagent_manager,
                     publisher=publisher,

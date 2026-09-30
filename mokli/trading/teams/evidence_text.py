@@ -74,11 +74,58 @@ def _newest_candles_that_fit(
 
 _CANDLE_ROLE_FILES = frozenset({
     "structure",
-    "timeframe",
-    "mtf_synthesizer",
     "liquidity",
     "scenario",
 })
+
+# A named chart role (H1, H4, D1) loads that interval. A generic trend role
+# does not: the lead candle list is a different timeframe.
+_NAMED_CHART_INTERVALS: tuple[tuple[str, str], ...] = (
+    ("h1", "1h"),
+    ("1h", "1h"),
+    ("h4", "4h"),
+    ("4h", "4h"),
+    ("d1", "1d"),
+    ("1d", "1d"),
+    ("daily", "1d"),
+)
+
+
+def named_chart_interval(role: str) -> str | None:
+    """Interval written in the role label. ``Trend Analyst`` has none."""
+    key = (role or "").lower()
+    for needle, interval in _NAMED_CHART_INTERVALS:
+        if needle in key:
+            return interval
+    return None
+
+
+def compact_timeframe_window(market: AgentMarketContext) -> dict[str, object]:
+    """High, low, and last close for one higher timeframe. Not the bar list."""
+    candles = market.candles
+    high = max((candle.high for candle in candles), default=None)
+    low = min((candle.low for candle in candles), default=None)
+    return {
+        "interval": market.interval,
+        "bars": len(candles),
+        "last_close": round(market.last_close, 2),
+        "atr": round(market.atr, 4),
+        "window_high": None if high is None else round(high, 2),
+        "window_low": None if low is None else round(low, 2),
+    }
+
+
+def trend_evidence(lead_evidence: str, windows: list[dict[str, object]]) -> str:
+    """Lead quote plus higher-timeframe windows. The lead candle list stays out."""
+    try:
+        payload = json.loads(lead_evidence)
+    except json.JSONDecodeError:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    payload.pop("candles", None)
+    payload["higher_timeframes"] = windows
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> str:
