@@ -101,3 +101,5 @@ python scripts/mokli_upgrade_section11_patch_report.py \
 - pytest وحده.
 - health على `8766` أو عبر Vite `5173` بدون محادثة مزود (مفاتيح LLM فارغة في Cloud Agent).
 - اختبار §11.1 (ارتباط CI) بدل الصفوف 1–13 الحية.
+- `section11_dry_run` أو `operator_smoke` أو `section11_close` على fixture/صف 1 فقط.
+- `patch_report --apply` قبل `validate --require-through 13` على artifacts حية كاملة.
