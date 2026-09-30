@@ -243,6 +243,10 @@ def _replay_rules(
     card["strategy"] = str(rules.get("name") or "spec")
     card["rs"] = rs
     card["risk_percent"] = rules.get("risk_percent")
+    card["entry_lookback"] = entry_lookback
+    card["lookback"] = lookback
+    card["confirm_bars"] = confirm_bars
+    card["target_rr"] = rr
     if confirm_candles is not None:
         card["confirm_timeframe"] = "4h"
     return card

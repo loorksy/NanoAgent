@@ -51,6 +51,14 @@ def _logic_refused(record: dict[str, object]) -> bool:
     return bool(check_logic(spec))
 
 
+def _same_rule_number(left: object, right: object) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return float(left) == float(right)
+    return False
+
+
 def _replay_matches_spec(record: dict[str, object]) -> bool:
     """A finished card with no spec stays usable. A spec must match its own replay."""
     spec = record.get("spec")
@@ -59,9 +67,17 @@ def _replay_matches_spec(record: dict[str, object]) -> bool:
     backtest = record.get("backtest")
     if not isinstance(backtest, dict):
         return False
-    return (
-        backtest.get("strategy") == spec.get("name")
-        and backtest.get("risk_percent") == spec.get("risk_percent")
+    try:
+        rules = rules_from_spec(spec)
+    except (TypeError, ValueError):
+        return False
+    if backtest.get("strategy") != str(rules.get("name") or "spec"):
+        return False
+    if not _same_rule_number(backtest.get("risk_percent"), rules.get("risk_percent")):
+        return False
+    return all(
+        _same_rule_number(backtest.get(key), rules.get(key))
+        for key in ("entry_lookback", "lookback", "confirm_bars", "target_rr")
     )
 
 
@@ -179,7 +195,11 @@ def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
             brief[key] = proposal[key]
     backtest = proposal.get("backtest")
     if isinstance(backtest, dict):
-        brief["backtest"] = {key: value for key, value in backtest.items() if key != "rs"}
+        brief["backtest"] = {
+            key: value
+            for key, value in backtest.items()
+            if key not in {"rs", "entry_lookback", "lookback", "confirm_bars", "target_rr"}
+        }
     validation = proposal.get("validation")
     if isinstance(validation, dict):
         brief["validation"] = validation
