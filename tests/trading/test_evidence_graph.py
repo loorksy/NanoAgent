@@ -242,6 +242,101 @@ async def test_risk_overlaps_a_slow_higher_timeframe_fetch(monkeypatch) -> None:
     assert set(started) == {"mtf", "risk"}
 
 
+def _higher_graph():
+    from mokli.trading.evidence.graph import graph_for_nodes
+
+    return graph_for_nodes(frozenset({"market_data", "multi_timeframe"}))
+
+
+@pytest.mark.asyncio
+async def test_higher_timeframes_start_with_the_lead_download(monkeypatch) -> None:
+    """H1, H4, and D1 do not read the lead candles, so they start with that download."""
+    import time
+
+    from mokli.trading.oanda import OandaCandle
+    from mokli.trading.turn_session import turn_session_scope
+
+    marks: dict[str, float] = {}
+
+    class Config:
+        oanda_configured = True
+        metaapi_configured = False
+
+    def slow_candles(_symbol: str, interval: str, _count: int, **_kwargs):
+        marks[f"{interval}_start"] = time.perf_counter()
+        time.sleep(0.2)
+        marks[f"{interval}_end"] = time.perf_counter()
+        row = OandaCandle(
+            time_ms=1_700_000_000_000,
+            open=1,
+            high=2,
+            low=1,
+            close=1.5,
+            volume=1,
+            complete=True,
+        )
+        return [row] * 22, False
+
+    class _Structure:
+        trend = "uptrend"
+
+    monkeypatch.setattr("mokli.trading.market_context.load_trading_config", lambda: Config())
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", slow_candles)
+    monkeypatch.setattr("mokli.trading.market_context.fetch_quote", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "mokli.trading.agents.multi_timeframe.run_structure_agent",
+        lambda _market: _Structure(),
+    )
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    started = time.perf_counter()
+    with turn_session_scope():
+        result = await run_evidence_graph(ctx, _higher_graph())
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    # Lead bars sleep 200ms, then the three higher windows used to sleep again.
+    print(f"MTF_PREFETCH before_ms=400 after_ms={elapsed_ms}")
+    for interval in ("1h", "4h", "1d"):
+        assert marks[f"{interval}_start"] < marks["15m_end"]
+    assert elapsed_ms < 350
+    assert result.mtf is not None
+    assert not result.aborted
+
+
+@pytest.mark.asyncio
+async def test_market_failure_does_not_wait_for_higher_timeframes(monkeypatch) -> None:
+    """A failed lead download cancels the higher-timeframe prefetch."""
+    import time
+
+    from mokli.trading.turn_session import turn_session_scope
+    from mokli.trading.types import AgentMarketContext, MarketSync
+
+    def slow_candles(*_args, **_kwargs):
+        time.sleep(0.5)
+        return [], False
+
+    def fail_market(*_args, **_kwargs):
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            last_close=0.0,
+            atr=0.0,
+            sync=MarketSync(ok=False, reason="offline"),
+            candles=[],
+        )
+
+    monkeypatch.setattr("mokli.trading.market_context.fetch_candles", slow_candles)
+    monkeypatch.setattr("mokli.trading.evidence.nodes.run_market_data_agent", fail_market)
+
+    ctx = PipelineContext(symbol="XAUUSD", interval="15m")
+    started = time.perf_counter()
+    with turn_session_scope():
+        result = await asyncio.wait_for(run_evidence_graph(ctx, _higher_graph()), timeout=0.35)
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    assert result.aborted
+    assert result.mtf is None
+    assert elapsed_ms < 300
+
+
 @pytest.mark.asyncio
 async def test_news_calendar_starts_with_the_market_download(monkeypatch) -> None:
     """The calendar does not read candles, so it runs while that download is in flight."""

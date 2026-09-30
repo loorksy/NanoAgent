@@ -85,35 +85,63 @@ async def run_evidence_graph(
     remaining = set(ordered)
     running: dict[str, asyncio.Task[str | None]] = {}
     failure: Exception | None = None
+    # H1/H4/D1 do not read the lead candles. Start them with that download
+    # when this turn will run the multi-timeframe node.
+    prefetch = _prefetch_higher_timeframes(ordered)
 
-    while remaining or running:
-        if failure is None and not ctx.aborted:
-            for node_id in _ready_nodes(ordered, present, remaining, set(running)):
-                remaining.remove(node_id)
-                running[node_id] = asyncio.create_task(_run_node(node_id, ctx, track_fn))
-        elif running:
-            # A failed candle download does not need the calendar that started with it.
-            for task in running.values():
+    try:
+        while remaining or running:
+            if failure is None and not ctx.aborted:
+                for node_id in _ready_nodes(ordered, present, remaining, set(running)):
+                    remaining.remove(node_id)
+                    running[node_id] = asyncio.create_task(_run_node(node_id, ctx, track_fn))
+            elif running:
+                # A failed candle download does not need the calendar or the higher
+                # timeframes that started with it.
+                for task in running.values():
+                    task.cancel()
+                for task in prefetch:
+                    task.cancel()
+            if not running:
+                break
+            finished, _pending = await asyncio.wait(
+                set(running.values()),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in finished:
+                node_id = next(key for key, value in running.items() if value is task)
+                running.pop(node_id)
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    continue
+                except Exception as exc:
+                    if failure is None:
+                        failure = exc
+        if failure is not None:
+            raise failure
+        return ctx
+    finally:
+        for task in prefetch:
+            if not task.done():
                 task.cancel()
-        if not running:
-            break
-        finished, _pending = await asyncio.wait(
-            set(running.values()),
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in finished:
-            node_id = next(key for key, value in running.items() if value is task)
-            running.pop(node_id)
-            try:
-                task.result()
-            except asyncio.CancelledError:
-                continue
-            except Exception as exc:
-                if failure is None:
-                    failure = exc
-    if failure is not None:
-        raise failure
-    return ctx
+        if prefetch:
+            await asyncio.gather(*prefetch, return_exceptions=True)
+
+
+def _prefetch_higher_timeframes(ordered: list[str]) -> list[asyncio.Task[object]]:
+    """Join the turn's candle cache. No turn means the node loads them itself."""
+    if "multi_timeframe" not in ordered:
+        return []
+    from mokli.trading.agents.multi_timeframe import HIGHER_TF_INTERVALS, load_higher_timeframe
+    from mokli.trading.turn_session import current_turn_session
+
+    if current_turn_session() is None:
+        return []
+    return [
+        asyncio.create_task(asyncio.to_thread(load_higher_timeframe, interval))
+        for interval in HIGHER_TF_INTERVALS
+    ]
 
 
 def stage_sequence_from_graph(
