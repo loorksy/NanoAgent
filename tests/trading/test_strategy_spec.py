@@ -155,6 +155,55 @@ def test_missing_backtest_is_not_saved_or_papered(tmp_path, monkeypatch) -> None
     assert live["reason"] == "backtest_failed"
 
 
+def test_forged_logic_flag_is_not_saved_or_papered(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.trading.strategy_lab.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.paper._LEDGER", tmp_path / "paper_ledger.jsonl")
+    forged = {
+        "status": "proposed",
+        "name": "gold",
+        "id": "forged",
+        "backtest": {"ok": True, "trades": 0, "rs": []},
+        "spec": {
+            "logic_ok": True,
+            "free_code": True,
+            "instrument": "XAUUSD",
+            "entry": "break_prior_high",
+            "stop": "last_swing_low",
+            "confirm_timeframe": "4h",
+            "risk_percent": 1,
+        },
+    }
+    saved = save_strategy(forged)
+    assert saved["ok"] is False
+    assert saved["broker_order"] is False
+    assert saved["reason"] == "logic_failed"
+    folder = tmp_path / "trading" / "strategies"
+    assert not (folder / "forged.json").exists()
+    text_spec = save_strategy(
+        {
+            "status": "proposed",
+            "name": "gold",
+            "id": "text-spec",
+            "backtest": {"ok": True},
+            "spec": "not-a-spec",
+        }
+    )
+    assert text_spec["reason"] == "logic_failed"
+    assert not (folder / "text-spec.json").exists()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "forged.json").write_text(json.dumps(forged), encoding="utf-8")
+    paper = start_paper("forged")
+    assert paper["ok"] is False
+    assert paper["broker_order"] is False
+    assert paper["reason"] == "logic_failed"
+    waiting = request_live("forged", approved=False)
+    assert waiting["reason"] == "live_requires_explicit_approval"
+    live = request_live("forged", approved=True)
+    assert live["ok"] is False
+    assert live["broker_order"] is False
+    assert live["reason"] == "logic_failed"
+
+
 def test_incomplete_description_does_not_backtest() -> None:
     proposal = propose_strategy("partial", _rising(), description="استراتيجية للذهب")
     assert proposal["status"] == "invalid"

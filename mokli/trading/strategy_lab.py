@@ -41,6 +41,16 @@ def _replay_succeeded(record: dict[str, object]) -> bool:
     return isinstance(backtest, dict) and backtest.get("ok") is True
 
 
+def _logic_refused(record: dict[str, object]) -> bool:
+    """A stored logic_ok flag is not the check. Re-read the spec when one is present."""
+    spec = record.get("spec")
+    if spec is None:
+        return False
+    if not isinstance(spec, dict):
+        return True
+    return bool(check_logic(spec))
+
+
 def load_replay_candles(
     *,
     interval: str = "1h",
@@ -251,6 +261,8 @@ def save_strategy(proposal: dict[str, object]) -> dict[str, object]:
     """Persist a proposal. Saving does not promote it and does not send an order."""
     if proposal.get("status") != "proposed":
         return {"ok": False, "executed": False, "reason": "not_proposed"}
+    if _logic_refused(proposal):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
     if not _replay_succeeded(proposal):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     strategy_id = str(proposal.get("id") or uuid.uuid4())
@@ -278,9 +290,8 @@ def start_paper(strategy_id: str) -> dict[str, object]:
     record = load_strategy(strategy_id)
     if record is None:
         return {"ok": False, "executed": False, "reason": "missing"}
-    spec = record.get("spec")
-    if isinstance(spec, dict) and spec.get("logic_ok") is False:
-        return {"ok": False, "executed": False, "reason": "logic_failed"}
+    if _logic_refused(record):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
     if not _replay_succeeded(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
     entry = record_paper_action(strategy_id, "paper", note=str(record.get("name") or ""))
@@ -304,8 +315,7 @@ def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, objec
             "broker_order": False,
             "reason": "live_requires_explicit_approval",
         }
-    spec = record.get("spec")
-    if isinstance(spec, dict) and spec.get("logic_ok") is False:
+    if _logic_refused(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
     if not _replay_succeeded(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
