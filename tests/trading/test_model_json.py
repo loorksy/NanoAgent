@@ -6,8 +6,17 @@ import json
 
 import tiktoken
 
+from mokli.trading.teams.evidence_text import format_market_evidence
 from mokli.trading.tool_errors import model_json, tool_error
-from mokli.trading.types import PriceLevel, StructureEvent, StructureResult, Swing
+from mokli.trading.types import (
+    AgentMarketContext,
+    Candle,
+    MarketSync,
+    PriceLevel,
+    StructureEvent,
+    StructureResult,
+    Swing,
+)
 from mokli.trading.unified_evidence import _json_safe
 
 
@@ -63,6 +72,41 @@ def test_structure_slice_drops_pretty_print_space_only() -> None:
     before = len(enc.encode(pretty))
     after = len(enc.encode(tight))
     print(f"EVIDENCE_JSON before={before} after={after}")
+    assert after < before
+
+
+def test_candle_evidence_drops_separator_space() -> None:
+    candles = [
+        Candle(
+            time_ms=1_700_000_000_000 + i * 900_000,
+            open=2300 + i * 0.1,
+            high=2301 + i * 0.1,
+            low=2299 + i * 0.1,
+            close=2300.5 + i * 0.1,
+        )
+        for i in range(240)
+    ]
+    market = AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=candles,
+        last_close=candles[-1].close,
+        atr=3.25,
+        sync=MarketSync(ok=True),
+        quote_mid=2340.12,
+    )
+    text = format_market_evidence(market)
+    payload = json.loads(text)
+    spaced = json.dumps(payload, ensure_ascii=False)
+    assert payload["candles"]
+    assert len(payload["candles"]) == 40
+    assert json.loads(spaced) == payload
+    assert text == model_json(payload)
+    assert ": " not in text
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(spaced))
+    after = len(enc.encode(text))
+    print(f"CANDLE_JSON before={before} after={after}")
     assert after < before
 
 

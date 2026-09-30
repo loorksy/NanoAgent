@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from mokli.trading.tool_errors import model_json
 from mokli.trading.types import AgentMarketContext
 
 
@@ -28,7 +29,7 @@ def format_market_evidence(market: AgentMarketContext, *, max_candles: int = 40)
         "sync_ok": market.sync.ok,
         "candles": rows,
     }
-    return json.dumps(payload, ensure_ascii=False)
+    return model_json(payload)
 
 
 def fit_evidence_text(evidence: str, *, limit: int = 12000) -> str:
@@ -50,7 +51,7 @@ def fit_evidence_text(evidence: str, *, limit: int = 12000) -> str:
     if not isinstance(candles, list):
         return evidence
     kept = _newest_candles_that_fit(payload, candles, limit)
-    return json.dumps({**payload, "candles": kept}, ensure_ascii=False)
+    return model_json({**payload, "candles": kept})
 
 
 def _newest_candles_that_fit(
@@ -64,7 +65,7 @@ def _newest_candles_that_fit(
     while lo <= hi:
         mid = (lo + hi) // 2
         candidate = {**payload, "candles": candles[-mid:] if mid else []}
-        if len(json.dumps(candidate, ensure_ascii=False)) <= limit:
+        if len(model_json(candidate)) <= limit:
             best = mid
             lo = mid + 1
         else:
@@ -125,7 +126,7 @@ def trend_evidence(lead_evidence: str, windows: list[dict[str, object]]) -> str:
         payload = {}
     payload.pop("candles", None)
     payload["higher_timeframes"] = windows
-    return json.dumps(payload, ensure_ascii=False)
+    return model_json(payload)
 
 
 def evidence_with_macro_drivers(evidence: str, briefing: str) -> str:
@@ -142,7 +143,7 @@ def evidence_with_macro_drivers(evidence: str, briefing: str) -> str:
         drivers = {}
     rows = drivers.get("macroDrivers") if isinstance(drivers, dict) else None
     payload["macroDrivers"] = rows if isinstance(rows, list) else []
-    return json.dumps(payload, ensure_ascii=False)
+    return model_json(payload)
 
 
 def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> str:
@@ -158,7 +159,7 @@ def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> 
     if not isinstance(payload, dict) or "candles" not in payload:
         return evidence
     scoped = {key: value for key, value in payload.items() if key != "candles"}
-    return json.dumps(scoped, ensure_ascii=False)
+    return model_json(scoped)
 
 
 def attach_risk_spread(evidence: str, market: AgentMarketContext) -> str:
@@ -182,4 +183,4 @@ def attach_risk_spread(evidence: str, market: AgentMarketContext) -> str:
     payload["quote_bid"] = round(float(bid), 2)
     payload["quote_ask"] = round(float(ask), 2)
     payload["spread_points"] = round(abs(float(ask) - float(bid)) / GOLD_POINT, 2)
-    return json.dumps(payload, ensure_ascii=False)
+    return model_json(payload)
