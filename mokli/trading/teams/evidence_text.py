@@ -128,6 +128,23 @@ def trend_evidence(lead_evidence: str, windows: list[dict[str, object]]) -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
+def evidence_with_macro_drivers(evidence: str, briefing: str) -> str:
+    """Scoped market JSON plus the macro-driver list. The candle array is not added."""
+    try:
+        payload = json.loads(evidence)
+    except json.JSONDecodeError:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    try:
+        drivers = json.loads(briefing)
+    except json.JSONDecodeError:
+        drivers = {}
+    rows = drivers.get("macroDrivers") if isinstance(drivers, dict) else None
+    payload["macroDrivers"] = rows if isinstance(rows, list) else []
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def scope_market_evidence(evidence: str, role: str, system_prompt: str = "") -> str:
     """Price and candles for structure roles. Other roles get the quote, not the candle dump."""
     from mokli.trading.teams.role_prompts import resolve_role_file

@@ -23,6 +23,7 @@ from mokli.trading.market_context import build_agent_market_context
 from mokli.trading.stage_events import emit_stage
 from mokli.trading.teams.evidence_text import (
     compact_timeframe_window,
+    evidence_with_macro_drivers,
     format_market_evidence,
     named_chart_interval,
     scope_market_evidence,
@@ -38,6 +39,8 @@ _UPSTREAM_LIMIT = 400
 # Same window ``run_multi_timeframe_agent`` loads, so a team role joins that cache.
 _HIGHER_TF_LIMIT = 120
 _HIGHER_TIMEFRAMES = ("1h", "4h", "1d")
+# These roles read the driver list. Other roles get the short stance, not the list.
+_MACRO_EVIDENCE_FILES = frozenset({"macro", "news"})
 
 
 async def _timed_macro_drivers(
@@ -205,15 +208,22 @@ async def run_swarm(
                 role = agent.role if agent else task.agent_id
                 system_prompt = agent.system_prompt if agent else ""
                 prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
+                role_evidence = await evidence_for_team_role(
+                    evidence_text,
+                    role,
+                    system_prompt,
+                )
+                if resolve_role_file(role, system_prompt) in _MACRO_EVIDENCE_FILES:
+                    driver_verdicts, _macro_ms = await macro_task
+                    role_evidence = evidence_with_macro_drivers(
+                        role_evidence,
+                        format_team_briefing(driver_verdicts),
+                    )
                 summary = await run_team_role(
                     agent_id=task.agent_id,
                     role=role,
                     task_text=prompt,
-                    evidence_text=await evidence_for_team_role(
-                        evidence_text,
-                        role,
-                        system_prompt,
-                    ),
+                    evidence_text=role_evidence,
                     system_prompt=system_prompt,
                     manager=subagent_manager,
                     publisher=publisher,

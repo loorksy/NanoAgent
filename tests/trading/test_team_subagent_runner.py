@@ -418,8 +418,16 @@ async def test_named_timeframe_roles_load_their_own_candles(monkeypatch) -> None
     by_role = dict(seen)
     technical = json.loads(by_role["Technical Analyst"])
     trend = json.loads(by_role["Trend Analyst"])
+    macro = json.loads(by_role["Macro News Analyst"])
+    risk = json.loads(by_role["Risk Officer"])
     assert technical["candles"][0]["t"] == 111
+    assert "macroDrivers" not in technical
     assert "candles" not in trend
+    assert "macroDrivers" not in trend
+    assert "candles" not in macro
+    assert isinstance(macro["macroDrivers"], list)
+    assert macro["macroDrivers"]
+    assert "macroDrivers" not in risk
     assert [row["interval"] for row in trend["higher_timeframes"]] == ["1h", "4h", "1d"]
     assert {interval for interval, _limit in loads} == {"1h", "4h", "1d"}
     assert quote_flags == [False, False, False]
