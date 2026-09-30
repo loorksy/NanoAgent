@@ -114,6 +114,26 @@ def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> 
     assert "| 1 | سؤال بلا أدوات |" in body
 
 
+def test_header_update_on_real_report_pending_unicode() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import apply_section11_patch
+
+    report_path = ROOT / "docs" / "mokli-agent-upgrade-report.md"
+    header_line = next(
+        line for line in report_path.read_text(encoding="utf-8").splitlines() if line.startswith("## 11.")
+    )
+    text = (
+        f"{header_line}\n"
+        "| # | a | b | c | d | e | f |\n"
+        "| 1 | p | q | r | | |\n"
+    )
+    payloads = {1: ("PASS live", "rounds=1 in=10 out=1 tools=0")}
+    updated, changed = apply_section11_patch(text, payloads, require_through=1)
+    assert changed >= 2
+    assert "تم التعبئة من تشغيل VPS" in updated
+    assert "Cloud Agent" not in updated.split("###", 1)[0]
+
+
 def test_apply_section11_patch_updates_header_when_rows_complete() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import apply_section11_patch

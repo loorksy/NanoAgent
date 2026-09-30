@@ -26,6 +26,11 @@ from mokli_upgrade_section11_batch import gather_section11_rows  # noqa: E402
 _ROW_LINE = re.compile(r"^\|\s*(\d+)\s*\|")
 _PENDING_HEADER = "(لم تُنفَّذ في Cloud Agent)"
 _FILLED_HEADER = "(تم التعبئة من تشغيل VPS — راجع الأرقام واللقطات)"
+# Report markdown may use a different combining-mark order for «نُفِّذ»; match by section title.
+_PENDING_SECTION_HEADER_RE = re.compile(
+    r"(##\s*11\.\s*مسارات حية\s*)\([^)]*Cloud\s+Agent[^)]*\)",
+    re.UNICODE,
+)
 
 
 def _patch_table_line(line: str, payloads: dict[int, tuple[str, str]]) -> str:
@@ -73,9 +78,15 @@ def _maybe_update_section_header(
             return text, False
         if "dry-run" in str(result_text).lower():
             return text, False
-    if _PENDING_HEADER not in text:
+    if _FILLED_HEADER in text and not _PENDING_SECTION_HEADER_RE.search(text):
         return text, False
-    return text.replace(_PENDING_HEADER, _FILLED_HEADER, 1), True
+    match = _PENDING_SECTION_HEADER_RE.search(text)
+    if match:
+        updated = _PENDING_SECTION_HEADER_RE.sub(rf"\1{_FILLED_HEADER}", text, count=1)
+        return updated, updated != text
+    if _PENDING_HEADER in text:
+        return text.replace(_PENDING_HEADER, _FILLED_HEADER, 1), True
+    return text, False
 
 
 def apply_section11_patch(
