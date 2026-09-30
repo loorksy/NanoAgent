@@ -123,8 +123,13 @@ class TurnHook(AgentHook):
         summary: str | None = None,
         arguments: str | None = None,
     ) -> None:
-        started = self._started.pop(tool_call.id, None)
-        duration = int((time.monotonic() - started) * 1000) if started is not None else None
+        # The start event must not consume the clock. Finished and failed
+        # events are the ones that carry the measured duration.
+        duration: int | None = None
+        if event != "started":
+            started = self._started.pop(tool_call.id, None)
+            if started is not None:
+                duration = round((time.monotonic() - started) * 1000)
         display = phrase_for(tool_call.name, event)
         if event == "started":
             data = tool_data(

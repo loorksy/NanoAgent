@@ -1,5 +1,6 @@
 """A tool call is one activity row. The task text is not a second subagent."""
 
+import mokli.agent_api.sessions as sessions_mod
 from mokli.agent.hook import AgentHookContext
 from mokli.agent.tools.display import phrase_for
 from mokli.agent_api.sessions import TurnHook
@@ -51,3 +52,32 @@ async def test_trading_team_tool_does_not_invent_a_parent_subagent() -> None:
     assert [event["kind"] for event in hub.events] == ["tool", "tool"]
     assert hub.events[0]["data"]["display"] == phrase_for("run_trading_team", "started")
     assert hub.events[1]["data"]["display"] == phrase_for("run_trading_team", "finished")
+
+
+async def test_finished_tool_keeps_the_measured_duration(monkeypatch) -> None:
+    clock = {"now": 10.0}
+    monkeypatch.setattr(sessions_mod.time, "monotonic", lambda: clock["now"])
+    hook, hub = _hook()
+    call = ToolCallRequest(id="c3", name="get_gold_quote", arguments={})
+    await hook.before_execute_tool(_ctx(), call, object(), {"symbol": "XAUUSD"})
+    clock["now"] = 13.7
+    await hook.after_execute_tool(_ctx(), call, object(), {"symbol": "XAUUSD"}, "bid 2300")
+
+    started, finished = hub.events
+    assert "duration_ms" not in started["data"]
+    assert finished["data"]["duration_ms"] == 3700
+
+
+async def test_failed_tool_keeps_the_measured_duration(monkeypatch) -> None:
+    clock = {"now": 1.0}
+    monkeypatch.setattr(sessions_mod.time, "monotonic", lambda: clock["now"])
+    hook, hub = _hook()
+    call = ToolCallRequest(id="c4", name="get_gold_quote", arguments={})
+    await hook.before_execute_tool(_ctx(), call, object(), {"symbol": "XAUUSD"})
+    clock["now"] = 1.2
+    await hook.on_execute_tool_error(_ctx(), call, object(), {"symbol": "XAUUSD"}, "timeout")
+
+    started, failed = hub.events
+    assert "duration_ms" not in started["data"]
+    assert failed["data"]["event"] == "failed"
+    assert failed["data"]["duration_ms"] == 200
