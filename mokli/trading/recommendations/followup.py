@@ -166,12 +166,18 @@ def refresh_recommendation_outcomes(
     *,
     live_price: float | None = None,
 ) -> tuple[dict[str, int], list[OutcomeTransition]]:
-    """Grade open recommendations against live price and persist outcomes."""
+    """Grade open recommendations against one live price and persist outcomes.
+
+    A missing price means the caller already tried to read the quote. Each row
+    keeps its stored status instead of downloading a quote of its own.
+    """
     counts = {"updated": 0, "open": 0, "closed": 0}
     transitions: list[OutcomeTransition] = []
     for row in list_recommendations(limit=200):
         current = normalize_outcome_status(str(row.get("status") or "valid_now"))
-        graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+        graded = normalize_outcome_status(
+            grade_outcome_status(row, live_price=live_price, price_known=True)
+        )
         if graded != current and can_transition(current, graded):
             update_recommendation_status(str(row["id"]), graded)
             if graded in CLOSED_OUTCOME_STATUSES:

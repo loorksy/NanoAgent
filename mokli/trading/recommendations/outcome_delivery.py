@@ -6,7 +6,7 @@ from typing import Any
 
 from mokli.bus.events import OutboundMessage
 from mokli.trading.gold import DATA_SYMBOL
-from mokli.trading.oanda import fetch_quote
+from mokli.trading.market_context import live_analysis_quote
 from mokli.trading.recommendations.followup import refresh_recommendation_outcomes
 from mokli.trading.recommendations.outcome_alerts import (
     format_outcome_alert,
@@ -19,7 +19,7 @@ async def collect_outcome_alerts() -> list[OutboundMessage]:
     """Refresh stored recommendations and build user-visible alerts for transitions."""
     live_price: float | None = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None
@@ -56,7 +56,7 @@ def collect_outcome_web_alerts() -> list[dict[str, Any]]:
     """Refresh recommendations and return Mokli-friendly outcome payloads."""
     live_price: float | None = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None

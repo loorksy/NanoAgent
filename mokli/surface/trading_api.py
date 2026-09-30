@@ -514,7 +514,11 @@ def briefing_document(locale: str | None) -> dict[str, Any]:
     if latest:
         latest = {
             **latest,
-            "outcomeStatus": grade_outcome_status(latest, live_price=live_price),
+            "outcomeStatus": grade_outcome_status(
+                latest,
+                live_price=live_price,
+                price_known=True,
+            ),
             "livePrice": live_price,
         }
     recs = list_recommendations(limit=5)
