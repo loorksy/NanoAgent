@@ -803,3 +803,64 @@ async def test_presets_without_a_macro_role_do_not_search(monkeypatch) -> None:
     assert searches["n"] > 0
     assert "macroDrivers" in review["team_briefing"]
     print(f"MACRO_SKIP panel=0 desk=0 review={searches['n']}")
+
+
+@pytest.mark.asyncio
+async def test_mtf_synthesizer_reads_the_three_briefs_not_a_lead_chart(monkeypatch) -> None:
+    """The panel has H1, H4, and D1. The synthesizer is not given a lead-chart structure."""
+    from pathlib import Path
+
+    from mokli.trading.agents.macro_drivers import reset_macro_cache_for_tests
+    from mokli.trading.teams import role_prompts
+    from mokli.trading.teams.runtime import run_swarm
+
+    reset_macro_cache_for_tests()
+    roles_dir = Path(role_prompts.__file__).resolve().parents[2] / "agent" / "prompt" / "team_roles"
+    structure = (roles_dir / "structure.md").read_text(encoding="utf-8")
+    synth_prompt = (roles_dir / "mtf_synthesizer.md").read_text(encoding="utf-8")
+    assert "context timeframes" not in structure
+    assert "lead timeframe" not in synth_prompt
+    assert "H1, H4, and D1" in synth_prompt
+
+    notes = {
+        "H1 Analyst": "hour holds 2310\nSTANCE: buy",
+        "H4 Analyst": "four-hour lower high\nSTANCE: sell",
+        "D1 Analyst": "daily still bid\nSTANCE: buy",
+    }
+    seen: list[tuple[str, str, str]] = []
+
+    async def fake_team_role(**kwargs: object) -> str:
+        role = str(kwargs.get("role"))
+        seen.append((role, str(kwargs.get("task_text")), str(kwargs.get("evidence_text"))))
+        return notes.get(role, "aligned\nSTANCE: wait")
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: _market("15m", 111, 2300.0),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *_a, **_k: _market("1h", 112, 2310.0),
+    )
+
+    await run_swarm(
+        "gold_mtf_panel",
+        macro_search=lambda _query: "unused",
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    synth_task, synth_evidence = next(
+        (task, evidence) for role, task, evidence in seen if role == "MTF Synthesizer"
+    )
+    for note in notes.values():
+        assert note in synth_task
+    parsed = json.loads(synth_evidence)
+    assert "candles" not in parsed
+    assert "higher_timeframes" not in parsed
+    bare = "Synthesize MTF bias."
+    before = estimate_prompt_tokens([{"role": "user", "content": bare}])
+    after = estimate_prompt_tokens([{"role": "user", "content": synth_task}])
+    print(f"MTF_BRIEFS before={before} after={after}")
+    assert after > before
+    assert "2310" in synth_task
