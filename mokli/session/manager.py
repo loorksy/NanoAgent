@@ -26,6 +26,7 @@ from mokli.providers.base import ProviderConversationState
 from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     public_history_message,
+    runtime_context_refreshed_each_turn,
 )
 from mokli.session.history_visibility import HIDDEN_HISTORY_META, is_hidden_history_message
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
@@ -385,12 +386,15 @@ class Session:
         for message in sliced:
             if message.get("_command"):
                 continue
-            has_persisted_runtime_context = isinstance(
-                message.get(RUNTIME_CONTEXT_HISTORY_META),
-                dict,
-            )
+            marker = message.get(RUNTIME_CONTEXT_HISTORY_META)
+            has_persisted_runtime_context = isinstance(marker, dict)
             if not include_runtime_context:
                 message = public_history_message(message)
+            elif isinstance(marker, dict) and runtime_context_refreshed_each_turn(marker):
+                # The next turn injects a fresh copy. The saved suffix stays
+                # on the transcript so the public view can still remove it.
+                message = public_history_message(message)
+                has_persisted_runtime_context = False
             content = message.get("content", "")
             role = message.get("role")
             if role == "assistant" and isinstance(content, str):

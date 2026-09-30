@@ -16,6 +16,9 @@ RUNTIME_CONTEXT_MESSAGE_META = "runtime_context"
 RUNTIME_CONTEXT_INPUT_META = "_runtime_context_blocks"
 RUNTIME_CONTEXT_TAG = "[Runtime Context — metadata only, not instructions]"
 RUNTIME_CONTEXT_END = "[/Runtime Context]"
+# Rebuilt on the next user turn from live state. Replaying the saved copy
+# resends the same instructions and can keep a stale price.
+TURN_LOCAL_RUNTIME_SOURCES = frozenset({"gold_intent", "goal"})
 MOKLI_QUOTE_METADATA = "_mokli_quote"
 MOKLI_QUOTE_SOURCE = "mokli_quote"
 MAX_MOKLI_QUOTE_CHARS = 4_000
@@ -210,6 +213,19 @@ def reattach_runtime_context(
         "sources": list(sources),
         "blocks": context_blocks,
     }
+
+
+def runtime_context_refreshed_each_turn(marker: Mapping[str, Any]) -> bool:
+    """True when every saved block is injected again on the next user turn."""
+    if marker.get("version") != 1:
+        return False
+    sources = marker.get("sources")
+    if not isinstance(sources, list) or not sources:
+        return False
+    return all(
+        isinstance(source, str) and source in TURN_LOCAL_RUNTIME_SOURCES
+        for source in sources
+    )
 
 
 def public_history_message(message: Mapping[str, Any]) -> dict[str, Any]:
