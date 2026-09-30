@@ -460,6 +460,20 @@ def without_tool_menu(system_text: str) -> str:
 # Skill catalogs tell the model which tool to open. A round with no tools cannot open them.
 _SKILL_SECTION_TITLES = ("# Skills", "# Active Skills")
 
+# These headings only explain how to call tools. Permission and memory stay.
+_ANSWER_DROP_H2 = (
+    "## General contract",
+    "## Teams and debate",
+    "## Scheduling and goals",
+    "## Messaging",
+)
+
+_ANSWER_TURN_NOTE = (
+    "## This turn\n\n"
+    "No further tools are available. Answer from the conversation and from tool "
+    "results already in it. Do not invent a price those results do not contain."
+)
+
 
 def without_skill_catalog(system_text: str) -> str:
     """Drop skill-index sections. Identity, memory, and hard law stay."""
@@ -476,6 +490,42 @@ def without_skill_catalog(system_text: str) -> str:
     return SECTION_SEPARATOR.join(kept)
 
 
+def without_unusable_tool_policy(system_text: str) -> str:
+    """Drop tool-invocation headings from a round that cannot call tools.
+
+    Execution permission levels and the memory rule stay. The saved transcript
+    is not modified; callers pass the provider copy.
+    """
+    parts = system_text.split(SECTION_SEPARATOR)
+    changed = False
+    rewritten: list[str] = []
+    for part in parts:
+        head = part.strip().splitlines()[0] if part.strip() else ""
+        if head != "# Tool contracts":
+            rewritten.append(part)
+            continue
+        kept_lines: list[str] = []
+        skipping = False
+        for line in part.splitlines():
+            if line.startswith("## "):
+                skipping = line in _ANSWER_DROP_H2
+                if skipping:
+                    changed = True
+                    continue
+            if skipping:
+                continue
+            kept_lines.append(line)
+        text = "\n".join(kept_lines).strip()
+        while "\n\n\n" in text:
+            text = text.replace("\n\n\n", "\n\n")
+        if changed and "## This turn" not in text:
+            text = text.replace("# Tool contracts", "# Tool contracts\n\n" + _ANSWER_TURN_NOTE, 1)
+        rewritten.append(text)
+    if not changed:
+        return system_text
+    return SECTION_SEPARATOR.join(rewritten)
+
+
 def messages_without_tool_menu(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Provider copy for a round that has no tools. The transcript list is unchanged."""
     if not messages:
@@ -484,7 +534,7 @@ def messages_without_tool_menu(messages: list[dict[str, Any]]) -> list[dict[str,
     content = first.get("content")
     if first.get("role") != "system" or not isinstance(content, str):
         return messages
-    stripped = without_skill_catalog(without_tool_menu(content))
+    stripped = without_unusable_tool_policy(without_skill_catalog(without_tool_menu(content)))
     if stripped == content:
         return messages
     return [{**first, "content": stripped}, *messages[1:]]

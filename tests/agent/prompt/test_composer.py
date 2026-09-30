@@ -326,11 +326,12 @@ def test_answer_round_drops_the_skill_catalog_it_cannot_open(tmp_path) -> None:
         {"role": "user", "content": "هل أشتري الذهب؟"},
     ]
     with_catalog = without_tool_menu(prompt)
+    skills_only = without_skill_catalog(with_catalog)
     sent = messages_without_tool_menu(original)
     body = sent[0]["content"]
     enc = tiktoken.get_encoding("cl100k_base")
     before = len(enc.encode(with_catalog))
-    after = len(enc.encode(body))
+    after = len(enc.encode(skills_only))
     print(f"ANSWER_SKILLS before={before} after={after}")
 
     assert "risk-guardrails" in prompt
@@ -351,6 +352,44 @@ def test_answer_round_drops_the_skill_catalog_it_cannot_open(tmp_path) -> None:
     assert "Open a tool." not in kept
     assert "# Hard law" in kept
     assert "# Memory" in kept
+
+
+def test_answer_round_drops_tool_invocation_policy_it_cannot_follow(tmp_path) -> None:
+    import tiktoken
+
+    from mokli.agent.context import ContextBuilder
+    from mokli.agent.prompt.composer import (
+        messages_without_tool_menu,
+        without_skill_catalog,
+        without_tool_menu,
+    )
+
+    names = ["web_search", "web_fetch", "run_trading_kernel", "get_gold_quote"]
+    prompt = ContextBuilder(tmp_path).build_system_prompt(tool_names=names)
+    prior = without_skill_catalog(without_tool_menu(prompt))
+    sent = messages_without_tool_menu(
+        [{"role": "system", "content": prompt}, {"role": "user", "content": "هل أشتري الذهب؟"}]
+    )
+    body = sent[0]["content"]
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(prior))
+    after = len(enc.encode(body))
+    print(f"ANSWER_POLICY before={before} after={after}")
+
+    assert "## General contract" in prompt
+    assert "## Teams and debate" in prompt
+    assert "## General contract" not in body
+    assert "## Teams and debate" not in body
+    assert "## Scheduling and goals" not in body
+    assert "## Messaging" not in body
+    assert "## This turn" in body
+    assert "No further tools are available." in body
+    assert "## Execution permission levels" in body
+    assert "`recommend`" in body
+    assert "## Memory" in body
+    assert "No platform tools are registered" in body
+    assert "# Hard law" in body
+    assert after < before
 
 
 def test_gold_price_contract_does_not_send_the_model_to_mt5_first() -> None:
