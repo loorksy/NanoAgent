@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 from concurrent.futures import ThreadPoolExecutor
 
 from mokli.trading.agents.structure import run_structure_agent
@@ -30,12 +31,17 @@ def _bias_from_context(market: AgentMarketContext) -> Bias:
 def run_multi_timeframe_agent(market: AgentMarketContext) -> MultiTimeframeResult:
     """M15 comes from the caller; H1/H4/D1 are loaded. Daily is real D1, not a resample of H1."""
     m15 = _trend_to_bias(run_structure_agent(market).trend)
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        higher = pool.map(
-            lambda interval: build_agent_market_context(DATA_SYMBOL, interval, limit=120),
-            ("1h", "4h", "1d"),
-        )
-        h1_ctx, h4_ctx, d1_ctx = tuple(higher)
+    # Each worker gets its own context copy. One shared Context cannot be entered
+    # by two threads, and a bare thread would miss the turn's in-flight quote.
+    intervals = ("1h", "4h", "1d")
+    contexts = [contextvars.copy_context() for _ in intervals]
+
+    def _load(item: tuple[contextvars.Context, str]) -> AgentMarketContext:
+        ctx, interval = item
+        return ctx.run(build_agent_market_context, DATA_SYMBOL, interval, 120)
+
+    with ThreadPoolExecutor(max_workers=len(intervals)) as pool:
+        h1_ctx, h4_ctx, d1_ctx = tuple(pool.map(_load, zip(contexts, intervals, strict=True)))
     h1 = _bias_from_context(h1_ctx)
     h4 = _bias_from_context(h4_ctx)
     daily = _bias_from_context(d1_ctx)
