@@ -12,6 +12,7 @@ from mokli.agent.tools.context import current_request_context
 from mokli.events import TeamRoleEvent
 from mokli.security.workspace_access import current_workspace_scope
 from mokli.trading.i18n import tr
+from mokli.trading.teams.evidence_text import fit_evidence_text
 from mokli.trading.teams.role_prompts import role_system_prompt
 
 if TYPE_CHECKING:
@@ -184,7 +185,7 @@ async def run_team_role(
     task_body = (
         f"{task_text.strip()}\n\n"
         f"FROZEN MARKET EVIDENCE (do not invent prices outside this JSON):\n"
-        f"{evidence_text[:12000]}"
+        f"{fit_evidence_text(evidence_text)}"
     )
     full_task = f"ROLE INSTRUCTIONS:\n{role_prompt}\n\nTASK:\n{task_body}"
 

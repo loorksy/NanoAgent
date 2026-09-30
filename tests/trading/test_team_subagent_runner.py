@@ -41,6 +41,35 @@ async def test_team_role_with_runtime_does_not_open_a_tool_loop() -> None:
 
 
 @pytest.mark.asyncio
+async def test_role_prompt_receives_valid_evidence_json() -> None:
+    candles = [
+        {"t": index, "o": 2300.0, "h": 2301.0, "l": 2299.0, "c": 2300.5}
+        for index in range(400)
+    ]
+    evidence = json.dumps({"symbol": "XAUUSD", "last_close": 2300.5, "candles": candles})
+    assert len(evidence) > 12000
+    provider = MagicMock()
+    provider.chat = AsyncMock(return_value=MagicMock(content="STANCE: wait"))
+    runtime = LLMRuntime.capture(provider, "test-model", context_window_tokens=128_000)
+
+    with request_context(RequestContext(channel="agent_api", chat_id="chat", runtime=runtime)):
+        await run_team_role(
+            agent_id="technical",
+            role="Technical Analyst",
+            task_text="Read the structure.",
+            evidence_text=evidence,
+            system_prompt="role:structure",
+        )
+
+    user = provider.chat.await_args.kwargs["messages"][1]["content"]
+    blob = user.split("FROZEN MARKET EVIDENCE", 1)[1].split("\n", 1)[1]
+    parsed = json.loads(blob)
+    assert parsed["last_close"] == 2300.5
+    assert parsed["candles"][-1]["t"] == 399
+    assert len(parsed["candles"]) < 400
+
+
+@pytest.mark.asyncio
 async def test_published_role_summary_keeps_a_trailing_stance() -> None:
     from mokli.trading.result_wire import result_to_wire
     from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
@@ -109,6 +138,44 @@ def test_non_structure_roles_do_not_receive_the_candle_dump() -> None:
     assert "candles" not in macro
     assert "2300" in risk
     assert len(risk) < len(full) // 2
+
+
+def test_long_candle_evidence_stays_valid_json() -> None:
+    from mokli.trading.teams.evidence_text import fit_evidence_text
+
+    candles = [
+        {
+            "t": 1_700_000_000_000 + index,
+            "o": 2300.0,
+            "h": 2302.0,
+            "l": 2298.0,
+            "c": 2301.0 + index,
+        }
+        for index in range(400)
+    ]
+    payload = {
+        "symbol": "XAUUSD",
+        "interval": "15m",
+        "last_close": candles[-1]["c"],
+        "atr": 2.5,
+        "quote_mid": candles[-1]["c"],
+        "sync_ok": True,
+        "candles": candles,
+    }
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert len(raw) > 12000
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(raw[:12000])
+
+    fitted = fit_evidence_text(raw)
+    parsed = json.loads(fitted)
+    assert len(fitted) <= 12000
+    assert parsed["symbol"] == "XAUUSD"
+    assert parsed["last_close"] == candles[-1]["c"]
+    assert parsed["candles"][-1] == candles[-1]
+    assert len(parsed["candles"]) < len(candles)
+    short = json.dumps({"last_close": 2300})
+    assert fit_evidence_text(short) == short
 
 
 @pytest.mark.asyncio
