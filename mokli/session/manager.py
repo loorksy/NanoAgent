@@ -30,7 +30,7 @@ from mokli.runtime_context import (
 )
 from mokli.session.history_visibility import HIDDEN_HISTORY_META, is_hidden_history_message
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
-from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT, session_tail_needs_archive
 from mokli.utils.helpers import (
     content_with_media_breadcrumbs,
     ensure_dir,
@@ -1860,6 +1860,25 @@ class SessionManager:
             session = Session(key=key, policy=policy)
             self._remember(session)
         return session
+
+    def load_unarchived_sessions(self, keys: list[str]) -> list[Session]:
+        """Read cold session files that still have messages to archive.
+
+        Clean files are omitted. The caller caches a session only when it
+        will schedule that archive, so an idle scan does not retain every
+        transcript.
+        """
+        pending: list[Session] = []
+        for key in keys:
+            if not isinstance(key, str) or not key:
+                continue
+            session = self.load_from_disk(key)
+            if session is not None and session_tail_needs_archive(
+                session.messages,
+                session.last_archived,
+            ):
+                pending.append(session)
+        return pending
 
     def load_from_disk(self, key: str) -> Session | None:
         """Read a session file without touching the in-memory cache.

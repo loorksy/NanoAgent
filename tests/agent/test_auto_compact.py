@@ -288,6 +288,74 @@ class TestIdleScanThrottling:
         assert order.count("worker") == 1
         assert time.perf_counter() - started < 0.35
 
+    async def test_idle_archive_read_leaves_the_event_loop_free(self, tmp_path, monkeypatch):
+        """An expired cold transcript is parsed off the event loop."""
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        loop._next_idle_compact_check_at = 0
+        session = loop.sessions.get_or_create("cli:fat")
+        session.add_message("user", "x" * 80_000)
+        session.updated_at = datetime.now() - timedelta(minutes=20)
+        loop.sessions.save(session)
+        loop.sessions.invalidate("cli:fat")
+        loop.consolidator.compact_idle_session = AsyncMock(return_value="")
+        order: list[str] = []
+        real_load = loop.sessions.load_unarchived_sessions
+
+        def slow(keys: list[str]):
+            time.sleep(0.2)
+            order.append(
+                "main" if threading.current_thread() is threading.main_thread() else "worker"
+            )
+            return real_load(keys)
+
+        monkeypatch.setattr(loop.sessions, "load_unarchived_sessions", slow)
+
+        async def tick() -> None:
+            await asyncio.sleep(0.05)
+            order.append("tick")
+
+        pending = asyncio.create_task(tick())
+        started = time.perf_counter()
+        await loop._check_expired_sessions_if_due()
+        await pending
+        assert order[0] == "tick"
+        assert "main" not in order
+        assert order.count("worker") == 1
+        assert time.perf_counter() - started < 0.35
+        assert "cli:fat" in loop.auto_compact._archiving
+        await _drain_background_tasks(loop)
+        await loop.aclose()
+
+    async def test_idle_archive_check_skips_a_clean_transcript(self, tmp_path, monkeypatch):
+        """A cold file with nothing to archive is not parsed again on the next tick."""
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        loop._next_idle_compact_check_at = 0
+        session = loop.sessions.get_or_create("cli:clean")
+        session.add_message("user", "x" * 80_000, _command=True)
+        session.updated_at = datetime.now() - timedelta(minutes=20)
+        loop.sessions.save(session)
+        loop.sessions.invalidate("cli:clean")
+        loop.consolidator.compact_idle_session = AsyncMock(return_value="")
+
+        await loop._check_expired_sessions_if_due()
+        loop.consolidator.compact_idle_session.assert_not_awaited()
+        loop.sessions.invalidate("cli:clean")
+        loop._next_idle_compact_check_at = 0
+
+        loads: list[int] = []
+        real_loads = json.loads
+
+        def counting(text: str, *args, **kwargs):
+            loads.append(len(text))
+            return real_loads(text, *args, **kwargs)
+
+        monkeypatch.setattr("mokli.session.manager.json.loads", counting)
+        await loop._check_expired_sessions_if_due()
+        assert loads
+        assert max(loads) < 80_000
+        loop.consolidator.compact_idle_session.assert_not_awaited()
+        await loop.aclose()
+
 
 class TestAgentLoopTTLParam:
     """Test that AutoCompact receives and stores session_ttl_minutes."""

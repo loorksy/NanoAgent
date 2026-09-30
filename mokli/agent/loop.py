@@ -103,6 +103,7 @@ from mokli.session.recovery import (
 from mokli.session.summary import (
     SessionSummary,
     SessionSummaryCheckpoint,
+    session_tail_needs_archive,
 )
 from mokli.triggers.local_turns import LocalTriggerTurnCoordinator
 from mokli.utils.cancellation import task_is_cancelling
@@ -1333,14 +1334,73 @@ class AgentLoop:
             return
         self._next_idle_compact_check_at = now + self._idle_compact_check_interval_s
         clocks = None
+        ready_keys: set[str] | None = None
         if self.auto_compact.session_ttl_minutes > 0:
             clocks = await asyncio.to_thread(self.sessions.list_session_clocks)
+            ready_keys = await self._idle_archive_ready_keys(clocks)
         self.auto_compact.check_expired(
             self.schedule_background,
             self.runtime_for_session,
             active_session_keys=self._pending_queues.keys(),
             clocks=clocks,
+            ready_keys=ready_keys,
         )
+
+    async def _idle_archive_ready_keys(
+        self,
+        clocks: list[tuple[str, str | None]],
+    ) -> set[str]:
+        """Keys whose transcript still needs an archive, without blocking the loop.
+
+        A cached session is judged in memory. A cold file is read on a worker.
+        A file that has nothing to archive is remembered by its metadata clock
+        so the next tick does not open it again.
+        """
+        now = datetime.now()
+        active = self._pending_queues.keys()
+        compact = self.auto_compact
+        cold: list[str] = []
+        ready: set[str] = set()
+        updated_by_key: dict[str, str | None] = {}
+        for key, updated_at in clocks:
+            if not key or compact._is_internal_session(key) or key in compact._archiving:
+                continue
+            if key in active or not compact._is_expired(updated_at, now):
+                continue
+            updated_by_key[key] = updated_at
+            if compact.idle_archive_known_clean(key, updated_at):
+                continue
+            cached = self.sessions.get_cached(key)
+            if cached is not None:
+                if session_tail_needs_archive(cached.messages, cached.last_archived):
+                    ready.add(key)
+                else:
+                    compact.remember_idle_archive_clean(key, updated_at)
+                continue
+            cold.append(key)
+        if not cold:
+            return ready
+        loaded = await asyncio.to_thread(self.sessions.load_unarchived_sessions, cold)
+        loaded_keys = {session.key for session in loaded}
+        for session in loaded:
+            current = self.sessions.get_cached(session.key)
+            if current is None:
+                self.sessions.cache_saved(session)
+                current = session
+            if session_tail_needs_archive(current.messages, current.last_archived):
+                ready.add(current.key)
+        for key in cold:
+            if key in loaded_keys:
+                continue
+            current = self.sessions.get_cached(key)
+            if current is not None and session_tail_needs_archive(
+                current.messages,
+                current.last_archived,
+            ):
+                ready.add(key)
+                continue
+            compact.remember_idle_archive_clean(key, updated_by_key.get(key))
+        return ready
 
     async def run(self) -> None:
         """Run the agent loop, dispatching messages as tasks to stay responsive to /stop."""

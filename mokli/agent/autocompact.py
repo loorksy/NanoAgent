@@ -12,8 +12,8 @@ from mokli.events import NO_EVENTS, EventSink
 from mokli.session.manager import Session, SessionManager
 from mokli.session.summary import (
     SessionSummary,
-    is_summary_checkpoint,
     session_summary_from_metadata,
+    session_tail_needs_archive,
 )
 
 if TYPE_CHECKING:
@@ -34,6 +34,7 @@ class AutoCompact:
         self._ttl = session_ttl_minutes
         self._archiving: set[str] = set()
         self._summaries: dict[str, SessionSummary] = {}
+        self._idle_clean_updated_at: dict[str, str] = {}
         self._bind_events = bind_events
 
     @property
@@ -60,10 +61,18 @@ class AutoCompact:
 
     def _has_unarchived_messages(self, key: str) -> bool:
         session = self.sessions.get_or_create(key)
-        return any(
-            not message.get("_command") and not is_summary_checkpoint(message)
-            for message in session.messages[session.last_archived:]
-        )
+        return session_tail_needs_archive(session.messages, session.last_archived)
+
+    def idle_archive_known_clean(self, key: str, updated_at: str | None) -> bool:
+        """True when this metadata clock was already seen with nothing to archive."""
+        if not isinstance(updated_at, str) or not updated_at:
+            return False
+        return self._idle_clean_updated_at.get(key) == updated_at
+
+    def remember_idle_archive_clean(self, key: str, updated_at: str | None) -> None:
+        """Skip later full reads while this session's metadata clock stays put."""
+        if isinstance(updated_at, str) and updated_at:
+            self._idle_clean_updated_at[key] = updated_at
 
     @classmethod
     def _is_internal_session(cls, key: str) -> bool:
@@ -75,8 +84,14 @@ class AutoCompact:
         resolve_runtime: Callable[[Session], LLMRuntime],
         active_session_keys: Collection[str] = (),
         clocks: list[tuple[str, str | None]] | None = None,
+        ready_keys: Collection[str] | None = None,
     ) -> None:
-        """Schedule archival for idle sessions, skipping those with in-flight agent tasks."""
+        """Schedule archival for idle sessions, skipping those with in-flight agent tasks.
+
+        ``ready_keys`` is the set already known to have unarchived messages.
+        The idle tick computes it off the event loop. Direct callers omit it
+        and this method reads the session itself.
+        """
         if self._ttl <= 0:
             return
         now = datetime.now()
@@ -86,15 +101,21 @@ class AutoCompact:
                 continue
             if key in active_session_keys:
                 continue
-            if self._is_expired(updated_at, now) and self._has_unarchived_messages(key):
-                session = self.sessions.get_or_create(key)
-                try:
-                    runtime = resolve_runtime(session)
-                except (KeyError, ValueError):
-                    # Invalid session selections remain recoverable through /model.
+            if not self._is_expired(updated_at, now):
+                continue
+            if ready_keys is not None:
+                if key not in ready_keys:
                     continue
-                self._archiving.add(key)
-                schedule_background(self._archive(key, runtime=runtime))
+            elif not self._has_unarchived_messages(key):
+                continue
+            session = self.sessions.get_or_create(key)
+            try:
+                runtime = resolve_runtime(session)
+            except (KeyError, ValueError):
+                # Invalid session selections remain recoverable through /model.
+                continue
+            self._archiving.add(key)
+            schedule_background(self._archive(key, runtime=runtime))
 
     async def _archive(self, key: str, *, runtime: LLMRuntime) -> None:
         if self._is_internal_session(key):
