@@ -11,11 +11,12 @@
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2322** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2323** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## قبل المحادثة الحية
 
+0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
 1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
 2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight (صحة API + تحذير المفاتيح) + dry-run §11 للصف 1 + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
 3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
