@@ -28,7 +28,10 @@ async def gold_intent_runtime_context(
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    live, _quote = await grade_session_plan(request.session_key)
+    live, _quote = await grade_session_plan(
+        request.session_key,
+        reuse_turn_grade=True,
+    )
     if not live:
         if not is_gold_decision_question(text):
             return None

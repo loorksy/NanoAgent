@@ -61,25 +61,54 @@ async def blocking_live_plan(
     """
     if reevaluate or force_new_plan or not session_key:
         return None
-    live, _quote = await grade_session_plan(session_key)
+    live, _quote = await grade_session_plan(session_key, reuse_turn_grade=True)
     return live
 
 
 async def grade_session_plan(
     session_key: str | None,
+    *,
+    reuse_turn_grade: bool = False,
 ) -> tuple[dict[str, Any] | None, OandaQuote | None]:
     """Grade a live plan with one quote read off the event loop.
 
     No live row means no download. The quote is returned so a caller can show
     the same tick it graded with, instead of fetching again.
+
+    ``reuse_turn_grade`` shares that tick with another existence check in the
+    same turn (the gold-intent note and the kernel's live-plan block). A price
+    the operator will see still calls this without the flag and reads the
+    broker again. A finished quote is not stored for the market node or the gates.
     """
-    if not session_key or latest_live_recommendation(session_key) is None:
+    if not session_key:
         return None, None
+    row = latest_live_recommendation(session_key)
+    if row is None:
+        return None, None
+    row_id = str(row.get("id") or "")
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session() if reuse_turn_grade else None
+    memo = turn.live_grade if turn is not None else None
+    if (
+        memo is not None
+        and memo[0] == session_key
+        and memo[1] == row_id
+        and memo[3] is not None
+    ):
+        return memo[2], memo[3]
     from mokli.trading.market_context import resolve_live_quote
 
     quote, _source = await asyncio.to_thread(resolve_live_quote, DATA_SYMBOL)
     mid = quote.mid if quote is not None else None
     live = sync_session_live_plan(session_key, live_price=mid, price_known=True)
+    if (
+        turn is not None
+        and live is not None
+        and quote is not None
+        and str(live.get("id") or "") == row_id
+    ):
+        turn.live_grade = (session_key, row_id, live, quote)
     return live, quote
 
 

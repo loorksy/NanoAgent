@@ -196,7 +196,7 @@ async def run_trading_kernel(
     if key:
         from mokli.trading.recommendations.lifecycle import grade_session_plan
 
-        _graded, graded_quote = await grade_session_plan(key)
+        _graded, graded_quote = await grade_session_plan(key, reuse_turn_grade=True)
 
     if runtime.kill_switch:
         return AgentFinalResult(

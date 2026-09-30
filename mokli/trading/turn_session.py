@@ -52,6 +52,9 @@ class TurnSession:
     kernel_result: Any | None = None
     decision_wire: str | None = None
     live_plan_block: str | None = None
+    # session key, recommendation id, graded row, quote. A later price display
+    # does not read this; it fetches its own tick.
+    live_grade: tuple[str, str, dict[str, Any], Any] | None = None
     quote_display: dict[str, str | None] = field(default_factory=dict)
     candle_reuses: int = 0
     calendar_reuses: int = 0
