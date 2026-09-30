@@ -91,6 +91,25 @@ def test_truncate_text_to_tokens_uses_utf8_byte_budget_fallback(monkeypatch) -> 
     assert len(result.encode("utf-8")) <= 40
 
 
+def test_estimate_prompt_tokens_counts_image_data_urls() -> None:
+    url = "data:image/png;base64," + ("A" * 4000)
+    text_only = estimate_prompt_tokens(
+        [{"role": "user", "content": [{"type": "text", "text": "chart"}]}],
+    )
+    with_image = estimate_prompt_tokens(
+        [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "chart"},
+                    {"type": "image_url", "image_url": {"url": url}},
+                ],
+            }
+        ],
+    )
+    assert with_image > text_only + 500
+
+
 def test_estimate_prompt_tokens_caches_tools_encoding(monkeypatch) -> None:
     helpers._get_token_encoding.cache_clear()
     helpers._TOOLS_TOKEN_CACHE.clear()

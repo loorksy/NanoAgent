@@ -730,6 +730,10 @@ def _estimate_prompt_tokens_with_source(
                     text = part.get("text", "")
                     if isinstance(text, str) and text:
                         parts.append(text)
+                else:
+                    # Image and file blocks are sent to the provider. Skipping
+                    # them hid the bytes that dominate a vision round.
+                    parts.append(json.dumps(raw_part, ensure_ascii=False))
 
         tc = msg.get("tool_calls")
         if tc:
