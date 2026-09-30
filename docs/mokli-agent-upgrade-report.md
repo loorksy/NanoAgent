@@ -472,6 +472,6 @@
 | 5 | `tests/agent/test_runner_hooks.py` (spawn/فريق)، `tests/trading/test_i18n_catalog.py` (debate) |
 | 6–8 | `tests/agent/test_runner_hooks.py` (فشل/إلغاء/retry)، `tests/agent/test_task_cancel.py` |
 | 9 | `tests/agent/test_turn_efficiency.py` (طي النتائج والتفكير) |
-| 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_strategy_lab.py`، `fast_backtest` في `test_turn_efficiency` |
-| 12–13 | `tests/deploy/test_mokli_pipe.py`، `packages/mokli-sdk` / `mobile` activity tests |
+| 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_fast_backtest_tool.py`، مقاييس ATR في `tests/agent/test_turn_efficiency.py` |
+| 12–13 | `tests/deploy/test_mokli_pipe.py` (`test_activity_projection_matches_real_events`)، `packages/mokli-sdk/test/store.test.ts` (`activityLine`) |
 | 14 | سياسة التنفيذ في `tests/trading/` — لا اختبار حساب MT5 حي |
