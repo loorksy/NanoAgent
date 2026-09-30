@@ -129,7 +129,7 @@ def _replay_rules(
     spread_points: float,
     confirm_candles: list[Candle] | None = None,
 ) -> dict[str, Any]:
-    """Interpret a checked spec. Long break of the prior high, stop under the swing low."""
+    """Interpret a checked spec. Long break of the previous bar, stop under the swing low."""
     window = candles[-MAX_BARS:]
     if len(window) < MIN_BARS:
         return {
@@ -148,18 +148,20 @@ def _replay_rules(
             "strategy": str(rules.get("name") or "spec"),
         }
     lookback = int(rules.get("lookback") or 5)
+    entry_lookback = int(rules.get("entry_lookback") or 1)
     confirm_bars = int(rules.get("confirm_bars") or 4)
     rr = float(rules.get("target_rr") or 2.0)
     spread = spread_points * GOLD_POINT
     buffer = GOLD_POINT
     trades: list[dict[str, float]] = []
-    start = max(lookback, confirm_bars, 15)
+    start = max(lookback, entry_lookback, confirm_bars, 15)
     index = start
     while index < len(window) - 1:
         bar = window[index]
-        prior = window[index - lookback : index]
-        prior_high = max(item.high for item in prior)
-        swing_low = min(item.low for item in prior)
+        entry_prior = window[index - entry_lookback : index]
+        swing = window[index - lookback : index]
+        prior_high = max(item.high for item in entry_prior)
+        swing_low = min(item.low for item in swing)
         if bar.close <= prior_high:
             index += 1
             continue

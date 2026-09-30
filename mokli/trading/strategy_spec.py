@@ -49,6 +49,8 @@ def spec_from_description(text: str, *, name: str = "") -> dict[str, Any]:
         "confirm_timeframe": "4h" if confirm else "",
         "tools": ["replay"],
         "variables": {
+            # The break is the previous entry-timeframe bar. The stop looks further back.
+            "entry_lookback": 1,
             "lookback": 5,
             "confirm_bars": 4,
             "target_rr": 2.0,
@@ -90,6 +92,7 @@ def rules_from_spec(spec: dict[str, Any]) -> dict[str, Any]:
         "name": spec.get("name") or "spec",
         "entry": spec.get("entry"),
         "lookback": int(variables.get("lookback") or 5),
+        "entry_lookback": int(variables.get("entry_lookback") or 1),
         "confirm_bars": int(variables.get("confirm_bars") or 4),
         "target_rr": float(variables.get("target_rr") or 2.0),
         "risk_percent": spec.get("risk_percent"),

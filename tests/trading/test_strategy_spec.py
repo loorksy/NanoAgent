@@ -232,6 +232,43 @@ def _four_hour(direction: str, count: int = 20) -> list[Candle]:
     return rows
 
 
+def test_break_uses_the_previous_hour_not_the_five_bar_high() -> None:
+    """A close through the last hour's high is the entry, even below an older spike."""
+    from mokli.trading.strategy_spec import rules_from_spec
+
+    rows: list[Candle] = []
+    for index in range(40):
+        rows.append(
+            Candle(
+                time_ms=index * 3_600_000,
+                open=100.0,
+                high=101.0,
+                low=99.0,
+                close=100.5,
+            )
+        )
+    rows[33] = Candle(
+        time_ms=33 * 3_600_000,
+        open=100.0,
+        high=120.0,
+        low=99.0,
+        close=100.5,
+    )
+    rows[38] = Candle(
+        time_ms=38 * 3_600_000,
+        open=100.5,
+        high=106.0,
+        low=100.0,
+        close=105.0,
+    )
+    rules = rules_from_spec(spec_from_description(_EXAMPLE, name="gold_hour_break"))
+    assert rules["entry_lookback"] == 1
+    confirmed = replay(rows, rules=rules, confirm_candles=_four_hour("up"))
+    blocked = replay(rows, rules=rules, confirm_candles=_four_hour("down"))
+    assert confirmed["trades"] == 1
+    assert blocked["trades"] == 0
+
+
 def test_four_hour_decline_blocks_the_hour_break() -> None:
     from mokli.trading.strategy_spec import rules_from_spec
 
