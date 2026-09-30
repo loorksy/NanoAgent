@@ -25,6 +25,38 @@ from mokli_upgrade_diagnostic_extract import diagnostic_from_text  # noqa: E402
 from mokli_upgrade_section11_batch import _load_results, _row_index  # noqa: E402
 
 
+def _print_row_progress(
+    directory: Path,
+    results_map: dict[int, str],
+    required: set[int],
+) -> None:
+    jsonl_name: dict[int, str] = {}
+    has_diagnostic: dict[int, bool] = {}
+    for path in directory.glob("*.jsonl"):
+        idx = _row_index(path.stem)
+        if idx is None:
+            continue
+        jsonl_name[idx] = path.name
+        has_diagnostic[idx] = diagnostic_from_text(path.read_text(encoding="utf-8")) is not None
+
+    print(f"§11 progress (rows {min(required)}–{max(required)}):", file=sys.stderr)
+    for row_id in sorted(required):
+        issues: list[str] = []
+        if row_id not in jsonl_name:
+            issues.append("no JSONL")
+        elif not has_diagnostic.get(row_id):
+            issues.append("no diagnostic in JSONL")
+        text = results_map.get(row_id, "")
+        if not str(text).strip():
+            issues.append("empty «النتيجة»")
+        elif "dry-run" in str(text).lower():
+            issues.append("DRY-RUN placeholder")
+        if issues:
+            print(f"  {row_id:2d}: incomplete — {', '.join(issues)}", file=sys.stderr)
+        else:
+            print(f"  {row_id:2d}: ready", file=sys.stderr)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dir", type=Path, required=True, help="Directory of JSONL logs")
@@ -98,6 +130,7 @@ def main() -> int:
         )
 
     if errors:
+        _print_row_progress(directory, results_map, required)
         for msg in errors:
             print(f"ERROR {msg}", file=sys.stderr)
         return 1
