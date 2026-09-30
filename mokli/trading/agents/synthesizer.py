@@ -10,7 +10,7 @@ from typing import Any
 
 from mokli.agent.tools.context import current_request_context
 from mokli.trading.agents.apply_model_decision import apply_model_decision
-from mokli.trading.agents.evidence import build_evidence_snapshot
+from mokli.trading.agents.evidence import build_evidence_snapshot, evidence_json_for_model
 from mokli.trading.agents.synth_prompt import synth_system_prompt
 from mokli.trading.i18n import tr
 from mokli.trading.types import (
@@ -150,7 +150,7 @@ async def _call_model(
         {
             "type": "text",
             "text": "FROZEN EVIDENCE (do not invent prices outside evidenceLevels):\n"
-            + json.dumps(snapshot.payload, ensure_ascii=False, default=str)[:18000],
+            + evidence_json_for_model(snapshot.payload),
         }
     ]
     for frame in snapshots[:4]:
