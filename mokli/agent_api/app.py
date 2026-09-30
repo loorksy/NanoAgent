@@ -233,7 +233,7 @@ def create_app(
         bind_tool_registry(registry)
         bind_agent(agent)
 
-    bridge = RuntimeEventBridge(svc.hub)
+    bridge = RuntimeEventBridge(svc.hub, svc.results)
     if deps.subscribe_runtime_events is not None:
         bridge.attach(deps.subscribe_runtime_events)
     app[_BRIDGE_KEY] = bridge

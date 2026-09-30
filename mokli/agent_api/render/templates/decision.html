@@ -1,16 +1,49 @@
 {% extends "_layout.html" %}
 {% block body %}
+{% if p.summary %}<p>{{ p.summary }}</p>{% endif %}
 <p><span class="na-badge na-{{ p.verdict }}">{{ L('label.decision.' ~ p.verdict) }}</span>
-{% if p.confidence is not none %}<span class="na-muted">{{ L('label.result.decision.confidence') }} {{ p.confidence | pct }}</span>{% endif %}
+{% if p.confidence is number %}<span class="na-muted">{{ L('label.result.decision.confidence') }} {{ p.confidence | pct }}</span>{% endif %}
 {% if p.permission_level %}<span class="na-badge">{{ L('label.permission.' ~ p.permission_level) }}</span>{% endif %}</p>
 <dl class="na-grid">
   <div><dt>{{ L('label.result.decision.entry') }}</dt><dd>{{ p.entry | num }}</dd></div>
   <div><dt>{{ L('label.result.decision.stop') }}</dt><dd>{{ p.stop | num }}</dd></div>
   <div><dt>{{ L('label.result.decision.targets') }}</dt><dd>{% for t in p.targets or [] %}{{ t | num }}{% if not loop.last %} · {% endif %}{% endfor %}</dd></div>
+  {% if p.entry_zone %}
+  <div><dt>{{ L('label.result.decision.zone') }}</dt><dd>{{ p.entry_zone.low | num }} – {{ p.entry_zone.high | num }}</dd></div>
+  {% endif %}
+  {% if p.risk_pct is number %}
+  <div><dt>{{ L('label.result.decision.risk') }}</dt><dd>{{ p.risk_pct | num }}%</dd></div>
+  {% endif %}
+  {% if p.rr is number %}
+  <div><dt>{{ L('label.result.decision.rr') }}</dt><dd>{{ p.rr | num }}</dd></div>
+  {% elif p.net_rr is number %}
+  <div><dt>{{ L('label.result.decision.rr') }}</dt><dd>{{ p.net_rr | num }}</dd></div>
+  {% endif %}
+  {% if p.agreement %}
+  <div><dt>{{ L('label.result.decision.agreement') }}</dt><dd>{{ L('label.decision.' ~ p.agreement.stance) }} {{ p.agreement.agreeing }}/{{ p.agreement.votes }}</dd></div>
+  {% endif %}
+  {% if p.validity_candles is number %}
+  <div><dt>{{ L('label.result.decision.validity') }}</dt><dd>{{ p.validity_candles }}</dd></div>
+  {% endif %}
 </dl>
 {% if p.reasons %}
 <p class="na-muted">{{ L('label.result.decision.reasons') }}</p>
 <ul>{% for r in p.reasons %}<li>{{ L(r) }}</li>{% endfor %}</ul>
+{% endif %}
+{% if p.invalidation %}
+<p class="na-muted">{{ L('label.result.decision.invalidation') }}</p>
+<p>{{ p.invalidation }}</p>
+{% endif %}
+{% if p.alternative %}
+<p class="na-muted">{{ L('label.result.decision.alternative') }}</p>
+<p>{{ p.alternative }}</p>
+{% endif %}
+{% if p.blockers %}
+<p class="na-muted">{{ L('label.result.decision.blockers') }}</p>
+<ul>{% for b in p.blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+{% endif %}
+{% if p.data_sources %}
+<p class="na-muted">{{ L('label.result.decision.sources') }}: {% for s in p.data_sources %}{{ s }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
 {% endif %}
 {% if p.gates_passed %}
 <p class="na-muted">{{ L('label.result.decision.gates_passed') }}: {% for g in p.gates_passed %}<span class="na-badge">{{ L('label.gate.' ~ g) }}</span> {% endfor %}</p>

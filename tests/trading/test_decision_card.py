@@ -89,6 +89,60 @@ def test_missing_verdict_is_not_a_card() -> None:
     assert decision_card_payload(SimpleNamespace(decision=SimpleNamespace(decision="hold"))) is None
 
 
+def test_bridge_stores_the_card_and_renders_locale_labels(tmp_path) -> None:
+    from mokli.agent_api.db import Database
+    from mokli.agent_api.event_log import EventLog
+    from mokli.agent_api.hub import EventHub
+    from mokli.agent_api.render.html import render_result_html
+    from mokli.agent_api.results import ResultsStore
+    from mokli.agent_api.sessions import RuntimeEventBridge
+
+    result = _result()
+    result.decision.gate_chain.verdicts.append(
+        SimpleNamespace(id="G20", status="pass", reason="", evidence={"risk_pct": 0.01})
+    )
+    payload = decision_card_payload(result)
+    assert payload is not None
+    db = Database(tmp_path / "events.sqlite")
+    try:
+        hub = EventHub(EventLog(db))
+        store = ResultsStore(db)
+        bridge = RuntimeEventBridge(hub, store)
+        bridge.handle(DecisionCompletedEvent(session_key="agent:s_1", payload=payload))
+        logged = hub.log.after("agent:s_1", None)
+        assert len(logged) == 1
+        assert logged[0]["kind"] == "structured"
+        result_id = logged[0]["data"]["result_id"]
+        assert isinstance(result_id, str) and result_id.startswith("res_")
+        stored = store.get(result_id)
+        assert stored is not None
+        html = render_result_html(stored, "ar")
+        assert "label.result.decision" not in html
+        assert "القرار" in html
+        assert "شراء" in html
+        assert "الدخول" in html
+        assert "منطقة الدخول" in html
+        assert "المخاطرة" in html
+        assert "1.00%" in html
+        assert "توافق الوكلاء" in html
+        assert "شرط الإلغاء" in html
+        assert "market:XAUUSD:15m" in html
+        assert "spread wide" in html
+        bare = RuntimeEventBridge(hub)
+        bare.handle(DecisionCompletedEvent(session_key="agent:s_2", payload=payload))
+        replay = hub.log.after("agent:s_2", None)
+        assert replay[0]["data"]["result_id"] == ""
+        bridge.handle(
+            DecisionCompletedEvent(session_key="agent:s_3", payload={"verdict": "buy"})
+        )
+        rejected = hub.log.after("agent:s_3", None)
+        assert rejected[0]["kind"] == "structured"
+        assert rejected[0]["data"]["result_id"] == ""
+        assert store.list(session="agent:s_3") == []
+    finally:
+        db.close()
+
+
 def test_translate_decision_is_structured_not_a_tool() -> None:
     payload = decision_card_payload(_result())
     assert payload is not None

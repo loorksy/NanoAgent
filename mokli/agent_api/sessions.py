@@ -25,6 +25,7 @@ from mokli.agent_api.events import (
     GatewayEvent,
     JsonObject,
     Outcome,
+    Translated,
     delta_data,
     now_ms,
     session_id_for_key,
@@ -34,8 +35,9 @@ from mokli.agent_api.events import (
 )
 from mokli.agent_api.hub import EventHub
 from mokli.agent_api.ids import new_id
+from mokli.agent_api.results import ResultsStore
 from mokli.bus.runtime_events import TurnCompleted
-from mokli.events import AgentEvent
+from mokli.events import AgentEvent, DecisionCompletedEvent
 from mokli.providers.base import ToolCallRequest
 
 TIMELINE_KINDS: tuple[str, ...] = (
@@ -484,8 +486,9 @@ class SessionService:
 class RuntimeEventBridge:
     """Subscribe to the bus and mirror lifecycle events for every session into the hub."""
 
-    def __init__(self, hub: EventHub) -> None:
+    def __init__(self, hub: EventHub, results: ResultsStore | None = None) -> None:
         self._hub = hub
+        self._results = results
         self._unsubscribe: Callable[[], None] | None = None
 
     def attach(self, subscribe: Callable[[Callable[[AgentEvent], None]], Callable[[], None]]) -> None:
@@ -500,6 +503,8 @@ class RuntimeEventBridge:
         translated = translate_runtime_event(event)
         if translated is None:
             return
+        if isinstance(event, DecisionCompletedEvent):
+            self._remember_decision(translated)
         session = translated["session"]
         if translated["kind"] == "state":
             state_value = translated["data"].get("state")
@@ -519,6 +524,34 @@ class RuntimeEventBridge:
             return
         data: JsonObject = translated["data"]
         self._hub.publish(session, translated["kind"], data)
+
+    def _remember_decision(self, translated: Translated) -> None:
+        """Persist a real kernel decision so the client can render the card.
+
+        A payload that does not match the decision schema is still published.
+        The card id stays empty and the client keeps its text fallback.
+        """
+        if self._results is None:
+            return
+        data = translated["data"]
+        payload = data.get("payload")
+        if not isinstance(payload, dict):
+            return
+        session = translated["session"]
+        try:
+            record = self._results.put(
+                "decision",
+                cast(JsonObject, payload),
+                session=session,
+                run=self._hub.state.active_run(session),
+            )
+        except ApiError:
+            logger.warning("agent_api decision card was not stored")
+            return
+        except Exception:
+            logger.exception("agent_api decision card store failed")
+            return
+        data["result_id"] = record["id"]
 
 
 def is_turn_completed(event: AgentEvent) -> bool:
