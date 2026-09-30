@@ -117,8 +117,9 @@ class StateTracker:
             )
         self._pending_approvals.pop(session, None)
         if self.active_run(session) is not None:
+            # The run is still open. That is not a provider thinking signal.
             return self._set(
-                session, "working", phase="thinking", run=self.active_run(session),
+                session, "working", phase="processing", run=self.active_run(session),
             )
         return self._set(session, "completed", outcome=outcome, run=self.snapshot(session)["run"])
 
