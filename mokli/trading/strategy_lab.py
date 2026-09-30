@@ -59,6 +59,13 @@ def _same_rule_number(left: object, right: object) -> bool:
     return False
 
 
+def _paper_recorded(strategy_id: str) -> bool:
+    """The ledger row is the paper step. A stored run_state is not."""
+    from mokli.trading.paper import paper_actions_index
+
+    return paper_actions_index().get(strategy_id) == "paper"
+
+
 def _replay_matches_spec(record: dict[str, object]) -> bool:
     """A finished card with no spec stays usable. A spec must match its own replay."""
     spec = record.get("spec")
@@ -353,6 +360,13 @@ def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, objec
         return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
     if not _replay_succeeded(record) or not _replay_matches_spec(record):
         return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
+    if not _paper_recorded(strategy_id):
+        return {
+            "ok": False,
+            "executed": False,
+            "broker_order": False,
+            "reason": "paper_required",
+        }
     record["run_state"] = "approval_recorded"
     record["executed"] = False
     record["broker_order"] = False
