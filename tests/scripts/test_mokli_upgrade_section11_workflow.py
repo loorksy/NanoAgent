@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BATCH = ROOT / "scripts" / "mokli_upgrade_section11_batch.py"
 VALIDATE = ROOT / "scripts" / "mokli_upgrade_section11_validate.py"
 PATCH = ROOT / "scripts" / "mokli_upgrade_section11_patch_report.py"
+CLOSE = ROOT / "scripts" / "mokli_upgrade_section11_close.sh"
 
 
 def test_validate_then_batch_markdown(tmp_path: Path) -> None:
@@ -101,3 +102,27 @@ def test_validate_then_batch_markdown(tmp_path: Path) -> None:
     assert patch.returncode == 0, patch.stderr or patch.stdout
     assert "would update 2 row" in patch.stdout
     assert "PASS row 1" not in report.read_text(encoding="utf-8")
+
+    close = subprocess.run(
+        [
+            "bash",
+            str(CLOSE),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(report),
+            "--require-through",
+            "2",
+            "--apply",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert close.returncode == 0, close.stderr or close.stdout
+    body = report.read_text(encoding="utf-8")
+    assert "PASS row 1" in body and "PASS row 2" in body
+    assert "rounds=1" in body and "rounds=2" in body
