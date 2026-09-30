@@ -278,7 +278,7 @@
 
 ## 9. الاختبارات
 
-تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2313 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
+تشغيل مجمّع على `tests/agent` و`tests/trading` و`tests/agent_api` و`tests/deploy/test_mokli_pipe.py` و`tests/scripts/`: 2315 ناجية، 1 متخطاة، بلا فشل. أرشفة الجلسة الخاملة كانت تبني رسالة نظام بفهرس مهارات كامل لأن `current_message=None` يُفسَّر كطلب طويل؛ صار يُطبَّق `layers_for_archived_history` على آخر رسالة مستخدم في المقطع المؤرشف، فيطابق البادئة التي يبنيها `build_messages` لسؤال قصير في مساحة مشروع موحّدة. التزام `acf7992c` يواءم اختبارات طي نتيجة الأداة ورسالة الإلغاء `cancelled` واستثناءات i18n للأنماط العربية في مسار القرار والاستراتيجية وعرض الأدوار.
 
 تدخين محلي بلا مزود: بوابة على منفذ غير افتراضي وواجهة Vite على `5173`. الافتراضي في `mokli-ui/vite.config.ts` لـ `MOKLI_BACKEND_URL` صار Agent API على `8766` بدل `8080`، فـ `GET /api/v2/health` عبر الوكيل يعيد 200 مع `{"ok":true,...}`.
 
@@ -459,7 +459,7 @@
 
 **أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_operator_smoke.sh` (preflight + dry-run + `pytest tests/scripts/`)؛ `bash scripts/mokli_upgrade_section11_dry_run.sh` (صف 1 من fixture فقط)؛ `bash scripts/mokli_upgrade_preflight.sh`؛ `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q`.
 
-**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). عند وجود طي/مراجع غير صفرية يُلحق `ref_saved`, `fold_chars`, `static_resends`, `reused_tools`, `nested_rounds` (مفيد لصف 9). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`. مع `docs/section11-results.example.json` → `--results section11-results.json --markdown` يدمج عمود «النتيجة» و«الأرقام».
+**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). عند وجود طي/مراجع غير صفرية يُلحق `ref_saved`, `fold_chars`, `static_resends`, `reused_tools`, `nested_rounds` (مفيد لصف 9). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`. مع `docs/section11-results.example.json` → `--results section11-results.json --markdown` يدمج عمود «النتيجة» و«الأرقام». بعد `validate`: `python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --report docs/mokli-agent-upgrade-report.md` (استخدم `--dry-run` أولاً).
 
 ### 11.1 دليل اختبار وحدة (لا يملأ عمود «النتيجة»)
 
@@ -475,4 +475,4 @@
 | 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_fast_backtest_tool.py`، مقاييس ATR في `tests/agent/test_turn_efficiency.py` |
 | 12–13 | `tests/deploy/test_mokli_pipe.py` (`test_activity_projection_matches_real_events`)، `packages/mokli-sdk/test/store.test.ts` (`activityLine`) |
 | 14 | سياسة التنفيذ في `tests/trading/` — لا اختبار حساب MT5 حي |
-| (سكربتات §11) | `tests/scripts/` (extract/batch/validate/workflow/dry_run/operator_smoke)، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
+| (سكربتات §11) | `tests/scripts/` (extract/batch/validate/patch_report/workflow/dry_run/operator_smoke)، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
