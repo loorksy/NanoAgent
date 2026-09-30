@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 from typing import Any, cast
 
 from mokli.agent.tools.base import Tool
@@ -12,7 +11,6 @@ from mokli.agent.tools.schema import IntegerSchema, StringSchema, tool_parameter
 from mokli.trading.backtest.engine import replay
 from mokli.trading.tool_errors import model_json
 from mokli.trading.types import Candle
-from mokli.trading.warehouse import CandleWarehouse
 
 
 def _json(payload: Any) -> str:
@@ -21,23 +19,15 @@ def _json(payload: Any) -> str:
 
 def _load_market_bars(interval: str, limit: int) -> list[Candle]:
     """Bars for the ATR replay. The scorecard does not use a live quote."""
-    from mokli.trading.market_context import build_agent_market_context
+    from mokli.trading.strategy_lab import load_market_bars
 
-    market = build_agent_market_context("XAUUSD", interval, limit, include_quote=False)
-    if not market.sync.ok:
-        return []
-    return list(market.candles)
+    return load_market_bars(interval, limit)
 
 
 def _load_warehouse(interval: str, limit: int) -> list[Candle]:
-    path = Path.home() / ".mokli" / "warehouse.sqlite"
-    if not path.is_file():
-        return []
-    store = CandleWarehouse(path)
-    try:
-        return store.load("XAUUSD", interval, limit=limit)
-    finally:
-        store.close()
+    from mokli.trading.strategy_lab import load_warehouse_bars
+
+    return load_warehouse_bars(interval, limit)
 
 
 def _model_card(card: dict[str, Any]) -> dict[str, Any]:

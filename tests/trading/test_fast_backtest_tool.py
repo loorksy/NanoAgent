@@ -130,6 +130,66 @@ def test_missing_feed_does_not_invent_prices(monkeypatch) -> None:
     assert "pnl" not in payload
 
 
+def test_lab_loads_market_bars_when_the_request_has_none(monkeypatch) -> None:
+    from mokli.trading.strategy_lab import lab_replay
+
+    calls = {"loads": 0}
+
+    def _market(*_args: object, **kwargs: object) -> AgentMarketContext:
+        calls["loads"] += 1
+        assert kwargs.get("include_quote") is False
+        time.sleep(0.2)
+        candles = _rising(80)
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=candles,
+            last_close=candles[-1].close,
+            atr=1.0,
+            sync=MarketSync(ok=True),
+        )
+
+    def _warehouse(*_args: object, **_kwargs: object) -> list[Candle]:
+        raise AssertionError("warehouse")
+
+    monkeypatch.setattr("mokli.trading.market_context.build_agent_market_context", _market)
+    monkeypatch.setattr("mokli.trading.strategy_lab.load_warehouse_bars", _warehouse)
+    started = time.perf_counter()
+    payload = lab_replay("atr_breakout", [])
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    assert calls["loads"] == 1
+    assert payload["status"] == "proposed"
+    assert payload["executed"] is False
+    assert payload["broker_order"] is False
+    validation = payload["validation"]
+    assert isinstance(validation, dict)
+    assert "walk_forward" in validation
+    assert elapsed_ms < 350
+    print(f"LAB_REPLAY loads=1 elapsed_ms={elapsed_ms}")
+
+
+def test_lab_does_not_invent_prices_when_the_feed_is_down(monkeypatch) -> None:
+    from mokli.trading.strategy_lab import lab_replay
+
+    def _market(*_args: object, **_kwargs: object) -> AgentMarketContext:
+        return AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=0.0,
+            atr=0.0,
+            sync=MarketSync(ok=False, reason="OANDA not configured"),
+        )
+
+    monkeypatch.setattr("mokli.trading.market_context.build_agent_market_context", _market)
+    monkeypatch.setattr("mokli.trading.strategy_lab.load_warehouse_bars", lambda *_a, **_k: [])
+    payload = lab_replay("atr_breakout")
+    assert payload["reason_key"] == "trading.market_feed_unconfigured"
+    assert payload["trades"] == 0
+    assert payload["broker_order"] is False
+    assert "validation" not in payload
+
+
 def test_warehouse_is_used_only_when_the_feed_is_empty(monkeypatch) -> None:
     def _market(*_args: object, **_kwargs: object) -> AgentMarketContext:
         return AgentMarketContext(

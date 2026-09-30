@@ -72,6 +72,61 @@ def load_replay_candles(
         return entry_task.result(), confirm_task.result()
 
 
+def load_market_bars(interval: str = "15m", limit: int = 200) -> list[Candle]:
+    """One replay window. The scorecard does not read a live quote."""
+    from mokli.trading.market_context import build_agent_market_context
+
+    market = build_agent_market_context("XAUUSD", interval, limit, include_quote=False)
+    if not market.sync.ok:
+        return []
+    return list(market.candles)
+
+
+def load_warehouse_bars(interval: str = "15m", limit: int = 200) -> list[Candle]:
+    """Local store used only after the market feed returns nothing."""
+    from pathlib import Path
+
+    from mokli.trading.warehouse import CandleWarehouse
+
+    path = Path.home() / ".mokli" / "warehouse.sqlite"
+    if not path.is_file():
+        return []
+    store = CandleWarehouse(path)
+    try:
+        return store.load("XAUUSD", interval, limit=limit)
+    finally:
+        store.close()
+
+
+def candles_for_replay(
+    supplied: list[Candle] | None = None,
+    *,
+    interval: str = "15m",
+    limit: int = 200,
+) -> list[Candle]:
+    """Caller bars, otherwise the market feed, otherwise the local warehouse."""
+    if supplied:
+        return list(supplied)
+    loaded = load_market_bars(interval, limit)
+    if loaded:
+        return loaded
+    return load_warehouse_bars(interval, limit)
+
+
+def lab_replay(name: str, supplied: list[Candle] | None = None) -> dict[str, object]:
+    """ATR replay for the tasks lab. An empty feed does not invent prices."""
+    candles = candles_for_replay(supplied)
+    if not candles:
+        return {
+            "ok": False,
+            "reason_key": "trading.market_feed_unconfigured",
+            "trades": 0,
+            "executed": False,
+            "broker_order": False,
+        }
+    return propose_strategy(name or "atr_breakout", candles)
+
+
 def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
     """What the model reads. Candle rows, the R series, and the copied test blob stay out."""
     brief: dict[str, object] = {}
