@@ -163,7 +163,6 @@ def test_live_plan_grades_once_off_the_event_loop(tmp_path, monkeypatch) -> None
         raise AssertionError("direct OANDA quote")
 
     monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
-    monkeypatch.setattr("mokli.trading.recommendations.lifecycle.fetch_quote", _direct)
     monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
 
     request = RequestContext(

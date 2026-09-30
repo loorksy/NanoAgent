@@ -98,8 +98,19 @@ async def test_get_live_sync_clears_stale_waiting_row(tmp_path, monkeypatch) -> 
         symbol = "XAUUSD"
         tradeable = True
 
-    monkeypatch.setattr("mokli.agent.tools.trading_chart.fetch_quote", lambda *_a, **_k: Q())
-    monkeypatch.setattr("mokli.trading.recommendations.lifecycle.fetch_quote", lambda *_a, **_k: Q())
+    calls = {"resolve": 0, "direct": 0}
+
+    def _resolve(symbol: str = "XAUUSD", config: object | None = None):
+        del symbol, config
+        calls["resolve"] += 1
+        return Q(), "metaapi"
+
+    def _direct(*_args: object, **_kwargs: object) -> None:
+        calls["direct"] += 1
+        raise AssertionError("direct OANDA quote")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
     monkeypatch.setattr(
         "mokli.agent.tools.trading_chart.current_request_session_key",
         lambda: session_key,
@@ -114,3 +125,4 @@ async def test_get_live_sync_clears_stale_waiting_row(tmp_path, monkeypatch) -> 
     payload = json.loads(await tool.execute())
     assert payload.get("has_live_plan") is False
     assert latest_live_recommendation(session_key) is None
+    assert calls == {"resolve": 1, "direct": 0}

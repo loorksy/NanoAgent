@@ -28,7 +28,6 @@ from mokli.trading.recommendations.lifecycle import (
     close_plan_for_session,
     list_session_archive,
     prepare_for_new_recommendation,
-    sync_session_live_plan,
 )
 from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
@@ -352,7 +351,9 @@ class GetLiveRecommendationTool(Tool):
     async def execute(self, present_ui: bool = False, **kwargs: Any) -> str:
         locale = _operator_locale()
         session_key = current_request_session_key()
-        live = sync_session_live_plan(session_key)
+        from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+        live, quote = await grade_session_plan(session_key)
         if not live:
             return json.dumps(
                 {
@@ -362,24 +363,18 @@ class GetLiveRecommendationTool(Tool):
                 indent=2,
             )
 
-        live_price: float | None = None
-        quote_data: dict[str, Any] | None = None
-        config = load_trading_config()
-        try:
-            from mokli.trading.market_context import resolve_live_quote
-
-            quote, _source = resolve_live_quote(DATA_SYMBOL, config)
-            if quote is not None and quote.mid is not None:
-                live_price = float(quote.mid)
-                quote_data = {
-                    "symbol": quote.symbol,
-                    "bid": quote.bid,
-                    "ask": quote.ask,
-                    "mid": quote.mid,
-                    "tradeable": quote.tradeable,
-                }
-        except Exception:
-            pass
+        live_price = float(quote.mid) if quote is not None and quote.mid is not None else None
+        quote_data = (
+            {
+                "symbol": quote.symbol,
+                "bid": quote.bid,
+                "ask": quote.ask,
+                "mid": quote.mid,
+                "tradeable": quote.tradeable,
+            }
+            if quote is not None and live_price is not None
+            else None
+        )
 
         outcome_status = grade_outcome_status(live, live_price=live_price)
         can_issue_new = outcome_status in {"invalidated", "tp1", "expired", "superseded"}
@@ -484,7 +479,9 @@ class ManageTradingPlanTool(Tool):
         session_key = current_request_session_key()
         locale = _operator_locale()
         if action == "sync":
-            live = sync_session_live_plan(session_key)
+            from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+            live, _quote = await grade_session_plan(session_key)
             payload = {"ok": True, "has_live_plan": live is not None, "live_plan": live}
         elif action == "prepare_new":
             payload = prepare_for_new_recommendation(session_key)

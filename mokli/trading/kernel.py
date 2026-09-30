@@ -31,7 +31,7 @@ from mokli.trading.oanda import OandaQuote
 from mokli.trading.observability import log_gate_observability
 from mokli.trading.policy import GOLD_POINT
 from mokli.trading.policy_guard import PolicyViolation
-from mokli.trading.recommendations.lifecycle import close_plan_for_session, sync_session_live_plan
+from mokli.trading.recommendations.lifecycle import close_plan_for_session
 from mokli.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from mokli.trading.risk_state import get_risk_store
 from mokli.trading.runtime_state import get_runtime_store
@@ -193,7 +193,9 @@ async def run_trading_kernel(
     turn.interval = interval
 
     if key:
-        sync_session_live_plan(key)
+        from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+        await grade_session_plan(key)
 
     if runtime.kill_switch:
         return AgentFinalResult(

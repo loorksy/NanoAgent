@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Literal
 
 from mokli.trading.gold import DATA_SYMBOL
-from mokli.trading.oanda import fetch_quote
+from mokli.trading.oanda import OandaQuote
 from mokli.trading.recommendations.followup import (
     finalize_live_plan_if_closed,
     grade_outcome_status,
@@ -39,10 +40,30 @@ def resolve_live_price(live_price: float | None = None) -> float | None:
     if live_price is not None:
         return live_price
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        from mokli.trading.market_context import resolve_live_quote
+
+        quote, _source = resolve_live_quote(DATA_SYMBOL)
         return quote.mid if quote else None
     except Exception:
         return None
+
+
+async def grade_session_plan(
+    session_key: str | None,
+) -> tuple[dict[str, Any] | None, OandaQuote | None]:
+    """Grade a live plan with one quote read off the event loop.
+
+    No live row means no download. The quote is returned so a caller can show
+    the same tick it graded with, instead of fetching again.
+    """
+    if not session_key or latest_live_recommendation(session_key) is None:
+        return None, None
+    from mokli.trading.market_context import resolve_live_quote
+
+    quote, _source = await asyncio.to_thread(resolve_live_quote, DATA_SYMBOL)
+    mid = quote.mid if quote is not None else None
+    live = sync_session_live_plan(session_key, live_price=mid, price_known=True)
+    return live, quote
 
 
 def sync_session_live_plan(

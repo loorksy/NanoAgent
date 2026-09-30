@@ -16,7 +16,6 @@ from mokli.trading.kernel import run_trading_kernel
 from mokli.trading.locale import active_locale
 from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.gate_report import build_gate_report_result
-from mokli.trading.recommendations.lifecycle import sync_session_live_plan
 from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.tool_delivery import should_publish_trading_ui
 
@@ -208,6 +207,8 @@ class GetGateReportTool(Tool):
 
     async def execute(self, **kwargs: Any) -> str:
         locale = active_locale()
-        live = sync_session_live_plan(current_request_session_key())
+        from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+        live, _quote = await grade_session_plan(current_request_session_key())
         result = build_gate_report_result(live, operator_text="", locale=locale)
         return json.dumps(brief_for_model(result_to_wire(result), include_gates=True), indent=2)

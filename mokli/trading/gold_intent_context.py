@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from mokli.agent.tools.context import RequestContext
 from mokli.runtime_context import RuntimeContextBlock, wrap_runtime_context_lines
 from mokli.trading.decision_route import is_gold_decision_question
-from mokli.trading.gold import DATA_SYMBOL
-from mokli.trading.recommendations.lifecycle import sync_session_live_plan
-from mokli.trading.recommendations.store import latest_live_recommendation
+from mokli.trading.recommendations.lifecycle import grade_session_plan
 
 
 def _plain_price(value: object | None) -> str | None:
@@ -32,19 +28,7 @@ async def gold_intent_runtime_context(
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    pending = latest_live_recommendation(request.session_key) if request.session_key else None
-    if pending is None:
-        live = None
-    else:
-        from mokli.trading.market_context import resolve_live_quote
-
-        quote, _source = await asyncio.to_thread(resolve_live_quote, DATA_SYMBOL)
-        mid = quote.mid if quote is not None else None
-        live = sync_session_live_plan(
-            request.session_key,
-            live_price=mid,
-            price_known=True,
-        )
+    live, _quote = await grade_session_plan(request.session_key)
     if not live:
         if not is_gold_decision_question(text):
             return None
