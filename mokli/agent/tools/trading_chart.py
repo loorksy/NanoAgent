@@ -376,7 +376,11 @@ class GetLiveRecommendationTool(Tool):
             else None
         )
 
-        outcome_status = grade_outcome_status(live, live_price=live_price)
+        outcome_status = grade_outcome_status(
+            live,
+            live_price=live_price,
+            price_known=True,
+        )
         can_issue_new = outcome_status in {"invalidated", "tp1", "expired", "superseded"}
 
         def _plain(value: object | None) -> str | None:
@@ -484,7 +488,7 @@ class ManageTradingPlanTool(Tool):
             live, _quote = await grade_session_plan(session_key)
             payload = {"ok": True, "has_live_plan": live is not None, "live_plan": live}
         elif action == "prepare_new":
-            payload = prepare_for_new_recommendation(session_key)
+            payload = await asyncio.to_thread(prepare_for_new_recommendation, session_key)
             payload["ok"] = True
         elif action == "close_plan":
             if not session_key:
@@ -495,7 +499,8 @@ class ManageTradingPlanTool(Tool):
             from mokli.trading.recommendations.state_machine import classify_archive_category
 
             bucket = classify_archive_category(close_status, close_reason="operator_close")
-            payload = close_plan_for_session(
+            payload = await asyncio.to_thread(
+                close_plan_for_session,
                 session_key,
                 status=close_status,
                 reason="operator_close",
@@ -560,7 +565,6 @@ class AnalyzeGoldTool(Tool):
         **kwargs: Any,
     ) -> str:
         session_key = current_request_session_key()
-        prepare_for_new_recommendation(session_key)
         channel, chat_id = _request_route()
         locale = _operator_locale()
         publisher = TradingStagePublisher(

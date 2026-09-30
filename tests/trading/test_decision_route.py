@@ -184,12 +184,27 @@ def test_analyze_gold_swarm_without_preset_does_not_prefetch(monkeypatch) -> Non
     async def fake_prefetch(_interval, _turn):
         called.append("evidence")
 
+    prepared: list[str] = []
+
+    def _prepare(session_key: str | None, **_kwargs: object) -> dict[str, object]:
+        prepared.append(session_key or "")
+        return {}
+
     monkeypatch.setattr(kernel_tool, "_prefetch_synthesis_evidence", fake_prefetch)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.current_request_session_key",
+        lambda: "websocket:swarm",
+    )
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.prepare_for_new_recommendation",
+        _prepare,
+    )
     tool = AnalyzeGoldTool(bus=None, subagent_manager=None)
     with turn_session_scope(TurnSession()):
         raw = asyncio.run(tool.execute(team_mode="swarm"))
     assert "preset" in raw.lower()
     assert called == []
+    assert prepared == []
 
 
 def test_trading_team_overlaps_synthesis_evidence(monkeypatch) -> None:

@@ -192,10 +192,11 @@ async def run_trading_kernel(
     turn.session_key = key or turn.session_key
     turn.interval = interval
 
+    graded_quote = None
     if key:
         from mokli.trading.recommendations.lifecycle import grade_session_plan
 
-        await grade_session_plan(key)
+        _graded, graded_quote = await grade_session_plan(key)
 
     if runtime.kill_switch:
         return AgentFinalResult(
@@ -206,11 +207,14 @@ async def run_trading_kernel(
     if live and not reevaluate and not force_new_plan:
         raise LivePlanActive(live)
     if live and force_new_plan and key:
+        graded_mid = graded_quote.mid if graded_quote is not None else None
         closed = close_plan_for_session(
             key,
             status="superseded",
             reason="operator_force_new",
             category="modified",
+            live_price=graded_mid,
+            price_known=True,
         )
         if not closed.get("ok"):
             raise PlanCloseFailed()

@@ -82,11 +82,15 @@ def sync_session_live_plan(
     live = latest_live_recommendation(session_key)
     if not live:
         return None
-    price = live_price if price_known else resolve_live_price(live_price)
-    remaining = finalize_live_plan_if_closed(live, live_price=price)
+    if not price_known:
+        price = resolve_live_price(live_price)
+        price_known = True
+    else:
+        price = live_price
+    remaining = finalize_live_plan_if_closed(live, live_price=price, price_known=price_known)
     if remaining is None:
         return latest_live_recommendation(session_key)
-    graded = grade_outcome_status(remaining, live_price=price)
+    graded = grade_outcome_status(remaining, live_price=price, price_known=price_known)
     if graded != str(remaining.get("status") or ""):
         update_recommendation_status(str(remaining["id"]), graded)
         remaining = {**remaining, "status": graded}
@@ -106,8 +110,14 @@ def close_plan_for_session(
     status: str = "superseded",
     reason: str = "operator_request",
     category: ArchiveCategory | None = None,
+    live_price: float | None = None,
+    price_known: bool = False,
 ) -> dict[str, Any]:
-    live = sync_session_live_plan(session_key)
+    live = sync_session_live_plan(
+        session_key,
+        live_price=live_price,
+        price_known=price_known,
+    )
     if not live:
         return {"ok": False, "error": "no_live_recommendation"}
     rec_id = str(live["id"])
@@ -128,16 +138,24 @@ def prepare_for_new_recommendation(
     """Ensure a closed terminal plan does not block a new analysis."""
     if not session_key:
         return {"ok": True, "live_plan": None, "action": "none"}
-    live = sync_session_live_plan(session_key, live_price=live_price)
+    if latest_live_recommendation(session_key) is None:
+        return {"ok": True, "live_plan": None, "action": "already_clear"}
+    if live_price is None:
+        from mokli.trading.market_context import resolve_live_quote
+
+        quote, _source = resolve_live_quote(DATA_SYMBOL)
+        live_price = quote.mid if quote is not None else None
+    live = sync_session_live_plan(session_key, live_price=live_price, price_known=True)
     if live:
-        price = resolve_live_price(live_price)
-        graded = grade_outcome_status(live, live_price=price)
+        graded = grade_outcome_status(live, live_price=live_price, price_known=True)
         if force_close_invalidated and graded in CLOSED_OUTCOME_STATUSES:
             result = close_plan_for_session(
                 session_key,
                 status=graded,
                 reason=f"auto_close_{graded}",
                 category=classify_archive_category(graded),
+                live_price=live_price,
+                price_known=True,
             )
             result["action"] = "auto_archived"
             result["live_plan"] = None
