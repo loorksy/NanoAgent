@@ -117,6 +117,28 @@ def fetch_quote(symbol: str, **_kwargs: object) -> OandaQuote | None:
     return live_analysis_quote(symbol)
 
 
+def quote_for_gates(symbol: str) -> tuple[OandaQuote | None, Callable[[], float | None]]:
+    """One broker read for the risk snapshot and the first live-price check.
+
+    A later check, such as another reprice round, reads the broker again.
+    """
+    quote = fetch_quote(symbol)
+    reused = True
+
+    def fetch_live() -> float | None:
+        nonlocal quote, reused
+        if reused:
+            reused = False
+            current = quote
+        else:
+            current = fetch_quote(symbol)
+        if current is None or current.mid is None:
+            return None
+        return float(current.mid)
+
+    return quote, fetch_live
+
+
 def _quote_age(quote: object) -> float | None:
     """Broker clock age. A quote with no timestamp counts as just fetched."""
     if quote is None:
@@ -328,12 +350,8 @@ async def run_trading_kernel(
         activation_rule=rec.activation_rule,
     )
 
-    def fetch_live() -> float | None:
-        q = fetch_quote(symbol)
-        return q.mid if q else None
-
     now_ms = int(time.time() * 1000)
-    quote = fetch_quote(symbol)
+    quote, fetch_live = quote_for_gates(symbol)
     stored = get_risk_store().snapshot()
     spread = None
     if quote is not None and quote.bid is not None and quote.ask is not None:
