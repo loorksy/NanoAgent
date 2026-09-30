@@ -25,7 +25,8 @@
 ## أوامر تحقق سريعة (محلي)
 
 ```bash
-bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + tests/scripts (no LLM)
+bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
+bash scripts/mokli_upgrade_section11_init.sh # VPS: events/ + results + progress (no LLM)
 pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
 ```
 

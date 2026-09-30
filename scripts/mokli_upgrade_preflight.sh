@@ -91,6 +91,7 @@ if [[ -x "${ROOT}/.venv/bin/pytest" ]]; then
   echo "  tests/deploy/test_mokli_pipe.py tests/scripts/ -q"
 fi
 
+echo "INFO §11 scaffold (VPS, no LLM): bash scripts/mokli_upgrade_section11_init.sh"
 echo "INFO §11 toolchain dry-run (no LLM): bash scripts/mokli_upgrade_section11_dry_run.sh"
 echo "INFO after each live turn: SHOW_DIAGNOSTICS on pipe → save JSONL →"
 echo "  python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl"
