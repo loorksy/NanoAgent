@@ -24,7 +24,7 @@ export function StateBadge({ state, stream }: { state: StateData; stream?: Subsc
   let title = t(`state.${state.state}`);
   let detail = "";
   if (state.state === "working") {
-    const copy = workingBadgeCopy(state.phase, t, label);
+    const copy = workingBadgeCopy(state.phase, t, label, state.provider_thinking === true);
     title = copy.title;
     detail = copy.detail;
   } else if (state.state === "waiting" && state.waiting_for) {

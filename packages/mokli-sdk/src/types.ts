@@ -22,6 +22,8 @@ export interface StateData {
   phase?: string;
   waiting_for?: WaitingFor;
   outcome?: RunOutcome;
+  /** Set only when the provider sent a reasoning delta for this phase. */
+  provider_thinking?: boolean;
 }
 
 // ---------------------------------------------------------------------------

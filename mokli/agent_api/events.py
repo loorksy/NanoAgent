@@ -73,6 +73,7 @@ class StateData(TypedDict, total=False):
     phase: str
     waiting_for: WaitingFor
     outcome: Outcome
+    provider_thinking: bool
 
 
 AGENT_API_CHANNEL = "agent_api"
@@ -109,6 +110,7 @@ def state_data(
     phase: str | None = None,
     waiting_for: WaitingFor | None = None,
     outcome: Outcome | None = None,
+    provider_thinking: bool = False,
 ) -> JsonObject:
     data: JsonObject = {"state": state}
     if phase is not None:
@@ -117,6 +119,8 @@ def state_data(
         data["waiting_for"] = dict(waiting_for)
     if outcome is not None:
         data["outcome"] = outcome
+    if provider_thinking:
+        data["provider_thinking"] = True
     return data
 
 

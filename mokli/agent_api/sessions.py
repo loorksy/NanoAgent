@@ -209,6 +209,24 @@ class TurnHook(AgentHook):
         if tool_call.name == "mt5_propose_order":
             self._register_proposal(result)
 
+    async def emit_reasoning(self, reasoning_content: str | None) -> None:
+        # A non-empty provider delta is the only thinking signal. Later chunks
+        # of the same stretch do not publish again.
+        if not reasoning_content:
+            return
+        self._hub.working(
+            self._session,
+            "thinking",
+            run=self._run,
+            provider_thinking=True,
+        )
+
+    async def emit_reasoning_end(self) -> None:
+        current = self._hub.state.snapshot(self._session)
+        if current["phase"] != "thinking" or not current["provider_thinking"]:
+            return
+        self._hub.working(self._session, "processing", run=self._run)
+
     async def on_execute_tool_error(
         self,
         context: AgentHookContext,

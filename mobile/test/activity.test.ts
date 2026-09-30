@@ -20,6 +20,20 @@ describe("workingBadgeCopy", () => {
     expect(workingBadgeCopy(undefined, translate, lookup).title).toBe("Processing");
   });
 
+  test("thinking is shown only when the provider sent that signal", () => {
+    expect(workingBadgeCopy("thinking", translate, lookup, true)).toEqual({
+      title: "Working",
+      detail: "Thinking",
+    });
+    const arabic = workingBadgeCopy(
+      "thinking",
+      (key) => (key === "state.working" ? "يعمل" : "يفكّر"),
+      (key) => (key === "phase.thinking" ? "يفكّر" : key),
+      true,
+    );
+    expect(arabic).toEqual({ title: "يعمل", detail: "يفكّر" });
+  });
+
   test("a queued turn keeps the queue phase", () => {
     const copy = workingBadgeCopy("queued", translate, (key) =>
       key === "phase.queued" ? "Queued" : key,
