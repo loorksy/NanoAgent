@@ -269,6 +269,51 @@ def test_break_uses_the_previous_hour_not_the_five_bar_high() -> None:
     assert blocked["trades"] == 0
 
 
+def _four_hour_bounce() -> list[Candle]:
+    """A long decline, then one higher close. That close is still below four bars earlier."""
+    closes = [200, 190, 180, 170, 160, 150, 140, 130, 120, 125]
+    rows: list[Candle] = []
+    for index, close in enumerate(closes):
+        rows.append(
+            Candle(
+                time_ms=index * 4 * 3_600_000,
+                open=close - 1,
+                high=close + 0.5,
+                low=close - 2,
+                close=close,
+            )
+        )
+    return rows
+
+
+def test_one_higher_four_hour_close_is_not_a_trend() -> None:
+    from mokli.trading.strategy_spec import rules_from_spec
+
+    rows: list[Candle] = []
+    for index in range(40):
+        rows.append(
+            Candle(
+                time_ms=index * 3_600_000,
+                open=100.0,
+                high=101.0,
+                low=99.0,
+                close=100.5,
+            )
+        )
+    rows[38] = Candle(
+        time_ms=38 * 3_600_000,
+        open=100.5,
+        high=106.0,
+        low=100.0,
+        close=105.0,
+    )
+    rules = rules_from_spec(spec_from_description(_EXAMPLE, name="gold_hour_break"))
+    bounced = replay(rows, rules=rules, confirm_candles=_four_hour_bounce())
+    rising = replay(rows, rules=rules, confirm_candles=_four_hour("up"))
+    assert bounced["trades"] == 0
+    assert rising["trades"] == 1
+
+
 def test_four_hour_decline_blocks_the_hour_break() -> None:
     from mokli.trading.strategy_spec import rules_from_spec
 

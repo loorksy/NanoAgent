@@ -114,12 +114,17 @@ def replay(
     return card
 
 
-def _higher_timeframe_rising(confirm: list[Candle], at_ms: int) -> bool:
-    """The latest higher-timeframe bar at or before ``at_ms`` closed above the one before it."""
+def _higher_timeframe_rising(confirm: list[Candle], at_ms: int, *, bars: int) -> bool:
+    """The latest higher-timeframe close is above the close ``bars`` earlier.
+
+    One green bar after a decline is not a trend. ``bars`` is the spec's
+    confirmation span, read on the higher-timeframe series.
+    """
     prior = [bar for bar in confirm if bar.time_ms <= at_ms]
-    if len(prior) < 2:
+    span = max(1, bars)
+    if len(prior) <= span:
         return False
-    return prior[-1].close > prior[-2].close
+    return prior[-1].close > prior[-1 - span].close
 
 
 def _replay_rules(
@@ -166,7 +171,11 @@ def _replay_rules(
             index += 1
             continue
         if confirm_candles is not None:
-            if not _higher_timeframe_rising(confirm_candles, bar.time_ms):
+            if not _higher_timeframe_rising(
+                confirm_candles,
+                bar.time_ms,
+                bars=confirm_bars,
+            ):
                 index += 1
                 continue
         else:
