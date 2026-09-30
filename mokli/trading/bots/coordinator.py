@@ -6,7 +6,6 @@ import time
 from dataclasses import dataclass, field
 
 from mokli.trading.market_context import build_agent_market_context
-from mokli.trading.oanda import fetch_quote
 
 
 @dataclass
@@ -29,8 +28,7 @@ def run_bot_cycle(enabled_agents: list[str] | None = None) -> BotCycleResult:
     agents = enabled_agents or ["news_candle", "multi_strategy", "pattern_notes"]
     result = BotCycleResult()
     market = build_agent_market_context()
-    quote = fetch_quote("XAUUSD")
-    price = quote.mid if quote else market.last_close
+    price = market.quote_mid if market.quote_mid is not None else market.last_close
     now = int(time.time() * 1000)
 
     if "multi_strategy" in agents:
