@@ -36,6 +36,10 @@ class AutoCompact:
         self._summaries: dict[str, SessionSummary] = {}
         self._bind_events = bind_events
 
+    @property
+    def session_ttl_minutes(self) -> int:
+        return self._ttl
+
     def _is_expired(self, ts: datetime | str | None,
                     now: datetime | None = None) -> bool:
         if self._ttl <= 0 or not ts:
@@ -70,16 +74,18 @@ class AutoCompact:
         schedule_background: Callable[[Coroutine[Any, Any, None]], None],
         resolve_runtime: Callable[[Session], LLMRuntime],
         active_session_keys: Collection[str] = (),
+        clocks: list[tuple[str, str | None]] | None = None,
     ) -> None:
         """Schedule archival for idle sessions, skipping those with in-flight agent tasks."""
+        if self._ttl <= 0:
+            return
         now = datetime.now()
-        for info in self.sessions.list_sessions():
-            key = info.get("key", "")
+        rows = clocks if clocks is not None else self.sessions.list_session_clocks()
+        for key, updated_at in rows:
             if not key or self._is_internal_session(key) or key in self._archiving:
                 continue
             if key in active_session_keys:
                 continue
-            updated_at = info.get("updated_at")
             if self._is_expired(updated_at, now) and self._has_unarchived_messages(key):
                 session = self.sessions.get_or_create(key)
                 try:

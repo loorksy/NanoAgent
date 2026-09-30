@@ -1326,16 +1326,20 @@ class AgentLoop:
             logger.error("LLM returned error: {}", (result.final_content or "")[:200])
         return result
 
-    def _check_expired_sessions_if_due(self) -> None:
+    async def _check_expired_sessions_if_due(self) -> None:
         """Scan idle sessions no more often than the configured interval."""
         now = time.monotonic()
         if now < self._next_idle_compact_check_at:
             return
         self._next_idle_compact_check_at = now + self._idle_compact_check_interval_s
+        clocks = None
+        if self.auto_compact.session_ttl_minutes > 0:
+            clocks = await asyncio.to_thread(self.sessions.list_session_clocks)
         self.auto_compact.check_expired(
             self.schedule_background,
             self.runtime_for_session,
             active_session_keys=self._pending_queues.keys(),
+            clocks=clocks,
         )
 
     async def run(self) -> None:
@@ -1348,7 +1352,7 @@ class AgentLoop:
                 try:
                     msg = await asyncio.wait_for(self.bus.consume_inbound(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    self._check_expired_sessions_if_due()
+                    await self._check_expired_sessions_if_due()
                     continue
                 except asyncio.CancelledError:
                     # Preserve real task cancellation so shutdown can complete cleanly.

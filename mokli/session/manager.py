@@ -548,6 +548,8 @@ class SessionStore(Protocol):
 
     def list_sessions(self) -> list[SessionInfo]: ...
 
+    def list_session_clocks(self) -> list[tuple[str, str | None]]: ...
+
 
 class JsonlSessionStore:
     """JSONL implementation of session persistence."""
@@ -1540,6 +1542,31 @@ class JsonlSessionStore:
                 }
             return None
 
+    def list_session_clocks(self) -> list[tuple[str, str | None]]:
+        """Return ``(key, updated_at)`` from each session's metadata line.
+
+        The idle scan uses this instead of :meth:`list_sessions`, which also
+        reads a message preview from later lines.
+        """
+        with self._session_files_lock:
+            clocks: list[tuple[str, str | None]] = []
+            for path in self.sessions_dir.glob("*.jsonl"):
+                storage_key = self.session_key_from_path(path)
+                if storage_key is None:
+                    continue
+                try:
+                    meta = self._read_metadata_unlocked(storage_key)
+                except FileNotFoundError:
+                    continue
+                if meta is None:
+                    continue
+                updated_at = meta.get("updated_at")
+                clocks.append((
+                    meta["key"],
+                    updated_at if isinstance(updated_at, str) else None,
+                ))
+            return clocks
+
     def list_sessions(self) -> list[SessionInfo]:
         with self._session_files_lock:
             return self._list_sessions_unlocked()
@@ -1986,3 +2013,7 @@ class SessionManager:
 
     def list_sessions(self) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._store.list_sessions())
+
+    def list_session_clocks(self) -> list[tuple[str, str | None]]:
+        """Return ``(key, updated_at)`` without reading message lines."""
+        return self._store.list_session_clocks()
