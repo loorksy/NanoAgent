@@ -16,14 +16,30 @@ if [[ ! -f "$RESULTS" ]]; then
 fi
 
 echo "== §11 status (events=$EVENTS require-through=$REQUIRE) =="
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" || true
+VALIDATE_OK=0
+if "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
+  VALIDATE_OK=1
+fi
 
+QUOTA_OK=0
 if [[ -n "${MOKLI_SSH_HOST:-}" ]] || [[ -n "${VPS:-}" ]]; then
-  echo "== VPS LLM quota probe (optional) =="
+  echo "== VPS LLM quota probe =="
   if bash "${ROOT}/scripts/vps_section11_quota_probe.sh" "quota-status-$(date +%s).jsonl"; then
+    QUOTA_OK=1
     echo "LLM: ready for live §11 turns"
   else
     echo "LLM: blocked (see operator handoff — credits or preset)"
   fi
+else
+  echo "== VPS LLM quota probe skipped (set MOKLI_SSH_HOST) =="
+  QUOTA_OK=1
 fi
+
+if [[ "$VALIDATE_OK" -eq 1 && "$QUOTA_OK" -eq 1 ]]; then
+  echo "OK §11 status: artifacts and LLM probe ready for require-through=$REQUIRE"
+  exit 0
+fi
+
+echo "INCOMPLETE §11 status: validate_ok=$VALIDATE_OK quota_ok=$QUOTA_OK" >&2
+exit 1
