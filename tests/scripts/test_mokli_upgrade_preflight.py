@@ -27,3 +27,4 @@ def test_preflight_script_runs() -> None:
     assert "mokli_upgrade_section11_close" in proc.stdout
     assert "mokli_upgrade_section11_timer_wake" in proc.stdout
     assert "mokli_upgrade_section11_operator_unblock" in proc.stdout
+    assert "mokli_upgrade_section11_cloud_status" in proc.stdout

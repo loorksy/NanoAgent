@@ -111,7 +111,9 @@ bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not produ
 bash scripts/mokli_upgrade_section11_validate.sh --dir ./section11-events --results section11-results.json
 bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps # before/at reset: wait + probe + partial reruns
 bash scripts/mokli_upgrade_section11_after_reset_wake.sh # after reset: probe + partial reruns (no long sleep)
-bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 artifacts (no live LLM)
+bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 @13 (+ partial10 gate when blocked)
+bash scripts/mokli_upgrade_section11_cloud_status.sh # quota snapshot + blockers @13 (+ partial10_ok/gate)
+bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + production_gate @10 on partial pack
 bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; after reset: --wait-quota then full chain @13
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
