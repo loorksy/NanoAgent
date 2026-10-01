@@ -156,12 +156,10 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 ## قبل تحديث §11 في التقرير
 
 ```bash
-python scripts/mokli_upgrade_section11_validate.py \
+bash scripts/mokli_upgrade_section11_validate.sh \
   --dir ./section11-events --results section11-results.json --require-through 13
-python scripts/mokli_upgrade_section11_patch_report.py \
-  --dir ./section11-events --results section11-results.json \
-  --report docs/mokli-agent-upgrade-report.md --dry-run
-# أو: bash scripts/mokli_upgrade_section11_close.sh (validate+batch+dry-run) ثم --apply
+# أو دفعة واحدة (validate+batch+dry-run): bash scripts/mokli_upgrade_section11_close.sh
+# ثم: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
 ```
 
 ## بعد `section11_close.sh --apply`
