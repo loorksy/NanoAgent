@@ -6,7 +6,7 @@ Checks (does not call LLM or broker):
   - each required row has at least one scenario JSONL with a diagnostic (``NN-*.jsonl``)
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
   - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
-  - rows 1–13: ``01-no-tools-after-p0.jsonl`` required (skipped with ``--allow-partial`` preview)
+  - rows 1–13: ``01-no-tools-after-p0.jsonl`` required with ``input_tokens>0`` at @13
   - rows 3/5/8/9/10 at @13: picked JSONL must meet row quality (see closure checks)
 
   python scripts/mokli_upgrade_section11_validate.py \\
@@ -341,6 +341,23 @@ def main() -> int:
                     f"Row 10 diagnostic input_tokens=0 ({name10}) — "
                     "rerun bash scripts/vps_section11_row10_backtest.sh before closure"
                 )
+        for row_id in (11, 12, 13):
+            picked = pick_row_diagnostic(directory, row_id)
+            if picked is None:
+                continue
+            name, diag = picked
+            if _input_tokens(diag) == 0:
+                errors.append(
+                    f"Row {row_id} diagnostic input_tokens=0 ({name}) — "
+                    "bash scripts/mokli_upgrade_section11_remaining_rows.sh"
+                )
+            if row_id == 12:
+                body12 = (directory / name).read_text(encoding="utf-8")
+                if "structured" not in body12 and "decision" not in body12:
+                    errors.append(
+                        f"Row 12 JSONL missing structured/decision events ({name}) — "
+                        "Mokli UI pipe + SHOW_DIAGNOSTICS (12-desktop-ui.jsonl)"
+                    )
         partial_rows = [
             row_id
             for row_id in sorted(required)

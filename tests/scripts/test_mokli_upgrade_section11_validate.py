@@ -303,6 +303,40 @@ def test_validate_rejects_row9_quota_tail_when_require_through_13(tmp_path: Path
     assert "Row 9 session blocked or quota tail" in proc.stderr
 
 
+def test_validate_rejects_row12_without_structured_when_require_through_13(tmp_path: Path) -> None:
+    results = _write_row13_closure_fixture(
+        tmp_path,
+        row10_body=(
+            json.dumps(
+                {"kind": "diagnostic", "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 1}}
+            )
+            + "\n"
+        ),
+    )
+    (tmp_path / "12-desktop-ui.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100, "tool_calls": 0}})
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Row 12 JSONL missing structured/decision" in proc.stderr
+
+
 def test_validate_rejects_row10_market_feed_when_require_through_13(tmp_path: Path) -> None:
     body = (
         '{"kind":"tool","data":{"name":"fast_backtest","summary":"market_feed_unconfigured"}}\n'
