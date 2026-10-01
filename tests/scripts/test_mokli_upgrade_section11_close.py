@@ -48,6 +48,68 @@ def test_section11_close_dry_run(tmp_path: Path) -> None:
     assert "PASS" not in report.read_text(encoding="utf-8")
 
 
+def test_section11_close_rejects_apply_with_allow_partial(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-greeting.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({1: "PARTIAL — x"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+            "--allow-partial",
+            "--apply",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "allow-partial" in proc.stderr.lower() or "allow-partial" in proc.stdout.lower()
+
+
+def test_section11_close_dry_run_allows_partial_when_flag_set(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    for row_id in (1, 2):
+        (events / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({1: "PASS", 2: "PARTIAL — y"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "2",
+            "--allow-partial",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "batch markdown" in proc.stdout.lower() or "|" in proc.stdout
+
+
 def test_section11_close_apply_writes_report(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

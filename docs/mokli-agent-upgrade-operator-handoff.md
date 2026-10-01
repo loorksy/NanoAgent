@@ -10,7 +10,7 @@
 6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh` (يكتب أيضاً `section11-events/p0-interim-summary.txt`)
 7. بوابة: `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0)
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
-   - إغلاق 1–13: validate يرفض PARTIAL تلقائياً عند `--require-through 13` (استخدم `--allow-partial` للمعاينة فقط)
+   - إغلاق 1–13: validate يرفض PARTIAL تلقائياً عند `--require-through 13` (معاينة جدول: `section11_close.sh --allow-partial` بدون `--apply`)
    - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10` (بدون `--apply`)
 8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL)
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`

@@ -14,9 +14,10 @@ RESULTS="./section11-results.json"
 REPORT="${ROOT}/docs/mokli-agent-upgrade-report.md"
 REQUIRE=13
 APPLY=0
+ALLOW_PARTIAL=0
 
 usage() {
-  echo "Usage: $0 [--dir EVENTS] [--results JSON] [--report PATH] [--require-through N] [--apply]" >&2
+  echo "Usage: $0 [--dir EVENTS] [--results JSON] [--report PATH] [--require-through N] [--allow-partial] [--apply]" >&2
   exit 2
 }
 
@@ -26,15 +27,25 @@ while [[ $# -gt 0 ]]; do
     --results) RESULTS="$2"; shift 2 ;;
     --report) REPORT="$2"; shift 2 ;;
     --require-through) REQUIRE="$2"; shift 2 ;;
+    --allow-partial) ALLOW_PARTIAL=1; shift ;;
     --apply) APPLY=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
 
+if [[ "$APPLY" -eq 1 && "$ALLOW_PARTIAL" -eq 1 ]]; then
+  echo "ERROR: --apply cannot be used with --allow-partial (fix PARTIAL rows first)" >&2
+  exit 1
+fi
+
+VALIDATE_ARGS=(--dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE")
+if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
+  VALIDATE_ARGS+=(--allow-partial)
+fi
+
 echo "== validate rows 1..${REQUIRE} =="
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"
+"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" "${VALIDATE_ARGS[@]}"
 
 echo "== batch markdown =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_batch.py" \
