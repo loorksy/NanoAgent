@@ -22,3 +22,10 @@ def test_timer_wake_dry_run_exits_zero_without_live_probe() -> None:
     assert "DRY-RUN" in combined
     assert "TIMER_WAKE_EXIT=0 (dry-run)" in combined
     assert proc.returncode == 0
+
+
+def test_timer_wake_supports_wait_quota_flag() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--wait-quota" in text
+    assert "wait_quota_reset.sh" in text and "--wait" in text
+    assert "vps_section11_quota_probe.sh" in text

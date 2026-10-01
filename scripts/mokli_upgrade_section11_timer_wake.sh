@@ -6,16 +6,19 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 DRY_RUN=0
+WAIT_QUOTA=0
 
 usage() {
-  echo "Usage: $0 [--dry-run]" >&2
-  echo "  --dry-run  completion_status only; no live probe or close" >&2
+  echo "Usage: $0 [--dry-run] [--wait-quota]" >&2
+  echo "  --dry-run     completion_status only; no live probe or close" >&2
+  echo "  --wait-quota  if probe blocked, sleep until X-RateLimit-Reset+buffer then continue" >&2
   exit 2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
+    --wait-quota) WAIT_QUOTA=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
@@ -36,6 +39,14 @@ NOTE
 fi
 
 set -e
+
+if [[ "$WAIT_QUOTA" -eq 1 ]]; then
+  echo ""
+  echo "== optional wait for OpenRouter reset =="
+  if ! bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
+    bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" --wait
+  fi
+fi
 
 echo ""
 echo "== after OpenRouter reset (live probe + partial reruns) =="
