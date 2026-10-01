@@ -35,8 +35,8 @@ pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py
 
 ## Cloud Agent (هذا الـ VM)
 
-بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. إذا `cloud_agent_vps_secrets_check.sh` يفشل رغم `CLOUD_AGENT_INJECTED_SECRET_NAMES`، الأسرار مسجّلة ولم تُحقَن — أعد تشغيل الوكيل بعد حفظ `VPS`/`VPSPASS`. المزيد من pytest **لا يغلق** الهدف؛ الخطوة التالية على VPS فقط.
+بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. SSH بمفتاح (`MOKLI_SSH_HOST`) يكفي لـ `sync_from_vps` و`quota_probe` و`blockers --skip-vps`، لكن **`row1_after_p0` يتوقف عند quota** (`probe_exit=1`، 2026-10-01). المزيد من pytest **لا يغلق** الهدف.
 
-## بعد VPS
+## بعد VPS (المشغّل)
 
-اتبع `docs/mokli-agent-upgrade-operator-handoff.md`، املأ `section11-results.json`، ثم `bash scripts/mokli_upgrade_section11_close.sh` و`--apply` لتحديث §11 في التقرير، ثم `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q` (أو PR).
+اتبع **قائمة الإغلاق (9 خطوات)** في `docs/mokli-agent-upgrade-operator-handoff.md`: credits + OANDA → `rerun_partials` → 11–13 → `sync_from_vps` (`p0-interim-summary.txt`) → `blockers` exit 0 → `section11_close.sh --apply --require-through 13` → gate pytest.
