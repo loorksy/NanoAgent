@@ -6,6 +6,8 @@ import json
 
 from mokli.trading.agents.evidence import evidence_json_for_model
 from mokli.trading.agents.macro_drivers import MacroVerdict, format_team_briefing
+from mokli.agent.tools import mt5_execution as mt5_exec_tools
+from mokli.agent.tools import mt5_market as mt5_market_tools
 from mokli.trading.capture_service import chart_capture_tool_result
 from mokli.trading.tool_errors import model_json
 
@@ -47,3 +49,10 @@ def test_chart_capture_brief_stays_compact() -> None:
     text = chart_capture_tool_result({"ok": True, "interval": "15m", "chartSnapshots": []})
     assert _is_compact_json(text)
     assert "data:image" not in text
+
+
+def test_mt5_tool_json_helpers_stay_compact() -> None:
+    market = mt5_market_tools._json({"ok": True, "symbol": "XAUUSD", "bid": 2301.2})
+    execution = mt5_exec_tools._json({"ok": False, "reason_key": "trading.policy_violation"})
+    assert _is_compact_json(market)
+    assert _is_compact_json(execution)
