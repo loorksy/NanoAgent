@@ -55,6 +55,14 @@ if [[ -d "$ROOT/section11-events" && -f "$ROOT/section11-results-partial.json" ]
     echo "WARN §11 rows 1–10 validation failed — sync_from_vps or fix artifacts" >&2
     fail=1
   fi
+  echo "== §11 production gate @10 (skip quota/OANDA/pull) =="
+  if bash scripts/mokli_upgrade_section11_production_gate.sh \
+    --skip-quota --skip-oanda --skip-pull --require-through 10; then
+    echo "OK production_gate @10 (artifact pack; not live closure @13)"
+  else
+    echo "WARN production_gate @10 failed — sync_from_vps or fix artifacts" >&2
+    fail=1
+  fi
   echo "== §11 timer wake dry-run (cached quota + closure chain preview @13) =="
   bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run \
     || echo "NOTE timer_wake @13 blocked until live rows + after-p0 (expected)" >&2

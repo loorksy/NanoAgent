@@ -37,3 +37,4 @@ def test_operator_smoke_script() -> None:
         combined = proc.stdout + proc.stderr
         assert "partial pack rows 1–10" in combined or "rows 1–10" in combined
         assert "through row 10" in combined or "require-through 10" in combined
+        assert "production gate @10" in combined or "production_gate @10" in combined
