@@ -29,6 +29,7 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
         assert "partial10_gate=1" in combined
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "PARTIAL" in combined
+        assert "closure_errors=9" in combined
     if "git_rev=" in combined:
         assert "agent_api_health=" in combined
     assert proc.returncode == 1

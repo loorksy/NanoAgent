@@ -44,9 +44,9 @@ bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oand
 bash scripts/mokli_upgrade_section11_blockers.sh  # quota+OANDA + validate 13 (no pull); exit 0 = ready to close
 bash scripts/mokli_upgrade_section11_status.sh   # exit 0 عند validate+quota OK (require-through افتراضي 13)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota --require-through 10  # صفوف 1–10 فقط
-bash scripts/mokli_upgrade_section11_cloud_status.sh   # افتراضي @13؛ يطبع partial10_ok/partial10_gate عند الحجب
+bash scripts/mokli_upgrade_section11_cloud_status.sh   # افتراضي @13؛ partial10_ok/partial10_gate + closure_errors=N عند الحجب
 bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10  # exit 0 بعد sync إن كانت JSONL 1–10 سليمة (quota قد يبقى BLOCKED)
-bash scripts/mokli_upgrade_section11_completion_status.sh   # @13 + partial10 gate عند الحجب (no live LLM)
+bash scripts/mokli_upgrade_section11_completion_status.sh   # @13 + partial10 gate + closure_errors (no live LLM)
 bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe   # env + blockers @13 + partial10 (no LLM probe)
 bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بلا LLM (قبل محادثة صف 12)
 # أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل

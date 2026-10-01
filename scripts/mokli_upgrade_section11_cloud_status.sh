@@ -43,9 +43,19 @@ fi
 echo ""
 echo "== Local §11 artifacts (--skip-vps) =="
 BLOCK_OK=0
-if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
-  --skip-vps --require-through "$REQUIRE"; then
+CLOSURE_ERRORS=""
+set +e
+BLOCK_COMBINED=$(
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
+    --skip-vps --require-through "$REQUIRE" 2>&1
+)
+BLOCK_EC=$?
+set -e
+printf '%s\n' "$BLOCK_COMBINED"
+if [[ "$BLOCK_EC" -eq 0 ]]; then
   BLOCK_OK=1
+else
+  CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 fi
 
 PARTIAL10_OK=0
@@ -66,7 +76,7 @@ if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
 fi
 
 echo ""
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE"
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0}"
 if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi

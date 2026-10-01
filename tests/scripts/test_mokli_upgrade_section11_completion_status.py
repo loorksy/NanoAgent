@@ -32,6 +32,7 @@ def test_completion_status_partial_pack_through_10() -> None:
     combined = proc.stdout + proc.stderr
     assert "completion_status:" in combined
     assert "artifact_ok=1" in combined
+    assert "closure_errors=0" in combined
     assert "partial10_ok=0" in combined or "partial10_gate=0" in combined
     assert "SECTION11_COMPLETION_EXIT=0" in combined
     assert proc.returncode == 0
@@ -55,6 +56,7 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     assert "partial pack (require-through 10" in combined
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
+    assert "closure_errors=9" in combined
     assert proc.returncode == 1
 
 

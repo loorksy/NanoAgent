@@ -48,9 +48,19 @@ bash "$ROOT/scripts/vps_section11_env_check.sh" 2>&1 \
 echo ""
 echo "== §11 artifacts (require-through $REQUIRE; --skip-vps) =="
 ARTIFACT_OK=0
-if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
-  --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS"; then
+CLOSURE_ERRORS=""
+set +e
+BLOCK_COMBINED=$(
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
+    --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS" 2>&1
+)
+BLOCK_EC=$?
+set -e
+printf '%s\n' "$BLOCK_COMBINED"
+if [[ "$BLOCK_EC" -eq 0 ]]; then
   ARTIFACT_OK=1
+else
+  CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 fi
 
 PARTIAL10_OK=0
@@ -84,7 +94,7 @@ else
 fi
 
 echo ""
-echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE"
+echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0}"
 if [[ "$PROD_OK" -eq 1 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0

@@ -51,12 +51,19 @@ bash "$ROOT/scripts/vps_section11_env_check.sh" || true
 
 echo ""
 echo "== §11 blockers (require-through 13) =="
-if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh"; then
+CLOSURE_ERRORS=""
+set +e
+BLOCK_COMBINED=$(bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" 2>&1)
+BLOCK_EC=$?
+set -e
+printf '%s\n' "$BLOCK_COMBINED"
+if [[ "$BLOCK_EC" -eq 0 ]]; then
   echo ""
   echo "READY: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13"
   echo "OPERATOR_UNBLOCK_EXIT=0"
   exit 0
 fi
+CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
@@ -72,7 +79,7 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
     PARTIAL10_GATE=1
   fi
 fi
-echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE"
+echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE closure_errors=${CLOSURE_ERRORS:-unknown}"
 
 echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"
