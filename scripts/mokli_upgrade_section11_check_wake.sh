@@ -22,7 +22,16 @@ echo ""
 echo "== wake log: $LOG =="
 if [[ -f "$LOG" ]]; then
   echo "WAKE_LOG_BYTES=$(wc -c < "$LOG")"
-  tail -12 "$LOG"
+  markers=$(
+    grep -E \
+      '^(Started timer_wake|Sleeping |PULL_OK |QUOTA:|STILL_BLOCKED|after_reset_wake|TIMER_WAKE_EXIT|TIMER_WAKE_FINAL_EXIT|close_summary:)' \
+      "$LOG" 2>/dev/null | tail -20
+  )
+  if [[ -n "$markers" ]]; then
+    printf '%s\n' "$markers"
+  else
+    tail -8 "$LOG"
+  fi
 else
   echo "WAKE_LOG=missing"
 fi
