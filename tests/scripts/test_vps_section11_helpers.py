@@ -14,6 +14,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "section11_long_session_core.sh",
         "section11_quota_hints.sh",
         "section11_quota_reset_hint.py",
+        "section11_probe_cache_preserve.py",
         "mokli_upgrade_section11_status.sh",
         "vps_section11_agent_api_turn.sh",
         "vps_section11_long_session.sh",
