@@ -54,7 +54,8 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     assert proc.returncode == 1
 
 
-def test_completion_status_script_wires_timer_wake_when_blocked() -> None:
+def test_completion_status_script_wires_blockers_and_quota_snapshot() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
-    assert "timer_wake.sh --wait-quota" in text
+    assert "mokli_upgrade_section11_blockers.sh" in text
+    assert "wait_quota_reset.sh" in text
     assert "quota_status.sh" in text and "--local-dir" in text

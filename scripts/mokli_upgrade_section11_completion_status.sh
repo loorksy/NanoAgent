@@ -76,8 +76,5 @@ if [[ "$ARTIFACT_OK" -eq 1 && "$REQUIRE" -le 10 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
 fi
-if ! bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$EVENTS" >/dev/null 2>&1; then
-  echo "HINT: when quota returns — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
-fi
 echo "SECTION11_COMPLETION_EXIT=1" >&2
 exit 1
