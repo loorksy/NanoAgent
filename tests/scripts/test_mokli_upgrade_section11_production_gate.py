@@ -19,3 +19,4 @@ def test_production_gate_help() -> None:
     )
     assert proc.returncode == 2
     assert "Usage" in proc.stderr
+    assert "--pull-vps" in proc.stderr
