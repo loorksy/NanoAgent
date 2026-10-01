@@ -11,6 +11,28 @@ ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "scripts" / "mokli_upgrade_section11_patch_report.py"
 
 
+def test_patch_p0_live_delta_replaces_interim_paragraph(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_live_delta_paragraph
+
+    events = tmp_path / "events"
+    events.mkdir()
+    diag_base = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 10000}}
+    diag_after = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 5000}}
+    (events / "01-no-tools.jsonl").write_text(json.dumps(diag_base) + "\n", encoding="utf-8")
+    (events / "01-no-tools-after-p0.jsonl").write_text(json.dumps(diag_after) + "\n", encoding="utf-8")
+    report = (
+        "**P0 مكونات (VPS — quota-probe):** interim stale text.\n"
+        "**Other:** keep\n"
+    )
+    updated, changed = patch_p0_live_delta_paragraph(report, events)
+    assert changed == 1
+    assert "interim stale" not in updated
+    assert "delta_in=-5000" in updated
+    assert "in=5000" in updated
+    assert "**Other:** keep" in updated
+
+
 def test_patch_p0_baseline_table_updates_section_21() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_p0_baseline_table
