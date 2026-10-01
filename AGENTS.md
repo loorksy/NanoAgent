@@ -100,7 +100,7 @@ bash scripts/mokli_upgrade_section11_cloud_status.sh  # VPS quota cache + env sn
 bash scripts/vps_section11_quota_status.sh  # read last quota-probe JSONL (no LLM call)
 bash scripts/mokli_upgrade_section11_init.sh  # VPS: scaffold events/ + results + progress (no LLM)
 bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
-/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
+bash scripts/mokli_upgrade_aggregate_pytest.sh
 python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
 bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
@@ -119,5 +119,5 @@ bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 on
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2401 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+Aggregate pytest target: 2402 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
 - Tests mirror the `mokli/` package structure.

@@ -48,6 +48,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_pull_main.sh",
         "vps_section11_fix_events_ownership.sh",
         "mokli_upgrade_section11_cloud_status.sh",
+        "mokli_upgrade_aggregate_pytest.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name

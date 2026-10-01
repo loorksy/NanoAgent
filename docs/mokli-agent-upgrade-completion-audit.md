@@ -18,12 +18,12 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2401** ناجية (1 skipped) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2402** ناجية (1 skipped) | منجز |
 | أدوات المشغّل §11 | validate: PARTIAL + `01-no-tools-after-p0.jsonl` @13؛ `close.sh --allow-partial`؛ `operator_smoke`؛ `blockers` | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
-| VPS checkout (Hostinger) | PR #62؛ rev **`26956ae4+`** (فرع `cursor/section11-vps-rows-d9e1`؛ `git_branch=` في env_check)؛ preset **`qwen3-8-27b-free`**؛ quota **BLOCKED**؛ OANDA **no** | منجز |
-| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2401** green | **infra** — re-run workflow on GitHub |
+| VPS checkout (Hostinger) | PR #62؛ rev **`d9c7edc3`** (فرع `cursor/section11-vps-rows-d9e1`؛ `git_branch=` في env_check)؛ preset **`qwen3-8-27b-free`**؛ quota **BLOCKED**؛ OANDA **no** | منجز |
+| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2402** green | **infra** — re-run workflow on GitHub |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
@@ -33,7 +33,7 @@ bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init
 bash scripts/mokli_upgrade_section11_cloud_status.sh   # cached quota + blockers --skip-vps (Cloud Agent)
 bash scripts/vps_section11_quota_status.sh   # last quota-probe JSONL (no LLM)
 bash scripts/mokli_upgrade_section11_init.sh # VPS: events/ + results + progress (no LLM)
-pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
+bash scripts/mokli_upgrade_aggregate_pytest.sh
 ```
 
 ## Cloud Agent (هذا الـ VM)
