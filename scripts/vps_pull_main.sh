@@ -11,6 +11,18 @@ INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 SERVICE_USER="${MOKLI_SERVICE_USER:-nanoagent}"
 SERVICE_UNIT="${MOKLI_GATEWAY_SERVICE:-nanoagent-gateway}"
 BRANCH="${MOKLI_BRANCH:-main}"
+# Optional: bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1
+if [[ $# -ge 1 && "$1" != -* ]]; then
+  BRANCH="$1"
+  shift
+fi
+if [[ $# -gt 0 ]]; then
+  echo "Usage: $0 [branch]" >&2
+  echo "  branch defaults to MOKLI_BRANCH or main" >&2
+  exit 2
+fi
+
+echo "vps_pull_main: branch=$BRANCH install=$INSTALL_DIR" >&2
 
 if ! vps_ssh_ready; then
   bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2 || true
