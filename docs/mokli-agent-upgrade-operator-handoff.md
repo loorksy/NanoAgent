@@ -44,7 +44,7 @@ bash scripts/deploy-mokli-vps.sh
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2353** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2355** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## فواتير المزود (VPS)
@@ -58,7 +58,7 @@ bash scripts/deploy-mokli-vps.sh
 - **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` ثم `bash scripts/mokli_upgrade_section11_after_pull.sh` (validate 1–10 + جدول §2.1 من JSONL).
 - **صف 13 CI (بدون جهاز):** `bash scripts/mokli_upgrade_section11_row13_ci.sh` — pipe projection + `mokli-sdk`؛ لا يغني عن JSONL حي على الهاتف.
 - **P0 تقدير بلا LLM:** `python scripts/mokli_upgrade_p0_turn_estimate.py --compare "مرحبا" "حلل الذهب"` — `final` / `system` / `tool_defs` (نفس `diagnostic.components`). على الدور الخفيف يُرسل للمزود `message` + `web_search` + `web_fetch` فقط (أدوات التداول مسجّلة لكن مخططاتها مؤجّلة).
-- **P0 after live:** `bash scripts/vps_section11_row1_after_p0.sh` — يفحص quota ثم يعيد صف 1 (`01-no-tools-after-p0.jsonl`) ويطبع `delta_in` مقابل `01-no-tools.jsonl` على VPS. أو يدوياً: `bash scripts/mokli_upgrade_p0_live_delta.sh …`. تحقق من **`provider_tools=3`** و`tool_definitions≈776` في components للتحية (whitelist chat tools).
+- **P0 after live:** `bash scripts/vps_section11_row1_after_p0.sh` — يفحص quota ثم يعيد صف 1 (`01-no-tools-after-p0.jsonl`) ويطبع `delta_in` مقابل `01-no-tools.jsonl` على VPS. أو يدوياً: `bash scripts/mokli_upgrade_p0_live_delta.sh …`. على الدور الخفيف: **`provider_tools=3`** (chat فقط) أو **≤7** إذا وُجدت أدوات الجلسة (`read_session`…) في التسجيل — Agent API على VPS يظهر **7** بعد `e28c124c`؛ ما زال ≪ 11+ trading/filesystem.
 - **جاهزية VPS:** `bash scripts/vps_section11_env_check.sh` — rev + API + OANDA + quota؛ `--require-quota` / `--require-oanda` قبل صفوف 11–10.
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`

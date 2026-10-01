@@ -10,6 +10,7 @@ source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 # shellcheck source=scripts/section11_long_session_core.sh
 source "$ROOT/scripts/section11_long_session_core.sh"
 
+export MOKLI_SSH_HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 OUT_NAME="${1:-09-long-session.jsonl}"
 ROUNDS="${2:-15}"
