@@ -55,6 +55,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_post_quota.sh",
         "mokli_upgrade_section11_after_reset_wake.sh",
         "mokli_upgrade_section11_completion_status.sh",
+        "mokli_upgrade_section11_timer_wake.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -198,6 +199,17 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
     assert "vps_pull_main.sh" in text
+
+
+def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_timer_wake.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "completion_status.sh" in text
+    assert "after_reset_wake.sh" in text
+    assert "operator_unblock.sh" in text and "--pull-vps" in text
+    assert "close.sh" in text and "--require-through 13" in text
+    assert "TIMER_WAKE_EXIT" in text
 
 
 def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
