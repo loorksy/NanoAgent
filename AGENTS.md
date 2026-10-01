@@ -109,6 +109,7 @@ python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events 
 bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
 bash scripts/vps_section11_pull_events.sh && bash scripts/mokli_upgrade_section11_after_pull.sh  # P0 §2.1 table + delta if 01-no-tools-after-p0.jsonl
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
+bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/9/10 when quota (+ OANDA for 10)
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 

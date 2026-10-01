@@ -76,6 +76,17 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                     "rerun bash scripts/vps_section11_row9_long_session.sh",
                     file=sys.stderr,
                 )
+    if require_through >= 10:
+        picked = pick_row_diagnostic(directory, 10)
+        if picked is not None:
+            name, _diag = picked
+            body = (directory / name).read_text(encoding="utf-8")
+            if "market_feed_unconfigured" in body or "OANDA not configured" in body:
+                print(
+                    f"HINT row 10 ({name}): market feed unconfigured — "
+                    "set OANDA_* then bash scripts/vps_section11_row10_backtest.sh",
+                    file=sys.stderr,
+                )
 
 
 def _print_row_progress(

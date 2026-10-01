@@ -59,6 +59,7 @@ bash scripts/deploy-mokli-vps.sh
 - **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` ثم `bash scripts/mokli_upgrade_section11_after_pull.sh` (validate 1–10 + جدول §2.1؛ يطبع **P0 live delta** تلقائياً إذا وُجد `01-no-tools-after-p0.jsonl`).
 - **صف 13 CI (بدون جهاز):** `bash scripts/mokli_upgrade_section11_row13_ci.sh` — pipe projection + `mokli-sdk`؛ لا يغني عن JSONL حي على الهاتف.
 - **P0 تقدير بلا LLM:** `python scripts/mokli_upgrade_p0_turn_estimate.py --compare "مرحبا" "حلل الذهب"` — `final` / `system` / `tool_defs` / **`provider_tools`** (نفس `diagnostic.provider_tool_count`). على الدور الخفيف: chat + session tools عند التسجيل (محلي ≈3–7؛ VPS Agent API ≈7).
+- **PARTIAL reruns (quota OK):** `bash scripts/mokli_upgrade_section11_rerun_partials.sh` — rows 1 after-P0, 3, 5, 9, 10 if OANDA set, then pull + after_pull.
 - **P0 after live:** `bash scripts/vps_section11_row1_after_p0.sh` — يفحص quota ثم يعيد صف 1 (`01-no-tools-after-p0.jsonl`) ويطبع `delta_in` مقابل `01-no-tools.jsonl` على VPS. أو يدوياً: `bash scripts/mokli_upgrade_p0_live_delta.sh …`. على الدور الخفيف: **`provider_tools=3`** (chat فقط) أو **≤7** إذا وُجدت أدوات الجلسة (`read_session`…) في التسجيل — Agent API على VPS يظهر **7** بعد `e28c124c`؛ ما زال ≪ 11+ trading/filesystem.
 - **جاهزية VPS:** `bash scripts/vps_section11_env_check.sh` — rev + API + OANDA + quota؛ `--require-quota` / `--require-oanda` قبل صفوف 11–10. لا تستخدم `| tail` عند فحص `$?` (استخدم `$?` مباشرة بعد الأمر).
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
@@ -108,7 +109,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | # | اسم ملف مقترح | مسار §11 |
 | --- | --- | --- |
 | 1 | `01-no-tools.jsonl` | تحية / بلا أدوات |
-| 2 | `02-single-tool.jsonl` | سعر الذهب |
+| 2 | `02-single-tool.jsonl` | سعر الذهب — `bash scripts/vps_section11_row2_single_tool.sh` |
 | 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء |
 | 5 | `05-subagents.jsonl` | spawn / سرب — `bash scripts/vps_section11_row5_subagents.sh` |
@@ -116,7 +117,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 7 | `07-retry.jsonl` | إعادة محاولة |
 | 8 | `08-fallback-provider.jsonl` | مزود بديل |
 | 9 | `09-long-session.jsonl` | جلسة طويلة — `bash scripts/vps_section11_row9_long_session.sh` (quota + 15 rounds) |
-| 10 | `10-backtest.jsonl` | backtest / مختبر |
+| 10 | `10-backtest.jsonl` | backtest — `bash scripts/vps_section11_row10_backtest.sh` (quota + OANDA) |
 | 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
 | 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |
 | 13 | `13-mobile.jsonl` | هاتف/SDK — `bash scripts/vps_section11_row13_mobile.sh` (SDK smoke + تعليمات الجهاز) |

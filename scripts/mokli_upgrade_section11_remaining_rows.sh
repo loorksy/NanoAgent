@@ -21,6 +21,10 @@ Row 9 (long session, if quota_blocked_likely in session-summary):
   bash scripts/vps_section11_row9_long_session.sh
   → 09-long-session-v3.jsonl; then extract --session-summary on that file
 
+Row 10 (backtest, if market_feed_unconfigured):
+  bash scripts/vps_section11_row10_backtest.sh
+  → 10-backtest-v2.jsonl
+
 Row 11 (paper, Agent API + OANDA candles):
   bash scripts/vps_section11_row11_paper.sh
   → section11-events/11-paper.jsonl on VPS; fill «النتيجة» in section11-results.json

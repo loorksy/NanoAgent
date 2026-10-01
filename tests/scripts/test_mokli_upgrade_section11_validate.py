@@ -140,6 +140,42 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
     assert "vps_section11_row5_subagents" in proc.stderr
 
 
+def test_validate_hints_row10_when_oanda_missing(tmp_path: Path) -> None:
+    body = (
+        '{"kind":"tool","data":{"name":"fast_backtest","summary":"market_feed_unconfigured"}}\n'
+        + json.dumps({"kind": "diagnostic", "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 1}})
+        + "\n"
+    )
+    (tmp_path / "10-backtest.jsonl").write_text(body, encoding="utf-8")
+    for row_id in range(1, 10):
+        if row_id == 10:
+            continue
+        (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "tool_calls": 2}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 11)}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "10",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "HINT row 10" in proc.stderr
+    assert "vps_section11_row10_backtest" in proc.stderr
+
+
 def test_validate_rejects_dry_run_when_require_multiple_rows(tmp_path: Path) -> None:
     for row_id in (1, 2):
         (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
