@@ -51,6 +51,8 @@ class TeamAgentEvent:
     layer: int = 0
     duration_ms: int | None = None
     display: str = ""
+    room_id: str = ""
+    role_id: str = ""
 
     def to_wire(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -60,6 +62,10 @@ class TeamAgentEvent:
             "summary": self.summary,
             "layer": self.layer,
         }
+        if self.room_id:
+            payload["roomId"] = self.room_id
+        if self.role_id:
+            payload["roleId"] = self.role_id
         if self.duration_ms is not None:
             payload["durationMs"] = self.duration_ms
         if self.display:
@@ -99,6 +105,9 @@ async def _publish_runtime_role(bus: Any | None, event: TeamAgentEvent) -> None:
             summary=event.summary,
             duration_ms=event.duration_ms,
             display=event.display,
+            room_id=event.room_id,
+            role_id=event.role_id,
+            layer=event.layer if event.room_id else None,
         )
     )
 
@@ -161,6 +170,8 @@ def _role_event(
     layer: int,
     summary: str = "",
     duration_ms: int | None = None,
+    room_id: str = "",
+    role_id: str = "",
 ) -> TeamAgentEvent:
     return TeamAgentEvent(
         agent_id=agent_id,
@@ -170,6 +181,8 @@ def _role_event(
         layer=layer,
         duration_ms=duration_ms,
         display=role_phrase(role, status, system_prompt=system_prompt),
+        room_id=room_id,
+        role_id=role_id,
     )
 
 
@@ -238,6 +251,9 @@ async def run_team_role(
     started = time.time()
 
     role_prompt = resolve_role_prompt(role, system_prompt)
+    from mokli.trading.desk.rooms import room_of_agent
+
+    room_id = room_of_agent(agent_id) or ""
     task_body = (
         f"{task_text.strip()}\n\n"
         f"FROZEN MARKET EVIDENCE (do not invent a price that is in neither this JSON nor an upstream note above):\n"
@@ -253,6 +269,8 @@ async def run_team_role(
         status="running",
         system_prompt=system_prompt,
         layer=layer,
+        room_id=room_id,
+        role_id=agent_id,
     )
     await _publish_runtime_role(bus, running)
     if collector is not None:
@@ -295,6 +313,8 @@ async def run_team_role(
                 layer=layer,
                 summary=_summary_for_event(summary),
                 duration_ms=duration_ms,
+                room_id=room_id,
+                role_id=agent_id,
             ),
             collector,
             bus,
@@ -311,6 +331,8 @@ async def run_team_role(
                 layer=layer,
                 summary="cancelled",
                 duration_ms=_elapsed_ms(started),
+                room_id=room_id,
+                role_id=agent_id,
             ),
             collector,
             bus,
@@ -330,6 +352,8 @@ async def run_team_role(
                 layer=layer,
                 summary=message,
                 duration_ms=duration_ms,
+                room_id=room_id,
+                role_id=agent_id,
             ),
             collector,
             bus,

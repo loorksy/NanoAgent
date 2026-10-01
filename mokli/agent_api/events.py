@@ -154,6 +154,9 @@ def subagent_data(
     summary: str | None = None,
     duration_ms: int | None = None,
     display: str | None = None,
+    room_id: str | None = None,
+    role_id: str | None = None,
+    layer: int | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "id": id, "role": role}
     if summary is not None:
@@ -162,6 +165,12 @@ def subagent_data(
         data["duration_ms"] = duration_ms
     if display:
         data["display"] = display
+    if room_id:
+        data["room_id"] = room_id
+    if role_id:
+        data["role_id"] = role_id
+    if layer is not None:
+        data["layer"] = layer
     return data
 
 
@@ -309,6 +318,9 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
                 summary=event.summary or None,
                 duration_ms=event.duration_ms,
                 display=event.display or None,
+                room_id=event.room_id or None,
+                role_id=event.role_id or None,
+                layer=event.layer,
             ),
         }
     if isinstance(event, DecisionCompletedEvent):

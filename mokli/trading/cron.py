@@ -176,7 +176,30 @@ async def run_trade_management_job() -> str | None:
     return f"Trade management: {kinds}"
 
 
+def _idle_research_active() -> bool:
+    try:
+        from mokli.config.loader import load_config
+
+        cfg = load_config()
+        return bool(cfg.trading_cron.enabled and cfg.trading_cron.idle_research)
+    except Exception:
+        logger.exception("Idle research flag unreadable")
+        return False
+
+
+def _desk_sessions():
+    from mokli.config.paths import get_workspace_path
+    from mokli.session.manager import SessionManager
+
+    return SessionManager(get_workspace_path())
+
+
 async def run_trading_cron_job(name: str) -> str | list[dict[str, object]] | None:
+    if name in (GOLD_NEWS_JOB_ID, GOLD_SCAN_JOB_ID) and _idle_research_active():
+        from mokli.trading.desk.idle import run_idle_shift
+
+        await run_idle_shift(name, enabled=True, idle_research=True, sessions=_desk_sessions())
+        return None
     if name == GOLD_NEWS_JOB_ID:
         return await run_gold_news_job()
     if name == GOLD_FOLLOWUP_JOB_ID:

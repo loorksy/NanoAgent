@@ -257,7 +257,8 @@ TOOL_CONTRACTS: tuple[ToolContract, ...] = (
         "the operator explicitly asks for a committee, debate, news war room, or "
         "multi-timeframe panel; always pass an explicit preset",
         "specialist briefs",
-        "let a brief choose direction",
+        "let a brief choose direction; the desk distributes reading and proposals, "
+        "confirmation stays with the operator, and idle research writes only in the news room",
     ),
     ToolContract(
         ("gold_intel_scan",),
@@ -331,6 +332,12 @@ TOOL_CONTRACTS: tuple[ToolContract, ...] = (
         "reading skills, memory, or workspace references",
         "file content or listings",
         "invent file content",
+    ),
+    ToolContract(
+        ("run_python",),
+        "a short calculation the platform tools do not already return",
+        "stdout and stderr only",
+        "use it to reach the network, read credentials, or place orders",
     ),
     ToolContract(
         ("list_sessions", "read_session", "search_sessions", "send_session_message"),

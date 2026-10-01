@@ -83,6 +83,14 @@ def validate_tool_call(
     is_subagent: bool | None = None,
 ) -> ToolCallPermit:
     """Hard Law interceptor for unified-loop tool calls."""
+    if tool_name == "run_python":
+        from mokli.trading.code_policy import CodePolicyError, review_python
+
+        try:
+            review_python(str((args or {}).get("code") or ""))
+        except CodePolicyError as exc:
+            raise PolicyViolation(exc.reason) from exc
+
     from mokli.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
     from mokli.trading.evidence.nodes import NODE_REGISTRY
     from mokli.trading.gold import DATA_SYMBOL, require_gold
@@ -95,6 +103,25 @@ def validate_tool_call(
 
     if subagent and tool_name in SUBAGENT_FORBIDDEN_TOOLS:
         raise PolicyViolation(f"Subagents cannot call {tool_name}")
+
+    if turn is not None and turn.idle_research:
+        from mokli.trading.desk.idle import assert_idle_tool
+
+        assert_idle_tool(tool_name)
+
+    session_key = turn.session_key if turn is not None else None
+    if session_key and session_key.startswith("desk:"):
+        from mokli.trading.desk.profiles import profile_tools
+        from mokli.trading.desk.roster import role_for_session_key
+
+        role = role_for_session_key(session_key)
+        if role is None or tool_name not in profile_tools(role.profile):
+            label = role.role_id if role is not None else session_key
+            raise PolicyViolation(f"Desk role {label} cannot call {tool_name}")
+
+    from mokli.trading.desk.rules import apply_operator_rule
+
+    apply_operator_rule(tool_name, session_key)
 
     if tool_name in EVIDENCE_TOOL_NAMES or tool_name == "fetch_evidence":
         symbol = params.get("symbol") or DATA_SYMBOL
