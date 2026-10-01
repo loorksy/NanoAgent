@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/vps_ssh.sh"
 
 HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
+export MOKLI_SSH_HOST="$HOST"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 
 if ! vps_ssh_ready; then

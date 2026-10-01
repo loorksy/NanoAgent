@@ -10,6 +10,7 @@ source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 
 OUT="${1:-quota-probe.jsonl}"
 HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
+export MOKLI_SSH_HOST="$HOST"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 
 run_probe_checks() {
