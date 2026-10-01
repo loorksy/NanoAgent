@@ -107,11 +107,20 @@ echo "mokli_pipe_show_diagnostics=${pipe_diag:-?}"
 
 quota_ok=0
 quota_line=""
-if quota_line=$(bash "$ROOT/scripts/vps_section11_quota_probe.sh" 2>&1); then
-  quota_ok=1
-  echo "llm_quota=OK"
+if [[ "$REQUIRE_QUOTA" -eq 1 ]]; then
+  if quota_line=$(bash "$ROOT/scripts/vps_section11_quota_probe.sh" 2>&1); then
+    quota_ok=1
+    echo "llm_quota=OK (live probe)"
+  else
+    echo "llm_quota=BLOCKED (live probe)"
+  fi
 else
-  echo "llm_quota=BLOCKED"
+  if quota_line=$(bash "$ROOT/scripts/vps_section11_quota_status.sh" 2>&1); then
+    quota_ok=1
+    echo "llm_quota=OK (cached)"
+  else
+    echo "llm_quota=BLOCKED (cached)"
+  fi
 fi
 printf '%s\n' "$quota_line" | tail -1
 
