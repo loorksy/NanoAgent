@@ -74,6 +74,6 @@ if [[ "$VAL_OK" -eq 0 ]]; then
   echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
 fi
 echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
-echo "HINT: after reset — bash scripts/mokli_upgrade_section11_after_reset_wake.sh" >&2
+echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
 echo "BLOCKERS_EXIT=1" >&2
 exit 1

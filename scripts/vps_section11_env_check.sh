@@ -200,7 +200,9 @@ else
     echo "llm_quota=BLOCKED (cached)"
   fi
 fi
-printf '%s\n' "$quota_line" | tail -1
+if [[ -n "${quota_line:-}" ]]; then
+  printf '%s\n' "$quota_line" | grep -E '^(probe=|QUOTA_|MISSING|STALE|INVALID)' || true
+fi
 
 fail=0
 if [[ "$REQUIRE_OANDA" -eq 1 && "${oanda:-}" != yes ]]; then

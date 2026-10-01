@@ -32,7 +32,7 @@
 bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
 bash scripts/mokli_upgrade_section11_cloud_status.sh   # cached quota + blockers --skip-vps (Cloud Agent)
 bash scripts/mokli_upgrade_section11_completion_status.sh   # branch + reset + cached quota + artifacts @13
-bash scripts/mokli_upgrade_section11_timer_wake.sh   # after reset: same sequence as Cloud Agent timer
+bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota   # after reset: Cloud Agent timer chain
 bash scripts/mokli_upgrade_section11_operator_unblock.sh   # live probe + env + blockers @13 (operator)
 bash scripts/vps_section11_quota_status.sh   # last quota-probe JSONL (no LLM)
 bash scripts/mokli_upgrade_section11_init.sh # VPS: events/ + results + progress (no LLM)
