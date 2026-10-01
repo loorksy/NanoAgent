@@ -148,6 +148,8 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
         encoding="utf-8"
     )
     assert "vps_section11_quota_probe.sh" in text
+    assert "vps_section11_quota_status.sh" in text
+    assert "--skip-probe" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "operator-handoff.md" in text
 
