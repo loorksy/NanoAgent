@@ -178,6 +178,10 @@ if [[ -n "${branch:-}" && "$branch" != "$expected_branch" ]]; then
   echo "HINT: VPS on branch=${branch} — §11 tooling expects ${expected_branch} until PR merge" >&2
   echo "HINT: bash scripts/vps_pull_main.sh ${expected_branch}" >&2
 fi
+local_rev=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
+if [[ -n "${rev:-}" && "$rev" != unknown && "$local_rev" != unknown && "$rev" != "$local_rev" ]]; then
+  echo "HINT: VPS git_rev=${rev} != local ${local_rev} — bash scripts/vps_pull_main.sh ${expected_branch}" >&2
+fi
 
 quota_ok=0
 quota_line=""
