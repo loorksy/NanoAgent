@@ -24,6 +24,8 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_p0_turn_estimate.py",
         "mokli_upgrade_p0_live_delta.sh",
         "vps_section11_row13_mobile.sh",
+        "vps_section11_env_check.sh",
+        "vps_section11_row1_after_p0.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
