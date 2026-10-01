@@ -23,7 +23,7 @@
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS `main` (مثال Hostinger) | `git rev-parse` → **`976fdd01`**؛ `nanoagent-gateway` active؛ Agent API `/api/v2/health` OK | **منجز** (2026-10-01) |
-| §11 حي على VPS | صف **1**: `in≈10934 out≈117 tools=0`؛ صف **2**: `tools=1` `in≈25037` (فشل أداة OANDA)؛ **3–13** لم تُملأ | **جزئي** |
+| §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4** PASS (`res_*` decision)؛ **5–13** في التقرير فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
 

@@ -435,7 +435,7 @@
 | `mokli/agent_api/sessions.py` | استدعاء `spawn` لا يضيف وكيلاً ثانياً بنص المهمة. مدة الأداة تُقاس حتى الإتمام أو الفشل، لا عند حدث البدء |
 | `mokli/agent/tools/execution.py` | رفض السياسة أو إلغاء الاستدعاء بعد إعلان البدء ينشر حدث فشل بالسبب والمدة، ولا يترك الصف على «يعمل». فشل تحليل مخزّن في الدورة لا ينشر حدث بدء ثانٍ |
 
-## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–2؛ 3–13 مطلوبة للإغلاق)
+## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–4؛ 5–13 مطلوبة للإغلاق)
 
 هذا القسم قائمة تحقق للمشغّل بعد نشر **`main`** وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
@@ -445,8 +445,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 1 | سؤال بلا أدوات | «ما اسمك؟» أو تحية قصيرة | لا صف أداة في النشاط؛ رد واحد؛ `diagnostic` بجولة واحدة | PASS — VPS Agent API 2026-10-01 qwen3-8-27b-free: no tools | rounds=1 in=10934 out=117 tools=0 ctx_ms=1 model_ms=4211 tool_ms=0 retry_ms=0 nested_in=0 |
 | 2 | أداة واحدة | «ما سعر الذهب الآن؟» | صف واحد يبدأ وينتهي؛ عبارة بشرية لا اسم خام | PASS — get_gold_quote started/failed (OANDA unconfigured) | rounds=2 in=25037 out=670 tools=1 ctx_ms=144 model_ms=11464 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
-| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | | |
-| 4 | تحليل كامل | «حلل الذهب» أو «هل أشتري؟» | أدوار الفريق ثم بطاقة قرار `structured`/`decision` بمعرّف `res_` | | |
+| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | PARTIAL — one tool only (get_gold_quote); list_dir not called | rounds=2 in=25175 out=1698 tools=1 ctx_ms=4 model_ms=28431 tool_ms=10 retry_ms=0 nested_in=0 static_resends=1 |
+| 4 | تحليل كامل | «حلل الذهب» أو «هل أشتري؟» | أدوار الفريق ثم بطاقة قرار `structured`/`decision` بمعرّف `res_` | PASS — kernel+decision card res_* verdict wait (OANDA not configured) | rounds=3 in=24924 out=437 tools=2 ctx_ms=207 model_ms=10658 tool_ms=33 retry_ms=7010 nested_in=0 fold_chars=922 static_resends=1 |
 | 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ لا مرحلة وهمية | | |
 | 6 | فشل أداة | قطع شبكة مؤقت أو رمز غير صالح | صف `failed` بلا علامة نجاح؛ خطأ في التفاصيل | | |
 | 7 | إعادة محاولة | مزود يعيد 429/5xx ثم ينجح | صف إعادة محاولة مجمّع بمعرّف المحاولة | | |

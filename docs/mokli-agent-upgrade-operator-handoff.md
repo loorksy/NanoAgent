@@ -51,6 +51,7 @@ bash scripts/deploy-mokli-vps.sh
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
 - **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. أضف `OANDA_*` في `/opt/nanoagent/.env` + `systemctl restart nanoagent-gateway`.
 - **صف 2 (2026-10-01):** prompt إنجليزي صريح للأداة → `tools=1` `rounds=2` `in≈25037` `out≈670`؛ أحداث `tool` started/failed + عرض «يفحص سعر الذهب…».
+- **صف 4 (2026-10-01):** `Analyze gold…` → `run_trading_kernel` + بطاقة `structured`/`decision` **`res_…`** (verdict wait، OANDA not configured)؛ `tools=2` `rounds=3` `in≈24924`.
 
 ## قبل المحادثة الحية
 
