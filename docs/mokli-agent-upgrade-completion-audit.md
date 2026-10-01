@@ -19,7 +19,7 @@
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2332** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | `section11_init.sh`، `operator_smoke.sh`، `section11_close.sh` (validate+batch+patch؛ gate تلقائي عند `--apply` + require-through 13 على التقرير الرسمي)، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report` (+ `section11-results.example.json`، fixture JSONL) | منجز |
+| أدوات المشغّل §11 | `section11_init.sh`، `operator_smoke.sh`، `section11_close.sh` (validate+batch+patch؛ gate تلقائي عند `--apply` + require-through 13 على التقرير الرسمي)، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report`، `cloud_agent_vps_secrets_check.sh` (+ `section11-results.example.json`، fixture JSONL) | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
 
@@ -33,7 +33,7 @@ pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py
 
 ## Cloud Agent (هذا الـ VM)
 
-بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. المزيد من سكربتات المشغّل أو pytest **لا يغلق** الهدف؛ الخطوة التالية على VPS فقط.
+بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. إذا `cloud_agent_vps_secrets_check.sh` يفشل رغم `CLOUD_AGENT_INJECTED_SECRET_NAMES`، الأسرار مسجّلة ولم تُحقَن — أعد تشغيل الوكيل بعد حفظ `VPS`/`VPSPASS`. المزيد من pytest **لا يغلق** الهدف؛ الخطوة التالية على VPS فقط.
 
 ## بعد VPS
 

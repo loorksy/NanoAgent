@@ -22,12 +22,7 @@ WEB_PORT=8766
 HEALTH_PORT=18791
 REPO_URL="https://github.com/loorksy/NanoAgent.git"
 
-if [[ -z "${VPS:-}" || -z "${VPSPASS:-}" ]]; then
-  echo "deploy: VPS and VPSPASS must be set (Cloud Agent secrets: use names VPS and VPSPASS, or vps and password)" >&2
-  if [[ -n "${CLOUD_AGENT_INJECTED_SECRET_NAMES:-}" ]]; then
-    echo "deploy: injected secret names: ${CLOUD_AGENT_INJECTED_SECRET_NAMES}" >&2
-    echo "deploy: if secrets are listed but empty here, restart the agent after saving secrets" >&2
-  fi
+if ! bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2; then
   exit 1
 fi
 
