@@ -18,12 +18,12 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2404** ناجية (1 skipped) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2405** ناجية (1 skipped) | منجز |
 | أدوات المشغّل §11 | validate: PARTIAL + `01-no-tools-after-p0.jsonl` @13؛ `close.sh --allow-partial`؛ `operator_smoke`؛ `blockers`؛ `operator_unblock.sh` | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS checkout (Hostinger) | PR #62؛ **`git_rev`/`git_branch` من `vps_section11_env_check.sh`** (توقّع `cursor/section11-vps-rows-d9e1` حتى الدمج)؛ preset **`qwen3-8-27b-free`**؛ quota/OANDA من env_check | منجز |
-| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2404** green | **infra** — re-run workflow on GitHub |
+| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2405** green | **infra** — re-run workflow on GitHub |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
@@ -39,7 +39,7 @@ bash scripts/mokli_upgrade_aggregate_pytest.sh
 
 ## Cloud Agent (هذا الـ VM)
 
-بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. SSH بمفتاح (`MOKLI_SSH_HOST`) يكفي لـ `sync_from_vps` و`quota_probe` و`blockers --skip-vps`، لكن **`row1_after_p0` يتوقف عند quota** (`probe_exit=1`، 2026-10-01). المزيد من pytest **لا يغلق** الهدف.
+بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. SSH بمفتاح (`MOKLI_SSH_HOST`) يكفي لـ `sync_from_vps` و`quota_probe` و`blockers --skip-vps`؛ **`cloud_status --require-through 10`** يخرج **0** عندما حزمة JSONL 1–10 محلية سليمة (حتى مع quota محجوب). **`row1_after_p0` / إغلاق 13** يتوقفان عند quota (`in=0`، `probe_exit=1`، آخر فحص 2026-10-01). المزيد من pytest **لا يغلق** الهدف.
 
 ## بعد VPS (المشغّل)
 
