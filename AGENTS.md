@@ -116,13 +116,14 @@ bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; af
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)
-python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
+python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown --require-through 13
+# Partial pack preview (ignore empty keys 11–14): add --require-through 10 to batch/close
 python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
 bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
 # Preview §11 table with partial VPS pack: close.sh --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
 bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # VPS ff + pull + P0 §2.1 + validate 1–10
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
-bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/9/10 when quota (+ OANDA for 10)
+bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/8/9/10 when quota (+ OANDA for 10)
 bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
