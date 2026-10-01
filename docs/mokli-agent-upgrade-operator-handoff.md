@@ -49,6 +49,7 @@ bash scripts/deploy-mokli-vps.sh
 - **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
 - **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب).
 - **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
+- **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` → `./section11-events/` محلياً قبل `section11_batch` / `patch_report`.
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
 - **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. أضف `OANDA_*` في `/opt/nanoagent/.env` + `systemctl restart nanoagent-gateway`.
@@ -105,9 +106,9 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 8 | `08-fallback-provider.jsonl` | مزود بديل |
 | 9 | `09-long-session.jsonl` | جلسة طويلة |
 | 10 | `10-backtest.jsonl` | backtest / مختبر |
-| 11 | `11-paper.jsonl` | ورقي |
-| 12 | `12-desktop-ui.jsonl` | Mokli UI (اختياري للأرقام؛ لقطة للنتيجة) |
-| 13 | `13-mobile.jsonl` | هاتف/SDK |
+| 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
+| 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |
+| 13 | `13-mobile.jsonl` | هاتف/SDK — نفس JSONL shape؛ `packages/mokli-sdk` activity tests في CI (§11.1 فقط) |
 | 14 | `14-mt5-live.jsonl` | MT5 حي (اختياري) |
 
 ## بعد كل سينario من §11
