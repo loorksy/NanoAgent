@@ -45,6 +45,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_remaining_rows.sh",
         "vps_pull_main.sh",
         "vps_section11_fix_events_ownership.sh",
+        "mokli_upgrade_section11_cloud_status.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -58,6 +59,15 @@ def test_vps_pull_main_waits_gateway_and_agent_api() -> None:
     assert "8766/api/v2/health" in text
     assert "API_OK" in text and "GW_OK" in text
     assert "section11-events" in text
+
+
+def test_row5_subagents_prompt_fetch_evidence_before_spawn() -> None:
+    text = (ROOT / "scripts" / "vps_section11_row5_subagents.sh").read_text(
+        encoding="utf-8"
+    )
+    prompt_line = next(line for line in text.splitlines() if "PROMPT=" in line)
+    assert "call fetch_evidence" in prompt_line and "Then spawn" in prompt_line
+    assert prompt_line.index("call fetch_evidence") < prompt_line.index("Then spawn")
 
 
 def test_row3_multi_tool_prompt_lists_dir_before_gold() -> None:
