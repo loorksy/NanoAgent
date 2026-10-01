@@ -17,6 +17,11 @@ if ! bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
   exit 1
 fi
 
+echo "== OANDA (rows 10–11) =="
+if ! bash "$ROOT/scripts/vps_section11_env_check.sh" --require-oanda; then
+  echo "WARN: OANDA not configured — row 10/11 skip until vps_section11_set_oanda_env.sh" >&2
+fi
+
 echo "== partial reruns + sync =="
 bash "$ROOT/scripts/mokli_upgrade_section11_rerun_partials.sh"
 

@@ -205,6 +205,7 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
     assert "remaining_rows.sh" in text
+    assert "require-oanda" in text
 
 
 def test_remaining_rows_close_uses_production_gate_pull_vps() -> None:
