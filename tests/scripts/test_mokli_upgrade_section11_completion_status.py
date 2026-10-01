@@ -31,6 +31,7 @@ def test_completion_status_partial_pack_through_10() -> None:
     )
     combined = proc.stdout + proc.stderr
     assert "completion_status:" in combined
+    assert "wake_after_buffer_utc=" in combined
     assert "artifact_ok=1" in combined
     assert "closure_errors=0" in combined
     assert "partial10_ok=0" in combined or "partial10_gate=0" in combined

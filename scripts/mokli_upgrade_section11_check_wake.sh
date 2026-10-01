@@ -3,22 +3,15 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log}"
 SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
 
 echo "== OpenRouter reset =="
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
 printf '%s\n' "$RESET_OUT"
-reset_secs=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([0-9]*\).*/\1/p' | tail -1)
-buffer_secs=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=[0-9]* buffer_sec=\([0-9]*\).*/\1/p' | tail -1)
-if [[ -n "$reset_secs" && "$reset_secs" =~ ^[0-9]+$ ]]; then
-  buffer_secs=${buffer_secs:-120}
-  wake_after=$(( reset_secs + buffer_secs ))
-  echo "wake_after_buffer_sec=${wake_after}"
-  if eta=$(date -u -d "@$(($(date +%s) + wake_after))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null); then
-    echo "wake_after_buffer_utc=${eta}"
-  fi
-fi
+section11_emit_wake_after_buffer "$RESET_OUT"
 
 echo ""
 echo "== tmux session: $SESSION =="

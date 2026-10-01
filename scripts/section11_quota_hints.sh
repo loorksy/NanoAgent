@@ -17,3 +17,21 @@ section11_print_quota_unblock_hints() {
     echo "HINT: MOKLI_SECTION11_MODEL is set but probe still failed — verify model id / provider billing" >&2
   fi
 }
+
+# From mokli_upgrade_section11_wait_quota_reset.sh stdout (seconds_until_reset=… buffer_sec=…).
+section11_emit_wake_after_buffer() {
+  local reset_out="${1:-}"
+  local reset_secs buffer_secs wake_after eta
+  reset_secs=$(printf '%s\n' "$reset_out" | sed -n 's/^seconds_until_reset=\([0-9]*\).*/\1/p' | tail -1)
+  buffer_secs=$(printf '%s\n' "$reset_out" | sed -n 's/^seconds_until_reset=[0-9]* buffer_sec=\([0-9]*\).*/\1/p' | tail -1)
+  if [[ -z "$reset_secs" || ! "$reset_secs" =~ ^[0-9]+$ ]]; then
+    return 0
+  fi
+  buffer_secs=${buffer_secs:-120}
+  wake_after=$(( reset_secs + buffer_secs ))
+  echo "wake_after_buffer_sec=${wake_after}"
+  if eta=$(date -u -d "@$(($(date +%s) + wake_after))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null); then
+    echo "wake_after_buffer_utc=${eta}"
+  fi
+}
+

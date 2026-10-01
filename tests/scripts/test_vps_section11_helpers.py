@@ -66,6 +66,11 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         assert path.stat().st_mode & 0o111, f"{name} should be executable"
 
 
+def test_quota_hints_exports_wake_after_buffer_helper() -> None:
+    text = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
+    assert "section11_emit_wake_after_buffer" in text
+
+
 def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     text = (ROOT / "scripts" / "vps_section11_env_check.sh").read_text(encoding="utf-8")
     assert "MOKLI_SECTION11_MODEL" in text

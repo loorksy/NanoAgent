@@ -3,6 +3,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 EVENTS="$ROOT/section11-events"
 RESULTS="$ROOT/section11-results-partial.json"
 REQUIRE=13
@@ -36,6 +38,11 @@ echo "== OpenRouter reset =="
 RESET_SEC="unknown"
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
 printf '%s\n' "$RESET_OUT"
+WAKE_BUFFER_OUT=$(section11_emit_wake_after_buffer "$RESET_OUT")
+if [[ -n "$WAKE_BUFFER_OUT" ]]; then
+  printf '%s\n' "$WAKE_BUFFER_OUT"
+fi
+WAKE_UTC=$(printf '%s\n' "$WAKE_BUFFER_OUT" | sed -n 's/^wake_after_buffer_utc=\(.*\)/\1/p' | tail -1)
 parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
 [[ -n "$parsed" ]] && RESET_SEC="$parsed"
 
@@ -98,7 +105,9 @@ else
 fi
 
 echo ""
-echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC"
+WAKE_UTC_FIELD="wake_after_buffer_utc=unknown"
+[[ -n "${WAKE_UTC:-}" ]] && WAKE_UTC_FIELD="wake_after_buffer_utc=$WAKE_UTC"
+echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
 if [[ "$PROD_OK" -eq 1 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
