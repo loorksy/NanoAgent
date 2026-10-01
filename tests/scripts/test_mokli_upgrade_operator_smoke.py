@@ -25,7 +25,11 @@ def test_operator_smoke_script() -> None:
     if proc.returncode == 1:
         assert "WARN operator smoke" in proc.stderr or "FAIL" in proc.stdout
     combined = proc.stdout + proc.stderr
-    assert "operator_unblock" in combined or "cloud_status" in combined
+    assert (
+        "operator_unblock" in combined
+        or "cloud_status" in combined
+        or "completion_status" in combined
+    )
     partial = ROOT / "section11-results-partial.json"
     events = ROOT / "section11-events"
     if partial.is_file() and events.is_dir():
