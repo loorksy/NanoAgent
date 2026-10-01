@@ -14,12 +14,21 @@ OUT="${1:-quota-probe.jsonl}"
 HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 export MOKLI_SSH_HOST="$HOST"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+PYTHON="${ROOT}/.venv/bin/python"
+[[ -x "$PYTHON" ]] || PYTHON=python3
+
+section11_quota_reset_hint() {
+  local jsonl="$1"
+  [[ -f "$jsonl" ]] || return 0
+  "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$jsonl" >&2 || true
+}
 
 run_probe_checks() {
   local jsonl="$1"
   if grep -q 'Rate limit exceeded\|free-models-per-day' "$jsonl" 2>/dev/null; then
     echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
     section11_print_quota_unblock_hints
+    section11_quota_reset_hint "$jsonl"
     return 1
   fi
   local extract_cmd
@@ -36,6 +45,7 @@ run_probe_checks() {
   if [[ -z "${in_val:-}" || "$in_val" == "0" ]]; then
     echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
     section11_print_quota_unblock_hints
+    section11_quota_reset_hint "$jsonl"
     return 1
   fi
   echo "QUOTA_OK in=$in_val file=$OUT"
@@ -54,6 +64,9 @@ if ssh -o BatchMode=yes "$HOST" \
   "grep -q 'Rate limit exceeded\\|free-models-per-day' ${INSTALL_DIR}/section11-events/$OUT 2>/dev/null"; then
   echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
   section11_print_quota_unblock_hints
+  ssh -o BatchMode=yes "$HOST" \
+    "sudo -u ${MOKLI_SERVICE_USER:-nanoagent} bash -lc 'cd $(printf '%q' "$INSTALL_DIR") && \
+      python3 scripts/section11_quota_reset_hint.py section11-events/$OUT'" >&2 || true
   exit 1
 fi
 
@@ -65,6 +78,9 @@ IN=$(ssh -o BatchMode=yes "$HOST" \
 if [[ -z "${IN:-}" || "$IN" == "0" ]]; then
   echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
   section11_print_quota_unblock_hints
+  ssh -o BatchMode=yes "$HOST" \
+    "sudo -u ${MOKLI_SERVICE_USER:-nanoagent} bash -lc 'cd $(printf '%q' "$INSTALL_DIR") && \
+      python3 scripts/section11_quota_reset_hint.py section11-events/$OUT'" >&2 || true
   exit 1
 fi
 

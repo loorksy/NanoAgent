@@ -61,6 +61,7 @@ _status_events_dir() {
   if grep -q 'Rate limit exceeded\|free-models-per-day' "$probe" 2>/dev/null \
     || echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
     echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
+    "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$probe" >&2 || true
     return 1
   fi
   echo "QUOTA_OK cached"
@@ -118,6 +119,8 @@ echo "probe=$(basename "$probe") age_min=$age_min $line"
 if grep -q 'Rate limit exceeded\|free-models-per-day' "$probe" 2>/dev/null \
   || echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
   echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
+  sudo -u "$user" bash -lc "cd '$install' && source .venv/bin/activate && \
+    python scripts/section11_quota_reset_hint.py '$rel'" >&2 || true
   exit 1
 fi
 echo "QUOTA_OK cached"
