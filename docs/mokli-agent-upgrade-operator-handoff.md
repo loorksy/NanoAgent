@@ -46,8 +46,10 @@ bash scripts/deploy-mokli-vps.sh
 
 - **Anthropic** (preset `claude-opus-5`): رصيد منخفض → صف §11 1 يفشل بلا `input_tokens`.
 - **OpenRouter** (`openrouter/auto`): رفض «API key is out of quota» (2026-10-01).
+- **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
-- بعد شحن الرصيد: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh 01-no-tools.jsonl 'مرحبا، ما اسمك؟'`
+- بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
+- **OANDA:** غير مهيأ على `/opt/nanoagent` — صفوف 2–4/9–10 تحتاج `tradingOanda` أو `.env` قبل PASS كامل.
 
 ## قبل المحادثة الحية
 
