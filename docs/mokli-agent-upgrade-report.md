@@ -121,6 +121,8 @@
 
 **P0 تقدير طلب كامل (محلي — `scripts/mokli_upgrade_p0_turn_estimate.py`، 23 أداة مسجّلة):** على الدور الخفيف يُرسل للمزود **فقط** `message` / `web_search` / `web_fetch` (whitelist)، مع العقود المضغوطة: «مرحبا» `final≈4652` (`system≈3867`, `tool_defs≈776`, `provider_tools=3`) مقابل «حلل الذهب» `final≈10530` (`tool_defs≈4875`). خط أساس VPS §11 row 1 كان `in≈10934` (قبل whitelist + compact). أعد `01-no-tools.jsonl` بعد credits للمقارنة الرسمية.
 
+**P0 مكونات (VPS — quota-probe بعد whitelist، `in=0` لكن `components` صالحة):** مقابل baseline row 1: `comp_final` 10271 → 3092 (`delta_comp_final≈-7179`)، `tool_defs` 6791 → 776، `provider_tools` → 3. استخدم `bash scripts/mokli_upgrade_p0_live_delta.sh` بعد turn حي ناجح لطباعة `delta_in` و`delta_comp_final`.
+
 نداء أرشفة الجلسة الخاملة كان يعيد فهرس المهارات والذاكرة في رسالة النظام لأن `current_message=None` يُفسَّر كطلب غير قصير. الأرشفة تطبّق الآن طبقات آخر رسالة مستخدم في المقطع (`layers_for_archived_history`). تقدير tiktoken لرسالة النظام وحدها، جلسة موحّدة ومساحة مشروع وسؤال مستخدم قصير: 4192 ثم 3181. إعادة بناء ملخص ضغط المزود (`_summary_transcript`) كانت تفرّغ التاريخ وتفقد الطبقات؛ `prompt_layers` على `TranscriptInput` يحفظ طبقات الدورة الأصلية.
 
 ## 3. السرعة
