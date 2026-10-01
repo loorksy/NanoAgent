@@ -99,6 +99,12 @@ def test_blockers_require_through_ten_can_pass_skip_vps() -> None:
     assert "require-through 10" in proc.stdout
 
 
+def test_blockers_uses_validate_shell_wrapper() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "mokli_upgrade_section11_validate.sh" in text
+    assert "mokli_upgrade_section11_validate.py" not in text
+
+
 def test_blockers_help() -> None:
     proc = subprocess.run(
         ["bash", str(SCRIPT), "--help"],

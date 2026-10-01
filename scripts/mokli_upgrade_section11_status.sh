@@ -50,7 +50,7 @@ fi
 
 echo "== §11 status (events=$EVENTS require-through=$REQUIRE) =="
 VALIDATE_OK=0
-if "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+if bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
   --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
   VALIDATE_OK=1
 fi

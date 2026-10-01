@@ -48,7 +48,7 @@ fi
 echo ""
 echo "== §11 artifacts (require-through $REQUIRE) =="
 VAL_OK=0
-if "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+if bash "$ROOT/scripts/mokli_upgrade_section11_validate.sh" \
   --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
   VAL_OK=1
 fi
