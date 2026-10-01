@@ -76,5 +76,8 @@ if [[ "$ARTIFACT_OK" -eq 1 && "$REQUIRE" -le 10 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
 fi
+if [[ "$REQUIRE" -gt 10 && "$ARTIFACT_OK" -eq 0 ]]; then
+  echo "HINT: partial pack @10 (no LLM) — bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10" >&2
+fi
 echo "SECTION11_COMPLETION_EXIT=1" >&2
 exit 1
