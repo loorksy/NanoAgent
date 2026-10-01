@@ -224,6 +224,113 @@ def test_validate_rejects_row3_one_tool_when_require_through_13(tmp_path: Path) 
     assert "Row 3 diagnostic needs tool_calls≥2" in proc.stderr
 
 
+def _write_row13_closure_fixture(
+    tmp_path: Path,
+    *,
+    row9_lines: str | None = None,
+    row10_body: str | None = None,
+) -> Path:
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}})
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def diag_line(in_t: int, tools: int = 0, nested: int = 0) -> str:
+        return (
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {
+                        "rounds": 1,
+                        "input_tokens": in_t,
+                        "tool_calls": tools,
+                        "nested_rounds": nested,
+                    },
+                }
+            )
+            + "\n"
+        )
+
+    for row_id in range(1, 14):
+        if row_id == 9 and row9_lines is not None:
+            (tmp_path / "09-long-session-v2.jsonl").write_text(row9_lines, encoding="utf-8")
+            continue
+        if row_id == 10 and row10_body is not None:
+            (tmp_path / "10-backtest.jsonl").write_text(row10_body, encoding="utf-8")
+            continue
+        tools = 2 if row_id == 3 else 0
+        nested = 1 if row_id == 5 else 0
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            diag_line(100, tools=tools, nested=nested),
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({str(i): "PASS — live" for i in range(1, 14)}),
+        encoding="utf-8",
+    )
+    return results
+
+
+def test_validate_rejects_row9_quota_tail_when_require_through_13(tmp_path: Path) -> None:
+    line = (
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 1},
+            }
+        )
+        + "\n"
+    )
+    results = _write_row13_closure_fixture(tmp_path, row9_lines=line * 15)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Row 9 session blocked or quota tail" in proc.stderr
+
+
+def test_validate_rejects_row10_market_feed_when_require_through_13(tmp_path: Path) -> None:
+    body = (
+        '{"kind":"tool","data":{"name":"fast_backtest","summary":"market_feed_unconfigured"}}\n'
+        + json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 1}}
+        )
+        + "\n"
+    )
+    results = _write_row13_closure_fixture(tmp_path, row10_body=body)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Row 10 market feed unconfigured" in proc.stderr
+
+
 def test_validate_rejects_row8_zero_input_when_require_through_13(tmp_path: Path) -> None:
     (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
         json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}})

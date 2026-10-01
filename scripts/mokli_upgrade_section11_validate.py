@@ -7,7 +7,7 @@ Checks (does not call LLM or broker):
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
   - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
   - rows 1–13: ``01-no-tools-after-p0.jsonl`` required (skipped with ``--allow-partial`` preview)
-  - rows 3/5/8 at @13: picked diagnostic must meet row quality (tools≥2, nested≥1, ``in>0``)
+  - rows 3/5/8/9/10 at @13: picked JSONL must meet row quality (see closure checks)
 
   python scripts/mokli_upgrade_section11_validate.py \\
     --dir ./section11-events --results section11-results.json --require-through 13
@@ -303,6 +303,38 @@ def main() -> int:
                 errors.append(
                     f"Row 8 diagnostic input_tokens=0 ({name8}) — "
                     "rerun bash scripts/vps_section11_row8_fallback_provider.sh before closure"
+                )
+        picked9 = pick_row_diagnostic(directory, 9)
+        if picked9 is not None:
+            name9, _diag9 = picked9
+            path9 = directory / name9
+            diags9 = all_diagnostics_from_text(path9.read_text(encoding="utf-8"))
+            summary9 = session_summary_line(diags9)
+            if len(diags9) < 15:
+                errors.append(
+                    f"Row 9 needs ≥15 diagnostics ({name9}; {summary9}) — "
+                    "rerun bash scripts/vps_section11_row9_long_session.sh before closure"
+                )
+            elif "quota_blocked_likely=yes" in summary9 or (
+                "in_last=0" in summary9 and len(diags9) > 1
+            ):
+                errors.append(
+                    f"Row 9 session blocked or quota tail ({name9}; {summary9}) — "
+                    "rerun bash scripts/vps_section11_row9_long_session.sh before closure"
+                )
+        picked10 = pick_row_diagnostic(directory, 10)
+        if picked10 is not None:
+            name10, diag10 = picked10
+            body10 = (directory / name10).read_text(encoding="utf-8")
+            if "market_feed_unconfigured" in body10 or "OANDA not configured" in body10:
+                errors.append(
+                    f"Row 10 market feed unconfigured ({name10}) — "
+                    "set OANDA_* then bash scripts/vps_section11_row10_backtest.sh before closure"
+                )
+            elif _input_tokens(diag10) == 0:
+                errors.append(
+                    f"Row 10 diagnostic input_tokens=0 ({name10}) — "
+                    "rerun bash scripts/vps_section11_row10_backtest.sh before closure"
                 )
         partial_rows = [
             row_id
