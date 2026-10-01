@@ -111,11 +111,11 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 2 | `02-single-tool.jsonl` | سعر الذهب |
 | 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء |
-| 5 | `05-subagents.jsonl` | spawn / سرب |
+| 5 | `05-subagents.jsonl` | spawn / سرب — `bash scripts/vps_section11_row5_subagents.sh` |
 | 6 | `06-tool-failure.jsonl` | فشل أداة |
 | 7 | `07-retry.jsonl` | إعادة محاولة |
 | 8 | `08-fallback-provider.jsonl` | مزود بديل |
-| 9 | `09-long-session.jsonl` | جلسة طويلة |
+| 9 | `09-long-session.jsonl` | جلسة طويلة — `bash scripts/vps_section11_row9_long_session.sh` (quota + 15 rounds) |
 | 10 | `10-backtest.jsonl` | backtest / مختبر |
 | 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
 | 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |

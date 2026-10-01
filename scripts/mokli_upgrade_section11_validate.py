@@ -22,10 +22,60 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from mokli_upgrade_diagnostic_extract import (  # noqa: E402
+    all_diagnostics_from_text,
     diagnostic_from_text,
     pick_row_diagnostic,
+    session_summary_line,
 )
 from mokli_upgrade_section11_batch import _load_results, _row_index  # noqa: E402
+
+
+def _quality_hints(directory: Path, require_through: int) -> None:
+    if require_through >= 3:
+        picked = pick_row_diagnostic(directory, 3)
+        if picked is not None:
+            name, diag = picked
+            tool_calls = int(diag.get("tool_calls") or 0)
+            if tool_calls < 2:
+                print(
+                    f"HINT row 3 ({name}): tool_calls={tool_calls} — "
+                    "rerun bash scripts/vps_section11_row3_multi_tool.sh",
+                    file=sys.stderr,
+                )
+    if require_through >= 5:
+        picked = pick_row_diagnostic(directory, 5)
+        if picked is not None:
+            name, diag = picked
+            nested = int(diag.get("nested_rounds") or 0)
+            if nested < 1:
+                body = (directory / name).read_text(encoding="utf-8")
+                if "spawn" in body and ("429" in body or "rate-limit" in body.lower()):
+                    print(
+                        f"HINT row 5 ({name}): spawn nested_rounds=0 (quota?) — "
+                        "rerun bash scripts/vps_section11_row5_subagents.sh",
+                        file=sys.stderr,
+                    )
+    if require_through >= 9:
+        best_path: Path | None = None
+        best_count = 0
+        for path in sorted(directory.glob("*.jsonl")):
+            if not path.stem.startswith("09"):
+                continue
+            count = len(all_diagnostics_from_text(path.read_text(encoding="utf-8")))
+            if count > best_count:
+                best_count = count
+                best_path = path
+        if best_path is not None and best_count > 0:
+            diags = all_diagnostics_from_text(best_path.read_text(encoding="utf-8"))
+            summary = session_summary_line(diags)
+            if "quota_blocked_likely=yes" in summary or (
+                "in_last=0" in summary and best_count > 1
+            ):
+                print(
+                    f"HINT row 9 ({best_path.name}): {summary} — "
+                    "rerun bash scripts/vps_section11_row9_long_session.sh",
+                    file=sys.stderr,
+                )
 
 
 def _print_row_progress(
@@ -141,17 +191,7 @@ def main() -> int:
     print(
         f"OK §11 artifacts: rows 1–{args.require_through} have JSONL+diagnostic and non-empty results"
     )
-    if args.require_through >= 3:
-        picked = pick_row_diagnostic(directory, 3)
-        if picked is not None:
-            name, diag = picked
-            tool_calls = int(diag.get("tool_calls") or 0)
-            if tool_calls < 2:
-                print(
-                    f"HINT row 3 ({name}): tool_calls={tool_calls} — "
-                    "rerun bash scripts/vps_section11_row3_multi_tool.sh",
-                    file=sys.stderr,
-                )
+    _quality_hints(directory, args.require_through)
     return 0
 
 

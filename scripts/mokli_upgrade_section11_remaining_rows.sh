@@ -13,6 +13,14 @@ Row 3 (multi-tool, if row 3 still PARTIAL):
   bash scripts/vps_section11_row3_multi_tool.sh
   → 03-multi-tool-v2.jsonl; expect tools>=2 in diagnostic extract
 
+Row 5 (spawn/subagents, if nested_rounds=0 / spawn 429):
+  bash scripts/vps_section11_row5_subagents.sh
+  → 05-subagents-v2.jsonl; expect nested_rounds>=1 in diagnostic
+
+Row 9 (long session, if quota_blocked_likely in session-summary):
+  bash scripts/vps_section11_row9_long_session.sh
+  → 09-long-session-v3.jsonl; then extract --session-summary on that file
+
 Row 11 (paper, Agent API + OANDA candles):
   bash scripts/vps_section11_row11_paper.sh
   → section11-events/11-paper.jsonl on VPS; fill «النتيجة» in section11-results.json
