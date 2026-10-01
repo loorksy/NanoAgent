@@ -23,6 +23,10 @@ if [[ $# -gt 0 ]]; then
 fi
 
 echo "vps_pull_main: branch=$BRANCH install=$INSTALL_DIR" >&2
+expected="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+if [[ "$BRANCH" == main && "$expected" != main ]]; then
+  echo "WARN: default branch is main; §11 closure may need: bash $0 ${expected}" >&2
+fi
 
 if ! vps_ssh_ready; then
   bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2 || true

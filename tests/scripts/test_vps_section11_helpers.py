@@ -62,6 +62,8 @@ def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     assert "vps_section11_quota_status.sh" in text
     assert "REQUIRE_QUOTA" in text and "quota_probe.sh" in text
     assert "gateway_model_preset=" in text
+    assert "git_branch=" in text
+    assert "MOKLI_SECTION11_VPS_BRANCH" in text
     assert "_read_gateway_model_preset" in text
     assert "sudo -u" in text
 
@@ -87,6 +89,8 @@ def test_vps_pull_main_waits_gateway_and_agent_api() -> None:
     assert "8766/api/v2/health" in text
     assert "API_OK" in text and "GW_OK" in text
     assert "section11-events" in text
+    assert "MOKLI_SECTION11_VPS_BRANCH" in text
+    assert "§11 closure may need" in text
 
 
 def test_row9_long_session_prompt_uses_list_dir_only() -> None:

@@ -70,6 +70,7 @@ _snapshot_body() {
   local install="$1"
   local rev health oanda ui_http pipe_diag
   rev=$(git -C "$install" rev-parse --short HEAD 2>/dev/null || echo unknown)
+  branch=$(git -C "$install" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
   health=fail
   curl -sf http://127.0.0.1:8766/api/v2/health >/dev/null 2>&1 && health=ok
   ui_http=000
@@ -87,6 +88,7 @@ _snapshot_body() {
   fi
   model_preset=$(_read_gateway_model_preset "$SERVICE_USER")
   echo "REV=$rev"
+  echo "BRANCH=$branch"
   echo "API_HEALTH=$health"
   echo "OANDA=$oanda"
   echo "UI_HTTP=$ui_http"
@@ -104,6 +106,7 @@ user="$2"
 sudo -u "$user" bash -s -- "$install" <<'INNER'
 install="$1"
 rev=$(git -C "$install" rev-parse --short HEAD 2>/dev/null || echo unknown)
+branch=$(git -C "$install" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 health=fail
 curl -sf http://127.0.0.1:8766/api/v2/health >/dev/null 2>&1 && health=ok
 ui_http=000
@@ -135,6 +138,7 @@ else:
 PY
 )
 echo "REV=$rev"
+echo "BRANCH=$branch"
 echo "API_HEALTH=$health"
 echo "OANDA=$oanda"
 echo "UI_HTTP=$ui_http"
@@ -149,6 +153,7 @@ else
 fi
 
 rev=$(echo "$lines" | sed -n 's/^REV=//p')
+branch=$(echo "$lines" | sed -n 's/^BRANCH=//p')
 health=$(echo "$lines" | sed -n 's/^API_HEALTH=//p')
 oanda=$(echo "$lines" | sed -n 's/^OANDA=//p')
 ui_http=$(echo "$lines" | sed -n 's/^UI_HTTP=//p')
@@ -156,6 +161,7 @@ pipe_diag=$(echo "$lines" | sed -n 's/^PIPE_DIAG=//p')
 model_preset=$(echo "$lines" | sed -n 's/^MODEL_PRESET=//p')
 
 echo "git_rev=${rev:-?}"
+echo "git_branch=${branch:-?}"
 echo "agent_api_health=${health:-?}"
 echo "oanda_configured=${oanda:-?}"
 echo "mokli_ui_http=${ui_http:-?}"
@@ -165,6 +171,12 @@ if [[ -n "${MOKLI_SECTION11_MODEL:-}" ]]; then
   echo "section11_model_override=set"
 else
   echo "section11_model_override=unset"
+fi
+
+expected_branch="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+if [[ -n "${branch:-}" && "$branch" != "$expected_branch" ]]; then
+  echo "HINT: VPS on branch=${branch} — §11 tooling expects ${expected_branch} until PR merge" >&2
+  echo "HINT: bash scripts/vps_pull_main.sh ${expected_branch}" >&2
 fi
 
 quota_ok=0

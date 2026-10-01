@@ -31,7 +31,7 @@ source "$ROOT/scripts/vps_ssh.sh"
 if vps_ssh_ready; then
   install="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
   vps_ssh "cd $(printf '%q' "$install") && bash scripts/vps_section11_env_check.sh" 2>&1 \
-    | grep -E '^(git_rev|agent_api_health|oanda_configured|mokli_ui_http|mokli_pipe_show_diagnostics|gateway_model_preset|section11_model_override)=' \
+    | grep -E '^(git_rev|git_branch|agent_api_health|oanda_configured|mokli_ui_http|mokli_pipe_show_diagnostics|gateway_model_preset|section11_model_override)=' \
     || echo "WARN: vps_section11_env_check failed" >&2
 else
   echo "SKIP: set MOKLI_SSH_HOST or VPS+VPSPASS for VPS snapshot" >&2
