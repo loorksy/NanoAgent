@@ -177,6 +177,10 @@ git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifact
 
 يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). عند الفشل يطبع `validate` جدول **§11 progress** (ready / incomplete لكل صف). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `docs/section11-results.example.json` **لا يمرّ** `--require-through 13` (قالب فقط). `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`. عند `--apply` وصفوف 1–`require-through` مكتملة، يُحدَّث عنوان §11 من «لم تُنفَّذ في Cloud Agent» إلى «تم التعبئة من تشغيل VPS» (المطابقة تتسامح مع اختلاف تركيب علامات «نُفِّذ» في Markdown).
 
+## Cloud Agent — مؤقت بعد reset OpenRouter
+
+على جلسة Cloud Agent نشطة، يمكن جدولة متابعة تلقائية باسم **`mokli-section11-after-openrouter-reset`** (one-shot بعد `X-RateLimit-Reset` + buffer). عند الإطلاق: `vps_pull_main.sh` → `quota_probe` → **`timer_wake --wait-quota`** → إغلاق §11 عند اكتمال JSONL. **لا يغني** عن OANDA وصفوف 11–13 (UI/جهاز). للتحقق: `list_subscriptions` (MCP) أو أعد الجدولة يدوياً: `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota`.
+
 ## PR §11 (قبل الدمج في main)
 
 - فرع: `cursor/section11-vps-rows-d9e1` — [PR #62](https://github.com/loorksy/NanoAgent/pull/62)
