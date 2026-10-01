@@ -146,6 +146,12 @@ git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifact
 
 يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). عند الفشل يطبع `validate` جدول **§11 progress** (ready / incomplete لكل صف). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `docs/section11-results.example.json` **لا يمرّ** `--require-through 13` (قالب فقط). `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`. عند `--apply` وصفوف 1–`require-through` مكتملة، يُحدَّث عنوان §11 من «لم تُنفَّذ في Cloud Agent» إلى «تم التعبئة من تشغيل VPS» (المطابقة تتسامح مع اختلاف تركيب علامات «نُفِّذ» في Markdown).
 
+## PR §11 (قبل الدمج في main)
+
+- فرع: `cursor/section11-vps-rows-d9e1` — [PR #62](https://github.com/loorksy/NanoAgent/pull/62)
+- على VPS حتى الدمج: `MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh`
+- بعد الدمج: `MOKLI_BRANCH=main bash scripts/vps_pull_main.sh`
+
 ## ما نرسله لجلسة لاحقة
 
 - ملف JSONL أو `--json` كامل من السكربت.
