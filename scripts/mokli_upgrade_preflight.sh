@@ -105,5 +105,7 @@ echo "  python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events
 echo "  python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events/ --results section11-results.json"
 echo "  python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events/ --results section11-results.json --dry-run"
 echo "  bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts"
+echo "INFO VPS closure chain (after quota + OANDA): bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota"
+echo "INFO VPS readiness gate: bash scripts/mokli_upgrade_section11_operator_unblock.sh --pull-vps"
 
 exit "$fail"
