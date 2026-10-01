@@ -39,7 +39,7 @@ if [[ "$SKIP_PULL" -eq 0 ]]; then
   sync_args=()
   [[ "$PULL_VPS" -eq 1 ]] && sync_args+=(--pull-vps)
   bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" \
-    "${sync_args[@]}" "$EVENTS" "$RESULTS" 10
+    "${sync_args[@]}" "$EVENTS" "$RESULTS" "$REQUIRE"
 fi
 
 echo "== §11 blockers (artifacts only; env checked above) =="

@@ -9,6 +9,13 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "mokli_upgrade_section11_production_gate.sh"
 
 
+def test_production_gate_passes_require_through_to_sync() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert '"$REQUIRE"' in text
+    assert 'sync_from_vps.sh' in text
+    assert ' "$EVENTS" "$RESULTS" 10' not in text
+
+
 def test_production_gate_help() -> None:
     proc = subprocess.run(
         ["bash", str(SCRIPT), "--help"],
