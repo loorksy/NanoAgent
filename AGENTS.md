@@ -108,7 +108,7 @@ bash scripts/mokli_upgrade_aggregate_pytest.sh
 python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
 bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
-python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
+bash scripts/mokli_upgrade_section11_validate.sh --dir ./section11-events --results section11-results.json
 bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps # before/at reset: wait + probe + partial reruns
 bash scripts/mokli_upgrade_section11_after_reset_wake.sh # after reset: probe + partial reruns (no long sleep)
 bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 artifacts (no live LLM)
