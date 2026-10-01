@@ -478,6 +478,29 @@ def test_short_question_skips_memory_and_skills() -> None:
     assert trading.include_skills is True
 
 
+def test_short_turn_system_prompt_uses_compact_tool_contracts(tmp_path) -> None:
+    from mokli.agent.context import ContextBuilder, TranscriptInput
+
+    tool_names = ["get_gold_quote", "message", "run_trading_kernel"]
+    builder = ContextBuilder(tmp_path)
+    full_messages = builder.build_transcript(
+        TranscriptInput(history=[], current_message="حلل الذهب"),
+        tool_names=tool_names,
+    )
+    short_messages = builder.build_transcript(
+        TranscriptInput(history=[], current_message="مرحبا"),
+        tool_names=tool_names,
+    )
+    full_sys = full_messages[0]["content"]
+    short_sys = short_messages[0]["content"]
+    assert "Teams and debate" in full_sys
+    assert "Teams and debate" not in short_sys
+    assert "Execution permission levels" in short_sys
+    full_tok = estimate_prompt_tokens(full_messages, None)
+    short_tok = estimate_prompt_tokens(short_messages, None)
+    assert short_tok < full_tok - 150
+
+
 def test_archive_layers_follow_last_user_turn() -> None:
     history = [
         {"role": "user", "content": "مرحبا"},

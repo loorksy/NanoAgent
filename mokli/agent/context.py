@@ -141,6 +141,7 @@ class ContextBuilder:
         workspace: Path | None = None,
         include_memory: bool = True,
         include_skills: bool = True,
+        compact_tool_contracts: bool = False,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> str:
@@ -220,6 +221,7 @@ class ContextBuilder:
                 active_skills=active_section,
                 skills_index=skills_section,
                 archived_summary=archived,
+                compact_tool_contracts=compact_tool_contracts,
             )
         )
 
@@ -429,6 +431,7 @@ class ContextBuilder:
                     workspace=root,
                     include_memory=include_memory and layers.include_memory,
                     include_skills=layers.include_skills,
+                    compact_tool_contracts=not layers.include_skills,
                     tool_names=tool_names,
                     facts=facts,
                 ),
