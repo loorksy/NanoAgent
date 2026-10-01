@@ -21,7 +21,11 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from mokli_upgrade_diagnostic_extract import diagnostic_from_text, one_line_summary  # noqa: E402
+from mokli_upgrade_diagnostic_extract import (  # noqa: E402
+    diagnostic_from_text,
+    one_line_summary,
+    pick_row_diagnostic,
+)
 
 
 def _row_index(name: str) -> int | None:
@@ -34,6 +38,11 @@ def _row_index(name: str) -> int | None:
 def _collect_jsonl(directory: Path) -> list[Path]:
     files = sorted(directory.glob("*.jsonl"))
     return sorted(files, key=lambda p: (_row_index(p.stem) is None, _row_index(p.stem) or 0, p.name))
+
+
+def _scenario_jsonl(directory: Path) -> list[Path]:
+    """§11 scenario logs only (``01-….jsonl`` … ``13-….jsonl``), not quota probes."""
+    return [p for p in _collect_jsonl(directory) if _row_index(p.stem) is not None]
 
 
 def gather_section11_rows(
@@ -103,9 +112,12 @@ def main() -> int:
         print(f"Not a directory: {directory}", file=sys.stderr)
         return 1
 
-    files = _collect_jsonl(directory)
-    if not files:
-        print(f"No *.jsonl in {directory}", file=sys.stderr)
+    scenario_files = _scenario_jsonl(directory)
+    if not scenario_files:
+        print(
+            f"No §11 scenario *.jsonl (NN-prefix) in {directory}",
+            file=sys.stderr,
+        )
         return 1
 
     results_path: Path | None = None
@@ -122,21 +134,25 @@ def main() -> int:
         return 1
 
     rows: list[tuple[int | str, str, str, str]] = []
-    for path in files:
+    for path in scenario_files:
         idx = _row_index(path.stem)
-        label = str(idx) if idx is not None else path.stem
-        if idx is not None and idx in row_map:
+        assert idx is not None
+        label = str(idx)
+        if idx in row_map:
             result_text, numbers = row_map[idx]
         else:
-            result_text, numbers = "", "(no diagnostic)" if idx is not None else ""
+            result_text, numbers = "", "(no diagnostic)"
         rows.append((label, path.name, numbers, result_text))
 
     if args.markdown:
         if args.results:
             print("| # | النتيجة | أرقام | ملف JSONL |")
             print("| --- | --- | --- | --- |")
-            for label, fname, numbers, result_text in rows:
-                print(f"| {label} | {result_text} | {numbers} | `{fname}` |")
+            for idx in sorted(row_map.keys()):
+                result_text, numbers = row_map[idx]
+                picked = pick_row_diagnostic(directory, idx)
+                fname = picked[0] if picked is not None else "?"
+                print(f"| {idx} | {result_text} | {numbers} | `{fname}` |")
         else:
             print("| # | ملف JSONL | أرقام (paste into §11) |")
             print("| --- | --- | --- |")

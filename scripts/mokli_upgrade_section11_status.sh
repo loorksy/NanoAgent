@@ -61,7 +61,7 @@ if [[ "$SKIP_QUOTA" -eq 1 ]]; then
   QUOTA_OK=1
 elif vps_ssh_ready; then
   echo "== VPS LLM quota probe =="
-  if bash "${ROOT}/scripts/vps_section11_quota_probe.sh" "quota-status-$(date +%s).jsonl"; then
+  if bash "${ROOT}/scripts/vps_section11_quota_probe.sh" "quota-probe.jsonl"; then
     QUOTA_OK=1
     echo "LLM: ready for live §11 turns"
   else
