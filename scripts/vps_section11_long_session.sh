@@ -9,7 +9,7 @@ source "$ROOT/scripts/vps_ssh.sh"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 OUT_NAME="${1:-09-long-session.jsonl}"
 ROUNDS="${2:-15}"
-PROMPT="${3:-Call get_gold_price once only. Reply with OK.}"
+PROMPT="${3:-Call get_gold_quote once only. Reply with OK.}"
 
 if ! vps_ssh_ready; then
   bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2 || true
