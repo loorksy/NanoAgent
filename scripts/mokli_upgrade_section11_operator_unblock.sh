@@ -36,7 +36,8 @@ if [[ "$SKIP_PROBE" -eq 0 ]]; then
   else
     echo "QUOTA: BLOCKED — add credits or export MOKLI_SECTION11_MODEL before §11 live rows" >&2
     bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
-    echo "HINT: after reset — bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
+    echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
+    echo "HINT: or — bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
     echo "HINT: retry with --skip-probe to inspect env/blockers without another LLM call" >&2
   fi
 else
@@ -59,7 +60,9 @@ fi
 
 echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"
+echo "  bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota  # full chain when quota OK"
 echo "  bash scripts/mokli_upgrade_section11_rerun_partials.sh"
 echo "  bash scripts/mokli_upgrade_section11_remaining_rows.sh"
+echo "  OANDA: OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh"
 echo "OPERATOR_UNBLOCK_EXIT=1" >&2
 exit 1
