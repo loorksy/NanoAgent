@@ -345,6 +345,27 @@ def test_wait_quota_reset_dry_run_on_fixture_probe() -> None:
     assert "OpenRouter" in proc.stderr
 
 
+def test_runbook_close_apply_at_13_documents_partial_results() -> None:
+    runbooks = [
+        "mokli_upgrade_section11_remaining_rows.sh",
+        "mokli_upgrade_section11_post_quota.sh",
+        "mokli_upgrade_section11_rerun_partials.sh",
+        "mokli_upgrade_section11_operator_unblock.sh",
+        "mokli_upgrade_section11_cloud_status.sh",
+        "mokli_upgrade_section11_timer_wake.sh",
+        "local_section11_row12_smoke.sh",
+        "mokli_upgrade_preflight.sh",
+        "mokli_upgrade_section11_sync_from_vps.sh",
+    ]
+    for name in runbooks:
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "mokli_upgrade_section11_close.sh" in text or "section11_close.sh" in text, name
+        assert "--apply" in text and "--require-through" in text, name
+        assert (
+            "section11-results-partial.json" in text or "SECTION11_RESULTS" in text
+        ), name
+
+
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
     script = ROOT / "scripts" / "vps_pull_main.sh"
     proc = subprocess.run(

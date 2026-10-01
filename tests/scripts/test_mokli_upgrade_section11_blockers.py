@@ -145,8 +145,9 @@ def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
         check=False,
         timeout=60,
     )
-    match = re.search(r"closure_errors=(\d+)", proc_b.stderr)
-    assert match, proc_b.stderr
+    combined_b = proc_b.stdout + proc_b.stderr
+    match = re.search(r"closure_errors=(\d+)", combined_b)
+    assert match, combined_b[-800:]
     assert int(match.group(1)) == err_count
 
 
