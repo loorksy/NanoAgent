@@ -25,7 +25,7 @@ from mokli.agent.context_governance import (
 )
 from mokli.agent.hook import AgentHook, AgentHookContext, AgentRunHookContext
 from mokli.agent.tools.execution import execute_tool_calls
-from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.registry import ToolRegistry, filter_tool_definitions
 from mokli.agent.turn_diagnostics import (
     TurnDiagnostics,
     bind_turn_diagnostics,
@@ -1008,7 +1008,10 @@ class AgentRunner:
         if omit_tools:
             tool_definitions = None
         elif spec.llm_tool_names is not None:
-            tool_definitions = spec.tools.get_definitions_for_names(spec.llm_tool_names)
+            tool_definitions = filter_tool_definitions(
+                spec.tools.get_definitions(),
+                spec.llm_tool_names,
+            )
         else:
             tool_definitions = spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(

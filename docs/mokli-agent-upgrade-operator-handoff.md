@@ -56,7 +56,7 @@ bash scripts/deploy-mokli-vps.sh
 - **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
 - **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` ثم `bash scripts/mokli_upgrade_section11_after_pull.sh` (validate 1–10 + جدول §2.1 من JSONL).
 - **صف 13 CI (بدون جهاز):** `bash scripts/mokli_upgrade_section11_row13_ci.sh` — pipe projection + `mokli-sdk`؛ لا يغني عن JSONL حي على الهاتف.
-- **P0 تقدير بلا LLM:** `python scripts/mokli_upgrade_p0_turn_estimate.py --compare "مرحبا" "حلل الذهب"` — `final` / `system` / `tool_defs` (نفس `diagnostic.components`).
+- **P0 تقدير بلا LLM:** `python scripts/mokli_upgrade_p0_turn_estimate.py --compare "مرحبا" "حلل الذهب"` — `final` / `system` / `tool_defs` (نفس `diagnostic.components`). على الدور الخفيف يُرسل للمزود `message` + `web_search` + `web_fetch` فقط (أدوات التداول مسجّلة لكن مخططاتها مؤجّلة).
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
 - **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. انسخ `docs/section11-vps-env.example` → `/opt/nanoagent/.env` (600) واملأ `OANDA_*` ثم `systemctl restart nanoagent-gateway`.
