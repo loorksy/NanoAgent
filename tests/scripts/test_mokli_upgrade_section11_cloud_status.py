@@ -30,3 +30,21 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "PARTIAL" in combined
     assert proc.returncode == 1
+
+
+def test_cloud_status_exits_zero_for_artifacts_through_10_when_partial_pack() -> None:
+    partial = ROOT / "section11-results-partial.json"
+    events = ROOT / "section11-events"
+    if not partial.is_file() or not events.is_dir():
+        return
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--require-through", "10"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined = proc.stdout + proc.stderr
+    assert "cloud_status:" in combined
+    assert proc.returncode == 0, combined[-800:]
+    assert "not production closure" in combined

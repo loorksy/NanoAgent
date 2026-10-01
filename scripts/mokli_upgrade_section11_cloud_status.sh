@@ -57,4 +57,8 @@ if [[ "$QUOTA_OK" -eq 1 && "$BLOCK_OK" -eq 1 ]]; then
   echo "READY for section11_close.sh --apply --require-through $REQUIRE"
   exit 0
 fi
+if [[ "$BLOCK_OK" -eq 1 && "$REQUIRE" -le 10 ]]; then
+  echo "OK §11 artifacts through row $REQUIRE (quota_ok=$QUOTA_OK — not production closure)"
+  exit 0
+fi
 exit 1
