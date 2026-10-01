@@ -27,11 +27,18 @@ _run_delta_on_install() {
 set -euo pipefail
 cd '$install'
 source .venv/bin/activate
-if [[ ! -f section11-events/$BASELINE ]]; then
-  echo \"Missing baseline section11-events/$BASELINE on VPS (keep original row 1 JSONL)\" >&2
+BASE='$BASELINE'
+if [[ ! -f section11-events/\$BASE ]]; then
+  RES=\$(python scripts/mokli_upgrade_diagnostic_extract.py --resolve-row 1 --dir section11-events --exclude-stem after-p0 2>/dev/null || true)
+  if [[ -n \"\$RES\" && -f \"\$RES\" ]]; then
+    BASE=\$(basename \"\$RES\")
+  fi
+fi
+if [[ ! -f section11-events/\$BASE ]]; then
+  echo \"Missing baseline row 1 JSONL on VPS (need 01-*.jsonl with diagnostic)\" >&2
   exit 1
 fi
-bash scripts/mokli_upgrade_p0_live_delta.sh section11-events/$BASELINE section11-events/$OUT
+bash scripts/mokli_upgrade_p0_live_delta.sh section11-events/\$BASE section11-events/$OUT
 "
 }
 
@@ -52,11 +59,18 @@ sudo -u "$USER" bash -lc "
 set -euo pipefail
 cd '$INSTALL'
 source .venv/bin/activate
-if [[ ! -f section11-events/$BASE ]]; then
-  echo \"Missing baseline section11-events/$BASE on VPS\" >&2
+BASE='$BASE'
+if [[ ! -f section11-events/\$BASE ]]; then
+  RES=\$(python scripts/mokli_upgrade_diagnostic_extract.py --resolve-row 1 --dir section11-events --exclude-stem after-p0 2>/dev/null || true)
+  if [[ -n \"\$RES\" && -f \"\$RES\" ]]; then
+    BASE=\$(basename \"\$RES\")
+  fi
+fi
+if [[ ! -f section11-events/\$BASE ]]; then
+  echo \"Missing baseline row 1 JSONL on VPS\" >&2
   exit 1
 fi
-bash scripts/mokli_upgrade_p0_live_delta.sh section11-events/$BASE section11-events/$NEW
+bash scripts/mokli_upgrade_p0_live_delta.sh section11-events/\$BASE section11-events/$NEW
 "
 EOS
 else
