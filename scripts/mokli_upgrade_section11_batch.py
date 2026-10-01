@@ -22,9 +22,10 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from mokli_upgrade_diagnostic_extract import (  # noqa: E402
-    diagnostic_from_text,
+    all_diagnostics_from_text,
     one_line_summary,
     pick_row_diagnostic,
+    session_summary_line,
 )
 
 
@@ -67,8 +68,13 @@ def gather_section11_rows(
             numbers = "(no diagnostic)"
             missing += 1
         else:
-            _name, diag = picked
+            name, diag = picked
             numbers = one_line_summary(diag)
+            if idx == 9:
+                path = directory / name
+                diags = all_diagnostics_from_text(path.read_text(encoding="utf-8"))
+                if len(diags) > 1:
+                    numbers = f"{numbers} {session_summary_line(diags)}"
         result_text = results_map.get(idx, "")
         out[idx] = (result_text, numbers)
     return out, missing

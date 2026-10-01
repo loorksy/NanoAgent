@@ -11,7 +11,7 @@ bash "$ROOT/scripts/vps_section11_env_check.sh" || true
 echo "== P0 row 1 after =="
 bash "$ROOT/scripts/vps_section11_row1_after_p0.sh"
 
-echo "== partial rows 3, 5, 9 =="
+echo "== partial rows 3, 5, 9 (writes 03-multi-tool-v2, 05-subagents-v2, 09-long-session-v3 on VPS) =="
 bash "$ROOT/scripts/vps_section11_row3_multi_tool.sh"
 bash "$ROOT/scripts/vps_section11_row5_subagents.sh"
 bash "$ROOT/scripts/vps_section11_row9_long_session.sh"

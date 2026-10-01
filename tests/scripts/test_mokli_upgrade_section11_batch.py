@@ -74,6 +74,24 @@ def test_batch_with_results_json(tmp_path: Path) -> None:
     assert "| النتيجة |" in proc.stdout
 
 
+def test_batch_row9_appends_session_summary_when_multiple_diagnostics(tmp_path: Path) -> None:
+    line = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1000, "tool_calls": 1}}
+    )
+    (tmp_path / "09-long-session-v3.jsonl").write_text(
+        (line + "\n") * 3,
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--dir", str(tmp_path), "--markdown"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "diagnostics=3" in proc.stdout
+    assert "in_last_over_first" in proc.stdout
+
+
 def test_batch_markdown_includes_p0_fold_suffix(tmp_path: Path) -> None:
     (tmp_path / "09-long.jsonl").write_text(
         json.dumps(
