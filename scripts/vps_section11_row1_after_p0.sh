@@ -78,4 +78,4 @@ else
   exit 1
 fi
 
-echo "OK row 1 after P0 — update section11-results.json row 1 and report §2.1 when in>0"
+echo "OK row 1 after P0 — sync results; section11_close --apply refreshes report §11 + §2.1 table"

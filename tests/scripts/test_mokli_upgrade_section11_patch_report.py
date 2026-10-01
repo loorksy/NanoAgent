@@ -11,6 +11,28 @@ ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "scripts" / "mokli_upgrade_section11_patch_report.py"
 
 
+def test_patch_p0_baseline_table_updates_section_21() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_baseline_table
+
+    events = ROOT / "section11-events"
+    if not (events / "01-no-tools.jsonl").is_file():
+        return
+    report = (
+        "### 2.1 خط أساس حي\n\n"
+        "نص.\n\n"
+        "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| 1 تحية | 99999 | 0 | 0 | 0 | stale |\n\n"
+        "**معلق:** text\n"
+    )
+    updated, changed = patch_p0_baseline_table(report, events)
+    assert changed == 1
+    assert "99999" not in updated
+    assert "1 تحية" in updated
+    assert "**معلق:** text" in updated
+
+
 def test_patch_table_line_updates_result_and_numbers() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_report_text

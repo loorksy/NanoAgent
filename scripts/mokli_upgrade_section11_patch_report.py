@@ -22,8 +22,10 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from mokli_upgrade_section11_batch import gather_section11_rows  # noqa: E402
+from mokli_upgrade_diagnostic_extract import p0_baseline_markdown  # noqa: E402
 
 _ROW_LINE = re.compile(r"^\|\s*(\d+)\s*\|")
+_P0_TABLE_HEADER = "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |"
 _PENDING_HEADER = "(لم تُنفَّذ في Cloud Agent)"
 _FILLED_HEADER = "(تم التعبئة من تشغيل VPS — راجع الأرقام واللقطات)"
 # Report markdown may use a different combining-mark order for «نُفِّذ»; match by section title.
@@ -89,16 +91,46 @@ def _maybe_update_section_header(
     return text, False
 
 
+def patch_p0_baseline_table(text: str, events_dir: Path) -> tuple[str, int]:
+    """Replace report §2.1 snapshot table from section11-events diagnostics."""
+    lines = text.splitlines()
+    start: int | None = None
+    end: int | None = None
+    for idx, line in enumerate(lines):
+        if line.strip() == _P0_TABLE_HEADER:
+            start = idx
+            continue
+        if start is not None and line.startswith("**"):
+            end = idx
+            break
+    if start is None:
+        return text, 0
+    if end is None:
+        end = len(lines)
+    new_block = p0_baseline_markdown(events_dir).splitlines()
+    if lines[start:end] == new_block:
+        return text, 0
+    updated_lines = lines[:start] + new_block + lines[end:]
+    updated = "\n".join(updated_lines)
+    if text.endswith("\n"):
+        updated += "\n"
+    return updated, 1
+
+
 def apply_section11_patch(
     text: str,
     payloads: dict[int, tuple[str, str]],
     *,
     require_through: int = 13,
+    events_dir: Path | None = None,
 ) -> tuple[str, int]:
     updated, changed = patch_report_text(text, payloads)
     updated, header_changed = _maybe_update_section_header(updated, payloads, require_through)
     if header_changed:
         changed += 1
+    if events_dir is not None:
+        updated, p0_changed = patch_p0_baseline_table(updated, events_dir)
+        changed += p0_changed
     return updated, changed
 
 
@@ -168,7 +200,10 @@ def main() -> int:
     try:
         original = report_path.read_text(encoding="utf-8")
         updated, changed = apply_section11_patch(
-            original, payloads, require_through=args.require_through
+            original,
+            payloads,
+            require_through=args.require_through,
+            events_dir=events_dir,
         )
     except ValueError as exc:
         print(f"ERROR {exc}", file=sys.stderr)
