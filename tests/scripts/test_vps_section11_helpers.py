@@ -289,6 +289,7 @@ def test_wait_quota_reset_dry_run_on_fixture_probe() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "seconds_until_reset=" in proc.stdout
+    assert "OpenRouter" in proc.stderr
 
 
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
