@@ -151,6 +151,8 @@ def _row_pick_rank(row: int, diag: dict[str, Any]) -> tuple[Any, ...]:
         return (1 if tool_calls >= 2 else 0, tool_calls, tin)
     if row == 5:
         return (1 if nested >= 1 else 0, nested, tin)
+    if row == 8:
+        return (1 if tin > 0 else 0, tin)
     return (tin,)
 
 
