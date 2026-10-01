@@ -49,6 +49,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_section11_fix_events_ownership.sh",
         "mokli_upgrade_section11_cloud_status.sh",
         "mokli_upgrade_aggregate_pytest.sh",
+        "mokli_upgrade_section11_operator_unblock.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -140,6 +141,15 @@ def test_section11_turn_core_reexecs_as_service_user_when_root() -> None:
     assert "SECTION11_TURN_AS_USER" in turn
     assert "sudo -u" in turn and 'id -un)" != "$SERVICE_USER"' in turn
     assert "SECTION11_LONG_AS_USER" in long
+
+
+def test_operator_unblock_script_wires_probe_and_blockers() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_operator_unblock.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "vps_section11_quota_probe.sh" in text
+    assert "mokli_upgrade_section11_blockers.sh" in text
+    assert "operator-handoff.md" in text
 
 
 def test_remaining_rows_close_uses_production_gate_pull_vps() -> None:
