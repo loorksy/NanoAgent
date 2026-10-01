@@ -95,7 +95,8 @@ VPS deploy from Cloud Agent: set environment secrets **`VPS`** (host or `user@ho
 cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 curl -s http://127.0.0.1:5173/api/v2/health
 bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
-bash scripts/mokli_upgrade_section11_cloud_status.sh  # VPS quota cache + env snapshot + local blockers
+bash scripts/mokli_upgrade_section11_cloud_status.sh  # quota cache + VPS env + blockers @13 (exit 1 until closure)
+bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10  # exit 0 when local JSONL 1–10 OK (quota may still block)
 bash scripts/mokli_upgrade_section11_operator_unblock.sh  # live probe + env + blockers @13
 bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe  # cached quota only (quota already blocked)
 # Paid §11 model from workstation: export MOKLI_SECTION11_MODEL=… before vps_section11_* (forwarded over SSH)
