@@ -386,3 +386,80 @@ def test_validate_closure_hints_name_row11_12_13_jsonl(tmp_path: Path) -> None:
     assert "11-paper.jsonl" in proc.stderr
     assert "12-desktop-ui.jsonl" in proc.stderr
     assert "13-mobile.jsonl" in proc.stderr
+
+
+def test_validate_row9_hint_skips_when_pick_row_has_no_quota_tail(tmp_path: Path) -> None:
+    diag = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 4000, "tool_calls": 1}}
+    )
+
+    def write_rows_through_8() -> None:
+        for row_id in range(1, 9):
+            (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
+                json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}})
+                + "\n",
+                encoding="utf-8",
+            )
+
+    write_rows_through_8()
+    (tmp_path / "09-long-session-v2.jsonl").write_text((diag + "\n") * 14 + json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0}}
+    ) + "\n", encoding="utf-8")
+    (tmp_path / "09-long-session-v3.jsonl").write_text((diag + "\n") * 15, encoding="utf-8")
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 10)}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "9",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "HINT row 9" not in proc.stderr
+
+
+def test_validate_row9_hint_when_only_quota_blocked_file(tmp_path: Path) -> None:
+    for row_id in range(1, 9):
+        (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}}) + "\n",
+            encoding="utf-8",
+        )
+    line_ok = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000, "tool_calls": 1}}
+    )
+    line_bad = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0}}
+    )
+    (tmp_path / "09-long-session-v2.jsonl").write_text(
+        (line_ok + "\n") * 14 + line_bad + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 10)}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "9",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "HINT row 9 (09-long-session-v2.jsonl)" in proc.stderr
+    assert "in_last=0" in proc.stderr

@@ -107,26 +107,21 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                         file=sys.stderr,
                     )
     if require_through >= 9:
-        best_path: Path | None = None
-        best_count = 0
-        for path in sorted(directory.glob("*.jsonl")):
-            if not path.stem.startswith("09"):
-                continue
-            count = len(all_diagnostics_from_text(path.read_text(encoding="utf-8")))
-            if count > best_count:
-                best_count = count
-                best_path = path
-        if best_path is not None and best_count > 0:
-            diags = all_diagnostics_from_text(best_path.read_text(encoding="utf-8"))
-            summary = session_summary_line(diags)
-            if "quota_blocked_likely=yes" in summary or (
-                "in_last=0" in summary and best_count > 1
-            ):
-                print(
-                    f"HINT row 9 ({best_path.name}): {summary} — "
-                    "rerun bash scripts/vps_section11_row9_long_session.sh",
-                    file=sys.stderr,
-                )
+        picked = pick_row_diagnostic(directory, 9)
+        if picked is not None:
+            name, _diag = picked
+            path = directory / name
+            diags = all_diagnostics_from_text(path.read_text(encoding="utf-8"))
+            if diags:
+                summary = session_summary_line(diags)
+                if "quota_blocked_likely=yes" in summary or (
+                    "in_last=0" in summary and len(diags) > 1
+                ):
+                    print(
+                        f"HINT row 9 ({name}): {summary} — "
+                        "rerun bash scripts/vps_section11_row9_long_session.sh",
+                        file=sys.stderr,
+                    )
     if require_through >= 10:
         picked = pick_row_diagnostic(directory, 10)
         if picked is not None:
