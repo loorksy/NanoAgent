@@ -7,6 +7,7 @@ Checks (does not call LLM or broker):
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
   - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
   - rows 1–13: ``01-no-tools-after-p0.jsonl`` required (skipped with ``--allow-partial`` preview)
+  - row 8 at @13: diagnostic ``input_tokens`` must be >0 (quota/billing-fail turns are hints only @≤10)
 
   python scripts/mokli_upgrade_section11_validate.py \\
     --dir ./section11-events --results section11-results.json --require-through 13
@@ -277,6 +278,14 @@ def main() -> int:
         )
 
     if args.require_through >= 13 and not args.allow_partial:
+        picked8 = pick_row_diagnostic(directory, 8)
+        if picked8 is not None:
+            name8, diag8 = picked8
+            if _input_tokens(diag8) == 0:
+                errors.append(
+                    f"Row 8 diagnostic input_tokens=0 ({name8}) — "
+                    "rerun bash scripts/vps_section11_row8_fallback_provider.sh before closure"
+                )
         partial_rows = [
             row_id
             for row_id in sorted(required)

@@ -175,6 +175,49 @@ def test_validate_hints_row8_when_input_tokens_zero(tmp_path: Path) -> None:
     assert "vps_section11_row8_fallback_provider" in proc.stderr
 
 
+def test_validate_rejects_row8_zero_input_when_require_through_13(tmp_path: Path) -> None:
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}})
+        + "\n",
+        encoding="utf-8",
+    )
+    for row_id in range(1, 14):
+        in_tok = 0 if row_id == 8 else 100
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 1, "input_tokens": in_tok, "tool_calls": 0},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({str(i): "PASS — live" for i in range(1, 14)}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Row 8 diagnostic input_tokens=0" in proc.stderr
+    assert "vps_section11_row8_fallback_provider" in proc.stderr
+
+
 def test_validate_hints_row10_when_oanda_missing(tmp_path: Path) -> None:
     body = (
         '{"kind":"tool","data":{"name":"fast_backtest","summary":"market_feed_unconfigured"}}\n'
