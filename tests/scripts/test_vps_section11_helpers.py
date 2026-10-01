@@ -187,6 +187,23 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert "vps_pull_main.sh" in text
 
 
+def test_wait_quota_reset_dry_run_on_fixture_probe() -> None:
+    probe = ROOT / "section11-events" / "quota-probe.jsonl"
+    if not probe.is_file():
+        return
+    script = ROOT / "scripts" / "mokli_upgrade_section11_wait_quota_reset.sh"
+    proc = subprocess.run(
+        ["bash", str(script), "--probe", str(probe)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "seconds_until_reset=" in proc.stdout
+
+
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
     script = ROOT / "scripts" / "vps_pull_main.sh"
     proc = subprocess.run(

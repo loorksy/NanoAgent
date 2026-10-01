@@ -100,7 +100,8 @@ bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10  # exi
 bash scripts/mokli_upgrade_section11_operator_unblock.sh  # live probe + env + blockers @13
 bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe  # cached quota only (quota already blocked)
 # Paid §11 model from workstation: export MOKLI_SECTION11_MODEL=… before vps_section11_* (forwarded over SSH)
-bash scripts/vps_section11_quota_status.sh  # read last quota-probe JSONL (no LLM call)
+bash scripts/vps_section11_quota_status.sh  # read last quota-probe JSONL (no LLM call; prints OpenRouter reset hint)
+bash scripts/mokli_upgrade_section11_wait_quota_reset.sh  # seconds until reset; --wait sleeps then quota_probe
 bash scripts/mokli_upgrade_section11_init.sh  # VPS: scaffold events/ + results + progress (no LLM)
 bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
 bash scripts/mokli_upgrade_aggregate_pytest.sh
