@@ -9,7 +9,7 @@ HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 export MOKLI_SSH_HOST="$HOST"
 
 MOKLI_SSH_HOST="$HOST" bash "$ROOT/scripts/vps_section11_agent_api_turn.sh" "$OUT" 'Reply with exactly: OK' \
-  | tee /dev/stderr
+  | tee >(cat >&2)
 
 if ssh -o BatchMode=yes "$HOST" \
   "grep -q 'Rate limit exceeded\\|free-models-per-day' /opt/nanoagent/section11-events/$OUT 2>/dev/null"; then
