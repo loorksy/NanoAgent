@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+SECTION11_EVENTS="$ROOT/section11-events"
+SECTION11_RESULTS="$ROOT/section11-results-partial.json"
 
 echo "== VPS pull ($BRANCH) =="
 bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
@@ -38,6 +40,8 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe
   echo "READY for remaining_rows (11–13) then: mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
 else
   echo "PARTIAL: reruns done but blockers remain (OANDA and/or rows 11–13 JSONL)" >&2
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
+    "$SECTION11_EVENTS" "$SECTION11_RESULTS" 2>&1 || true
   echo "== row 12 VPS pre-check (no LLM) =="
   bash "$ROOT/scripts/vps_section11_row12_desktop.sh" || true
   bash "$ROOT/scripts/mokli_upgrade_section11_remaining_rows.sh"
