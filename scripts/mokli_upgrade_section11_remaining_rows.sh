@@ -46,3 +46,14 @@ Close:
 
 Docs: docs/mokli-agent-upgrade-operator-handoff.md
 EOF
+
+EVENTS="$ROOT/section11-events"
+RESULTS="$ROOT/section11-results-partial.json"
+if [[ -d "$EVENTS" && -f "$RESULTS" ]]; then
+  echo ""
+  echo "== current §11 blockers (cached quota; --skip-vps @13) =="
+  set +e
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
+    "$EVENTS" "$RESULTS" 2>&1 | tail -8
+  set -e
+fi

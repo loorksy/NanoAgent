@@ -310,6 +310,7 @@ def test_remaining_rows_close_uses_production_gate_pull_vps() -> None:
     text = (ROOT / "scripts" / "mokli_upgrade_section11_remaining_rows.sh").read_text(
         encoding="utf-8"
     )
+    assert "mokli_upgrade_section11_blockers.sh" in text
     assert "production_gate.sh --pull-vps" in text
 
 
