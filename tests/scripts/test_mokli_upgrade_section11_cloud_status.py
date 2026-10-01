@@ -21,14 +21,16 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
     assert "cloud_status:" in combined
     assert "quota_ok=" in combined
     assert "blockers_ok=" in combined
-    assert "HINT: local artifacts rows 1–10 OK" in combined
-    if "git_rev=" in combined:
-        assert "agent_api_health=" in combined
+    assert "partial10_ok=" in combined
     partial = ROOT / "section11-results-partial.json"
     events = ROOT / "section11-events"
     if partial.is_file() and events.is_dir():
+        assert "partial10_ok=1" in combined
+        assert "partial10_gate=1" in combined
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "PARTIAL" in combined
+    if "git_rev=" in combined:
+        assert "agent_api_health=" in combined
     assert proc.returncode == 1
 
 

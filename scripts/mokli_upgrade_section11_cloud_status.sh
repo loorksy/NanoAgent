@@ -48,13 +48,27 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
   BLOCK_OK=1
 fi
 
-echo ""
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK require_through=$REQUIRE"
-if [[ "$BLOCK_OK" -eq 0 && "$REQUIRE" -gt 10 ]]; then
+PARTIAL10_OK=0
+PARTIAL10_GATE=0
+if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
+  echo ""
+  echo "== Local §11 partial pack (require-through 10) =="
   if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
-    --skip-vps --require-through 10 >/dev/null 2>&1; then
-    echo "HINT: local artifacts rows 1–10 OK — bash $0 --require-through 10" >&2
+    --skip-vps --require-through 10; then
+    PARTIAL10_OK=1
+    echo ""
+    echo "== production gate @10 (skip quota/OANDA/pull) =="
+    if bash "$ROOT/scripts/mokli_upgrade_section11_production_gate.sh" \
+      --skip-quota --skip-oanda --skip-pull --require-through 10; then
+      PARTIAL10_GATE=1
+    fi
   fi
+fi
+
+echo ""
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE"
+if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
+  echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
 if [[ "$QUOTA_OK" -eq 1 && "$BLOCK_OK" -eq 1 ]]; then
   echo "READY for section11_close.sh --apply --require-through $REQUIRE"
