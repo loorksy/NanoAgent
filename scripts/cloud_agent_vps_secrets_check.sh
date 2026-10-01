@@ -29,11 +29,10 @@ if [[ -n "${CLOUD_AGENT_INJECTED_SECRET_NAMES:-}" ]]; then
 fi
 
 if [[ -n "${CLOUD_AGENT_INJECTED_SECRET_NAMES:-}" && "$vps_ok" -eq 0 && "$pass_ok" -eq 0 ]]; then
-  echo "HINT secrets are registered but not exported to this shell." >&2
-  echo "  1. In Cloud Agent environment settings, save secrets as VPS and VPSPASS" >&2
-  echo "     (or vps and password — mapped by scripts/vps_env.sh)." >&2
-  echo "  2. Start a new agent run so values are injected into the process environment." >&2
-  echo "  3. Or export manually in the shell before deploy (not committed to git)." >&2
+  echo "HINT secret names are injected into this run but VPS/VPSPASS values are empty." >&2
+  echo "  Re-enter values in Cloud Agent environment secrets (not just names), then start a new agent run." >&2
+  echo "  Preferred names: VPS + VPSPASS; legacy vps + password map via scripts/vps_env.sh." >&2
+  echo "  Or export VPS/VPSPASS manually in the shell before deploy (never commit them)." >&2
 fi
 
 exit 1
