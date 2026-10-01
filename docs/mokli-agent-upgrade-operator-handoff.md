@@ -115,3 +115,4 @@ git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifact
 - اختبار §11.1 (ارتباط CI) بدل الصفوف 1–13 الحية.
 - `section11_dry_run` أو `operator_smoke` أو `section11_close` على fixture/صف 1 فقط.
 - `patch_report --apply` قبل `validate --require-through 13` على artifacts حية كاملة.
+- `close --apply` على التقرير الرسمي مع artifacts ناقصة (يفشل validate ولا يعدّل `docs/mokli-agent-upgrade-report.md` — `test_close_apply_on_canonical_report_aborts_before_patch`).
