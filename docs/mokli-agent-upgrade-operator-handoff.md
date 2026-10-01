@@ -21,6 +21,8 @@ bash scripts/cloud_agent_vps_secrets_check.sh
 ```bash
 export MOKLI_SSH_HOST=hostinger-vps MOKLI_INSTALL_DIR=/opt/nanoagent MOKLI_GATEWAY_SERVICE=nanoagent-gateway
 bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
+# قبل دمج PR §11: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh
+bash scripts/mokli_upgrade_section11_status.sh   # تقدم محلي + quota probe إن MOKLI_SSH_HOST مضبوط
 # أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل
 ```
 
@@ -47,7 +49,7 @@ bash scripts/deploy-mokli-vps.sh
 - **Anthropic** (preset `claude-opus-5`): رصيد منخفض → صف §11 1 يفشل بلا `input_tokens`.
 - **OpenRouter** (`openrouter/auto`): رفض «API key is out of quota» (2026-10-01).
 - **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
-- **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب).
+- **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب). على **الخادم نفسه** (SSH إلى VPS): `cd /opt/nanoagent && bash scripts/vps_section11_quota_probe.sh` — يستخدم Agent API على `127.0.0.1:8766` بلا SSH متداخل.
 - **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
 - **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` → `./section11-events/` محلياً قبل `section11_batch` / `patch_report`.
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.

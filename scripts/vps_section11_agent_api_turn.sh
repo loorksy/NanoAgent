@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 # Run one Agent API turn on VPS and write JSONL + diagnostic line (operator §11 helper).
-# Requires: MOKLI_SSH_HOST or VPS/VPSPASS; working LLM billing on the host.
+# From workstation: MOKLI_SSH_HOST or VPS/VPSPASS. On the VPS host: auto localhost if Agent API is up.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/vps_ssh.sh
 source "$ROOT/scripts/vps_ssh.sh"
+# shellcheck source=scripts/section11_agent_api_turn_core.sh
+source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 OUT_NAME="${1:-01-no-tools.jsonl}"
 PROMPT="${2:-مرحبا، ما اسمك؟}"
+
+if section11_local_ready "$INSTALL_DIR"; then
+  section11_run_agent_api_turn "$INSTALL_DIR" "$OUT_NAME" "$PROMPT"
+  exit 0
+fi
 
 if ! vps_ssh_ready; then
   bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2 || true
@@ -18,36 +25,13 @@ fi
 
 PROMPT_B64=$(printf '%s' "$PROMPT" | base64 -w0)
 
-vps_ssh bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" <<'EOS'
+vps_ssh bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" "$ROOT" <<'EOS'
 set -euo pipefail
 INSTALL="$1"
 OUT_NAME="$2"
 PROMPT=$(printf '%s' "$3" | base64 -d)
-TOKEN=$(cat "$INSTALL/.mokli/workspace/agent_api/admin_token")
-BASE=http://127.0.0.1:8766/api/v2
-EVENT_DIR="$INSTALL/section11-events"
-mkdir -p "$EVENT_DIR"
-SID=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" -d "{\"title\":\"section11-${OUT_NAME}\"}" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-RAW="$EVENT_DIR/raw-${OUT_NAME}.sse"
-curl -sfN --max-time 900 "$BASE/sessions/$SID/events?until_end=1" \
-  -H "Authorization: Bearer $TOKEN" -o "$RAW" &
-SSE_PID=$!
-sleep 1
-curl -sf -X POST "$BASE/sessions/$SID/messages" -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$(PROMPT="$PROMPT" python3 -c "import json,os; print(json.dumps({'text':os.environ['PROMPT']}))")"
-wait "$SSE_PID" || true
-for _ in $(seq 1 30); do
-  grep '^data: ' "$RAW" | sed 's/^data: //' > "$EVENT_DIR/$OUT_NAME"
-  if grep -q '"kind": "diagnostic"' "$EVENT_DIR/$OUT_NAME" 2>/dev/null \
-    || grep -q '"kind":"diagnostic"' "$EVENT_DIR/$OUT_NAME" 2>/dev/null; then
-    break
-  fi
-  sleep 2
-done
-grep '^data: ' "$RAW" | sed 's/^data: //' > "$EVENT_DIR/$OUT_NAME"
-sudo -u nanoagent bash -lc "cd '$INSTALL' && source .venv/bin/activate && \
-  python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT_NAME"
+ROOT="$4"
+# shellcheck source=scripts/section11_agent_api_turn_core.sh
+source "$ROOT/scripts/section11_agent_api_turn_core.sh"
+section11_run_agent_api_turn "$INSTALL" "$OUT_NAME" "$PROMPT"
 EOS
