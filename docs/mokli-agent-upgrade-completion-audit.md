@@ -19,7 +19,7 @@
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2411** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | validate: PARTIAL + `01-no-tools-after-p0.jsonl` @13؛ `close.sh --allow-partial`؛ `operator_smoke`؛ `blockers` (`BLOCKERS_EXIT`)； `operator_unblock`؛ quota probe يتعرّف retry-only `rate_limit` | منجز |
+| أدوات المشغّل §11 | validate: PARTIAL + `01-no-tools-after-p0.jsonl` @13؛ `close.sh --allow-partial`؛ `operator_smoke`؛ `blockers` (`BLOCKERS_EXIT`); `operator_unblock`؛ quota probe يتعرّف retry-only `rate_limit` | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS checkout (Hostinger) | PR #62؛ **`git_rev`/`git_branch` من `vps_section11_env_check.sh`** (توقّع `cursor/section11-vps-rows-d9e1` حتى الدمج)؛ preset **`qwen3-8-27b-free`**؛ quota/OANDA من env_check | منجز |

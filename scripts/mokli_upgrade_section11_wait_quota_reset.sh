@@ -28,14 +28,29 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-raw_secs=$("$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" --seconds "$PROBE")
-if [[ "$raw_secs" == "-1" ]]; then
-  echo "WARN: no X-RateLimit-Reset in $PROBE — run vps_section11_quota_probe.sh first" >&2
-  secs=0
-else
-  secs="$raw_secs"
+best=-1
+events_dir=$(dirname "$PROBE")
+for candidate in "$PROBE" "$events_dir"/quota-*.jsonl; do
+  [[ -f "$candidate" ]] || continue
+  s=$("$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" --seconds "$candidate")
+  if [[ "$s" != "-1" ]]; then
+    if [[ "$best" == "-1" || "$s" -gt "$best" ]]; then
+      best=$s
+    fi
+  fi
+done
+
+if [[ "$best" == "-1" ]]; then
+  echo "WARN: no X-RateLimit-Reset in $PROBE or quota-*.jsonl — run vps_section11_quota_probe.sh" >&2
+  echo "seconds_until_reset=unknown buffer_sec=$BUFFER_SEC"
+  if [[ "$DO_WAIT" -eq 1 ]]; then
+    echo "ERROR: --wait needs X-RateLimit-Reset (retry-only probe is not a reset clock)" >&2
+    exit 2
+  fi
+  exit 0
 fi
 
+secs=$best
 echo "seconds_until_reset=$secs buffer_sec=$BUFFER_SEC"
 
 if [[ "$DO_WAIT" -eq 0 ]]; then
