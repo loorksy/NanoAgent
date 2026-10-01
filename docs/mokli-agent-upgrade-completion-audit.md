@@ -19,7 +19,7 @@
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2395** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | validate يرفض PARTIAL عند `--require-through 13`؛ `blockers`؛ `production_gate` | منjز |
+| أدوات المشغّل §11 | validate يرفض PARTIAL عند `--require-through 13`؛ `blockers`؛ `production_gate` | منjز |  
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS checkout (Hostinger) | PR #62؛ rev **`58e26ffd`**؛ preset **`qwen3-8-27b-free`**؛ quota **BLOCKED**؛ OANDA **no** | **منجز** |
