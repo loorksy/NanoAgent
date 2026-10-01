@@ -61,6 +61,15 @@ def test_vps_pull_main_waits_gateway_and_agent_api() -> None:
     assert "section11-events" in text
 
 
+def test_row9_long_session_prompt_uses_list_dir_only() -> None:
+    text = (ROOT / "scripts" / "vps_section11_row9_long_session.sh").read_text(
+        encoding="utf-8"
+    )
+    prompt_line = next(line for line in text.splitlines() if "PROMPT=" in line)
+    assert "list_dir" in prompt_line
+    assert "get_gold_quote" in prompt_line and "Do not call get_gold_quote" in prompt_line
+
+
 def test_row5_subagents_prompt_fetch_evidence_before_spawn() -> None:
     text = (ROOT / "scripts" / "vps_section11_row5_subagents.sh").read_text(
         encoding="utf-8"

@@ -354,6 +354,34 @@ def test_pick_row_3_prefers_two_tools_over_higher_input_one_tool(tmp_path: Path)
     assert picked[0] == "03-multi-tool-v2.jsonl"
 
 
+def test_pick_row_9_prefers_more_diagnostics_with_nonzero_input(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    def diag_line(in_t: int) -> str:
+        return (
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 1, "input_tokens": in_t, "tool_calls": 1},
+                }
+            )
+            + "\n"
+        )
+
+    (tmp_path / "09-long-session-v2.jsonl").write_text(
+        diag_line(5000) * 14 + diag_line(0),
+        encoding="utf-8",
+    )
+    (tmp_path / "09-long-session-v3.jsonl").write_text(
+        diag_line(4000) * 15,
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 9)
+    assert picked is not None
+    assert picked[0] == "09-long-session-v3.jsonl"
+
+
 def test_pick_row_5_prefers_nested_rounds(tmp_path: Path) -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_diagnostic_extract import pick_row_diagnostic

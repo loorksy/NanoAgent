@@ -154,6 +154,26 @@ def _row_pick_rank(row: int, diag: dict[str, Any]) -> tuple[Any, ...]:
     return (tin,)
 
 
+def _row9_pick_rank(diags: list[dict[str, Any]]) -> tuple[Any, ...]:
+    ins = [_input_tokens(d) for d in diags]
+    peak = max(ins) if ins else 0
+    last = ins[-1] if ins else 0
+    quota_tail = last == 0 and peak > 0 and len(diags) > 1
+    return (1 if peak > 0 else 0, len(diags), 0 if quota_tail else 1, peak)
+
+
+def _best_diagnostic_for_row(row: int, text: str) -> dict[str, Any] | None:
+    if row == 9:
+        diags = all_diagnostics_from_text(text)
+        if not diags:
+            return None
+        for diag in reversed(diags):
+            if _input_tokens(diag) > 0:
+                return diag
+        return diags[-1]
+    return diagnostic_from_text(text)
+
+
 def pick_row_diagnostic(
     directory: Path,
     row: int,
@@ -169,10 +189,18 @@ def pick_row_diagnostic(
             continue
         if exclude_stem_substrings and any(s in path.stem for s in exclude_stem_substrings):
             continue
-        diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
-        if diag is None:
-            continue
-        rank = _row_pick_rank(row, diag)
+        text = path.read_text(encoding="utf-8")
+        if row == 9:
+            diags = all_diagnostics_from_text(text)
+            if not diags:
+                continue
+            rank = _row9_pick_rank(diags)
+            diag = _best_diagnostic_for_row(9, text)
+        else:
+            diag = diagnostic_from_text(text)
+            if diag is None:
+                continue
+            rank = _row_pick_rank(row, diag)
         if rank > best_rank:
             best_rank = rank
             best_diag = diag

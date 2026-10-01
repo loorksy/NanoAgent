@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-09-long-session-v3.jsonl}"
 ROUNDS="${2:-15}"
-PROMPT="${3:-Call get_gold_quote once per message. Reply OK only.}"
+PROMPT="${3:-Each message: call list_dir with path \".\" exactly once, then reply OK only. Do not call get_gold_quote or analyze_gold.}"
 
 bash "$ROOT/scripts/vps_section11_quota_probe.sh" "quota-before-${OUT}" || {
   echo "Abort row 9: fix LLM quota first (see docs/mokli-agent-upgrade-operator-handoff.md)" >&2
