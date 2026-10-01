@@ -145,3 +145,36 @@ def test_section11_close_apply_updates_real_report_unicode_header(tmp_path: Path
     assert "rounds=1" in body and "in=9500" in body
     assert "تم التعبئة من تشغيل VPS" in body
     assert "Cloud Agent" not in body.split("###", 1)[0]
+
+
+def test_close_apply_on_canonical_report_aborts_before_patch(tmp_path: Path) -> None:
+    """Incomplete §11 artifacts must not mutate docs/mokli-agent-upgrade-report.md."""
+    canonical = ROOT / "docs" / "mokli-agent-upgrade-report.md"
+    before = canonical.read_text(encoding="utf-8")
+    events = tmp_path / "events"
+    events.mkdir()
+    results = tmp_path / "section11-results.json"
+    results.write_text(json.dumps({"1": "PASS — should not land"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(canonical),
+            "--require-through",
+            "13",
+            "--apply",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode != 0
+    assert canonical.read_text(encoding="utf-8") == before
+    assert "report gate" not in proc.stdout.lower()
+    assert "OK §11 close" not in proc.stdout
