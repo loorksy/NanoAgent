@@ -483,11 +483,14 @@ def test_light_turn_defers_trading_tool_schemas() -> None:
     registered = [
         "message",
         "web_search",
+        "web_fetch",
+        "read_file",
+        "list_dir",
         "get_gold_quote",
         "run_trading_kernel",
     ]
     light = provider_tool_names_for_layers(registered, layers_for_task("مرحبا"))
-    assert light == ["message", "web_search"]
+    assert light == ["message", "web_search", "web_fetch"]
     full = provider_tool_names_for_layers(registered, layers_for_task("حلل الذهب"))
     assert full == registered
 

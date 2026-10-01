@@ -27,8 +27,11 @@ class ContextLayers:
     include_skills: bool
 
 
-# Trading and execution tools stay registered but leave the LLM schema on light turns
-# (short greeting with no task markers). The next task-shaped message restores them.
+# Light turns expose only general chat/search tools to the provider; trading and
+# filesystem tools stay registered for the next task-shaped message.
+_LIGHT_PROVIDER_TOOLS = frozenset({"message", "web_search", "web_fetch"})
+
+# Legacy blacklist kept for tests/docs; light turns use the whitelist above.
 _DEFERRED_PROVIDER_TOOLS = frozenset({
     "analyze_gold",
     "capture_gold_chart",
@@ -61,7 +64,7 @@ def provider_tool_names_for_layers(
     """Tool names sent to the provider on this turn (subset on light turns)."""
     if layers.include_skills:
         return list(registered)
-    return [name for name in registered if name not in _DEFERRED_PROVIDER_TOOLS]
+    return [name for name in registered if name in _LIGHT_PROVIDER_TOOLS]
 
 
 def layers_for_task(text: str | None) -> ContextLayers:
