@@ -34,6 +34,7 @@ bash scripts/cloud_agent_vps_secrets_check.sh
 
 ```bash
 export MOKLI_SSH_HOST=hostinger-vps MOKLI_INSTALL_DIR=/opt/nanoagent MOKLI_GATEWAY_SERVICE=nanoagent-gateway
+bash scripts/vps_ssh.sh 'cd /opt/nanoagent && git rev-parse --short HEAD'   # one-shot remote (key auth)
 bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
 # قبل دمج PR §11: bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1
 # (أو: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh)
@@ -60,7 +61,7 @@ bash scripts/deploy-mokli-vps.sh
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2367** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2387** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## فواتير المزود (VPS)
