@@ -225,6 +225,15 @@ def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
     assert "blockers.sh" in text and "--skip-vps" in text
 
 
+def test_quota_status_ssh_path_treats_rate_limit_before_invalid() -> None:
+    text = (ROOT / "scripts" / "vps_section11_quota_status.sh").read_text(encoding="utf-8")
+    assert "(no diagnostic; rate limit)" in text
+    start = text.index("vps_ssh bash")
+    end = text.index("\nEOS\n", start)
+    ssh = text[start:end]
+    assert ssh.index("rate_limit") < ssh.index("INVALID probe")
+
+
 def test_after_reset_wake_probe_without_long_wait() -> None:
     text = (ROOT / "scripts" / "mokli_upgrade_section11_after_reset_wake.sh").read_text(
         encoding="utf-8"
