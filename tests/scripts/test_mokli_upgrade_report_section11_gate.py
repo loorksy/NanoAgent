@@ -38,8 +38,9 @@ def test_section11_either_pending_or_vps_filled() -> None:
     text = REPORT.read_text(encoding="utf-8")
     header, rows = _live_section11_table(text)
     assert header
-    required = range(1, 14)
-    assert all(row_id in rows for row_id in required)
+    core_rows = range(1, 14)  # rows 1–13 required for production; 14 optional (MT5)
+    assert all(row_id in rows for row_id in core_rows)
+    assert 14 in rows, "optional MT5 row should remain in §11 table"
 
     pending = "Cloud Agent" in header and "تم التعبئة من تشغيل VPS" not in header
     filled = "تم التعبئة من تشغيل VPS" in header
@@ -47,11 +48,12 @@ def test_section11_either_pending_or_vps_filled() -> None:
     assert pending or filled, f"unexpected §11 header: {header!r}"
 
     if pending:
-        for row_id in range(1, 14):
+        for row_id in core_rows:
             result, numbers = rows[row_id]
             assert not result and not numbers, f"row {row_id} must stay empty until VPS fill"
     else:
-        for row_id in range(1, 14):
+        for row_id in core_rows:
             result, numbers = rows[row_id]
             assert result and numbers, f"row {row_id} missing VPS fill"
             assert "dry-run" not in result.lower(), f"row {row_id} still placeholder"
+        # Row 14 (MT5) may stay empty when operator closes with --require-through 13.
