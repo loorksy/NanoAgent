@@ -194,3 +194,21 @@ def test_patch_preserves_real_report_section11_rows_1_through_14() -> None:
         assert f"rounds={row_id} in=100" in updated
         path_cell = row_line.split("|", 3)[2].strip()
         assert path_cell in updated
+
+
+def test_patch_row9_numbers_include_session_summary_via_gather(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_batch import gather_section11_rows
+
+    events = tmp_path / "events"
+    events.mkdir()
+    line = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 2000, "tool_calls": 1}}
+    )
+    (events / "09-long-session-v3.jsonl").write_text((line + "\n") * 4, encoding="utf-8")
+    results = tmp_path / "section11-results.json"
+    results.write_text(json.dumps({"9": "PASS — long session"}), encoding="utf-8")
+    row_map, _missing = gather_section11_rows(events, results)
+    _result, numbers = row_map[9]
+    assert "diagnostics=4" in numbers
+    assert "in_last_over_first" in numbers

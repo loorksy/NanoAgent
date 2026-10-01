@@ -51,3 +51,4 @@ if [[ "$fail" -ne 0 ]]; then
 fi
 
 echo "OK operator smoke (preflight + §11 dry-run + init smoke + scripts pytest)"
+echo "Tip: bash scripts/mokli_upgrade_section11_cloud_status.sh for VPS quota + §11 blockers snapshot"
