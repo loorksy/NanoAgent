@@ -30,6 +30,16 @@ from mokli_upgrade_diagnostic_extract import (  # noqa: E402
 from mokli_upgrade_section11_batch import _load_results, _row_index  # noqa: E402
 
 
+def _closure_hints(empty_result: list[int]) -> None:
+    missing_ui = sorted(r for r in empty_result if r in (11, 12, 13))
+    if missing_ui:
+        print(
+            f"HINT rows {missing_ui}: empty «النتيجة» — "
+            "bash scripts/mokli_upgrade_section11_remaining_rows.sh",
+            file=sys.stderr,
+        )
+
+
 def _quality_hints(directory: Path, require_through: int) -> None:
     if require_through >= 3:
         picked = pick_row_diagnostic(directory, 3)
@@ -195,6 +205,8 @@ def main() -> int:
 
     if errors:
         _print_row_progress(directory, results_map, required)
+        _quality_hints(directory, min(args.require_through, 10))
+        _closure_hints(empty_result)
         for msg in errors:
             print(f"ERROR {msg}", file=sys.stderr)
         return 1

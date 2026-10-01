@@ -24,6 +24,7 @@ bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
 # قبل دمج PR §11: bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1
 # (أو: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh)
 bash scripts/mokli_upgrade_section11_production_gate.sh  # env + pull + status (require-through 13)
+bash scripts/mokli_upgrade_section11_blockers.sh  # quota+OANDA + validate 13 (no pull); exit 0 = ready to close
 bash scripts/mokli_upgrade_section11_status.sh   # exit 0 عند validate+quota OK (require-through افتراضي 13)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota --require-through 10  # صفوف 1–10 فقط
 bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بلا LLM (قبل محادثة صف 12)
@@ -111,9 +112,9 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 1 | `01-no-tools.jsonl` | تحية / بلا أدوات |
 | 2 | `02-single-tool.jsonl` | سعر الذهب — `bash scripts/vps_section11_row2_single_tool.sh` |
 | 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
-| 4 | `04-gold-analysis.jsonl` | تحليل / شراء |
+| 4 | `04-gold-analysis.jsonl` | تحليل / شراء — `bash scripts/vps_section11_row4_gold_analysis.sh` |
 | 5 | `05-subagents.jsonl` | spawn / سرب — `bash scripts/vps_section11_row5_subagents.sh` |
-| 6 | `06-tool-failure.jsonl` | فشل أداة |
+| 6 | `06-tool-failure.jsonl` | فشل أداة — `bash scripts/vps_section11_row6_tool_failure.sh` |
 | 7 | `07-retry.jsonl` | إعادة محاولة |
 | 8 | `08-fallback-provider.jsonl` | مزود بديل |
 | 9 | `09-long-session.jsonl` | جلسة طويلة — `bash scripts/vps_section11_row9_long_session.sh` (quota + 15 rounds) |
