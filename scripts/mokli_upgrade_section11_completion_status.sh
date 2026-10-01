@@ -33,7 +33,11 @@ git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown"
 
 echo ""
 echo "== OpenRouter reset =="
-bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
+RESET_SEC="unknown"
+RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+printf '%s\n' "$RESET_OUT"
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
 
 echo ""
 echo "== cached quota (local JSONL) =="
@@ -94,7 +98,7 @@ else
 fi
 
 echo ""
-echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0}"
+echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC"
 if [[ "$PROD_OK" -eq 1 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0

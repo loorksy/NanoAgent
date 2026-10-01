@@ -57,6 +57,7 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
     assert "closure_errors=9" in combined
+    assert "seconds_until_reset=" in combined
     assert proc.returncode == 1
 
 
