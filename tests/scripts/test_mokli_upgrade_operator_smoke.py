@@ -24,3 +24,9 @@ def test_operator_smoke_script() -> None:
     assert proc.returncode in (0, 1)
     if proc.returncode == 1:
         assert "WARN operator smoke" in proc.stderr or "FAIL" in proc.stdout
+    partial = ROOT / "section11-results-partial.json"
+    events = ROOT / "section11-events"
+    if partial.is_file() and events.is_dir():
+        combined = proc.stdout + proc.stderr
+        assert "partial pack rows 1–10" in combined or "rows 1–10" in combined
+        assert "through row 10" in combined or "require-through 10" in combined
