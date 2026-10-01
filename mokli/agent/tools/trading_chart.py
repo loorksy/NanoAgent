@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
@@ -27,11 +27,10 @@ from mokli.trading.recommendations.lifecycle import (
     close_plan_for_session,
     list_session_archive,
     prepare_for_new_recommendation,
-    sync_session_live_plan,
 )
-from mokli.trading.result_wire import result_to_wire
+from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
-from mokli.trading.teams.runtime import run_swarm
+from mokli.trading.teams.runtime import review_round_limit, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
 from mokli.trading.tool_errors import (
     REASON_ANALYSIS_FAILED,
@@ -42,7 +41,11 @@ from mokli.trading.tool_errors import (
     REASON_POLICY_VIOLATION,
     REASON_PRESET_REQUIRED,
     REASON_UNKNOWN_ACTION,
+    cached_decision_result,
     live_plan_active_error,
+    live_plan_block_if_any,
+    model_json,
+    remember_decision_error,
     tool_error,
 )
 from mokli.trading.unified_evidence import fetch_evidence_nodes
@@ -80,7 +83,8 @@ _ANALYZE_PARAMETERS = tool_parameters_schema(
     ),
     preset=StringSchema(
         "Swarm preset when team_mode=swarm "
-        "(gold_analysis_committee, gold_debate_desk, gold_news_war_room, gold_mtf_panel)"
+        "(gold_decision_review, gold_analysis_committee, gold_debate_desk, "
+        "gold_news_war_room, gold_mtf_panel)"
     ),
     reevaluate=BooleanSchema(
         description=(
@@ -235,9 +239,18 @@ class GetGoldQuoteTool(Tool):
             return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
         from mokli.trading.market_context import resolve_live_quote
 
-        quote, source = resolve_live_quote(symbol or DATA_SYMBOL, config)
+        try:
+            quote, source = await asyncio.to_thread(
+                resolve_live_quote,
+                symbol or DATA_SYMBOL,
+                config,
+            )
+        except GoldOnlyError as exc:
+            return tool_error(REASON_POLICY_VIOLATION, instruction=str(exc))
+        except Exception:
+            quote, source = None, "oanda"
         if quote is not None and quote.bid is not None and quote.ask is not None:
-            return json.dumps(
+            return model_json(
                 {
                     "symbol": quote.symbol,
                     "bid": quote.bid,
@@ -250,7 +263,6 @@ class GetGoldQuoteTool(Tool):
                         "Quote it verbatim. Do not invent a price."
                     ),
                 },
-                indent=2,
             )
         if not config.oanda_configured and getattr(config, "metaapi_configured", False) is not True:
             return tool_error(
@@ -297,7 +309,7 @@ class GetGoldQuoteTool(Tool):
             artifacts=artifacts,
             present_ui=present_ui,
         )
-        return json.dumps(
+        return model_json(
             {
                 **quote_data,
                 "locale": locale,
@@ -312,7 +324,6 @@ class GetGoldQuoteTool(Tool):
                 ),
                 "artifacts": artifacts if should_publish_trading_ui(present_ui) else [],
             },
-            indent=2,
         )
 
 
@@ -350,36 +361,35 @@ class GetLiveRecommendationTool(Tool):
     async def execute(self, present_ui: bool = False, **kwargs: Any) -> str:
         locale = _operator_locale()
         session_key = current_request_session_key()
-        live = sync_session_live_plan(session_key)
+        from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+        live, quote = await grade_session_plan(session_key)
         if not live:
-            return json.dumps(
+            return model_json(
                 {
                     "has_live_plan": False,
                     "locale": locale,
                 },
-                indent=2,
             )
 
-        live_price: float | None = None
-        quote_data: dict[str, Any] | None = None
-        config = load_trading_config()
-        try:
-            from mokli.trading.market_context import resolve_live_quote
+        live_price = float(quote.mid) if quote is not None and quote.mid is not None else None
+        quote_data = (
+            {
+                "symbol": quote.symbol,
+                "bid": quote.bid,
+                "ask": quote.ask,
+                "mid": quote.mid,
+                "tradeable": quote.tradeable,
+            }
+            if quote is not None and live_price is not None
+            else None
+        )
 
-            quote, _source = resolve_live_quote(DATA_SYMBOL, config)
-            if quote is not None and quote.mid is not None:
-                live_price = float(quote.mid)
-                quote_data = {
-                    "symbol": quote.symbol,
-                    "bid": quote.bid,
-                    "ask": quote.ask,
-                    "mid": quote.mid,
-                    "tradeable": quote.tradeable,
-                }
-        except Exception:
-            pass
-
-        outcome_status = grade_outcome_status(live, live_price=live_price)
+        outcome_status = grade_outcome_status(
+            live,
+            live_price=live_price,
+            price_known=True,
+        )
         can_issue_new = outcome_status in {"invalidated", "tp1", "expired", "superseded"}
 
         def _plain(value: object | None) -> str | None:
@@ -442,7 +452,7 @@ class GetLiveRecommendationTool(Tool):
                 present_ui=True,
             )
         payload["artifacts"] = artifacts
-        return json.dumps(payload, indent=2)
+        return model_json(payload)
 
 
 @tool_parameters(_MANAGE_PLAN_PARAMETERS)
@@ -482,10 +492,12 @@ class ManageTradingPlanTool(Tool):
         session_key = current_request_session_key()
         locale = _operator_locale()
         if action == "sync":
-            live = sync_session_live_plan(session_key)
+            from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+            live, _quote = await grade_session_plan(session_key)
             payload = {"ok": True, "has_live_plan": live is not None, "live_plan": live}
         elif action == "prepare_new":
-            payload = prepare_for_new_recommendation(session_key)
+            payload = await asyncio.to_thread(prepare_for_new_recommendation, session_key)
             payload["ok"] = True
         elif action == "close_plan":
             if not session_key:
@@ -496,7 +508,8 @@ class ManageTradingPlanTool(Tool):
             from mokli.trading.recommendations.state_machine import classify_archive_category
 
             bucket = classify_archive_category(close_status, close_reason="operator_close")
-            payload = close_plan_for_session(
+            payload = await asyncio.to_thread(
+                close_plan_for_session,
                 session_key,
                 status=close_status,
                 reason="operator_close",
@@ -516,7 +529,7 @@ class ManageTradingPlanTool(Tool):
             "After prepare_new or closing a terminal plan, call analyze_gold "
             "(force_new_plan=true if a live plan was superseded)."
         )
-        return json.dumps(payload, indent=2)
+        return model_json(payload)
 
 
 @tool_parameters(_ANALYZE_PARAMETERS)
@@ -547,7 +560,9 @@ class AnalyzeGoldTool(Tool):
             "use get_live_recommendation. If a live plan already exists this returns "
             "reason_key=trading.live_plan_active instead of a second plan. "
             "team_mode=debate runs a bull/bear debate first; team_mode=swarm requires an "
-            "explicit preset. Set present_ui=true to open the chart panel and stream cards."
+            "explicit preset. If this turn already attempted a recommendation, that result is "
+            "returned, including a failure, unless reevaluate or force_new_plan is set. "
+            "Set present_ui=true to open the chart panel and stream cards."
         )
 
     async def execute(
@@ -561,7 +576,35 @@ class AnalyzeGoldTool(Tool):
         **kwargs: Any,
     ) -> str:
         session_key = current_request_session_key()
-        prepare_for_new_recommendation(session_key)
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        if turn is not None and turn.decision_wire and not reevaluate and not force_new_plan:
+            if should_publish_trading_ui(present_ui) and turn.kernel_result is not None:
+                channel, chat_id = _request_route()
+                publisher = TradingStagePublisher(
+                    self._bus,
+                    channel=channel,
+                    chat_id=chat_id,
+                    locale=_operator_locale(),
+                )
+                await publisher.open_chart(interval)
+                await publisher.publish_result(result_to_wire(turn.kernel_result))
+            return turn.decision_wire
+        cached_failure = cached_decision_result(
+            self.name,
+            {"reevaluate": reevaluate, "force_new_plan": force_new_plan},
+        )
+        if cached_failure is not None:
+            return cached_failure
+        if team_mode in {"debate", "swarm"}:
+            blocked = await live_plan_block_if_any(
+                session_key,
+                reevaluate=reevaluate,
+                force_new_plan=force_new_plan,
+            )
+            if blocked is not None:
+                return blocked
         channel, chat_id = _request_route()
         locale = _operator_locale()
         publisher = TradingStagePublisher(
@@ -576,6 +619,24 @@ class AnalyzeGoldTool(Tool):
         visual_capture = resolve_visual_capture(publisher) if publish_ui else None
         briefing = None
         resolved_mode = team_mode or "core"
+        if team_mode == "swarm" and not preset:
+            return tool_error(
+                REASON_PRESET_REQUIRED,
+                instruction=(
+                    "team_mode=swarm requires an explicit preset parameter; "
+                    "pick one of the run_trading_team presets."
+                ),
+            )
+        from mokli.agent.tools.trading_kernel import (
+            cancel_synthesis_prefetch,
+            finish_synthesis_prefetch,
+            start_synthesis_prefetch,
+        )
+        # Debate and swarm briefs do not read evidence. The kernel still gathers
+        # anything the overlap missed. Core mode has no team wait, so the kernel fetches.
+        prefetch: asyncio.Task[None] | None = None
+        if team_mode in {"debate", "swarm"} and turn is not None:
+            prefetch = start_synthesis_prefetch(interval, turn)
         try:
             if team_mode == "debate":
                 debate = await run_debate_crew(
@@ -588,18 +649,11 @@ class AnalyzeGoldTool(Tool):
                     publisher=publisher if publish_ui else None,
                     interval=interval,
                     visual_capture=visual_capture,
+                    bus=self._bus,
                 )
                 briefing = debate.briefing
                 resolved_mode = "debate"
             elif team_mode == "swarm":
-                if not preset:
-                    return tool_error(
-                        REASON_PRESET_REQUIRED,
-                        instruction=(
-                            "team_mode=swarm requires an explicit preset parameter; "
-                            "pick one of the run_trading_team presets."
-                        ),
-                    )
                 swarm = await run_swarm(
                     preset,
                     subagent_manager=self._subagent_manager,
@@ -607,9 +661,13 @@ class AnalyzeGoldTool(Tool):
                     interval=interval,
                     emit=publisher.sync_emit if publish_ui else None,
                     visual_capture=visual_capture,
+                    bus=self._bus,
+                    max_review_rounds=review_round_limit(),
                 )
                 briefing = swarm.get("team_briefing")
                 resolved_mode = f"swarm:{preset}"
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
             result = await run_trading_kernel(
                 interval=interval,
                 team_mode=resolved_mode,
@@ -623,27 +681,40 @@ class AnalyzeGoldTool(Tool):
                 emit=publisher.sync_emit if publish_ui else None,
             )
         except LivePlanActive as exc:
-            return live_plan_active_error(exc.live)
+            return remember_decision_error(live_plan_active_error(exc.live))
         except PolicyViolation as exc:
-            return tool_error(
-                getattr(exc, "reason_key", REASON_POLICY_VIOLATION),
-                instruction=str(exc.reason),
+            return remember_decision_error(
+                tool_error(
+                    getattr(exc, "reason_key", REASON_POLICY_VIOLATION),
+                    instruction=str(exc.reason),
+                )
             )
         except Exception as exc:
-            return tool_error(
-                REASON_ANALYSIS_FAILED,
-                instruction="Gold analysis failed; tell the operator and do not invent a plan.",
-                error=str(exc),
+            return remember_decision_error(
+                tool_error(
+                    REASON_ANALYSIS_FAILED,
+                    instruction="Gold analysis failed; tell the operator and do not invent a plan.",
+                    error=str(exc),
+                )
             )
+        finally:
+            await cancel_synthesis_prefetch(prefetch)
         if result is None:
-            return tool_error(
-                REASON_NO_RESULT,
-                instruction="Analysis produced no result; tell the operator.",
+            return remember_decision_error(
+                tool_error(
+                    REASON_NO_RESULT,
+                    instruction="Analysis produced no result; tell the operator.",
+                )
             )
         wire = result_to_wire(result)
         if publish_ui:
             await publisher.publish_result(wire)
-        return json.dumps(wire, indent=2)
+        payload = model_json(brief_for_model(wire))
+        if turn is not None:
+            turn.decision_wire = payload
+            turn.kernel_result = result
+            turn.decision_error = None
+        return payload
 
 
 @tool_parameters(_CAPTURE_PARAMETERS)

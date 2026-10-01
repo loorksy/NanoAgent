@@ -327,7 +327,7 @@ def _load_cycle_context(
         try:
             from mokli.trading.market_context import build_agent_market_context
 
-            resolved_candles = build_agent_market_context().candles
+            resolved_candles = build_agent_market_context(include_quote=False).candles
         except Exception:
             log.warning("management market context unavailable", exc_info=True)
     if resolved_minutes is None and news_shield:

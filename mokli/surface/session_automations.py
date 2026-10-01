@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from mokli.cron.types import CronJob
-from mokli.session.history_visibility import is_hidden_history_message
 from mokli.session.manager import (
-    _message_preview_text,  # pyright: ignore[reportPrivateUsage]
     _metadata_title,  # pyright: ignore[reportPrivateUsage]
 )
 from mokli.triggers.local_types import LocalTrigger
@@ -39,7 +37,9 @@ class _LocalTriggerStoreLike(Protocol):
 
 
 class _SessionManagerLike(Protocol):
-    def read_session_file(self, key: str) -> dict[str, Any] | None: ...
+    def read_session_metadata(self, key: str) -> dict[str, Any] | None: ...
+
+    def read_session_preview(self, key: str) -> str: ...
 
 
 def session_automation_jobs(
@@ -310,10 +310,10 @@ def _websocket_origin_payload(
     title = ""
     preview = ""
     if session_manager is not None:
-        data = session_manager.read_session_file(session_key)
-        if isinstance(data, dict):
-            title = _metadata_title(data.get("metadata"))
-            preview = _session_preview(data.get("messages"))
+        record = session_manager.read_session_metadata(session_key)
+        if isinstance(record, dict):
+            title = _metadata_title(record.get("metadata"))
+        preview = session_manager.read_session_preview(session_key)
 
     return {
         "session_key": session_key,
@@ -322,23 +322,3 @@ def _websocket_origin_payload(
         "title": title,
         "preview": preview,
     }
-
-
-def _session_preview(messages: Any) -> str:
-    if not isinstance(messages, list):
-        return ""
-    fallback_preview = ""
-    for message_value in cast(list[object], messages):
-        if not isinstance(message_value, dict):
-            continue
-        message = cast(dict[str, Any], message_value)
-        if is_hidden_history_message(message):
-            continue
-        text = _message_preview_text(message)
-        if not text:
-            continue
-        if message.get("role") == "user":
-            return text
-        if not fallback_preview and message.get("role") == "assistant":
-            fallback_preview = text
-    return fallback_preview

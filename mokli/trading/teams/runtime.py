@@ -8,6 +8,7 @@ is the only path that turns a brief into a BUY/SELL decision.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections import deque
 from pathlib import Path
@@ -18,12 +19,131 @@ import yaml
 from mokli.trading.agents.macro_drivers import format_team_briefing, run_macro_drivers
 from mokli.trading.agents.market_data import run_market_data_agent
 from mokli.trading.i18n import tr
+from mokli.trading.market_context import build_agent_market_context
 from mokli.trading.stage_events import emit_stage
-from mokli.trading.teams.evidence_text import format_market_evidence
+from mokli.trading.teams.evidence_text import (
+    attach_risk_spread,
+    compact_timeframe_window,
+    evidence_with_macro_drivers,
+    format_market_evidence,
+    named_chart_interval,
+    scope_market_evidence,
+    trend_evidence,
+)
 from mokli.trading.teams.models import SwarmAgent, SwarmPreset, SwarmTask
+from mokli.trading.teams.role_prompts import resolve_role_file
 from mokli.trading.teams.subagent_runner import TeamRunCollector, run_team_role
+from mokli.trading.types import AgentMarketContext
 
 _PRESETS_DIR = Path(__file__).parent / "presets"
+_STANCE_LINE = re.compile(r"(?im)^STANCE:\s*(buy|sell|wait)\s*$")
+_UPSTREAM_LIMIT = 400
+# Same window ``run_multi_timeframe_agent`` loads, so a team role joins that cache.
+_HIGHER_TF_LIMIT = 120
+_HIGHER_TIMEFRAMES = ("1h", "4h", "1d")
+# These roles read the driver list. Other roles get the short stance, not the list.
+# Event analysis ranks those same items; a 400-character upstream note drops them.
+_MACRO_EVIDENCE_FILES = frozenset({"macro", "news", "event"})
+
+
+async def _timed_macro_drivers(
+    *,
+    search: Any | None,
+    events: list[dict[str, Any]] | None,
+    now: Any | None,
+) -> tuple[list[Any], int]:
+    """Time the macro searches themselves, not the wait for team roles."""
+    started = time.perf_counter()
+    verdicts = await run_macro_drivers(search=search, events=events, now=now)
+    return list(verdicts), int((time.perf_counter() - started) * 1000)
+
+
+def explicit_stances(summaries: dict[str, str]) -> list[str]:
+    """Stance words actually published. A note without the line is not a vote."""
+    found: list[str] = []
+    for text in summaries.values():
+        match = _STANCE_LINE.search(text or "")
+        if match:
+            found.append(match.group(1).lower())
+    return found
+
+
+def review_needed(summaries: dict[str, str]) -> bool:
+    """A review round is warranted when two or more stances disagree."""
+    stances = explicit_stances(summaries)
+    if len(stances) < 2:
+        return False
+    return len(set(stances)) > 1
+
+
+def _is_conflict_review(role: str, system_prompt: str) -> bool:
+    return "review" in role.lower() and resolve_role_file(role, system_prompt) == "lead"
+
+
+def _preset_needs_macro(preset: SwarmPreset) -> bool:
+    """Web searches run only when a role in this preset reads the driver list."""
+    return any(
+        resolve_role_file(agent.role, agent.system_prompt) in _MACRO_EVIDENCE_FILES
+        for agent in preset.agents
+    )
+
+
+def brief_for_upstream(summary: str, *, limit: int = _UPSTREAM_LIMIT) -> str:
+    """Short brief for the next role. The stance line is kept even when the body is cut."""
+    text = (summary or "").strip()
+    if not text:
+        return ""
+    match = _STANCE_LINE.search(text)
+    stance = match.group(0).strip() if match else ""
+    head = text if len(text) <= limit else text[:limit].rstrip() + "…"
+    if stance and stance not in head:
+        return f"{head}\n{stance}"
+    return head
+
+
+async def evidence_for_team_role(
+    lead_evidence: str,
+    role: str,
+    system_prompt: str,
+    *,
+    market: AgentMarketContext | None = None,
+) -> str:
+    """Evidence one role reads.
+
+    H1, H4, and D1 each load their own candles. A trend role gets the lead
+    quote and a short window for those three charts, not a second copy of the
+    lead bars and not a live quote per chart. Structure roles keep the lead
+    candle list. The risk role also receives bid, ask, and spread when the
+    lead quote has them. It does not receive candles, the driver list, or a
+    gate verdict.
+    """
+    named = named_chart_interval(role)
+    if named is not None:
+        named_market = await asyncio.to_thread(
+            build_agent_market_context,
+            "XAUUSD",
+            named,
+            _HIGHER_TF_LIMIT,
+        )
+        return format_market_evidence(named_market)
+    if resolve_role_file(role, system_prompt) == "timeframe":
+
+        async def _window(interval: str) -> dict[str, object]:
+            window_market = await asyncio.to_thread(
+                build_agent_market_context,
+                "XAUUSD",
+                interval,
+                _HIGHER_TF_LIMIT,
+                include_quote=False,
+            )
+            return compact_timeframe_window(window_market)
+
+        windows = list(await asyncio.gather(*[_window(interval) for interval in _HIGHER_TIMEFRAMES]))
+        return trend_evidence(lead_evidence, windows)
+    scoped = scope_market_evidence(lead_evidence, role, system_prompt)
+    if market is not None and resolve_role_file(role, system_prompt) == "risk":
+        return attach_risk_spread(scoped, market)
+    return scoped
 
 
 def list_presets() -> list[str]:
@@ -72,11 +192,26 @@ def _format_swarm_briefing(
 ) -> str:
     lines = [tr("team.swarm_preset", preset=preset_name)]
     for task_id, summary in task_summaries.items():
-        lines.append(f"- {task_id}: {summary[:500]}")
+        lines.append(f"- {task_id}: {brief_for_upstream(summary, limit=500)}")
     if macro_briefing:
         lines.append("")
         lines.append(macro_briefing)
     return "\n".join(lines)
+
+
+def review_round_limit() -> int:
+    """Operator cap for the conflict review.
+
+    Zero skips that role. One allows the single pass. The swarm does not
+    start a second round, so a saved value above one is clamped here too.
+    """
+    from mokli.config.loader import load_config
+
+    try:
+        value = int(load_config().trading_risk_parameters.max_review_rounds)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 1
+    return 0 if value < 1 else 1
 
 
 async def run_swarm(
@@ -88,11 +223,16 @@ async def run_swarm(
     macro_now: Any | None = None,
     subagent_manager: Any | None = None,
     publisher: Any | None = None,
+    bus: Any | None = None,
     interval: str = "15m",
     emit: Any | None = None,
     visual_capture: Any = None,
+    max_review_rounds: int = 1,
 ) -> dict[str, Any]:
     """Run every role of a preset and return their briefs (never a BUY/SELL).
+
+    A conflict review runs only when prior stances disagree, and at most
+    ``max_review_rounds`` times. Agreement does not call that role.
 
     ``emit`` and ``visual_capture`` are accepted for call-site compatibility; the
     caller passes the returned ``team_briefing`` to ``run_trading_kernel``.
@@ -103,52 +243,89 @@ async def run_swarm(
     layers = topological_layers(preset.tasks)
     collector = TeamRunCollector()
 
-    market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
-    evidence_text = format_market_evidence(market)
-
-    for layer_index, layer in enumerate(layers):
-        async def run_task(task: SwarmTask) -> tuple[str, str]:
-            upstream = "\n".join(
-                f"{key}: {summaries[src]}"
-                for key, src in task.input_from.items()
-                if src in summaries
+    # Macro searches do not read candles, the quote, or role summaries.
+    # Start them with the market download only when a role reads the driver list.
+    macro_task: asyncio.Task[tuple[list[Any], int]] | None = None
+    try:
+        if _preset_needs_macro(preset):
+            macro_task = asyncio.create_task(
+                _timed_macro_drivers(
+                    search=macro_search,
+                    events=macro_events,
+                    now=macro_now,
+                )
             )
-            agent = next((a for a in preset.agents if a.id == task.agent_id), None)
-            role = agent.role if agent else task.agent_id
-            system_prompt = agent.system_prompt if agent else ""
-            prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
-            summary = await run_team_role(
-                agent_id=task.agent_id,
-                role=role,
-                task_text=prompt,
-                evidence_text=evidence_text,
-                system_prompt=system_prompt,
-                manager=subagent_manager,
-                publisher=publisher,
-                layer=layer_index,
-                collector=collector,
-            )
-            return task.id, summary
+        market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
+        evidence_text = format_market_evidence(market)
+        for layer_index, layer in enumerate(layers):
 
-        results = await asyncio.gather(*[run_task(task) for task in layer])
-        for task_id, summary in results:
-            summaries[task_id] = summary
+            async def run_task(task: SwarmTask) -> tuple[str, str | None]:
+                upstream = "\n".join(
+                    f"{key}: {brief_for_upstream(summaries[src])}"
+                    for key, src in task.input_from.items()
+                    if src in summaries
+                )
+                agent = next((a for a in preset.agents if a.id == task.agent_id), None)
+                role = agent.role if agent else task.agent_id
+                system_prompt = agent.system_prompt if agent else ""
+                if _is_conflict_review(role, system_prompt) and (
+                    max_review_rounds < 1 or not review_needed(summaries)
+                ):
+                    return task.id, None
+                prompt = task.prompt_template.format(**vars_, upstream_context=upstream)
+                role_evidence = await evidence_for_team_role(
+                    evidence_text,
+                    role,
+                    system_prompt,
+                    market=market,
+                )
+                if resolve_role_file(role, system_prompt) in _MACRO_EVIDENCE_FILES:
+                    if macro_task is None:
+                        driver_verdicts: list[Any] = []
+                    else:
+                        driver_verdicts, _macro_ms = await macro_task
+                    role_evidence = evidence_with_macro_drivers(
+                        role_evidence,
+                        format_team_briefing(driver_verdicts),
+                    )
+                summary = await run_team_role(
+                    agent_id=task.agent_id,
+                    role=role,
+                    task_text=prompt,
+                    evidence_text=role_evidence,
+                    system_prompt=system_prompt,
+                    manager=subagent_manager,
+                    publisher=publisher,
+                    layer=layer_index,
+                    collector=collector,
+                    bus=bus,
+                )
+                return task.id, summary
 
-    started = time.time()
-    verdicts = await run_macro_drivers(
-        search=macro_search,
-        events=macro_events,
-        now=macro_now,
-    )
-    macro_briefing = format_team_briefing(verdicts)
-    team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
-    duration_ms = int((time.time() - started) * 1000)
-    return {
-        "preset": preset_name,
-        "task_summaries": summaries,
-        "macro_drivers": [item.to_wire() for item in verdicts],
-        "team_briefing": team_briefing,
-        "team_agents": list(collector.agents),
-        "final": None,
-        "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
-    }
+            results = await asyncio.gather(*[run_task(task) for task in layer])
+            for task_id, summary in results:
+                if summary is None:
+                    continue
+                summaries[task_id] = summary
+        if macro_task is None:
+            verdicts, duration_ms = [], 0
+        else:
+            verdicts, duration_ms = await macro_task
+        macro_briefing = format_team_briefing(verdicts) if verdicts else ""
+        team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
+        return {
+            "preset": preset_name,
+            "task_summaries": summaries,
+            "macro_drivers": [item.to_wire() for item in verdicts],
+            "team_briefing": team_briefing,
+            "team_agents": list(collector.agents),
+            "final": None,
+            "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
+        }
+    finally:
+        if macro_task is not None and not macro_task.done():
+            macro_task.cancel()
+            try:
+                await macro_task
+            except asyncio.CancelledError:
+                pass

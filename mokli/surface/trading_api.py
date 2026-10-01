@@ -40,7 +40,7 @@ from mokli.trading.recommendations.store import list_recommendations
 from mokli.trading.result_wire import result_to_wire
 from mokli.trading.runtime_state import get_runtime_store
 from mokli.trading.stage_delivery import TradingStagePublisher
-from mokli.trading.teams.runtime import run_swarm
+from mokli.trading.teams.runtime import review_round_limit, run_swarm
 from mokli.trading.teams.subagent_runner import create_trading_subagent_manager
 from mokli.utils.llm_runtime import runtime_from_provider_snapshot
 
@@ -261,6 +261,7 @@ async def _run_trading_analyze(
                 publisher=publisher,
                 interval=interval,
                 visual_capture=visual_capture,
+                max_review_rounds=review_round_limit(),
             )
             briefing = swarm.get("team_briefing")
             resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
@@ -514,7 +515,11 @@ def briefing_document(locale: str | None) -> dict[str, Any]:
     if latest:
         latest = {
             **latest,
-            "outcomeStatus": grade_outcome_status(latest, live_price=live_price),
+            "outcomeStatus": grade_outcome_status(
+                latest,
+                live_price=live_price,
+                price_known=True,
+            ),
             "livePrice": live_price,
         }
     recs = list_recommendations(limit=5)
@@ -596,9 +601,9 @@ def handle_trading_paper(request: WsRequest) -> Response:
 
 async def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
-        return handle_trading_klines(request)
+        return await asyncio.to_thread(handle_trading_klines, request)
     if path == "/api/trading/quote":
-        return handle_trading_quote(request)
+        return await asyncio.to_thread(handle_trading_quote, request)
     if path == "/api/trading/status":
         return handle_trading_status(request)
     if path == "/api/trading/runtime/update":
@@ -606,11 +611,11 @@ async def dispatch_trading_route(request: WsRequest, path: str) -> Response | No
     if path == "/api/trading/analyze":
         return await handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
-        return handle_trading_recommendations(request)
+        return await asyncio.to_thread(handle_trading_recommendations, request)
     if path == "/api/trading/briefing":
-        return handle_trading_briefing(request)
+        return await asyncio.to_thread(handle_trading_briefing, request)
     if path == "/api/trading/performance":
-        return handle_trading_performance(request)
+        return await asyncio.to_thread(handle_trading_performance, request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
     if path == "/api/trading/recommendations/transition":

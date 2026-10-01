@@ -12,6 +12,7 @@
 	import { get, type Unsubscriber, type Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import { MOKLI_BASE_URL } from '$lib/constants';
+	import { applyStatusUpdate } from '$lib/mokli/statusHistory';
 	import equal from 'fast-deep-equal';
 
 	import {
@@ -1215,10 +1216,8 @@
 				const data = event?.data?.data ?? null;
 
 				if (type === 'status') {
-					if (message?.statusHistory) {
-						message.statusHistory.push(data);
-					} else {
-						message.statusHistory = [data];
+					if (data && typeof data === 'object') {
+						message.statusHistory = applyStatusUpdate(message.statusHistory, data);
 					}
 				} else if (type === 'context_compaction') {
 					handleContextCompactionStatus(data);

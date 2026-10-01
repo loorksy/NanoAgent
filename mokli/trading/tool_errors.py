@@ -24,6 +24,45 @@ REASON_TEAM_FAILED = "trading.team_failed"
 REASON_NO_RESULT = "trading.no_result"
 REASON_UNKNOWN_ACTION = "trading.unknown_action"
 
+_DECISION_ATTEMPT_TOOLS = frozenset({
+    "run_trading_kernel",
+    "analyze_gold",
+    "run_trading_team",
+})
+
+
+def cached_decision_result(tool_name: str, params: Any) -> ToolResult | None:
+    """Return this turn's failed analysis without starting the work again.
+
+    A stored success stays with the tool, which may still open a chart.
+    Re-evaluation and an explicit replacement run again.
+    """
+    if tool_name not in _DECISION_ATTEMPT_TOOLS:
+        return None
+    if isinstance(params, dict) and (params.get("reevaluate") or params.get("force_new_plan")):
+        return None
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None or turn.decision_wire or not turn.decision_error:
+        return None
+    return ToolResult.error(turn.decision_error)
+
+
+def remember_decision_error(payload: ToolResult) -> ToolResult:
+    """Keep a failed analysis for this turn. A stored success is left as-is."""
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is not None and not turn.decision_wire:
+        turn.decision_error = str(payload)
+    return payload
+
+
+def model_json(payload: Any) -> str:
+    """JSON the model reads. The keys and values stay; pretty-print spaces do not."""
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
+
 
 def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResult:
     """Build an error ``ToolResult`` whose body is machine-readable JSON.
@@ -33,7 +72,40 @@ def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResu
     """
     payload: dict[str, Any] = {"ok": False, "reason_key": reason_key, **details}
     payload["instruction"] = instruction
-    return ToolResult.error(json.dumps(payload, indent=2, default=str))
+    return ToolResult.error(model_json(payload))
+
+
+async def live_plan_block_if_any(
+    session_key: str | None,
+    *,
+    reevaluate: bool = False,
+    force_new_plan: bool = False,
+) -> ToolResult | None:
+    """Refuse a new plan before a team or evidence download starts.
+
+    A second call in the same turn returns the same refusal and does not
+    grade again. Re-evaluation and an explicit replacement still pass through.
+    """
+    if reevaluate or force_new_plan:
+        return None
+    from mokli.trading.recommendations.lifecycle import blocking_live_plan
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    cached = turn.live_plan_block if turn is not None else None
+    if cached:
+        return ToolResult.error(cached)
+    live = await blocking_live_plan(
+        session_key,
+        reevaluate=reevaluate,
+        force_new_plan=force_new_plan,
+    )
+    if not live:
+        return None
+    result = live_plan_active_error(live)
+    if turn is not None:
+        turn.live_plan_block = str(result)
+    return result
 
 
 def live_plan_active_error(live: dict[str, Any]) -> ToolResult:

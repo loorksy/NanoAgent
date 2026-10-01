@@ -27,12 +27,15 @@ def finalize_live_plan_if_closed(
     row: dict[str, Any] | None,
     *,
     live_price: float | None = None,
+    price_known: bool = False,
 ) -> dict[str, Any] | None:
     """Persist terminal outcomes so a new recommendation can be issued."""
     if not row:
         return None
     current = normalize_outcome_status(str(row.get("status") or "valid_now"))
-    graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+    graded = normalize_outcome_status(
+        grade_outcome_status(row, live_price=live_price, price_known=price_known)
+    )
     if graded in CLOSED_OUTCOME_STATUSES and graded != current:
         update_recommendation_status(str(row["id"]), graded)
         from mokli.trading.recommendations.state_machine import classify_archive_category
@@ -120,6 +123,7 @@ def grade_outcome_status(
     row: dict[str, Any],
     *,
     live_price: float | None = None,
+    price_known: bool = False,
 ) -> str:
     direction = str(row.get("direction") or "wait")
     entry = row.get("entry")
@@ -132,7 +136,7 @@ def grade_outcome_status(
         return stored
 
     live = live_price
-    if live is None:
+    if live is None and not price_known:
         try:
             quote = fetch_quote(DATA_SYMBOL)
             live = quote.mid if quote else None
@@ -162,12 +166,18 @@ def refresh_recommendation_outcomes(
     *,
     live_price: float | None = None,
 ) -> tuple[dict[str, int], list[OutcomeTransition]]:
-    """Grade open recommendations against live price and persist outcomes."""
+    """Grade open recommendations against one live price and persist outcomes.
+
+    A missing price means the caller already tried to read the quote. Each row
+    keeps its stored status instead of downloading a quote of its own.
+    """
     counts = {"updated": 0, "open": 0, "closed": 0}
     transitions: list[OutcomeTransition] = []
     for row in list_recommendations(limit=200):
         current = normalize_outcome_status(str(row.get("status") or "valid_now"))
-        graded = normalize_outcome_status(grade_outcome_status(row, live_price=live_price))
+        graded = normalize_outcome_status(
+            grade_outcome_status(row, live_price=live_price, price_known=True)
+        )
         if graded != current and can_transition(current, graded):
             update_recommendation_status(str(row["id"]), graded)
             if graded in CLOSED_OUTCOME_STATUSES:

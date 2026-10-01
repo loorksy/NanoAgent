@@ -449,4 +449,4 @@ async def test_runner_marks_file_edit_activity_failed_when_cancelled(tmp_path):
     assert [event["phase"] for event in progress_events] == ["start", "error"]
     assert progress_events[-1]["path"] == "cancelled.txt"
     assert progress_events[-1]["status"] == "error"
-    assert progress_events[-1]["error"] == "Task interrupted before this tool finished."
+    assert progress_events[-1]["error"] == "cancelled"

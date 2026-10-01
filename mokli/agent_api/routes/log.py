@@ -168,7 +168,8 @@ async def get_log(request: web.Request) -> web.Response:
         event_kinds.update(_EVENT_KINDS_FOR.get(kind, ()))
     entries: list[JsonObject] = []
     if event_kinds:
-        events = svc.event_log.query(
+        events = await asyncio.to_thread(
+            svc.event_log.query,
             kinds=tuple(sorted(event_kinds)),
             since_ts=since,
             session=session,
@@ -196,8 +197,8 @@ def _journal_path() -> Path:
     return get_data_dir() / "memory" / "journal.jsonl"
 
 
-async def get_journal(request: web.Request) -> web.Response:
-    require_scope(request, "read")
+def journal_entries() -> list[JsonObject]:
+    """Last journal rows. The file read stays off the request event loop."""
     path = _journal_path()
     entries: list[JsonObject] = []
     if path.is_file():
@@ -207,7 +208,12 @@ async def get_journal(request: web.Request) -> web.Response:
             parsed: object = json.loads(line)
             if isinstance(parsed, dict):
                 entries.append(cast(JsonObject, parsed))
-    return ok({"entries": entries[-50:]})
+    return entries[-50:]
+
+
+async def get_journal(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    return ok({"entries": await asyncio.to_thread(journal_entries)})
 
 
 async def get_calendar(request: web.Request) -> web.Response:

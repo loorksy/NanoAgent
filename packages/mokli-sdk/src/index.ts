@@ -14,6 +14,7 @@ export type { EventListener, GatewayWebSocketOptions, WebSocketFactory, WebSocke
 export {
   IDLE_STATE,
   SessionStore,
+  activityLine,
   addUserMessage,
   applyEvent,
   applyEvents,
@@ -29,6 +30,7 @@ export type {
   Listener,
   NotificationEntry,
   SessionSnapshot,
+  RetryTimelineEntry,
   SubagentTimelineEntry,
   TimelineEntry,
   TimelineStatus,

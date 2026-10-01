@@ -18,12 +18,24 @@ def fetch_upcoming_events(limit: int = 12) -> list[dict[str, Any]]:
     """Return upcoming high/medium impact events relevant to gold."""
     if os.environ.get("FOREX_FACTORY_ENABLED", "").strip() not in {"1", "true", "yes"}:
         return []
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None:
+        events = _download_upcoming_events(limit)
+        return [] if events is None else events
+    events = turn.load_calendar(limit, lambda: _download_upcoming_events(limit))
+    return [] if events is None else events
+
+
+def _download_upcoming_events(limit: int) -> list[dict[str, Any]] | None:
+    """Download the weekly calendar. None means the feed failed and may be retried."""
     try:
         with urllib.request.urlopen(_CALENDAR_URL, timeout=8) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
     except Exception:
         logger.warning("forex factory calendar unavailable", exc_info=True)
-        return []
+        return None
 
     events: list[dict[str, Any]] = []
     if not isinstance(raw, list):

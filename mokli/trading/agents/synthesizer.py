@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from mokli.agent.tools.context import current_request_context
 from mokli.trading.agents.apply_model_decision import apply_model_decision
-from mokli.trading.agents.evidence import build_evidence_snapshot
+from mokli.trading.agents.evidence import build_evidence_snapshot, evidence_json_for_model
 from mokli.trading.agents.synth_prompt import synth_system_prompt
 from mokli.trading.i18n import tr
+from mokli.trading.tool_errors import model_json
 from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
@@ -59,13 +61,64 @@ async def _runtime_complete(messages: list[dict[str, Any]]) -> str:
     runtime = ctx.runtime if ctx else None
     if runtime is None:
         return ""
+    started = time.perf_counter()
     response = await runtime.provider.chat(
         messages=messages,
         model=runtime.model,
         max_tokens=min(getattr(runtime.generation, "max_tokens", 4096) or 4096, 4096),
         temperature=0.2,
     )
-    return getattr(response, "content", None) or ""
+    content = getattr(response, "content", None) or ""
+    from mokli.agent.turn_diagnostics import record_nested_model_call
+
+    record_nested_model_call(
+        elapsed_ms=int((time.perf_counter() - started) * 1000),
+        messages=messages,
+        content=content,
+        usage=getattr(response, "usage", None),
+        label="synthesizer",
+    )
+    return content
+
+
+def _without_chart_images(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Follow-up synthesizer rounds keep the chart labels and drop the image bytes."""
+    cleaned: list[dict[str, Any]] = []
+    for message in messages:
+        content = message.get("content")
+        if not isinstance(content, list):
+            cleaned.append(message)
+            continue
+        parts: list[dict[str, Any]] = []
+        dropped = 0
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "image_url":
+                dropped += 1
+                continue
+            if isinstance(part, dict):
+                parts.append(part)
+        if dropped:
+            parts.append(
+                {
+                    "type": "text",
+                    "text": f"{dropped} chart image(s) were sent on the first call.",
+                }
+            )
+        cleaned.append({**message, "content": parts})
+    return cleaned
+
+
+# Same window the structure role already reads. A browse must not pull the
+# rest of the series back into the decision call.
+_BROWSE_CANDLE_CAP = 40
+
+
+def _browse_candle_count(raw: Any) -> int:
+    try:
+        count = int(raw) if raw is not None else _BROWSE_CANDLE_CAP
+    except (TypeError, ValueError):
+        return _BROWSE_CANDLE_CAP
+    return max(1, min(count, _BROWSE_CANDLE_CAP))
 
 
 def _browse_answer(
@@ -75,10 +128,12 @@ def _browse_answer(
 ) -> dict[str, Any]:
     candles = market.candles
     if verb == "read_candles":
-        count = int(args.get("count") or 40)
+        count = _browse_candle_count(args.get("count"))
         rows = candles[-count:]
         return {
             "verb": verb,
+            "bars": len(rows),
+            "omitted": max(0, len(candles) - len(rows)),
             "candles": [
                 {
                     "t": c.time_ms,
@@ -112,7 +167,7 @@ async def _call_model(
         {
             "type": "text",
             "text": "FROZEN EVIDENCE (do not invent prices outside evidenceLevels):\n"
-            + json.dumps(snapshot.payload, ensure_ascii=False, default=str)[:18000],
+            + evidence_json_for_model(snapshot.payload),
         }
     ]
     for frame in snapshots[:4]:
@@ -136,7 +191,7 @@ async def _call_model(
                 "content": "Your previous reply was not valid JSON. Reply again with ONLY the JSON object.",
             }
         )
-        parsed = _extract_json(await complete(messages))
+        parsed = _extract_json(await complete(_without_chart_images(messages)))
     if parsed is None:
         return None
 
@@ -145,15 +200,15 @@ async def _call_model(
         if not isinstance(browse, dict) or not browse.get("verb"):
             break
         answer = _browse_answer(str(browse.get("verb")), browse, market)
-        messages.append({"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False)})
+        messages.append({"role": "assistant", "content": model_json(parsed)})
         messages.append(
             {
                 "role": "user",
                 "content": "BROWSE RESULT (re-issue the FULL decision JSON):\n"
-                + json.dumps(answer, ensure_ascii=False),
+                + model_json(answer),
             }
         )
-        parsed = _extract_json(await complete(messages)) or parsed
+        parsed = _extract_json(await complete(_without_chart_images(messages))) or parsed
         browse = parsed.get("browse") if isinstance(parsed, dict) else None
     return parsed
 

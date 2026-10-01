@@ -21,6 +21,7 @@ from uuid import uuid4
 
 from loguru import logger
 
+from mokli.agent.context_layers import layers_for_transcript_boundary
 from mokli.events import NO_EVENTS, ContextCompactionEvent, EventSink
 from mokli.llm_usage.context import llm_usage_source
 from mokli.providers.base import LLMResponse, ProviderConversationState
@@ -1038,6 +1039,10 @@ class MemoryArchiver:
             channel=channel,
             session_summary=session_summary,
             workspace=workspace,
+            context_layers=layers_for_transcript_boundary(
+                current_message=None,
+                history=history,
+            ),
         )
         tools = self._get_tool_definitions()
         return await self.archive(
@@ -1216,8 +1221,7 @@ class Consolidator:
         """
         lock = self.get_lock(session_key)
         async with lock:
-            self.sessions.invalidate(session_key)
-            session = self.sessions.get_or_create(session_key)
+            session = await self._reload_session_for_compact(session_key)
 
             archive_start = session.last_archived
             messages_to_archive = list(session.messages[archive_start:])
@@ -1277,3 +1281,21 @@ class Consolidator:
             )
 
             return summary
+
+    async def _reload_session_for_compact(self, session_key: str) -> Session:
+        """Read the transcript off the event loop before archiving it.
+
+        A turn that caches this session while the file is open keeps that
+        object. Later appends then land on the same transcript the checkpoint
+        writes. The following save stays on the caller: the consolidator lock
+        is not the session lock.
+        """
+        self.sessions.invalidate(session_key)
+        loaded = await asyncio.to_thread(self.sessions.load_from_disk, session_key)
+        cached = self.sessions.get_cached(session_key)
+        if cached is not None:
+            return cached
+        if loaded is None:
+            loaded = Session(key=session_key)
+        self.sessions.cache_saved(loaded)
+        return loaded

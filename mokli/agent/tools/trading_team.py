@@ -4,16 +4,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
 from mokli.agent.tools.context import ToolContext, current_request_context
 from mokli.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
-from mokli.trading.result_wire import result_to_wire
+from mokli.trading.result_wire import brief_for_model, result_to_wire
 from mokli.trading.stage_delivery import TradingStagePublisher
 from mokli.trading.teams.runtime import list_presets, run_swarm
 from mokli.trading.tool_delivery import should_publish_trading_ui
+from mokli.trading.tool_errors import (
+    cached_decision_result,
+    model_json,
+    remember_decision_error,
+)
 
 _TEAM_PARAMETERS = tool_parameters_schema(
     preset=StringSchema(
@@ -21,6 +27,7 @@ _TEAM_PARAMETERS = tool_parameters_schema(
         enum=[
             "gold_analysis_committee",
             "gold_debate_desk",
+            "gold_decision_review",
             "gold_news_war_room",
             "gold_mtf_panel",
         ],
@@ -61,11 +68,16 @@ class RunTradingTeamTool(Tool):
     def description(self) -> str:
         available = ", ".join(list_presets()) or "gold_analysis_committee"
         return (
-            "Run a multi-agent gold trading team preset (committee, debate desk, "
-            f"news war room, or MTF panel). Available presets: {available}. "
-            "Each role runs as a real subagent before the core recommendation pipeline. "
+            "Run a gold trading team preset, then the kernel. "
+            f"Available presets: {available}. "
+            "gold_decision_review is technical, then macro and trend, then risk, "
+            "then one review when stances conflict. "
+            "The returned final object is the decision. "
+            "Do not call run_trading_kernel again in this turn. "
+            "A second preset in this turn returns the result already produced, "
+            "including a failure. "
             "Set present_ui=true only when the operator wants the visual team/chart experience."
-        ).format(available=available)
+        )
 
     async def execute(
         self,
@@ -77,6 +89,14 @@ class RunTradingTeamTool(Tool):
         ctx = current_request_context()
         if ctx is None:
             return ToolResult.error("run_trading_team requires an active chat session")
+        cached_failure = cached_decision_result(self.name, {})
+        if cached_failure is not None:
+            return cached_failure
+        from mokli.trading.tool_errors import live_plan_block_if_any
+
+        blocked = await live_plan_block_if_any(ctx.session_key)
+        if blocked is not None:
+            return blocked
 
         from mokli.trading.locale import active_locale
 
@@ -97,21 +117,44 @@ class RunTradingTeamTool(Tool):
         if not preset_name:
             return ToolResult.error("preset is required.")
 
-        try:
-            swarm = await run_swarm(
-                preset_name,
-                subagent_manager=self._subagent_manager,
-                publisher=publisher if publish_ui else None,
-                interval=interval,
-                emit=publisher.sync_emit if publish_ui else None,
-            )
-        except Exception as exc:
-            return ToolResult.error(f"Swarm preset failed: {exc}")
+        from mokli.trading.turn_session import current_turn_session
 
+        turn = current_turn_session()
+        if turn is not None and turn.decision_wire:
+            return model_json(
+                {"preset": preset_name, "final": json.loads(turn.decision_wire)},
+            )
+
+        from mokli.agent.tools.trading_kernel import (
+            cancel_synthesis_prefetch,
+            finish_synthesis_prefetch,
+            start_synthesis_prefetch,
+        )
         from mokli.trading.kernel import run_trading_kernel
         from mokli.trading.policy_guard import PolicyViolation
-
+        prefetch: asyncio.Task[None] | None = (
+            start_synthesis_prefetch(interval, turn) if turn is not None else None
+        )
         try:
+            try:
+                from mokli.trading.teams.runtime import review_round_limit
+
+                swarm = await run_swarm(
+                    preset_name,
+                    subagent_manager=self._subagent_manager,
+                    publisher=publisher if publish_ui else None,
+                    interval=interval,
+                    emit=publisher.sync_emit if publish_ui else None,
+                    bus=self._bus,
+                    max_review_rounds=review_round_limit(),
+                )
+            except Exception as exc:
+                return remember_decision_error(
+                    ToolResult.error(f"Swarm preset failed: {exc}")
+                )
+
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
             final = await run_trading_kernel(
                 interval=interval,
                 team_mode=f"swarm:{preset_name}",
@@ -121,20 +164,28 @@ class RunTradingTeamTool(Tool):
                 emit=publisher.sync_emit if publish_ui else None,
             )
         except PolicyViolation as exc:
-            return ToolResult.error(str(exc.reason))
+            return remember_decision_error(ToolResult.error(str(exc.reason)))
         except Exception as exc:
-            return ToolResult.error(f"Swarm preset failed: {exc}")
+            return remember_decision_error(
+                ToolResult.error(f"Swarm preset failed: {exc}")
+            )
+        finally:
+            await cancel_synthesis_prefetch(prefetch)
         if final is None:
-            return ToolResult.error("Swarm produced no final analysis")
+            return remember_decision_error(
+                ToolResult.error("Swarm produced no final analysis")
+            )
 
         wire = result_to_wire(final)
         if publish_ui:
             await publisher.publish_result(wire)
-        return json.dumps(
+        brief = brief_for_model(wire)
+        if turn is not None:
+            turn.decision_wire = model_json(brief)
+            turn.decision_error = None
+        return model_json(
             {
                 "preset": preset_name,
-                "task_summaries": swarm.get("task_summaries", []),
-                "final": wire,
+                "final": brief,
             },
-            indent=2,
         )

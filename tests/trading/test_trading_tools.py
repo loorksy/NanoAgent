@@ -53,7 +53,10 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
     fake_result.cards = []
     fake_result.stages = []
     fake_result.team_mode = "core"
+    fake_result.team_agents = []
     fake_result.drawings = []
+    image = "data:image/png;base64," + ("A" * 4000)
+    fake_result.visual_snapshots = [{"timeframe": "15m", "image": image}]
 
     with request_context(ctx):
         with patch(
@@ -64,7 +67,48 @@ async def test_analyze_gold_publishes_result_when_present_ui() -> None:
             raw = await tool.execute(interval="15m", present_ui=True)
     payload = json.loads(raw)
     assert payload["decision"] == "wait"
+    assert "data:image" not in raw
+    assert "chartSnapshots" not in payload
+    published = json.dumps(
+        [call.args[0].metadata for call in bus.publish_outbound.await_args_list],
+        default=str,
+    )
+    assert image in published
     assert bus.publish_outbound.await_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_analyze_gold_reuses_the_turn_decision(monkeypatch) -> None:
+    """A recommendation already made this turn is not analyzed again."""
+    from mokli.trading.turn_session import TurnSession, turn_session_scope
+
+    calls = {"kernel": 0}
+
+    async def fake_kernel(**_kwargs):
+        calls["kernel"] += 1
+        return object()
+
+    monkeypatch.setattr("mokli.agent.tools.trading_chart.run_trading_kernel", fake_kernel)
+    monkeypatch.setattr(
+        "mokli.agent.tools.trading_chart.result_to_wire",
+        lambda _result: {"decision": "wait", "summary": "stored"},
+    )
+    bus = MagicMock()
+    bus.publish_outbound = AsyncMock()
+    tool = AnalyzeGoldTool(bus=bus, subagent_manager=None)
+    ctx = RequestContext(channel="websocket", chat_id="chat-1", session_key="websocket:chat-1")
+    stored = MagicMock()
+    turn = TurnSession()
+    turn.decision_wire = json.dumps({"decision": "wait", "summary": "stored"})
+    turn.kernel_result = stored
+    with request_context(ctx), turn_session_scope(turn):
+        raw = await tool.execute(present_ui=True)
+        replaced = await tool.execute(force_new_plan=True)
+    assert json.loads(raw)["decision"] == "wait"
+    assert json.loads(replaced)["summary"] == "stored"
+    assert calls["kernel"] == 1
+    assert bus.publish_outbound.await_count >= 1
+    print(f"ANALYZE_REPEAT kernel={calls['kernel'] - 1}")
 
 
 def test_stage_publisher_sync_emit_schedules_task() -> None:

@@ -3,7 +3,8 @@ import { defineConfig } from 'vite';
 
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-const backendTarget = process.env.MOKLI_BACKEND_URL || 'http://localhost:8080';
+// Local `mokli gateway` serves the Agent API on agentApi.port (default 8766).
+const backendTarget = process.env.MOKLI_BACKEND_URL || 'http://localhost:8766';
 
 export default defineConfig({
 	resolve: {

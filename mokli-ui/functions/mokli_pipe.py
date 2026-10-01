@@ -38,6 +38,17 @@ RUN_SCOPED_KINDS = frozenset(
 
 DEFAULT_LABELS: dict[str, str] = {
     "state.working": "Working",
+    "state.processing": "Processing",
+    "activity.step.started": "Working on a step",
+    "activity.step.completed": "Step finished",
+    "activity.step.failed": "Step failed",
+    "activity.subagent": "Specialist",
+    "diagnostics.title": "Developer diagnostics",
+    "retry.waiting": "Retrying the model",
+    "retry.recovered": "Retry succeeded",
+    "retry.exhausted": "Retry failed",
+    "retry.cancelled": "Retry cancelled",
+    "retry.cleared": "Using another provider",
     "state.waiting": "Waiting",
     "state.completed": "Completed",
     "phase.queued": "Queued",
@@ -479,8 +490,135 @@ def _escape_cell(value: object) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
+_DECISION_LABEL_KEYS = {
+    "entry_zone": "zone",
+    "risk_pct": "risk",
+    "net_rr": "rr",
+    "validity_candles": "validity",
+    "data_sources": "sources",
+}
+
+
+def _field_label(result_type: str, key: str, labels: Mapping[str, str]) -> str:
+    """Use a catalog label when the gateway sent one. Otherwise keep the key."""
+    if result_type:
+        catalog_key = _DECISION_LABEL_KEYS.get(key, key) if result_type == "decision" else key
+        named = labels.get(f"label.result.{result_type}.{catalog_key}")
+        if named:
+            return named
+    return key
+
+
+def _count(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def _agreement_cell(value: object, labels: Mapping[str, str]) -> str | None:
+    """Stance from the catalog, then the real counts. Any other shape stays raw."""
+    if not isinstance(value, dict) or set(value) != {"stance", "agreeing", "votes"}:
+        return None
+    stance = value.get("stance")
+    agreeing = _count(value.get("agreeing"))
+    votes = _count(value.get("votes"))
+    if not isinstance(stance, str) or not stance or agreeing is None or votes is None:
+        return None
+    named = labels.get(f"label.decision.{stance}")
+    label = named if named else stance
+    return _escape_cell(f"{label} {agreeing}/{votes}")
+
+
+def _plain_number(value: object) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, int):
+        return f"{value:,}"
+    return f"{value:,.2f}"
+
+
+def _string_list(value: object) -> list[str] | None:
+    if not isinstance(value, list) or not value:
+        return None
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item:
+            return None
+        items.append(item)
+    return items
+
+
+def _joined_numbers(value: object) -> str | None:
+    if not isinstance(value, list) or not value:
+        return None
+    rendered: list[str] = []
+    for item in value:
+        text = _plain_number(item)
+        if text is None:
+            return None
+        rendered.append(text)
+    return " · ".join(rendered)
+
+
+def _decision_cell(key: str, value: object, labels: Mapping[str, str]) -> str | None:
+    """Match the HTML card. Any other shape stays raw JSON."""
+    if key == "entry_zone" and isinstance(value, dict) and set(value) == {"low", "high"}:
+        low = _plain_number(value.get("low"))
+        high = _plain_number(value.get("high"))
+        if low is not None and high is not None:
+            return _escape_cell(f"{low} – {high}")
+        return None
+    if key == "targets":
+        joined = _joined_numbers(value)
+        return _escape_cell(joined) if joined is not None else None
+    if key == "risk_pct":
+        text = _plain_number(value)
+        return _escape_cell(f"{text}%") if text is not None else None
+    if key == "confidence":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return _escape_cell(f"{float(value) * 100:.0f}%")
+    if key in {"reasons", "data_sources", "blockers"}:
+        items = _string_list(value)
+        if items is None:
+            return None
+        labeled = [labels.get(item) or item for item in items]
+        return _escape_cell(" · ".join(labeled))
+    if key == "gates_passed":
+        items = _string_list(value)
+        if items is None:
+            return None
+        labeled = [labels.get(f"label.gate.{item}") or item for item in items]
+        return _escape_cell(" · ".join(labeled))
+    return None
+
+
+def _value_label(
+    key: str,
+    value: object,
+    labels: Mapping[str, str],
+    result_type: str = "",
+) -> str:
+    if key == "verdict" and isinstance(value, str):
+        named = labels.get(f"label.decision.{value}")
+        if named:
+            return named
+    if key == "agreement":
+        cell = _agreement_cell(value, labels)
+        if cell is not None:
+            return cell
+    if result_type == "decision":
+        cell = _decision_cell(key, value, labels)
+        if cell is not None:
+            return cell
+    return _escape_cell(value)
+
+
 def payload_to_markdown_table(
-    payload: Mapping[str, object], labels: Mapping[str, str], title: str
+    payload: Mapping[str, object],
+    labels: Mapping[str, str],
+    title: str,
+    result_type: str = "",
 ) -> str:
     field_label = labels.get("result.field", "Field")
     value_label = labels.get("result.value", "Value")
@@ -491,8 +629,231 @@ def payload_to_markdown_table(
         "| --- | --- |",
     ]
     for key, value in payload.items():
-        lines.append(f"| {_escape_cell(key)} | {_escape_cell(value)} |")
+        field = _escape_cell(_field_label(result_type, key, labels))
+        cell = _value_label(key, value, labels, result_type)
+        lines.append(f"| {field} | {cell} |")
     return "\n".join(lines)
+
+
+def format_duration_ms(duration_ms: int) -> str:
+    """Show the measured duration. Sub-second values stay in milliseconds."""
+    if duration_ms < 1000:
+        return f"{duration_ms} ms"
+    seconds = duration_ms / 1000
+    if abs(seconds - round(seconds)) < 0.05:
+        return f"{int(round(seconds))} s"
+    return f"{seconds:.1f} s"
+
+
+def _fallback_step_label(stage: str, label: Callable[[str], str] | None = None) -> str:
+    if stage == "failed":
+        key = "activity.step.failed"
+    elif stage in {"finished", "completed"}:
+        key = "activity.step.completed"
+    else:
+        key = "activity.step.started"
+    if label is not None:
+        return label(key)
+    return DEFAULT_LABELS[key]
+
+
+def _tool_label(
+    data: Mapping[str, object],
+    stage: str,
+    label: Callable[[str], str] | None = None,
+) -> str:
+    display = _as_str(data.get("display"))
+    if display:
+        return display
+    return _fallback_step_label(stage, label)
+
+
+def _role_label(
+    data: Mapping[str, object],
+    label: Callable[[str], str] | None = None,
+) -> str:
+    display = _as_str(data.get("display"))
+    if display:
+        return display
+    role = _as_str(data.get("role"))
+    if role and not ("_" in role or (role.isascii() and role.islower())):
+        return role
+    if label is not None:
+        return label("activity.subagent")
+    return DEFAULT_LABELS["activity.subagent"]
+
+
+def project_activity(events: list[Mapping[str, object]]) -> list[dict[str, object]]:
+    """Visible activity steps derived only from real tool and subagent events."""
+    steps: list[dict[str, object]] = []
+    index: dict[str, dict[str, object]] = {}
+    for event in events:
+        kind = _as_str(event.get("kind"))
+        data = _as_dict(event.get("data"))
+        stage = _as_str(data.get("event"), "started")
+        if kind == "tool":
+            call_id = _as_str(data.get("call_id")) or f"tool-{len(steps)}"
+            if stage == "started" or call_id not in index:
+                step = {
+                    "id": call_id,
+                    "kind": "tool",
+                    "label": _tool_label(data, "started"),
+                    "technical": _as_str(data.get("name")),
+                    "done": False,
+                }
+                steps.append(step)
+                index[call_id] = step
+            if stage in {"finished", "failed"}:
+                current = index.get(call_id)
+                if current is not None:
+                    current["label"] = _tool_label(data, stage)
+                    current["done"] = True
+                    current["failed"] = stage == "failed"
+        elif kind == "subagent" and stage == "started":
+            sub_id = _as_str(data.get("id")) or f"sub-{len(steps)}"
+            if sub_id in index:
+                continue
+            step = {
+                "id": sub_id,
+                "kind": "subagent",
+                "label": _role_label(data),
+                "technical": _as_str(data.get("role")),
+                "done": False,
+            }
+            steps.append(step)
+            index[sub_id] = step
+        elif kind == "subagent" and stage in {"finished", "failed"}:
+            current = index.get(_as_str(data.get("id")))
+            if current is not None:
+                display = _as_str(data.get("display"))
+                if display:
+                    current["label"] = display
+                current["done"] = True
+                current["failed"] = stage == "failed"
+        elif kind == "retry":
+            state = _as_str(data.get("state"))
+            label_key = {
+                "waiting": "retry.waiting",
+                "recovered": "retry.recovered",
+                "exhausted": "retry.exhausted",
+                "cancelled": "retry.cancelled",
+                "cleared": "retry.cleared",
+            }.get(state)
+            if label_key is None:
+                continue
+            attempt_n = _as_int(data.get("attempt"))
+            attempt = str(attempt_n if attempt_n is not None else 0)
+            step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
+            label = DEFAULT_LABELS[label_key]
+            done = state in {"recovered", "exhausted", "cleared", "cancelled"}
+            failed = state in {"exhausted", "cancelled"}
+            current = index.get(step_id)
+            if current is None:
+                current = {
+                    "id": step_id,
+                    "kind": "retry",
+                    "label": label,
+                    "technical": state,
+                    "done": done,
+                    "failed": failed,
+                }
+                steps.append(current)
+                index[step_id] = current
+            else:
+                current["label"] = label
+                current["technical"] = state
+                current["done"] = done
+                current["failed"] = failed
+    return steps
+
+
+def _marked(label: str, mark: str) -> str:
+    """Add a status mark once. Display phrases may already end with an ellipsis."""
+    text = label.rstrip()
+    if mark == "…" and (text.endswith("…") or text.endswith("...")):
+        return text
+    if mark == "✓" and text.endswith("✓"):
+        return text
+    return f"{text} {mark}"
+
+
+def activity_line(steps: list[Mapping[str, object]]) -> str:
+    parts: list[str] = []
+    for step in steps:
+        label = _as_str(step.get("label")) or DEFAULT_LABELS["activity.step.started"]
+        if step.get("failed"):
+            parts.append(label)
+        elif step.get("done"):
+            parts.append(_marked(label, "✓"))
+        else:
+            parts.append(_marked(label, "…"))
+    return " · ".join(parts)
+
+
+def detail_line(step: Mapping[str, object]) -> str:
+    """One technical row for a real tool, subagent, or retry.
+
+    The chat status line stays on the human phrase. This row is the expandable
+    record: name, status, measured duration, inputs, source, result, and error.
+    A field that the runtime did not send is omitted.
+    """
+    parts: list[str] = []
+    technical = _as_str(step.get("technical"))
+    if technical:
+        parts.append(technical)
+    status = _as_str(step.get("status"))
+    if status:
+        parts.append(status)
+    duration = step.get("duration_ms")
+    if isinstance(duration, int):
+        parts.append(format_duration_ms(duration))
+    arguments = _as_str(step.get("arguments"))
+    if arguments:
+        parts.append(arguments)
+    source = _as_str(step.get("source"))
+    if source:
+        parts.append(source)
+    attempt = _as_str(step.get("attempt"))
+    if attempt:
+        parts.append(attempt)
+    if step.get("failed"):
+        error = _as_str(step.get("error"))
+        if error:
+            parts.append(error)
+    else:
+        summary = _as_str(step.get("summary"))
+        if summary:
+            parts.append(summary)
+    return " · ".join(parts)
+
+
+def _upsert_detail(turn: "_Turn", key: str, line: str) -> None:
+    """Keep one timeline row per real operation. Later events replace that row."""
+    slot = turn.detail_slots.get(key)
+    if slot is None:
+        turn.detail_slots[key] = len(turn.timeline)
+        turn.timeline.append(line)
+        return
+    turn.timeline[slot] = line
+
+
+def closing_description(
+    steps: list[Mapping[str, object]],
+    outcome_label: str,
+    *,
+    ok: bool,
+) -> str:
+    """Keep the real activity line when a turn ends successfully.
+
+    A generic outcome would replace that line in the chat status history.
+    A failed or cancelled turn still names the outcome, after the steps.
+    """
+    line = activity_line(steps) if steps else ""
+    if not line:
+        return outcome_label
+    if ok:
+        return line
+    return f"{line} · {outcome_label}"
 
 
 def _task_response(task: str, body: Mapping[str, object]) -> str:
@@ -521,6 +882,9 @@ class _Turn:
         self.timeline: list[str] = []
         self.embeds: list[str] = []
         self.files: list[dict[str, object]] = []
+        self.steps: list[dict[str, object]] = []
+        self.detail_slots: dict[str, int] = {}
+        self.diagnostics: dict[str, object] | None = None
 
     def label(self, key: str, fallback: str | None = None) -> str:
         found = self.labels.get(key) or DEFAULT_LABELS.get(key)
@@ -551,6 +915,10 @@ class Pipe:
         SHOW_TIMELINE: bool = Field(
             default=True,
             description="Append a collapsible tool/subagent timeline to each reply.",
+        )
+        SHOW_DIAGNOSTICS: bool = Field(
+            default=False,
+            description="Developer only: append measured token and timing diagnostics.",
         )
         REQUEST_TIMEOUT: float = Field(
             default=30.0, description="Connect/REST timeout in seconds (SSE reads never time out)."
@@ -740,6 +1108,8 @@ class Pipe:
                 attempt += 1
             if self.valves.SHOW_TIMELINE and turn.timeline:
                 yield self._render_timeline(turn)
+            if self.valves.SHOW_DIAGNOSTICS and turn.diagnostics:
+                yield self._render_diagnostics(turn)
         except httpx.HTTPError as exc:
             log.error("mokli pipe: gateway error: %s", exc)
             detail = self._gateway_failure_text(exc, turn)
@@ -791,6 +1161,8 @@ class Pipe:
             await self._on_state(data, turn, emitter)
         elif kind == "tool":
             await self._on_tool(data, turn, emitter)
+        elif kind == "retry":
+            await self._on_retry(data, turn, emitter)
         elif kind == "subagent":
             await self._on_subagent(data, turn, emitter)
         elif kind == "structured":
@@ -803,13 +1175,23 @@ class Pipe:
             await self._on_notification(data, emitter)
         elif kind == "job":
             self._on_job(data, turn)
+        elif kind == "diagnostic":
+            if self.valves.SHOW_DIAGNOSTICS:
+                turn.diagnostics = data
         elif kind == "end":
             outcome = _as_str(data.get("outcome"), "ok")
             await self._emit(
                 emitter,
                 {
                     "type": "status",
-                    "data": {"description": turn.label(f"outcome.{outcome}"), "done": True},
+                    "data": {
+                        "description": closing_description(
+                            turn.steps,
+                            turn.label(f"outcome.{outcome}"),
+                            ok=outcome == "ok",
+                        ),
+                        "done": True,
+                    },
                 },
             )
             turn.finished = True
@@ -819,12 +1201,32 @@ class Pipe:
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
     ) -> None:
         state = _as_str(data.get("state"), "working")
+        if state == "working" and turn.steps:
+            await self._emit(
+                emitter,
+                {
+                    "type": "status",
+                    "data": {"description": activity_line(turn.steps), "done": False},
+                },
+            )
+            return
         description = turn.label(f"state.{state}")
         phase = _as_str(data.get("phase"))
-        if phase:
+        provider_thinking = data.get("provider_thinking") is True
+        phase_head = phase.split(":", 1)[0]
+        # "streaming" and "tool" here mean the turn is in progress. Tokens and
+        # tool events are the signals that a reply or a tool actually started.
+        # A provider thinking flag is that signal for the thinking phase.
+        if (
+            state == "working"
+            and phase_head in {"thinking", "processing", "tool", "streaming"}
+            and not (provider_thinking and phase_head == "thinking")
+        ):
+            description = turn.label("state.processing")
+        elif phase and not phase.startswith("tool:"):
             phase_kind, _, phase_name = phase.partition(":")
             description = f"{description} · {turn.label(f'phase.{phase_kind}', phase_kind)}"
-            if phase_name:
+            if phase_name and phase_kind != "tool":
                 description = f"{description} {phase_name}"
         waiting_for = _as_dict(data.get("waiting_for"))
         if waiting_for:
@@ -832,8 +1234,12 @@ class Pipe:
             if waiting_kind:
                 description = f"{description} · {turn.label(f'waiting.{waiting_kind}')}"
         outcome = _as_str(data.get("outcome"))
-        if state == "completed" and outcome:
-            description = turn.label(f"outcome.{outcome}")
+        if state == "completed" and (outcome or turn.steps):
+            description = closing_description(
+                turn.steps,
+                turn.label(f"outcome.{outcome or 'ok'}"),
+                ok=(outcome or "ok") == "ok",
+            )
         await self._emit(
             emitter,
             {"type": "status", "data": {"description": description, "done": state == "completed"}},
@@ -846,16 +1252,100 @@ class Pipe:
         name = _as_str(data.get("name"))
         summary = _as_str(data.get("summary"))
         duration = _as_int(data.get("duration_ms"))
-        description = f"⚙ {turn.label(f'tool.{stage}')}: {name}".rstrip(": ")
-        await self._emit(
-            emitter, {"type": "status", "data": {"description": description, "done": False}}
-        )
-        entry = description
+        call_id = _as_str(data.get("call_id")) or f"tool-{len(turn.steps)}"
+        label = _tool_label(data, stage, turn.label)
+        arguments = _as_str(data.get("arguments"))
+        source = _as_str(data.get("source"))
+        existing = next((step for step in turn.steps if step.get("id") == call_id), None)
+        if existing is None:
+            existing = {
+                "id": call_id,
+                "kind": "tool",
+                "label": label,
+                "technical": name,
+                "done": stage in {"finished", "failed"},
+                "failed": stage == "failed",
+            }
+            turn.steps.append(existing)
+        else:
+            existing["label"] = label
+            existing["done"] = stage in {"finished", "failed"}
+            existing["failed"] = stage == "failed"
+        existing["status"] = stage
+        if name:
+            existing["technical"] = name
+        if arguments:
+            existing["arguments"] = arguments
+        if source:
+            existing["source"] = source
         if duration is not None:
-            entry = f"{entry} ({duration} ms)"
+            existing["duration_ms"] = duration
         if summary:
-            entry = f"{entry} - {summary}"
-        turn.timeline.append(entry)
+            if stage == "failed":
+                existing["error"] = summary
+            else:
+                existing["summary"] = summary
+        await self._emit(
+            emitter,
+            {
+                "type": "status",
+                "data": {"description": activity_line(turn.steps), "done": False},
+            },
+        )
+        _upsert_detail(turn, f"tool:{call_id}", detail_line(existing))
+
+    async def _on_retry(
+        self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
+    ) -> None:
+        state = _as_str(data.get("state"))
+        label_key = {
+            "waiting": "retry.waiting",
+            "recovered": "retry.recovered",
+            "exhausted": "retry.exhausted",
+            "cancelled": "retry.cancelled",
+            "cleared": "retry.cleared",
+        }.get(state)
+        if label_key is None:
+            return
+        attempt_n = _as_int(data.get("attempt"))
+        attempt = str(attempt_n if attempt_n is not None else 0)
+        step_id = "fallback" if state == "cleared" else f"retry-{attempt}"
+        label = turn.label(label_key)
+        done = state in {"recovered", "exhausted", "cleared", "cancelled"}
+        failed = state in {"exhausted", "cancelled"}
+        existing = next((step for step in turn.steps if step.get("id") == step_id), None)
+        if existing is None:
+            existing = {
+                "id": step_id,
+                "kind": "retry",
+                "label": label,
+                "technical": "retry",
+                "done": done,
+                "failed": failed,
+            }
+            turn.steps.append(existing)
+        else:
+            existing["label"] = label
+            existing["technical"] = "retry"
+            existing["done"] = done
+            existing["failed"] = failed
+        existing["status"] = state
+        existing["technical"] = "retry"
+        existing["attempt"] = attempt
+        error_kind = _as_str(data.get("error_kind"))
+        if error_kind:
+            if failed:
+                existing["error"] = error_kind
+            else:
+                existing["summary"] = error_kind
+        await self._emit(
+            emitter,
+            {
+                "type": "status",
+                "data": {"description": activity_line(turn.steps), "done": False},
+            },
+        )
+        _upsert_detail(turn, f"retry:{step_id}", detail_line(existing))
 
     async def _on_subagent(
         self, data: Mapping[str, object], turn: _Turn, emitter: EventEmitter | None
@@ -863,11 +1353,49 @@ class Pipe:
         stage = _as_str(data.get("event"), "started")
         role = _as_str(data.get("role")) or _as_str(data.get("id"))
         summary = _as_str(data.get("summary"))
-        description = f"↳ {turn.label(f'subagent.{stage}')}: {role}".rstrip(": ")
-        await self._emit(
-            emitter, {"type": "status", "data": {"description": description, "done": False}}
-        )
-        turn.timeline.append(f"{description} - {summary}" if summary else description)
+        duration = _as_int(data.get("duration_ms"))
+        sub_id = _as_str(data.get("id")) or f"sub-{len(turn.steps)}"
+        label = _role_label(data, turn.label)
+        existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
+        if stage == "started" and existing is None:
+            existing = {
+                "id": sub_id,
+                "kind": "subagent",
+                "label": label,
+                "technical": role,
+                "done": False,
+                "failed": False,
+            }
+            turn.steps.append(existing)
+        elif existing is not None and stage in {"finished", "failed"}:
+            display = _as_str(data.get("display"))
+            if display:
+                existing["label"] = display
+            existing["done"] = True
+            existing["failed"] = stage == "failed"
+        record = existing if existing is not None else {
+            "technical": role,
+            "failed": stage == "failed",
+        }
+        record["status"] = stage
+        if role:
+            record["technical"] = role
+        if duration is not None:
+            record["duration_ms"] = duration
+        if summary:
+            if stage == "failed":
+                record["error"] = summary
+            else:
+                record["summary"] = summary
+        if turn.steps:
+            await self._emit(
+                emitter,
+                {
+                    "type": "status",
+                    "data": {"description": activity_line(turn.steps), "done": False},
+                },
+            )
+        _upsert_detail(turn, f"sub:{sub_id}", detail_line(record))
 
     async def _on_structured(
         self,
@@ -880,7 +1408,10 @@ class Pipe:
         result_id = _as_str(data.get("result_id"))
         payload = _as_dict(data.get("payload"))
         title = turn.label("result.title")
-        if result_type:
+        typed = turn.labels.get(f"label.result.{result_type}") if result_type else None
+        if typed:
+            title = typed
+        elif result_type:
             title = f"{title}: {result_type}"
         html = ""
         if result_id:
@@ -900,7 +1431,10 @@ class Pipe:
             emitter,
             {
                 "type": "message",
-                "data": {"content": "\n\n" + payload_to_markdown_table(payload, turn.labels, title)},
+                "data": {
+                    "content": "\n\n"
+                    + payload_to_markdown_table(payload, turn.labels, title, result_type)
+                },
             },
         )
 
@@ -1054,4 +1588,14 @@ class Pipe:
         return (
             f"\n\n<details>\n<summary>{turn.label('timeline.title')}</summary>\n\n"
             f"{lines}\n\n</details>\n"
+        )
+
+    @staticmethod
+    def _render_diagnostics(turn: _Turn) -> str:
+        payload = turn.diagnostics or {}
+        body = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+        return (
+            "\n\n<details>\n<summary>"
+            f"{turn.label('diagnostics.title')}</summary>\n\n"
+            f"```json\n{body}\n```\n\n</details>\n"
         )

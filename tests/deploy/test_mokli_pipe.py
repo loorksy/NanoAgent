@@ -308,6 +308,20 @@ def test_extract_last_user_message_supports_parts() -> None:
     assert pipe_mod.extract_last_user_message({"messages": []}) == ("", [])
 
 
+def test_closing_status_keeps_real_steps() -> None:
+    steps = [
+        {"label": "Checking the gold price", "done": True, "failed": False},
+        {"label": "Could not read the gold price", "done": True, "failed": True},
+    ]
+    assert pipe_mod.closing_description(steps, "Done", ok=True) == (
+        "Checking the gold price ✓ · Could not read the gold price"
+    )
+    assert pipe_mod.closing_description(steps, "Failed", ok=False) == (
+        "Checking the gold price ✓ · Could not read the gold price · Failed"
+    )
+    assert pipe_mod.closing_description([], "Done", ok=True) == "Done"
+
+
 def test_pipe_source_contains_no_arabic_or_fixed_rtl_text() -> None:
     source = PIPE_PATH.read_text(encoding="utf-8")
     assert re.search(r"[\u0600-\u06FF]", source) is None
@@ -316,6 +330,49 @@ def test_pipe_source_contains_no_arabic_or_fixed_rtl_text() -> None:
 
 
 # --------------------------------------------------------------------------- pipe flow
+
+
+async def test_working_state_keeps_steps_that_already_ran() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("tool", {"event": "started", "name": "web_search", "call_id": "c1",
+                            "display": "Searching"}), "1"),
+            sse(ev("state", {"state": "working", "phase": "thinking"}), "2"),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "3"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    await harness.run()
+    descriptions = [text for text, _done in harness.statuses()]
+    assert descriptions[0] == "Searching …"
+    assert descriptions[1] == "Searching …"
+    assert descriptions[-1] == "Searching …"
+    assert harness.statuses()[-1][1] is True
+
+
+async def test_in_progress_state_does_not_claim_a_reply_or_a_tool() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("state", {"state": "working", "phase": "streaming"}), "1"),
+            sse(ev("state", {"state": "working", "phase": "tool:get_gold_quote"}), "2"),
+            sse(
+                ev(
+                    "state",
+                    {"state": "working", "phase": "thinking", "provider_thinking": True},
+                ),
+                "3",
+            ),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "4"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    await harness.run()
+    descriptions = [text for text, _done in harness.statuses()]
+    assert descriptions[0] == "Processing"
+    assert descriptions[1] == "Processing"
+    assert "get_gold_quote" not in descriptions[1]
+    assert "Responding" not in descriptions[0]
+    assert descriptions[2] == "Working · Thinking"
 
 
 async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
@@ -359,18 +416,23 @@ async def test_happy_path_streams_text_and_emits_events_in_order() -> None:
     timeline = chunks[-1]
     assert timeline.startswith("\n\n<details>")
     assert "<summary>Agent timeline</summary>" in timeline
-    assert "- ⚙ Running tool: web_search" in timeline
-    assert "- ⚙ Tool finished: web_search (120 ms) - 3 hits" in timeline
-    assert "- ↳ Subagent started: analyst" in timeline
+    assert "web_search" in timeline
+    assert "120 ms" in timeline
+    assert "analyst" in timeline
+    assert "⚙ Running tool: web_search" not in timeline
+    web_rows = [line for line in timeline.splitlines() if "web_search" in line]
+    assert web_rows == ["- web_search · finished · 120 ms · 3 hits"]
 
     assert harness.statuses() == [
-        ("Working · Thinking", False),
-        ("⚙ Running tool: web_search", False),
-        ("⚙ Tool finished: web_search", False),
-        ("↳ Subagent started: analyst", False),
-        ("Done", True),
-        ("Done", True),
+        ("Processing", False),
+        ("Working on a step …", False),
+        ("Step finished ✓", False),
+        ("Step finished ✓ · Specialist …", False),
+        ("Step finished ✓ · Specialist …", True),
+        ("Step finished ✓ · Specialist …", True),
     ]
+    for description, _done in harness.statuses():
+        assert "web_search" not in description
     embeds = [e for e in harness.emitted if e["type"] == "embeds"]
     assert embeds == [
         {"type": "embeds", "data": {"embeds": ["<html><body>card</body></html>"], "replace": True}}
@@ -622,6 +684,259 @@ async def test_events_from_other_runs_are_ignored_but_notifications_pass() -> No
         {"type": "notification", "data": {"type": "warning", "content": "Spread: widened"}}
     ]
     assert "Task update: cron j1 finished" in chunks[-1]
+
+
+async def test_decision_card_uses_catalog_labels_and_adds_no_tool_row() -> None:
+    payload = {
+        "verdict": "buy",
+        "entry": 2301.5,
+        "reasons": ["hour break"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.verdict": "الحكم",
+        "label.result.decision.entry": "الدخول",
+        "label.result.decision.reasons": "الأسباب",
+        "label.decision.buy": "شراء",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    failed = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([failed], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    messages = [e for e in harness.emitted if e["type"] == "message"]
+    content = str(messages[0]["data"]["content"])  # type: ignore[index]
+    assert "**القرار**" in content
+    assert "| الدخول | 2301.5 |" in content
+    assert "| شراء |" in content or "| الحكم | شراء |" in content
+    assert "| entry |" not in content
+    assert "| verdict |" not in content
+    assert not [e for e in harness.emitted if e["type"] == "embeds"]
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    shown = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    html = "<div>القرار</div>"
+    gateway = FakeGateway([shown], html=html, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    embeds = [e for e in harness.emitted if e["type"] == "embeds"]
+    assert embeds == [{"type": "embeds", "data": {"embeds": [html], "replace": True}}]
+    assert not [e for e in harness.emitted if e["type"] == "message"]
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+
+async def test_decision_agreement_uses_catalog_stance_or_keeps_the_key() -> None:
+    payload = {
+        "verdict": "buy",
+        "agreement": {"stance": "buy", "agreeing": 3, "votes": 4},
+        "reasons": ["hour break"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.agreement": "توافق الوكلاء",
+        "label.decision.buy": "شراء",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    stream = ChunkStream(
+        [
+            sse(
+                ev(
+                    "structured",
+                    {"type": "decision", "result_id": "res-d", "payload": payload},
+                ),
+                "1",
+            ),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([stream], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| توافق الوكلاء | شراء 3/4 |" in content
+    assert '{"stance"' not in content
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    unlabeled = dict(labels)
+    unlabeled.pop("label.decision.buy")
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev(
+                            "structured",
+                            {"type": "decision", "result_id": "res-d", "payload": payload},
+                        ),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=unlabeled,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| توافق الوكلاء | buy 3/4 |" in content
+    assert "شراء" not in content
+
+    extra = {"agreement": {"stance": "buy", "agreeing": 3, "votes": 4, "note": "x"}}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev(
+                            "structured",
+                            {"type": "decision", "result_id": "res-d", "payload": extra},
+                        ),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert '"note"' in content
+
+
+async def test_decision_fallback_formats_zone_targets_risk_and_gates() -> None:
+    payload = {
+        "entry_zone": {"low": 2298.5, "high": 2302},
+        "targets": [2310, 2320.5],
+        "risk_pct": 1.0,
+        "confidence": 0.72,
+        "reasons": ["hour break"],
+        "gates_passed": ["G9"],
+        "data_sources": ["market:XAUUSD:15m"],
+        "blockers": ["spread wide"],
+    }
+    labels = {
+        "label.result.decision": "القرار",
+        "label.result.decision.zone": "منطقة الدخول",
+        "label.result.decision.targets": "الأهداف",
+        "label.result.decision.risk": "المخاطرة",
+        "label.result.decision.confidence": "الثقة",
+        "label.result.decision.reasons": "الأسباب",
+        "label.result.decision.gates_passed": "البوابات المجتازة",
+        "label.result.decision.sources": "المصادر",
+        "label.result.decision.blockers": "المخاطر المانعة",
+        "label.gate.G9": "حارس السبريد",
+        "result.field": "الحقل",
+        "result.value": "القيمة",
+    }
+    stream = ChunkStream(
+        [
+            sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": payload}), "1"),
+            sse(ev("end", {"outcome": "ok"}), "2"),
+        ]
+    )
+    gateway = FakeGateway([stream], html_status=500, labels=labels)
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| منطقة الدخول | 2,298.50 – 2,302 |" in content
+    assert "| الأهداف | 2,310 · 2,320.50 |" in content
+    assert "| المخاطرة | 1.00% |" in content
+    assert "| الثقة | 72% |" in content
+    assert "| الأسباب | hour break |" in content
+    assert "| البوابات المجتازة | حارس السبريد |" in content
+    assert "| المصادر | market:XAUUSD:15m |" in content
+    assert "| المخاطر المانعة | spread wide |" in content
+    assert '{"low"' not in content
+    assert all("run_trading_kernel" not in description for description, _done in harness.statuses())
+
+    unlabeled = dict(labels)
+    unlabeled.pop("label.gate.G9")
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(
+                        ev("structured", {"type": "decision", "result_id": "res-d", "payload": payload}),
+                        "1",
+                    ),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=unlabeled,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| البوابات المجتازة | G9 |" in content
+    assert "حارس السبريد" not in content
+
+    extra = {"entry_zone": {"low": 1, "high": 2, "note": "x"}}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": extra}), "1"),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert '"note"' in content
+
+    raw = {"confidence": "high"}
+    gateway = FakeGateway(
+        [
+            ChunkStream(
+                [
+                    sse(ev("structured", {"type": "decision", "result_id": "res-d", "payload": raw}), "1"),
+                    sse(ev("end", {"outcome": "ok"}), "2"),
+                ]
+            )
+        ],
+        html_status=500,
+        labels=labels,
+    )
+    harness = Harness(gateway, show_timeline=False)
+    await harness.run()
+    content = str(next(e for e in harness.emitted if e["type"] == "message")["data"]["content"])  # type: ignore[index]
+    assert "| الثقة | high |" in content
+    assert "72%" not in content
 
 
 async def test_structured_falls_back_to_markdown_table_when_html_unavailable() -> None:
@@ -889,3 +1204,177 @@ def test_unknown_model_is_not_reported_as_gateway_unreachable() -> None:
     exc = httpx.HTTPStatusError("bad request", request=request, response=response)
     text = pipe_mod.Pipe._gateway_failure_text(exc, pipe_mod._Turn("s", "en", {}))
     assert text == "Unknown model: missing-model"
+
+
+def test_activity_projection_matches_real_events() -> None:
+    assert pipe_mod.project_activity([]) == []
+    assert pipe_mod.project_activity([ev("state", {"state": "working", "phase": "thinking"})]) == []
+    one = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+    ])
+    assert len(one) == 1
+    assert one[0]["label"] == "يفحص سعر الذهب الحالي…"
+    assert "get_gold_quote" not in str(one[0]["label"])
+    several = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+        ev("tool", {"event": "finished", "name": "get_gold_quote", "call_id": "c1",
+                    "display": "تم فحص سعر الذهب"}),
+        ev("subagent", {"event": "started", "id": "sa", "role": "Risk Officer"}),
+        ev("tool", {"event": "started", "name": "not_a_real_extra", "call_id": "c2"}),
+    ])
+    assert [step["id"] for step in several] == ["c1", "sa", "c2"]
+    assert several[0]["label"] == "تم فحص سعر الذهب"
+    assert several[1]["label"] == "Risk Officer"
+    assert several[2]["label"] == "Working on a step"
+    assert pipe_mod.format_duration_ms(200) == "200 ms"
+    assert pipe_mod.format_duration_ms(3700) == "3.7 s"
+    failed = pipe_mod.project_activity([
+        ev("tool", {"event": "started", "name": "get_gold_quote", "call_id": "c9",
+                    "display": "يفحص سعر الذهب الحالي…"}),
+        ev("tool", {"event": "failed", "name": "get_gold_quote", "call_id": "c9",
+                    "display": "تعذر الحصول على سعر الذهب", "duration_ms": 200}),
+    ])
+    assert len(failed) == 1
+    assert failed[0]["failed"] is True
+    assert failed[0]["label"] == "تعذر الحصول على سعر الذهب"
+    line = pipe_mod.activity_line(failed)
+    assert line == "تعذر الحصول على سعر الذهب"
+    assert "✓" not in line
+    visible_ids = {step["id"] for step in several}
+    event_ids = {"c1", "sa", "c2"}
+    assert visible_ids == event_ids
+    quiet = pipe_mod.project_activity([ev("state", {"state": "working"})])
+    assert all(step.get("kind") != "retry" for step in quiet)
+    retry = pipe_mod.project_activity([
+        ev("retry", {"state": "waiting", "attempt": 2, "error_kind": "connection"}),
+        ev("retry", {"state": "recovered", "attempt": 2, "error_kind": "connection"}),
+        ev("retry", {"state": "cleared", "attempt": 4, "error_kind": "server"}),
+    ])
+    assert [step["id"] for step in retry] == ["retry-2", "fallback"]
+    assert retry[0]["label"] == "Retry succeeded"
+    assert retry[0]["done"] is True
+    assert retry[0]["failed"] is False
+    assert retry[1]["label"] == "Using another provider"
+    cancelled_retry = pipe_mod.project_activity([
+        ev("retry", {"state": "waiting", "attempt": 1, "error_kind": "connection"}),
+        ev("retry", {"state": "cancelled", "attempt": 1, "error_kind": "cancelled"}),
+    ])
+    assert len(cancelled_retry) == 1
+    assert cancelled_retry[0]["id"] == "retry-1"
+    assert cancelled_retry[0]["label"] == "Retry cancelled"
+    assert cancelled_retry[0]["done"] is True
+    assert cancelled_retry[0]["failed"] is True
+    assert "✓" not in pipe_mod.activity_line(cancelled_retry)
+    assert "✓" not in pipe_mod.activity_line([
+        {"label": "Retry failed", "done": True, "failed": True},
+    ])
+    agents = pipe_mod.project_activity([
+        ev("subagent", {"event": "started", "id": "technical", "role": "Technical Analyst"}),
+        ev("subagent", {"event": "finished", "id": "technical", "role": "Technical Analyst",
+                        "duration_ms": 3700}),
+        ev("subagent", {"event": "started", "id": "risk", "role": "Risk Officer"}),
+        ev("subagent", {"event": "failed", "id": "risk", "role": "Risk Officer",
+                        "duration_ms": 200}),
+    ])
+    assert [step["id"] for step in agents] == ["technical", "risk"]
+    assert agents[0]["done"] is True and agents[0]["failed"] is not True
+    assert agents[1]["failed"] is True
+    assert "✓" not in pipe_mod.activity_line([agents[1]])
+    assert pipe_mod.activity_line(agents) == "Technical Analyst ✓ · Risk Officer"
+    displayed = pipe_mod.project_activity([
+        ev("subagent", {
+            "event": "started",
+            "id": "technical",
+            "role": "Technical Analyst",
+            "display": "يراجع الهيكل السعري…",
+        }),
+        ev("subagent", {
+            "event": "finished",
+            "id": "technical",
+            "role": "Technical Analyst",
+            "display": "اكتملت مراجعة الهيكل",
+        }),
+    ])
+    assert displayed[0]["label"] == "اكتملت مراجعة الهيكل"
+    assert displayed[0]["technical"] == "Technical Analyst"
+    assert "Technical Analyst" not in pipe_mod.activity_line(displayed)
+    assert pipe_mod.activity_line([
+        {"label": "يفحص سعر الذهب الحالي…", "done": False},
+    ]) == "يفحص سعر الذهب الحالي…"
+    assert pipe_mod.activity_line([
+        {"label": "يشغّل محرك التحليل", "done": False},
+    ]) == "يشغّل محرك التحليل …"
+    assert pipe_mod.activity_line([
+        {"label": "تم فحص سعر الذهب ✓", "done": True},
+    ]) == "تم فحص سعر الذهب ✓"
+
+
+async def test_timeline_keeps_one_detail_row_per_real_operation() -> None:
+    stream = ChunkStream(
+        [
+            sse(ev("tool", {
+                "event": "started",
+                "name": "get_gold_quote",
+                "call_id": "c1",
+                "display": "يفحص سعر الذهب الحالي…",
+                "arguments": '{"symbol":"XAUUSD"}',
+                "source": "metaapi",
+            }), "1"),
+            sse(ev("tool", {
+                "event": "finished",
+                "name": "get_gold_quote",
+                "call_id": "c1",
+                "display": "تم فحص سعر الذهب",
+                "summary": "bid 2401",
+                "duration_ms": 200,
+            }), "2"),
+            sse(ev("tool", {
+                "event": "started",
+                "name": "get_gate_report",
+                "call_id": "c2",
+                "display": "يتحقق من شروط القرار…",
+            }), "3"),
+            sse(ev("tool", {
+                "event": "failed",
+                "name": "get_gate_report",
+                "call_id": "c2",
+                "display": "تعذر فحص شروط القرار",
+                "summary": "feed down",
+                "duration_ms": 3700,
+            }), "4"),
+            sse(ev("subagent", {
+                "event": "started",
+                "id": "risk",
+                "role": "Risk Officer",
+                "display": "يراجع المخاطر…",
+            }), "5"),
+            sse(ev("subagent", {
+                "event": "finished",
+                "id": "risk",
+                "role": "Risk Officer",
+                "display": "اكتملت مراجعة المخاطر",
+                "summary": "STANCE: wait",
+                "duration_ms": 3700,
+            }), "6"),
+            sse(ev("retry", {"state": "waiting", "attempt": 1, "error_kind": "connection"}), "7"),
+            sse(ev("retry", {"state": "recovered", "attempt": 1, "error_kind": "connection"}), "8"),
+            sse(ev("end", {"run": RUN, "outcome": "ok"}), "9"),
+        ]
+    )
+    harness = Harness(FakeGateway([stream]))
+    chunks = await harness.run()
+    timeline = chunks[-1]
+    rows = [line[2:] for line in timeline.splitlines() if line.startswith("- ")]
+    assert rows == [
+        'get_gold_quote · finished · 200 ms · {"symbol":"XAUUSD"} · metaapi · bid 2401',
+        "get_gate_report · failed · 3.7 s · feed down",
+        "Risk Officer · finished · 3.7 s · STANCE: wait",
+        "retry · recovered · 1 · connection",
+    ]
+    descriptions = [text for text, _done in harness.statuses()]
+    assert "get_gold_quote" not in descriptions[0]
+    assert descriptions[-1] == (
+        "تم فحص سعر الذهب ✓ · تعذر فحص شروط القرار · اكتملت مراجعة المخاطر ✓ · Retry succeeded ✓"
+    )

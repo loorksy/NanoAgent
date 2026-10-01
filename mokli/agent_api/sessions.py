@@ -15,6 +15,8 @@ from typing import Any, Protocol, TypedDict, cast
 from loguru import logger
 
 from mokli.agent.hook import AgentHook, AgentHookContext
+from mokli.agent.tools.display import phrase_for
+from mokli.agent.turn_diagnostics import latest_diagnostics
 from mokli.agent_api.approvals import ApprovalRegistry
 from mokli.agent_api.db import Database, row_to_dict
 from mokli.agent_api.errors import ApiError
@@ -23,18 +25,19 @@ from mokli.agent_api.events import (
     GatewayEvent,
     JsonObject,
     Outcome,
+    Translated,
     delta_data,
     now_ms,
     session_id_for_key,
     session_key_for,
-    subagent_data,
     tool_data,
     translate_runtime_event,
 )
 from mokli.agent_api.hub import EventHub
 from mokli.agent_api.ids import new_id
+from mokli.agent_api.results import ResultsStore
 from mokli.bus.runtime_events import TurnCompleted
-from mokli.events import AgentEvent
+from mokli.events import AgentEvent, DecisionCompletedEvent
 from mokli.providers.base import ToolCallRequest
 
 TIMELINE_KINDS: tuple[str, ...] = (
@@ -57,7 +60,6 @@ _SENSITIVE_TOOLS = frozenset({
     "mt5_close_position",
     "mt5_cancel_order",
 })
-_SUBAGENT_TOOLS = frozenset({"spawn", "trading_team"})
 
 
 class AgentLoopLike(Protocol):
@@ -93,7 +95,12 @@ def _response_text(value: object) -> str:
 
 
 class TurnHook(AgentHook):
-    """Project tool / subagent lifecycle into public ``tool`` and ``subagent`` events."""
+    """Project each real tool call into one public ``tool`` event.
+
+    Specialist rows come from ``TeamRoleEvent``. This hook does not add a
+    second subagent row for ``spawn`` or the trading team: the tool event
+    already carries the display phrase, and the task text is not a label.
+    """
 
     def __init__(
         self,
@@ -116,11 +123,24 @@ class TurnHook(AgentHook):
         tool_call: ToolCallRequest,
         *,
         summary: str | None = None,
+        arguments: str | None = None,
     ) -> None:
-        started = self._started.pop(tool_call.id, None)
-        duration = int((time.monotonic() - started) * 1000) if started is not None else None
+        # The start event must not consume the clock. Finished and failed
+        # events are the ones that carry the measured duration.
+        duration: int | None = None
+        if event != "started":
+            started = self._started.pop(tool_call.id, None)
+            if started is not None:
+                duration = round((time.monotonic() - started) * 1000)
+        display = phrase_for(tool_call.name, event)
         if event == "started":
-            data = tool_data("started", name=tool_call.name, call_id=tool_call.id)
+            data = tool_data(
+                "started",
+                name=tool_call.name,
+                call_id=tool_call.id,
+                display=display,
+                arguments=arguments,
+            )
         elif event == "failed":
             data = tool_data(
                 "failed",
@@ -128,6 +148,7 @@ class TurnHook(AgentHook):
                 call_id=tool_call.id,
                 summary=summary,
                 duration_ms=duration,
+                display=display,
             )
         else:
             data = tool_data(
@@ -136,8 +157,18 @@ class TurnHook(AgentHook):
                 call_id=tool_call.id,
                 summary=summary,
                 duration_ms=duration,
+                display=display,
             )
         self._hub.publish(self._session, "tool", data, run=self._run)
+
+    @staticmethod
+    def _public_arguments(name: str, params: object) -> str | None:
+        if name in _SENSITIVE_TOOLS or not isinstance(params, dict):
+            return None
+        text = json.dumps(params, ensure_ascii=False, default=str)
+        if len(text) > 180:
+            return text[:179] + "…"
+        return text
 
     async def before_execute_tool(
         self,
@@ -147,21 +178,11 @@ class TurnHook(AgentHook):
         params: object,
     ) -> None:
         self._started[tool_call.id] = time.monotonic()
-        self._hub.working(self._session, f"tool:{tool_call.name}", run=self._run)
-        self._emit_tool("started", tool_call)
-        if tool_call.name in _SUBAGENT_TOOLS:
-            role = ""
-            if isinstance(params, dict):
-                role_value = cast(dict[str, object], params).get("role") or cast(
-                    dict[str, object], params,
-                ).get("task")
-                role = str(role_value or "")[:80]
-            self._hub.publish(
-                self._session,
-                "subagent",
-                subagent_data("started", id=tool_call.id, role=role or tool_call.name),
-                run=self._run,
-            )
+        self._emit_tool(
+            "started",
+            tool_call,
+            arguments=self._public_arguments(tool_call.name, params),
+        )
 
     async def after_execute_tool(
         self,
@@ -173,18 +194,26 @@ class TurnHook(AgentHook):
     ) -> None:
         summary = None if tool_call.name in _SENSITIVE_TOOLS else _summary(result)
         self._emit_tool("finished", tool_call, summary=summary)
-        if tool_call.name in _SUBAGENT_TOOLS:
-            self._hub.publish(
-                self._session,
-                "subagent",
-                subagent_data(
-                    "finished", id=tool_call.id, role=tool_call.name, summary=_summary(result),
-                ),
-                run=self._run,
-            )
         if tool_call.name == "mt5_propose_order":
             self._register_proposal(result)
-        self._hub.working(self._session, "thinking", run=self._run)
+
+    async def emit_reasoning(self, reasoning_content: str | None) -> None:
+        # A non-empty provider delta is the only thinking signal. Later chunks
+        # of the same stretch do not publish again.
+        if not reasoning_content:
+            return
+        self._hub.working(
+            self._session,
+            "thinking",
+            run=self._run,
+            provider_thinking=True,
+        )
+
+    async def emit_reasoning_end(self) -> None:
+        current = self._hub.state.snapshot(self._session)
+        if current["phase"] != "thinking" or not current["provider_thinking"]:
+            return
+        self._hub.working(self._session, "processing", run=self._run)
 
     async def on_execute_tool_error(
         self,
@@ -195,7 +224,6 @@ class TurnHook(AgentHook):
         error: object,
     ) -> None:
         self._emit_tool("failed", tool_call, summary=_summary(error))
-        self._hub.working(self._session, "thinking", run=self._run)
 
     def _register_proposal(self, result: object) -> None:
         raw = str(result)
@@ -417,6 +445,9 @@ class SessionService:
             if self._run_ids.get(session_id) == run_id:
                 self._run_ids.pop(session_id, None)
                 self._runs.pop(session_id, None)
+            measured = latest_diagnostics(key)
+            if measured is not None:
+                self.hub.publish(session_id, "diagnostic", measured, run=run_id)
             self.hub.run_finished(session_id, run_id, outcome)
 
     async def cancel(self, session_id: str) -> bool:
@@ -455,8 +486,9 @@ class SessionService:
 class RuntimeEventBridge:
     """Subscribe to the bus and mirror lifecycle events for every session into the hub."""
 
-    def __init__(self, hub: EventHub) -> None:
+    def __init__(self, hub: EventHub, results: ResultsStore | None = None) -> None:
         self._hub = hub
+        self._results = results
         self._unsubscribe: Callable[[], None] | None = None
 
     def attach(self, subscribe: Callable[[Callable[[AgentEvent], None]], Callable[[], None]]) -> None:
@@ -471,6 +503,8 @@ class RuntimeEventBridge:
         translated = translate_runtime_event(event)
         if translated is None:
             return
+        if isinstance(event, DecisionCompletedEvent):
+            self._remember_decision(translated)
         session = translated["session"]
         if translated["kind"] == "state":
             state_value = translated["data"].get("state")
@@ -486,10 +520,38 @@ class RuntimeEventBridge:
                 )
                 return
             phase = translated["data"].get("phase")
-            self._hub.working(session, str(phase or "thinking"))
+            self._hub.working(session, str(phase or "processing"))
             return
         data: JsonObject = translated["data"]
         self._hub.publish(session, translated["kind"], data)
+
+    def _remember_decision(self, translated: Translated) -> None:
+        """Persist a real kernel decision so the client can render the card.
+
+        A payload that does not match the decision schema is still published.
+        The card id stays empty and the client keeps its text fallback.
+        """
+        if self._results is None:
+            return
+        data = translated["data"]
+        payload = data.get("payload")
+        if not isinstance(payload, dict):
+            return
+        session = translated["session"]
+        try:
+            record = self._results.put(
+                "decision",
+                cast(JsonObject, payload),
+                session=session,
+                run=self._hub.state.active_run(session),
+            )
+        except ApiError:
+            logger.warning("agent_api decision card was not stored")
+            return
+        except Exception:
+            logger.exception("agent_api decision card store failed")
+            return
+        data["result_id"] = record["id"]
 
 
 def is_turn_completed(event: AgentEvent) -> bool:

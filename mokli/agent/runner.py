@@ -26,6 +26,13 @@ from mokli.agent.context_governance import (
 from mokli.agent.hook import AgentHook, AgentHookContext, AgentRunHookContext
 from mokli.agent.tools.execution import execute_tool_calls
 from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.turn_diagnostics import (
+    TurnDiagnostics,
+    bind_turn_diagnostics,
+    current_turn_diagnostics,
+    remember_diagnostics,
+    reset_turn_diagnostics,
+)
 from mokli.events import NO_EVENTS, EventSink
 from mokli.llm_usage.context import (
     LLMUsageSource,
@@ -38,6 +45,7 @@ from mokli.providers.base import (
     LLMResponse,
     LLMUsage,
     ProviderConversationState,
+    ToolCallRequest,
 )
 from mokli.providers.conversation_state import ProviderConversationStateController
 from mokli.session.summary import SessionSummaryCheckpoint
@@ -69,6 +77,7 @@ _ARREARAGE_ERROR_MESSAGE = (
 )
 _PERSISTED_MODEL_ERROR_PLACEHOLDER = "[Assistant reply unavailable due to model error.]"
 _MAX_EMPTY_RETRIES = 2
+_DECISION_ANSWER_TOOLS = frozenset({"analyze_gold", "run_trading_kernel"})
 _MAX_LENGTH_RECOVERIES = 3
 _MAX_INJECTIONS_PER_TURN = 3
 _MAX_INJECTION_CYCLES = 5
@@ -136,6 +145,7 @@ class AgentRunResult:
     provider_state: ProviderConversationState | None = field(default=None, repr=False)
     summary_checkpoint: SessionSummaryCheckpoint | None = field(default=None, repr=False)
     provider_compaction_applied: bool = field(default=False, repr=False)
+    diagnostics: dict[str, Any] | None = None
 
 
 class AgentRunner:
@@ -307,7 +317,19 @@ class AgentRunner:
 
     async def run(self, spec: AgentRunSpec) -> AgentRunResult:
         hook = spec.hook or AgentHook()
-        messages, compaction = self._initial_transcript_and_compaction(spec)
+        provider = spec.runtime.provider
+        diag = TurnDiagnostics(
+            model=spec.runtime.model,
+            provider=type(provider).__name__,
+        )
+        diag_token = bind_turn_diagnostics(diag)
+        context_started = time.perf_counter()
+        try:
+            messages, compaction = self._initial_transcript_and_compaction(spec)
+        except Exception:
+            reset_turn_diagnostics(diag_token)
+            raise
+        diag.note_context(int((time.perf_counter() - context_started) * 1000))
         context = AgentRunHookContext(messages=deepcopy(messages))
         llm_usage_source_token = bind_llm_usage_source(
             spec.llm_usage_source or source_from_session_key(spec.session_key)
@@ -316,6 +338,8 @@ class AgentRunner:
         try:
             await hook.before_run(context)
             result = await self._run_core(spec, hook, messages, compaction)
+            result.diagnostics = diag.to_dict()
+            remember_diagnostics(spec.session_key, result.diagnostics)
         except asyncio.CancelledError as exc:
             context.messages = deepcopy(messages)
             context.stop_reason = "cancelled"
@@ -358,6 +382,7 @@ class AgentRunner:
                         )
             finally:
                 reset_llm_usage_source(llm_usage_source_token)
+                reset_turn_diagnostics(diag_token)
 
     @staticmethod
     def _initial_transcript_and_compaction(
@@ -383,6 +408,70 @@ class AgentRunner:
             raise ValueError("consolidate_history requires transcript_input")
         return list(spec.initial_messages), None
 
+    async def _prepend_gold_decision(
+        self,
+        *,
+        tools: ToolRegistry,
+        messages: list[dict[str, Any]],
+        hook: AgentHook,
+        session_key: str | None,
+        concurrent_tools: bool,
+        tool_result_cache: dict[str, Any],
+        external_lookup_counts: dict[str, int],
+        workspace_violation_counts: dict[str, int],
+    ) -> list[str]:
+        """Run the kernel once when the operator asked for a gold buy/sell decision."""
+        from mokli.agent.tools.context import current_request_context
+        from mokli.trading.decision_route import is_gold_decision_question
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        request = current_request_context()
+        text = (request.original_user_text if request else "") or ""
+        if turn is None or turn.is_subagent or not is_gold_decision_question(text):
+            return []
+        if not tools.has("run_trading_kernel"):
+            return []
+        call = ToolCallRequest(
+            id="gold-decision",
+            name="run_trading_kernel",
+            arguments={"decision_review": True, "gather_missing": True},
+        )
+        context = AgentHookContext(iteration=0, messages=messages, session_key=session_key)
+        await hook.before_execute_tools(context)
+        started = time.perf_counter()
+        results, events = await execute_tool_calls(
+            tools,
+            [call],
+            concurrent=concurrent_tools,
+            external_lookup_counts=external_lookup_counts,
+            workspace_violation_counts=workspace_violation_counts,
+            hook=hook,
+            context=context,
+            result_cache=tool_result_cache,
+        )
+        diag = current_turn_diagnostics()
+        if diag is not None:
+            diag.note_tool_batch(int((time.perf_counter() - started) * 1000), events, results)
+        messages.append(
+            build_assistant_message(
+                "",
+                tool_calls=[call.to_openai_tool_call()],
+            )
+        )
+        content = results[0] if results else ""
+        messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": call.name,
+                "content": content if isinstance(content, str) else str(content),
+            }
+        )
+        if events and events[0].get("status") == "ok":
+            return ["run_trading_kernel"]
+        return []
+
     async def _run_core(
         self,
         spec: AgentRunSpec,
@@ -399,6 +488,7 @@ class AgentRunner:
         stop_reason = "completed"
         tool_events: list[dict[str, str]] = []
         external_lookup_counts: dict[str, int] = {}
+        tool_result_cache: dict[str, Any] = {}
         # Per-turn throttle for repeated attempts against the same outside target.
         workspace_violation_counts: dict[str, int] = {}
         empty_content_retries = 0
@@ -432,6 +522,22 @@ class AgentRunner:
             events=spec.events,
         )
 
+        tools_used.extend(
+            await self._prepend_gold_decision(
+                tools=spec.tools,
+                messages=messages,
+                hook=hook,
+                session_key=spec.session_key,
+                concurrent_tools=spec.concurrent_tools,
+                tool_result_cache=tool_result_cache,
+                external_lookup_counts=external_lookup_counts,
+                workspace_violation_counts=workspace_violation_counts,
+            )
+        )
+        # The kernel already ran the review. Later model rounds answer from that
+        # result and do not receive the tool catalog, so they cannot open another loop.
+        answer_without_tools = bool(tools_used)
+
         for iteration in range(spec.max_iterations):
             context = AgentHookContext(
                 iteration=iteration,
@@ -445,6 +551,7 @@ class AgentRunner:
                 if request_state.compaction is not None
                 else messages
             )
+            round_started = time.perf_counter()
             response, raw_usage = await self._request_model(
                 spec,
                 request_messages,
@@ -452,9 +559,16 @@ class AgentRunner:
                 context,
                 request_state=request_state,
                 transcript=messages,
+                omit_tools=answer_without_tools,
             )
             assert request_state.messages is not None
             messages_for_model = request_state.messages
+            round_diag = current_turn_diagnostics()
+            if round_diag is not None:
+                round_diag.note_model_round(
+                    int((time.perf_counter() - round_started) * 1000),
+                    raw_usage,
+                )
             conversation_state.observe_response(response, messages)
             if request_state.compaction is not None:
                 request_state.compaction.accept_request(
@@ -509,6 +623,7 @@ class AgentRunner:
 
                 await hook.before_execute_tools(context)
 
+                tool_started = time.perf_counter()
                 results, new_events = await execute_tool_calls(
                     spec.tools,
                     response.tool_calls,
@@ -517,13 +632,26 @@ class AgentRunner:
                     workspace_violation_counts=workspace_violation_counts,
                     hook=hook,
                     context=context,
+                    result_cache=tool_result_cache,
                 )
+                tool_diag = current_turn_diagnostics()
+                if tool_diag is not None:
+                    tool_diag.note_tool_batch(
+                        int((time.perf_counter() - tool_started) * 1000),
+                        new_events,
+                        results,
+                    )
                 tool_events.extend(new_events)
                 tools_used.extend(
                     tool_call.name
                     for tool_call, event in zip(response.tool_calls, new_events)
                     if event.get("status") == "ok"
                 )
+                if any(
+                    event.get("status") == "ok" and event.get("name") in _DECISION_ANSWER_TOOLS
+                    for event in new_events
+                ):
+                    answer_without_tools = True
                 context.tool_results = list(results)
                 context.tool_events = list(new_events)
                 completed_tool_results: list[dict[str, Any]] = []
@@ -870,14 +998,22 @@ class AgentRunner:
         request_state: ModelRequestState,
         malformed_retry: bool = False,
         transcript: list[dict[str, Any]] | None,
+        omit_tools: bool = False,
     ) -> tuple[LLMResponse, LLMUsage]:
-        tool_definitions = spec.tools.get_definitions()
+        if omit_tools:
+            from mokli.agent.prompt.composer import messages_without_tool_menu
+
+            messages = messages_without_tool_menu(messages)
+        tool_definitions = None if omit_tools else spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(
             request_state,
             messages,
             tool_definitions=tool_definitions,
             transcript=transcript,
         )
+        prepared_diag = current_turn_diagnostics()
+        if prepared_diag is not None:
+            prepared_diag.note_prepared(messages, tool_definitions)
 
         kwargs = self._build_request_kwargs(
             spec,
@@ -997,6 +1133,14 @@ class AgentRunner:
         request_started_at = time.perf_counter()
         try:
             response = await coro
+            if omit_tools and response.tool_calls:
+                logger.info(
+                    "Dropping {} tool call(s) because this turn already has the gold decision",
+                    len(response.tool_calls),
+                )
+                response.tool_calls = []
+                if response.finish_reason in ("tool_calls", "function_call"):
+                    response.finish_reason = "stop"
         except asyncio.CancelledError:
             _pause_generation()
             await _close_native_reasoning()
@@ -1045,6 +1189,7 @@ class AgentRunner:
                 request_state=request_state,
                 malformed_retry=True,
                 transcript=None,
+                omit_tools=omit_tools,
             )
             return retry_response, round_usage + retry_usage
         if (

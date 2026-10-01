@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, TypedDict, cast
@@ -18,6 +18,18 @@ def is_summary_checkpoint(message: Mapping[str, Any]) -> bool:
     return (
         is_hidden_history_message(message)
         and message.get("content") == SUMMARY_CONTINUATION_TEXT
+    )
+
+
+def session_tail_needs_archive(
+    messages: Sequence[Mapping[str, Any]],
+    last_archived: int,
+) -> bool:
+    """True when a message after the checkpoint still belongs in an idle archive."""
+    start = last_archived if last_archived > 0 else 0
+    return any(
+        not message.get("_command") and not is_summary_checkpoint(message)
+        for message in messages[start:]
     )
 
 

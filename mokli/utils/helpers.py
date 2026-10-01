@@ -730,14 +730,18 @@ def _estimate_prompt_tokens_with_source(
                     text = part.get("text", "")
                     if isinstance(text, str) and text:
                         parts.append(text)
+                else:
+                    # Image and file blocks are sent to the provider. Skipping
+                    # them hid the bytes that dominate a vision round.
+                    parts.append(json.dumps(raw_part, ensure_ascii=False))
 
         tc = msg.get("tool_calls")
         if tc:
             parts.append(json.dumps(tc, ensure_ascii=False))
 
-        rc = msg.get("reasoning_content")
-        if isinstance(rc, str) and rc:
-            parts.append(rc)
+        reasoning = reasoning_text_for_estimate(msg)
+        if reasoning:
+            parts.append(reasoning)
 
         for key in ("name", "tool_call_id"):
             value = msg.get(key)
@@ -773,6 +777,35 @@ def estimate_prompt_tokens(
     return estimated
 
 
+def reasoning_text_for_estimate(message: dict[str, Any]) -> str:
+    """Text the provider resends for one assistant's thinking.
+
+    ``reasoning_content`` and ``thinking_blocks`` often carry the same words.
+    Count that text once, and keep a signature that is not already in it.
+    """
+    blocks = message.get("thinking_blocks")
+    thinking_parts: list[str] = []
+    if isinstance(blocks, list):
+        for raw_block in cast(list[object], blocks):
+            if not isinstance(raw_block, dict):
+                continue
+            block = cast(dict[str, Any], raw_block)
+            text = block.get("thinking")
+            if isinstance(text, str) and text:
+                thinking_parts.append(text)
+            signature = block.get("signature")
+            if isinstance(signature, str) and signature:
+                thinking_parts.append(signature)
+    thinking = "\n".join(thinking_parts)
+    reasoning = message.get("reasoning_content")
+    reasoning_text = reasoning if isinstance(reasoning, str) else ""
+    if thinking and reasoning_text and reasoning_text in thinking:
+        return thinking
+    if thinking and reasoning_text:
+        return f"{thinking}\n{reasoning_text}"
+    return thinking or reasoning_text
+
+
 def estimate_message_tokens(message: dict[str, Any]) -> int:
     """Estimate prompt tokens contributed by one persisted message."""
     content = message.get("content")
@@ -798,9 +831,9 @@ def estimate_message_tokens(message: dict[str, Any]) -> int:
     if message.get("tool_calls"):
         parts.append(json.dumps(message["tool_calls"], ensure_ascii=False))
 
-    rc = message.get("reasoning_content")
-    if isinstance(rc, str) and rc:
-        parts.append(rc)
+    reasoning = reasoning_text_for_estimate(message)
+    if reasoning:
+        parts.append(reasoning)
 
     payload = "\n".join(parts)
     if not payload:

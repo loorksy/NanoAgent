@@ -645,7 +645,7 @@ class MokliCommandRouter:
             if is_mokli and (
                 temporary_policy is None or temporary_policy.persist_transcript
             ):
-                self._transcripts.append_user_message(
+                user_record = self._transcripts.stage_user_message(
                     chat_id,
                     content,
                     metadata=metadata,
@@ -654,6 +654,12 @@ class MokliCommandRouter:
                     mcp_presets=mcp_presets or None,
                     session_mentions=session_mentions or None,
                 )
+                if user_record is not None:
+                    await asyncio.to_thread(
+                        self._transcripts.append,
+                        chat_id,
+                        user_record,
+                    )
             if trusted_mokli:
                 context_blocks: list[RuntimeContextBlock] = []
                 quote = mokli_quote_runtime_context(

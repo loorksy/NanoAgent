@@ -131,6 +131,35 @@ def test_parse_and_alignment_helpers() -> None:
     assert macro_alignment_score("sell", drivers) == pytest.approx(1.0)
 
 
+def test_swarm_notes_keep_the_trailing_driver_vote() -> None:
+    """Role notes are not JSON. The driver line after them still votes."""
+    from mokli.trading.teams.runtime import _format_swarm_briefing
+
+    pure = _briefing("bearish")
+    notes = _format_swarm_briefing(
+        "gold_decision_review",
+        {"task-technical": "range\nSTANCE: wait", "task-macro": "yields up\nSTANCE: sell"},
+        pure,
+    )
+    assert not notes.strip().startswith("{")
+    parsed = json.loads(_fixed_model_json())
+    from_notes = apply_model_decision(
+        parsed, snapshot=_snapshot(notes), live_price=2400.0, atr=8.0, locale="en"
+    )
+    from_json = apply_model_decision(
+        parsed, snapshot=_snapshot(pure), live_price=2400.0, atr=8.0, locale="en"
+    )
+    assert parse_macro_drivers(_snapshot(notes)) == parse_macro_drivers(_snapshot(pure))
+    assert from_notes.confidence == pytest.approx(from_json.confidence)
+    assert from_notes.confidence == pytest.approx(apply_macro_confidence(0.60, -1.0))
+    prose_only = _format_swarm_briefing(
+        "gold_decision_review",
+        {"task-technical": "range\nSTANCE: wait"},
+        "",
+    )
+    assert parse_macro_drivers(_snapshot(prose_only)) == []
+
+
 def _install_specialist_stubs(monkeypatch) -> None:
     from evidence_stubs import install_evidence_stubs
 

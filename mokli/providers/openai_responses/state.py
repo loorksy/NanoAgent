@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from typing import Any, cast
 
 from loguru import logger
 
 from mokli.providers.base import LLMUsage, ProviderConversationState
-from mokli.providers.openai_responses.converters import convert_messages
+from mokli.providers.openai_responses.converters import convert_messages, split_tool_call_id
 
 RESPONSES_STATE_KIND = "openai_responses"
 RESPONSES_STATE_VERSION = 1
@@ -81,7 +82,249 @@ def prepare_responses_input(
     for item in replayed_items:
         if item.get("type") == "reasoning":
             item.pop("status", None)
+    # The chat transcript is folded before this call. Stored items still hold
+    # the output from the round that produced it. Replace that payload when
+    # the prepared transcript already has a shorter copy for the same call.
+    _shrink_replayed_tool_payloads(replayed_items, messages)
+    _shrink_replayed_announcements(replayed_items, messages)
+    _shrink_replayed_user_context(replayed_items, messages)
     return instructions, [*replayed_items, *delta_items], True
+
+
+def _tool_output_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    parts: list[str] = []
+    for raw_block in cast(list[object], content):
+        if not isinstance(raw_block, dict):
+            return None
+        block = cast(dict[str, Any], raw_block)
+        if block.get("type") != "text":
+            return None
+        text = block.get("text")
+        if not isinstance(text, str):
+            return None
+        parts.append(text)
+    return "\n".join(parts)
+
+
+def _payload_chars(value: Any) -> int:
+    if isinstance(value, str):
+        return len(value)
+    return len(json.dumps(value, ensure_ascii=False))
+
+
+def _shrink_replayed_tool_payloads(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Use the prepared tool text when it is shorter than the stored item."""
+    outputs: dict[str, str] = {}
+    arguments: dict[str, str] = {}
+    for message in messages:
+        role = message.get("role")
+        if role == "tool":
+            text = _tool_output_text(message.get("content"))
+            if text is None:
+                continue
+            call_id, _item_id = split_tool_call_id(message.get("tool_call_id"))
+            outputs[call_id] = text
+            continue
+        if role != "assistant":
+            continue
+        for raw_call in cast(list[object], message.get("tool_calls") or []):
+            if not isinstance(raw_call, dict):
+                continue
+            call = cast(dict[str, Any], raw_call)
+            call_id, _item_id = split_tool_call_id(call.get("id"))
+            function = call.get("function")
+            if not isinstance(function, dict):
+                continue
+            raw_args = cast(dict[str, Any], function).get("arguments")
+            if isinstance(raw_args, str):
+                arguments[call_id] = raw_args
+            elif isinstance(raw_args, dict):
+                arguments[call_id] = json.dumps(raw_args, ensure_ascii=False)
+    for item in items:
+        kind = item.get("type")
+        call_id = str(item.get("call_id") or "")
+        if kind == "function_call_output":
+            replacement = outputs.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("output")):
+                item["output"] = replacement
+        elif kind == "function_call":
+            replacement = arguments.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("arguments")):
+                item["arguments"] = replacement
+
+
+# Kept in step with ``context_governance`` announcement marks. A folded
+# reference starts with the second; the saved announcement starts with the first.
+_ANNOUNCE_PREFIX = "[Subagent "
+_ANNOUNCE_MARK = "[مرجع نتيجة وكيل سابق:"
+
+
+def _announcement_body(text: str) -> str | None:
+    if text.startswith(_ANNOUNCE_PREFIX) or text.startswith(_ANNOUNCE_MARK):
+        return text
+    return None
+
+
+def _prepared_announcement(message: dict[str, Any]) -> str | None:
+    if message.get("role") != "assistant":
+        return None
+    content = message.get("content")
+    if not isinstance(content, str):
+        return None
+    return _announcement_body(content)
+
+
+def _stored_announcement_text(content: Any) -> str | None:
+    """Return one announcement string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return _announcement_body(content)
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"output_text", "input_text", "text"}:
+        return None
+    text = block.get("text")
+    if not isinstance(text, str):
+        return None
+    return _announcement_body(text)
+
+
+def _stored_announcement(item: dict[str, Any]) -> str | None:
+    """Assistant message items and the user item from the follow-up turn."""
+    role = item.get("role")
+    kind = item.get("type")
+    if role == "assistant":
+        if kind != "message":
+            return None
+    elif role == "user":
+        if kind not in {None, "message"}:
+            return None
+    else:
+        return None
+    return _stored_announcement_text(item.get("content"))
+
+
+def _shrink_replayed_announcements(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared announcement onto the matching stored item.
+
+    The follow-up turn sends the announcement as the current user message, so
+    the stored item is a user item. The next question folds the saved
+    assistant copy. Alignment is by order, and only when both sides have the
+    same count. A normal answer is absent from both lists. An unread
+    announcement is still the full text on both sides, so the prepared copy
+    is not shorter and the stored item stays. A count mismatch leaves every
+    item unchanged.
+    """
+    prepared = [
+        text
+        for message in messages
+        if (text := _prepared_announcement(message)) is not None
+    ]
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        text = _stored_announcement(item)
+        if text is None:
+            continue
+        stored.append((item, text))
+    if len(prepared) != len(stored):
+        return
+    for (item, current), replacement in zip(stored, prepared, strict=True):
+        if len(replacement) >= len(current):
+            continue
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
+
+
+# Suffixes get_history removes before the next request. A stored user item
+# still holds the copy from the turn that produced it.
+_TURN_CONTEXT_HEADS = (
+    "[Runtime Context",
+    "[Active Skills",
+    "[Goal Runtime Guidance",
+)
+
+
+def _single_user_text(content: Any) -> str | None:
+    """One user string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"input_text", "text", "output_text"}:
+        return None
+    text = block.get("text")
+    return text if isinstance(text, str) else None
+
+
+def _stripped_turn_context(stored: str, prepared: str) -> bool:
+    if not prepared or len(prepared) >= len(stored) or not stored.startswith(prepared):
+        return False
+    tail = stored[len(prepared):].lstrip("\n")
+    return any(tail.startswith(head) for head in _TURN_CONTEXT_HEADS)
+
+
+def _shrink_replayed_user_context(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared user text when history already dropped the suffix.
+
+    Pairing is in order. An equal text stays. A shorter text replaces the
+    stored item only when the removed tail is turn-local context. Any other
+    difference stops the walk so a later item is not guessed. The new user
+    message is not in the stored items, so its fresh context stays on the delta.
+    """
+    prepared: list[str] = []
+    for message in messages:
+        if message.get("role") != "user":
+            continue
+        text = _single_user_text(message.get("content"))
+        if text is not None:
+            prepared.append(text)
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        if item.get("role") != "user":
+            continue
+        if item.get("type") not in {None, "message"}:
+            return
+        text = _single_user_text(item.get("content"))
+        if text is None:
+            return
+        stored.append((item, text))
+    index = 0
+    for item, current in stored:
+        if index >= len(prepared):
+            return
+        replacement = prepared[index]
+        if replacement == current:
+            index += 1
+            continue
+        if not _stripped_turn_context(current, replacement):
+            return
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
+        index += 1
 
 
 def build_responses_state(

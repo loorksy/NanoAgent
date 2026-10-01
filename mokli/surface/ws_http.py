@@ -562,7 +562,7 @@ class GatewayHTTPHandler:
             return response
 
         # Media routes
-        response = self._dispatch_media_routes(request, got)
+        response = await self._dispatch_media_routes(request, got)
         if response is not None:
             return response
 
@@ -593,7 +593,8 @@ class GatewayHTTPHandler:
 
         # Static SPA serving
         if self.static_dist_path is not None:
-            response = self._serve_static(
+            response = await asyncio.to_thread(
+                self._serve_static,
                 got,
                 accept_encoding=_combined_list_header(request.headers, "Accept-Encoding"),
             )
@@ -748,7 +749,7 @@ class GatewayHTTPHandler:
     async def _dispatch_session_routes(self, request: WsRequest, got: str) -> Response | None:
         m = re.match(r"^/api/sessions/([^/]+)/mokli-thread$", got)
         if m:
-            return self._handle_mokli_thread_get(request, m.group(1))
+            return await asyncio.to_thread(self._handle_mokli_thread_get, request, m.group(1))
 
         m = re.match(r"^/api/sessions/([^/]+)/context$", got)
         if m:
@@ -756,7 +757,7 @@ class GatewayHTTPHandler:
 
         m = re.match(r"^/api/sessions/([^/]+)/file-preview$", got)
         if m:
-            return self._handle_file_preview(request, m.group(1))
+            return await asyncio.to_thread(self._handle_file_preview, request, m.group(1))
 
         m = re.match(r"^/api/sessions/([^/]+)/automations$", got)
         if m:
@@ -1020,7 +1021,7 @@ class GatewayHTTPHandler:
         got: str,
     ) -> Response | None:
         if got == "/api/mokli/automations":
-            return self._handle_mokli_automations(request)
+            return await asyncio.to_thread(self._handle_mokli_automations, request)
         m = re.match(r"^/api/mokli/automations/(enable|disable|delete|run|update)$", got)
         if m:
             return await self._handle_mokli_automation_action(request, m.group(1))
@@ -1088,7 +1089,7 @@ class GatewayHTTPHandler:
             return _http_error(400, "missing automation id")
         trigger = self.local_trigger_store.get(job_id) if self.local_trigger_store else None
         if trigger is not None:
-            return self._handle_local_trigger_action(request, action, trigger)
+            return await self._handle_local_trigger_action(request, action, trigger)
 
         if self.cron_service is None:
             return _http_error(404, "automation not found")
@@ -1135,9 +1136,9 @@ class GatewayHTTPHandler:
         else:
             return _http_error(404, "unknown automation action")
 
-        return self._handle_mokli_automations(request)
+        return await asyncio.to_thread(self._handle_mokli_automations, request)
 
-    def _handle_local_trigger_action(
+    async def _handle_local_trigger_action(
         self,
         request: WsRequest,
         action: str,
@@ -1169,7 +1170,7 @@ class GatewayHTTPHandler:
         else:
             return _http_error(404, "unknown automation action")
 
-        return self._handle_mokli_automations(request)
+        return await asyncio.to_thread(self._handle_mokli_automations, request)
 
     @staticmethod
     def _log_automation_run_result(task: asyncio.Task[bool]) -> None:
@@ -1183,10 +1184,12 @@ class GatewayHTTPHandler:
 
     # -- Media routes -------------------------------------------------------
 
-    def _dispatch_media_routes(self, request: WsRequest, got: str) -> Response | None:
+    async def _dispatch_media_routes(self, request: WsRequest, got: str) -> Response | None:
         m = re.match(r"^/api/media/([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)$", got)
         if m:
-            return self._handle_media_fetch(m.group(1), m.group(2), request)
+            return await asyncio.to_thread(
+                self._handle_media_fetch, m.group(1), m.group(2), request
+            )
         return None
 
     def _handle_media_fetch(

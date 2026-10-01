@@ -9,7 +9,8 @@ import pytest
 from evidence_stubs import fake_market, install_evidence_stubs
 
 from mokli.agent.tools.trading_chart import GetGoldQuoteTool
-from mokli.trading.kernel import run_trading_kernel
+from mokli.trading.kernel import quote_for_gates, run_trading_kernel
+from mokli.trading.oanda import OandaQuote
 from mokli.trading.policy_guard import PolicyViolation
 from mokli.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from mokli.trading.turn_session import TurnSession, turn_session_scope
@@ -124,6 +125,143 @@ async def test_gate_veto_wait_never_flips_side(monkeypatch) -> None:
     assert result.decision.recommendation.action == "wait"
     assert result.decision.decision != "sell"
     assert result.recommendation_id in {None, ""}
+
+
+@pytest.mark.asyncio
+async def test_first_live_check_reuses_the_gate_quote(monkeypatch) -> None:
+    """The risk snapshot and the first G7 check are the same broker read."""
+    install_evidence_stubs(monkeypatch, gate_allowed=False)
+    calls = {"n": 0}
+
+    def fake_quote(symbol: str, **_kwargs: object) -> OandaQuote:
+        calls["n"] += 1
+        return OandaQuote(
+            symbol=symbol,
+            bid=2399.5,
+            ask=2400.5,
+            mid=2400.0,
+            tradeable=True,
+        )
+
+    seen: dict[str, int] = {}
+
+    async def chain(gates):
+        live = next(gate for gate in gates if gate.id == "G7")
+        await live.run()
+        seen["after_first"] = calls["n"]
+        await live.run()
+        seen["after_second"] = calls["n"]
+        return GateChainResult(verdicts=[], allowed=True, confidence_delta=0)
+
+    async def synth(*_args, **_kwargs):
+        return _buy_decision()
+
+    async def no_reprice(current, _gates, plan, rec):
+        return current, plan, rec
+
+    monkeypatch.setattr("mokli.trading.kernel.fetch_quote", fake_quote)
+    monkeypatch.setattr("mokli.trading.kernel.refuse_repeat_error", lambda **_kwargs: None)
+    monkeypatch.setattr("mokli.trading.kernel.run_final_decision_synthesizer", synth)
+    monkeypatch.setattr("mokli.trading.kernel.run_gate_chain", chain)
+    monkeypatch.setattr("mokli.trading.gates.reprice_loop.apply_g7_reprice_loop", no_reprice)
+
+    with turn_session_scope(TurnSession()):
+        result = await run_trading_kernel(gather_missing=True, store=False)
+    assert result.decision.decision == "buy"
+    assert seen["after_first"] == 1
+    assert seen["after_second"] == 2
+
+
+@pytest.mark.asyncio
+async def test_gate_quote_leaves_the_event_loop_free(monkeypatch) -> None:
+    """The turn waits for the broker read, and the event loop keeps running."""
+    import asyncio
+    import threading
+    import time
+
+    from mokli.trading.gates.build_gates import GateInputs, build_gates
+    from mokli.trading.kernel import load_quote_for_gates
+    from mokli.trading.types import EntryPlan, VisualReview
+
+    order: list[tuple[str, ...]] = []
+    calls = {"n": 0}
+
+    def fake_quote(symbol: str, **_kwargs: object) -> OandaQuote:
+        calls["n"] += 1
+        time.sleep(0.2)
+        order.append(
+            (
+                "quote",
+                "main" if threading.current_thread() is threading.main_thread() else "worker",
+            )
+        )
+        return OandaQuote(symbol=symbol, bid=2399.5, ask=2400.5, mid=2400.0, tradeable=True)
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append(("tick",))
+
+    monkeypatch.setattr("mokli.trading.kernel.fetch_quote", fake_quote)
+    started = time.perf_counter()
+    pending = asyncio.create_task(tick())
+    quote, fetch_live = await load_quote_for_gates("XAUUSD")
+    await pending
+    assert quote is not None and quote.mid == 2400.0
+    assert order[0] == ("tick",)
+    assert order[1] == ("quote", "worker")
+    assert time.perf_counter() - started < 0.35
+    assert calls["n"] == 1
+
+    plan = EntryPlan(
+        direction="buy",
+        entry_type="market",
+        entry=2400.0,
+        stop_loss=2385.0,
+        targets=[2420.0],
+    )
+    gates = build_gates(
+        GateInputs(
+            now_ms=1_700_000_000_000,
+            news=None,
+            structure=None,
+            liquidity=None,
+            supply_demand=None,
+            mtf=None,
+            plan=plan,
+            atr=8.0,
+            visual=VisualReview(state="not_checked"),
+            fetch_live_price=fetch_live,
+        )
+    )
+    live = next(gate for gate in gates if gate.id == "G7")
+    await live.run()
+    assert calls["n"] == 1
+
+    order.clear()
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    await live.run()
+    await pending
+    assert calls["n"] == 2
+    assert order[0] == ("tick",)
+    assert order[1] == ("quote", "worker")
+    assert time.perf_counter() - started < 0.35
+
+
+def test_quote_for_gates_refreshes_after_the_first_check(monkeypatch) -> None:
+    calls = {"n": 0}
+
+    def fake_quote(symbol: str, **_kwargs: object) -> OandaQuote:
+        calls["n"] += 1
+        return OandaQuote(symbol=symbol, bid=1.0, ask=2.0, mid=float(calls["n"]), tradeable=True)
+
+    monkeypatch.setattr("mokli.trading.kernel.fetch_quote", fake_quote)
+    _quote, fetch_live = quote_for_gates("XAUUSD")
+    assert calls["n"] == 1
+    assert fetch_live() == 1.0
+    assert calls["n"] == 1
+    assert fetch_live() == 2.0
+    assert calls["n"] == 2
 
 
 @pytest.mark.asyncio

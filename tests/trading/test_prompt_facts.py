@@ -19,3 +19,8 @@ def test_facts_report_permission_level_and_scope(tmp_path):
     assert "max_lot_per_order=0.2" in facts["mt5_execute_scope"]
     assert facts["channel"] == "websocket"
     assert facts["execution_mode"] in {"paper", "live"}
+    assert facts["instrument"] == "analysis symbol is XAUUSD"
+    assert "OANDA" in facts["market_data"]
+    assert "MetaAPI" in facts["market_data"]
+    assert "MT5 terminal" not in facts["market_data"]
+    assert "mt5_market" in facts["market_data"]

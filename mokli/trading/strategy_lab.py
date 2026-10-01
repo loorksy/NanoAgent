@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
-from typing import cast
+import json
+import uuid
+from typing import Any, cast
 
+from mokli.config.paths import get_data_dir
 from mokli.trading.backtest.engine import replay
 from mokli.trading.backtest.validation import bootstrap_expectancy, monte_carlo, walk_forward
+from mokli.trading.strategy_spec import (
+    check_logic,
+    program_for,
+    rules_from_spec,
+    spec_from_description,
+)
 from mokli.trading.types import Candle
 
 
@@ -21,19 +30,375 @@ def _rs(card: dict[str, object]) -> list[float]:
     return values
 
 
-def propose_strategy(name: str, candles: list[Candle]) -> dict[str, object]:
-    card = cast(dict[str, object], replay(candles))
+def _strategies_dir():
+    path = get_data_dir() / "trading" / "strategies"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _strategy_file(strategy_id: str) -> Any:
+    """A strategy id is a file name inside the strategies directory, never a path."""
+    token = str(strategy_id or "").strip()
+    if not token or len(token) > 80 or token in {".", ".."} or ".." in token:
+        return None
+    if any(char in token for char in "/\\") or not token.replace("-", "").replace("_", "").isalnum():
+        return None
+    root = _strategies_dir().resolve()
+    path = (root / f"{token}.json").resolve()
+    if path.parent != root:
+        return None
+    return path
+
+
+def _replay_succeeded(record: dict[str, object]) -> bool:
+    backtest = record.get("backtest")
+    return isinstance(backtest, dict) and backtest.get("ok") is True
+
+
+def _logic_refused(record: dict[str, object]) -> bool:
+    """A stored logic_ok flag is not the check. Re-read the spec when one is present."""
+    spec = record.get("spec")
+    if spec is None:
+        return False
+    if not isinstance(spec, dict):
+        return True
+    return bool(check_logic(spec))
+
+
+def _same_rule_number(left: object, right: object) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return float(left) == float(right)
+    return False
+
+
+def _paper_recorded(strategy_id: str) -> bool:
+    """The ledger row is the paper step. A stored run_state is not."""
+    from mokli.trading.paper import paper_actions_index
+
+    return paper_actions_index().get(strategy_id) == "paper"
+
+
+def _replay_matches_spec(record: dict[str, object]) -> bool:
+    """A finished card with no spec stays usable. A spec must match its own replay."""
+    spec = record.get("spec")
+    if not isinstance(spec, dict):
+        return True
+    backtest = record.get("backtest")
+    if not isinstance(backtest, dict):
+        return False
+    try:
+        rules = rules_from_spec(spec)
+    except (TypeError, ValueError):
+        return False
+    if backtest.get("strategy") != str(rules.get("name") or "spec"):
+        return False
+    if not _same_rule_number(backtest.get("risk_percent"), rules.get("risk_percent")):
+        return False
+    return all(
+        _same_rule_number(backtest.get(key), rules.get(key))
+        for key in ("entry_lookback", "lookback", "confirm_bars", "target_rr")
+    )
+
+
+def load_replay_candles(
+    *,
+    interval: str = "1h",
+    limit: int = 200,
+) -> tuple[list[Candle], list[Candle]]:
+    """Entry bars and the 4h confirmation bars. Neither download reads a live quote.
+
+    The two windows do not depend on each other, so they start together.
+    """
+    import contextvars
+    from concurrent.futures import ThreadPoolExecutor
+
+    from mokli.trading.market_context import build_agent_market_context
+
+    def _bars(bar_interval: str, bar_limit: int) -> list[Candle]:
+        market = build_agent_market_context(
+            "XAUUSD",
+            bar_interval,
+            bar_limit,
+            include_quote=False,
+        )
+        if not market.sync.ok:
+            return []
+        return list(market.candles)
+
+    confirm_interval = "4h"
+    confirm_limit = 80
+    if interval == confirm_interval:
+        return _bars(interval, limit), []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        contexts = [contextvars.copy_context(), contextvars.copy_context()]
+        entry_task = pool.submit(contexts[0].run, _bars, interval, limit)
+        confirm_task = pool.submit(contexts[1].run, _bars, confirm_interval, confirm_limit)
+        return entry_task.result(), confirm_task.result()
+
+
+def load_market_bars(interval: str = "15m", limit: int = 200) -> list[Candle]:
+    """One replay window. The scorecard does not read a live quote."""
+    from mokli.trading.market_context import build_agent_market_context
+
+    market = build_agent_market_context("XAUUSD", interval, limit, include_quote=False)
+    if not market.sync.ok:
+        return []
+    return list(market.candles)
+
+
+def load_warehouse_bars(interval: str = "15m", limit: int = 200) -> list[Candle]:
+    """Local store used only after the market feed returns nothing."""
+    from pathlib import Path
+
+    from mokli.trading.warehouse import CandleWarehouse
+
+    path = Path.home() / ".mokli" / "warehouse.sqlite"
+    if not path.is_file():
+        return []
+    store = CandleWarehouse(path)
+    try:
+        return store.load("XAUUSD", interval, limit=limit)
+    finally:
+        store.close()
+
+
+def candles_for_replay(
+    supplied: list[Candle] | None = None,
+    *,
+    interval: str = "15m",
+    limit: int = 200,
+) -> list[Candle]:
+    """Caller bars, otherwise the market feed, otherwise the local warehouse."""
+    if supplied:
+        return list(supplied)
+    loaded = load_market_bars(interval, limit)
+    if loaded:
+        return loaded
+    return load_warehouse_bars(interval, limit)
+
+
+def lab_replay(name: str, supplied: list[Candle] | None = None) -> dict[str, object]:
+    """ATR replay for the tasks lab. An empty feed does not invent prices."""
+    candles = candles_for_replay(supplied)
+    if not candles:
+        return {
+            "ok": False,
+            "reason_key": "trading.market_feed_unconfigured",
+            "trades": 0,
+            "executed": False,
+            "broker_order": False,
+        }
+    return propose_strategy(name or "atr_breakout", candles)
+
+
+def model_strategy_brief(proposal: dict[str, object]) -> dict[str, object]:
+    """What the model reads. Candle rows, the R series, and the copied test blob stay out."""
+    brief: dict[str, object] = {}
+    for key in (
+        "id",
+        "name",
+        "status",
+        "promoted",
+        "executed",
+        "broker_order",
+        "notice_key",
+        "run_state",
+        "version",
+        "changelog",
+        "logic_errors",
+        "reason_key",
+        "program",
+        "saved",
+    ):
+        if key in proposal:
+            brief[key] = proposal[key]
+    backtest = proposal.get("backtest")
+    if isinstance(backtest, dict):
+        brief["backtest"] = {
+            key: value
+            for key, value in backtest.items()
+            if key not in {"rs", "entry_lookback", "lookback", "confirm_bars", "target_rr"}
+        }
+    validation = proposal.get("validation")
+    if isinstance(validation, dict):
+        brief["validation"] = validation
+    spec = proposal.get("spec")
+    if isinstance(spec, dict):
+        brief["spec"] = {
+            key: value
+            for key, value in spec.items()
+            if key not in {"description", "test_results"}
+        }
+    return brief
+
+
+def propose_strategy(
+    name: str,
+    candles: list[Candle],
+    *,
+    description: str = "",
+    confirm_candles: list[Candle] | None = None,
+) -> dict[str, object]:
+    spec: dict[str, Any] | None = None
+    if description.strip():
+        spec = spec_from_description(description, name=name)
+        errors = check_logic(spec)
+        if errors:
+            return {
+                "name": name,
+                "status": "invalid",
+                "promoted": False,
+                "executed": False,
+                "broker_order": False,
+                "notice_key": "strategy.invalid",
+                "spec": spec,
+                "logic_errors": errors,
+                "program": None,
+            }
+        rules = rules_from_spec(spec)
+        card = cast(
+            dict[str, object],
+            replay(candles, rules=rules, confirm_candles=confirm_candles),
+        )
+    else:
+        rules = None
+        card = cast(dict[str, object], replay(candles))
+    if card.get("ok") is not True:
+        refused: dict[str, object] = {
+            "name": name,
+            "status": "invalid",
+            "promoted": False,
+            "executed": False,
+            "broker_order": False,
+            "notice_key": "strategy.invalid",
+            "reason_key": card.get("reason_key"),
+            "backtest": card,
+            "program": None,
+        }
+        if spec is not None:
+            refused["spec"] = spec
+        return refused
     series = _rs(card)
-    return {
+    proposal: dict[str, object] = {
+        "id": str(uuid.uuid4()),
         "name": name,
         "status": "proposed",
         "promoted": False,
         "executed": False,
+        "broker_order": False,
         "notice_key": "strategy.proposed",
         "backtest": card,
         "validation": {
-            "walk_forward": walk_forward(candles),
+            "walk_forward": walk_forward(
+                candles,
+                rules=rules,
+                confirm_candles=confirm_candles,
+            ),
             "monte_carlo": monte_carlo(series),
             "bootstrap": bootstrap_expectancy(series),
         },
+    }
+    if spec is not None:
+        spec = dict(spec)
+        spec["run_state"] = "backtested"
+        spec["test_results"] = {"backtest": card, "validation": proposal["validation"]}
+        proposal["spec"] = spec
+        proposal["program"] = program_for(spec)
+        proposal["version"] = spec["version"]
+        proposal["changelog"] = spec["changelog"]
+        proposal["run_state"] = "backtested"
+    return proposal
+
+
+def save_strategy(proposal: dict[str, object]) -> dict[str, object]:
+    """Persist a proposal. Saving does not promote it and does not send an order."""
+    if proposal.get("status") != "proposed":
+        return {"ok": False, "executed": False, "reason": "not_proposed"}
+    if _logic_refused(proposal):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
+    if not _replay_succeeded(proposal) or not _replay_matches_spec(proposal):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
+    strategy_id = str(proposal.get("id") or uuid.uuid4())
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "invalid_id"}
+    proposal = dict(proposal)
+    proposal["id"] = strategy_id
+    proposal["run_state"] = "saved"
+    proposal["executed"] = False
+    path.write_text(json.dumps(proposal, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "id": strategy_id, "executed": False, "path": str(path)}
+
+
+def load_strategy(strategy_id: str) -> dict[str, Any] | None:
+    path = _strategy_file(strategy_id)
+    if path is None or not path.is_file():
+        return None
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    return loaded if isinstance(loaded, dict) else None
+
+
+def start_paper(strategy_id: str) -> dict[str, object]:
+    """Record a paper action for a saved spec. No broker order is sent."""
+    from mokli.trading.paper import record_paper_action
+
+    record = load_strategy(strategy_id)
+    if record is None:
+        return {"ok": False, "executed": False, "reason": "missing"}
+    if _logic_refused(record):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
+    if not _replay_succeeded(record) or not _replay_matches_spec(record):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "missing"}
+    entry = record_paper_action(strategy_id, "paper", note=str(record.get("name") or ""))
+    record["run_state"] = "paper"
+    record["executed"] = False
+    record["broker_order"] = False
+    path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "executed": False, "broker_order": False, "paper": entry, "run_state": "paper"}
+
+
+def request_live(strategy_id: str, *, approved: bool = False) -> dict[str, object]:
+    """Record explicit approval. This lab never places a broker order."""
+    record = load_strategy(strategy_id)
+    if record is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "missing"}
+    if not approved:
+        return {
+            "ok": False,
+            "executed": False,
+            "broker_order": False,
+            "reason": "live_requires_explicit_approval",
+        }
+    if _logic_refused(record):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "logic_failed"}
+    if not _replay_succeeded(record) or not _replay_matches_spec(record):
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "backtest_failed"}
+    if not _paper_recorded(strategy_id):
+        return {
+            "ok": False,
+            "executed": False,
+            "broker_order": False,
+            "reason": "paper_required",
+        }
+    path = _strategy_file(strategy_id)
+    if path is None:
+        return {"ok": False, "executed": False, "broker_order": False, "reason": "missing"}
+    record["run_state"] = "approval_recorded"
+    record["executed"] = False
+    record["broker_order"] = False
+    changelog = record.get("changelog")
+    if isinstance(changelog, list):
+        changelog.append("operator approval recorded; broker execution refused")
+    path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    return {
+        "ok": True,
+        "executed": False,
+        "broker_order": False,
+        "run_state": "approval_recorded",
+        "reason": "approval_recorded_no_broker_order",
     }

@@ -146,10 +146,19 @@ class EventHub:
     def run_started(self, session: str, run: str) -> None:
         self.publish_state(session, self.state.run_started(session, run), run=run)
 
-    def working(self, session: str, phase: str, *, run: str | None = None) -> None:
+    def working(
+        self,
+        session: str,
+        phase: str,
+        *,
+        run: str | None = None,
+        provider_thinking: bool = False,
+    ) -> None:
         self.publish_state(
             session,
-            self.state.working(session, phase=phase),
+            self.state.working(
+                session, phase=phase, provider_thinking=provider_thinking,
+            ),
             run=run or self.state.active_run(session),
         )
 

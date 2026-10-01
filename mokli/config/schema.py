@@ -527,6 +527,8 @@ class TradingRiskParameters(Base):
     atr_double_lot_halve: float = Field(default=2.0, ge=0)  # news 67
     emergency_move_points_per_minute: float = Field(default=80.0, ge=0)  # playbook 186
     max_reprice_rounds: int = Field(default=2, ge=0)  # G7
+    # 0 skips the conflict review. 1 allows the single pass. The swarm does not loop.
+    max_review_rounds: int = Field(default=1, ge=0, le=1)
     liquidity_proximity_atr: float = Field(default=0.3, ge=0)  # G2
     entry_max_atr_distance: float = Field(default=0.3, ge=0)  # G6
     target_max_atr_distance: float = Field(default=25.0, ge=0)  # G6

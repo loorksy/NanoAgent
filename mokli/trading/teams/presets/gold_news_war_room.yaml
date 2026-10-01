@@ -16,7 +16,7 @@ agents:
 tasks:
   - id: task-scan
     agent_id: news_scanner
-    prompt_template: "Scan macro calendar and headlines for {target}."
+    prompt_template: "Report the driver rows in the evidence for {target}."
     depends_on: []
   - id: task-analyze
     agent_id: event_analyst

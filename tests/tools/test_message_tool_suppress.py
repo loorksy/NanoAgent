@@ -197,7 +197,48 @@ class TestMessageToolSchema:
         tool = MessageTool()
 
         assert "Do not use this for the normal reply in the current chat" in tool.description
-        assert "generate_image creates images in the current chat" in tool.description
+        assert "read_file" not in tool.description
+        assert "generate_image" not in tool.description
+        assert "generate_image" not in tool.parameters["properties"]["media"]["description"]
+        import json
+
+        import tiktoken
+
+        previous = (
+            "Proactively send a message to a user/channel, optionally with file attachments. "
+            "Use this for reminders, cross-channel delivery, or explicit proactive sends. "
+            "Do not use this for the normal reply in the current chat: answer naturally instead. "
+            "If channel/chat_id would target the current runtime conversation, do not call this tool "
+            "unless the user explicitly asked you to proactively send an existing file attachment. "
+            "When generate_image creates images in the current chat, use the message tool "
+            "with the artifact paths in the media parameter to deliver the images to the user. "
+            "For proactive attachment delivery, use the 'media' parameter with file paths. "
+            "Do NOT use read_file to send files — that only reads content for your own analysis."
+        )
+        enc = tiktoken.get_encoding("cl100k_base")
+        before = len(enc.encode(previous))
+        after = len(enc.encode(tool.description))
+        old_params = json.loads(json.dumps(tool.parameters))
+        old_params["properties"]["media"]["description"] = (
+            "Optional list of existing file paths to attach. "
+            "Use artifact paths returned by generate_image here when delivering generated images."
+        )
+        old_schema = json.dumps(
+            {"name": tool.name, "description": previous, "parameters": old_params},
+            ensure_ascii=False,
+        )
+        new_schema = json.dumps(
+            {"name": tool.name, "description": tool.description, "parameters": tool.parameters},
+            ensure_ascii=False,
+        )
+        schema_before = len(enc.encode(old_schema))
+        schema_after = len(enc.encode(new_schema))
+        print(f"MESSAGE_DESC before={before} after={after}")
+        print(f"MESSAGE_SCHEMA before={schema_before} after={schema_after}")
+        assert after < before
+        assert schema_after < schema_before
+        assert "read_file" not in new_schema
+        assert "generate_image" not in new_schema
         assert (
             "Do not use this for a normal reply in the current chat"
             in tool.parameters["properties"]["content"]["description"]

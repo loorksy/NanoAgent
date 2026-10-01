@@ -12,8 +12,8 @@ from mokli.providers.base import LLMProvider, ProviderCallContext
 from mokli.session.manager import SessionManager
 from mokli.session.mokli_turns import MokliTurnRoutePolicy
 from mokli.surface.metadata import (
-    WEBSOCKET_TURN_OWNER_METADATA_KEY,
     MOKLI_TURN_METADATA_KEY,
+    WEBSOCKET_TURN_OWNER_METADATA_KEY,
 )
 
 
@@ -169,6 +169,33 @@ async def test_delivery_keeps_model_error_message_for_ordinary_channels() -> Non
     await delivery.complete(response, publish_completion=True)
 
     assert await bus.consume_outbound() is response
+
+
+@pytest.mark.asyncio
+async def test_agent_api_retry_reaches_the_bus_without_channel_text() -> None:
+    from mokli.agent_api.events import translate_runtime_event
+
+    bus = MessageBus()
+    seen: list[RetryStatusEvent] = []
+    bus.subscribe(seen.append)
+    msg = InboundMessage(
+        channel="agent_api",
+        sender_id="user",
+        chat_id="chat",
+        content="hello",
+    )
+    delivery = TurnDeliveryFactory(bus).create(msg, "agent_api:chat")
+    assert delivery.events.accepts(RetryStatusEvent)
+    await delivery.events.emit(RetryStatusEvent("waiting", 2, 4, "connection"))
+    assert bus.outbound.empty()
+    assert len(seen) == 1
+    assert seen[0].session_key == "agent_api:chat"
+    translated = translate_runtime_event(seen[0])
+    assert translated is not None
+    assert translated["kind"] == "retry"
+    assert translated["session"] == "chat"
+    assert translated["data"]["attempt"] == 2
+    assert translated["data"]["state"] == "waiting"
 
 
 @pytest.mark.parametrize("channel", ["telegram", "cli", "websocket"])

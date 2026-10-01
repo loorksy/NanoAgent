@@ -6,7 +6,9 @@ account is configured, and from OANDA otherwise.
 
 from __future__ import annotations
 
+import contextvars
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from mokli.trading.config import TradingConfig, load_trading_config
 from mokli.trading.geometry.detectors import compute_atr
@@ -36,18 +38,35 @@ def resolve_live_quote(
     symbol: str = DATA_SYMBOL,
     config: TradingConfig | None = None,
 ) -> tuple[OandaQuote | None, str]:
-    """Live gold quote and the feed that produced it."""
+    """Live gold quote and the feed that produced it.
+
+    Overlapping reads in one turn share the download already in progress.
+    A later read, after that download finishes, fetches again.
+    """
     require_gold(symbol)
     config = config or load_trading_config()
-    if getattr(config, "metaapi_configured", False) is True:
-        try:
-            quote = fetch_metaapi_quote(symbol, config=config)
-        except Exception:
-            logger.warning("MetaAPI analysis quote failed")
-            quote = None
-        if quote is not None:
-            return quote, "metaapi"
-    return fetch_quote(symbol, config=config), "oanda"
+
+    def _fetch() -> tuple[OandaQuote | None, str]:
+        if getattr(config, "metaapi_configured", False) is True:
+            try:
+                quote = fetch_metaapi_quote(symbol, config=config)
+            except Exception:
+                logger.warning("MetaAPI analysis quote failed")
+                quote = None
+            if quote is not None:
+                return quote, "metaapi"
+        return fetch_quote(symbol, config=config), "oanda"
+
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None:
+        return _fetch()
+    return turn.share_inflight(
+        ("quote", symbol),
+        _fetch,
+        on_reuse=lambda: setattr(turn, "quote_reuses", turn.quote_reuses + 1),
+    )
 
 
 def live_analysis_quote(symbol: str = DATA_SYMBOL) -> OandaQuote | None:
@@ -60,12 +79,55 @@ def build_agent_market_context(
     symbol: str = DATA_SYMBOL,
     interval: str = "15m",
     limit: int = 240,
+    *,
+    include_quote: bool = True,
 ) -> AgentMarketContext:
     require_gold(symbol)
     config = load_trading_config()
-    candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
-    candles = [_to_candle(c) for c in candles_raw]
-    quote, _source = resolve_live_quote(symbol, config)
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+
+    def _fetch_rows() -> list[Candle]:
+        candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
+        return [_to_candle(row) for row in candles_raw]
+
+    def _load_candles() -> list[Candle]:
+        if turn is None:
+            return _fetch_rows()
+        return turn.load_candles(symbol, interval, limit, _fetch_rows)
+
+    # Callers that only need bars (a higher-timeframe bias, a trend window)
+    # must not download a quote they discard. Gates still read a fresh quote.
+    # Candles and the live quote are separate feeds, so a context that needs
+    # both starts them together instead of waiting for the bars to finish.
+    quote = None
+    if include_quote:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            # A context can be entered by one thread only, so each feed gets its own copy.
+            candle_task = pool.submit(contextvars.copy_context().run, _load_candles)
+            quote_task = pool.submit(
+                contextvars.copy_context().run,
+                resolve_live_quote,
+                symbol,
+                config,
+            )
+            candle_error: Exception | None = None
+            quote_error: Exception | None = None
+            try:
+                candles = candle_task.result()
+            except Exception as exc:
+                candle_error = exc
+            try:
+                quote, _source = quote_task.result()
+            except Exception as exc:
+                quote_error = exc
+            if candle_error is not None:
+                raise candle_error
+            if quote_error is not None:
+                raise quote_error
+    else:
+        candles = _load_candles()
 
     sync = MarketSync(ok=True)
     if not config.oanda_configured:

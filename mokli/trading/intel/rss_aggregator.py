@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from dataclasses import dataclass
 
@@ -41,28 +42,42 @@ def _guid(entry: dict[str, str], feed: str) -> str:
 
 
 async def _fetch_bodies(feeds: tuple[str, ...] | list[str], timeout: float) -> dict[str, str]:
-    body_by_url: dict[str, str] = {}
+    """Download independent feeds together. Failures stay missing."""
+    urls = tuple(feeds)
+
+    def _remember(pairs: list[tuple[str, str | None]]) -> dict[str, str]:
+        bodies: dict[str, str] = {}
+        for url, body in pairs:
+            if body is not None:
+                bodies[url] = body
+        return bodies
+
     if module_available("aiohttp"):
         import aiohttp
 
+        async def _aiohttp_one(session: aiohttp.ClientSession, url: str) -> tuple[str, str | None]:
+            try:
+                async with session.get(url, timeout=timeout) as resp:
+                    return url, await resp.text()
+            except Exception:
+                return url, None
+
         async with aiohttp.ClientSession() as session:
-            for url in feeds:
-                try:
-                    async with session.get(url, timeout=timeout) as resp:
-                        body_by_url[url] = await resp.text()
-                except Exception:
-                    continue
-        return body_by_url
+            pairs = await asyncio.gather(*[_aiohttp_one(session, url) for url in urls])
+        return _remember(list(pairs))
+
     import httpx
 
+    async def _httpx_one(client: httpx.AsyncClient, url: str) -> tuple[str, str | None]:
+        try:
+            resp = await client.get(url)
+            return url, resp.text
+        except Exception:
+            return url, None
+
     async with httpx.AsyncClient(timeout=timeout) as client:
-        for url in feeds:
-            try:
-                resp = await client.get(url)
-                body_by_url[url] = resp.text
-            except Exception:
-                continue
-    return body_by_url
+        pairs = await asyncio.gather(*[_httpx_one(client, url) for url in urls])
+    return _remember(list(pairs))
 
 
 async def fetch_rss_headlines(

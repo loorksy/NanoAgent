@@ -8,6 +8,7 @@ supersede approve) goes through it. Does not import or call MT5 execution helper
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
@@ -31,7 +32,7 @@ from mokli.trading.oanda import OandaQuote
 from mokli.trading.observability import log_gate_observability
 from mokli.trading.policy import GOLD_POINT
 from mokli.trading.policy_guard import PolicyViolation
-from mokli.trading.recommendations.lifecycle import close_plan_for_session, sync_session_live_plan
+from mokli.trading.recommendations.lifecycle import close_plan_for_session
 from mokli.trading.recommendations.store import latest_live_recommendation, store_recommendation
 from mokli.trading.risk_state import get_risk_store
 from mokli.trading.runtime_state import get_runtime_store
@@ -117,6 +118,39 @@ def fetch_quote(symbol: str, **_kwargs: object) -> OandaQuote | None:
     return live_analysis_quote(symbol)
 
 
+def quote_for_gates(symbol: str) -> tuple[OandaQuote | None, Callable[[], float | None]]:
+    """One broker read for the risk snapshot and the first live-price check.
+
+    A later check, such as another reprice round, reads the broker again.
+    """
+    quote = fetch_quote(symbol)
+    reused = True
+
+    def fetch_live() -> float | None:
+        nonlocal quote, reused
+        if reused:
+            reused = False
+            current = quote
+        else:
+            current = fetch_quote(symbol)
+        if current is None or current.mid is None:
+            return None
+        return float(current.mid)
+
+    return quote, fetch_live
+
+
+async def load_quote_for_gates(
+    symbol: str,
+) -> tuple[OandaQuote | None, Callable[[], float | None]]:
+    """Read the gate quote on a worker thread.
+
+    The turn still waits for this broker read. The event loop stays free for
+    other work. A later check, such as another reprice round, reads again.
+    """
+    return await asyncio.to_thread(quote_for_gates, symbol)
+
+
 def _quote_age(quote: object) -> float | None:
     """Broker clock age. A quote with no timestamp counts as just fetched."""
     if quote is None:
@@ -170,8 +204,11 @@ async def run_trading_kernel(
     turn.session_key = key or turn.session_key
     turn.interval = interval
 
+    graded_quote = None
     if key:
-        sync_session_live_plan(key)
+        from mokli.trading.recommendations.lifecycle import grade_session_plan
+
+        _graded, graded_quote = await grade_session_plan(key, reuse_turn_grade=True)
 
     if runtime.kill_switch:
         return AgentFinalResult(
@@ -182,11 +219,14 @@ async def run_trading_kernel(
     if live and not reevaluate and not force_new_plan:
         raise LivePlanActive(live)
     if live and force_new_plan and key:
+        graded_mid = graded_quote.mid if graded_quote is not None else None
         closed = close_plan_for_session(
             key,
             status="superseded",
             reason="operator_force_new",
             category="modified",
+            live_price=graded_mid,
+            price_known=True,
         )
         if not closed.get("ok"):
             raise PlanCloseFailed()
@@ -328,12 +368,8 @@ async def run_trading_kernel(
         activation_rule=rec.activation_rule,
     )
 
-    def fetch_live() -> float | None:
-        q = fetch_quote(symbol)
-        return q.mid if q else None
-
     now_ms = int(time.time() * 1000)
-    quote = fetch_quote(symbol)
+    quote, fetch_live = await load_quote_for_gates(symbol)
     stored = get_risk_store().snapshot()
     spread = None
     if quote is not None and quote.bid is not None and quote.ask is not None:

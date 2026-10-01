@@ -1,3 +1,6 @@
+import asyncio
+import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,16 +8,17 @@ from websockets.http11 import Request
 
 from mokli.agent.tools.context import RequestContext, current_request_context, request_context
 from mokli.providers.base import GenerationSettings, LLMProvider
-from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
-from mokli.utils.llm_runtime import LLMRuntime
 from mokli.surface.trading_api import (
     analyze_request_context,
+    dispatch_trading_route,
     handle_trading_analyze,
     handle_trading_klines,
     handle_trading_performance,
     handle_trading_recommendations,
     handle_trading_status,
 )
+from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+from mokli.utils.llm_runtime import LLMRuntime
 
 
 def _request(path: str) -> Request:
@@ -45,6 +49,38 @@ def test_trading_recommendations_payload() -> None:
     body = response.body.decode("utf-8")
     assert "recommendations" in body
     assert "recentOutcomeAlerts" in body
+
+
+@pytest.mark.asyncio
+async def test_trading_quote_route_leaves_the_event_loop_free(monkeypatch) -> None:
+    """Chart quote polling waits for the broker off the event loop."""
+    from mokli.trading.oanda import OandaQuote
+
+    order: list[str] = []
+
+    def slow_quote(symbol: str, config: object | None = None) -> tuple[OandaQuote, str]:
+        del symbol, config
+        time.sleep(0.2)
+        order.append(
+            "main" if threading.current_thread() is threading.main_thread() else "worker"
+        )
+        return OandaQuote(symbol="XAUUSD", bid=2400.0, ask=2400.4, mid=2400.2, tradeable=True), "oanda"
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append("tick")
+
+    config = MagicMock(oanda_configured=True, metaapi_configured=False)
+    monkeypatch.setattr("mokli.surface.trading_api.load_trading_config", lambda: config)
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", slow_quote)
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    response = await dispatch_trading_route(_request("/api/trading/quote"), "/api/trading/quote")
+    await pending
+    assert response is not None and response.status_code == 200
+    assert b"2400.2" in response.body
+    assert order == ["tick", "worker"]
+    assert time.perf_counter() - started < 0.35
 
 
 def test_trading_klines_unconfigured() -> None:

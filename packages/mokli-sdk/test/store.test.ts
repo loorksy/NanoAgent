@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   SessionStore,
+  activityLine,
   addUserMessage,
   applyEvent,
   applyEvents,
@@ -58,7 +59,7 @@ describe("applyEvent", () => {
 
     snap = setApprovalStatus(snap, "a1", "confirmed");
     expect(snap.approvals[0]?.status).toBe("confirmed");
-    expect(snap.state.state).toBe("working");
+    expect(snap.state).toEqual({ state: "working", phase: "processing" });
 
     snap = applyEvent(snap, ev("state", { state: "completed", outcome: "ok" }));
     snap = applyEvent(snap, ev("end", { run: "r_1", outcome: "ok" }));
@@ -95,8 +96,39 @@ describe("applyEvent", () => {
     );
     expect(snap.timeline).toHaveLength(1);
     expect(snap.timeline[0]).toMatchObject({ status: "finished", summary: "3 results", duration_ms: 420 });
+    snap = applyEvent(
+      snap,
+      ev("tool", {
+        event: "started",
+        name: "get_gold_quote",
+        call_id: "c3",
+        arguments: "{\"symbol\":\"XAUUSD\"}",
+      }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("tool", {
+        event: "finished",
+        name: "get_gold_quote",
+        call_id: "c3",
+        summary: "bid 2401",
+        duration_ms: 200,
+      }),
+    );
+    expect(snap.timeline.filter((entry) => entry.kind === "tool" && entry.call_id === "c3")).toEqual([
+      expect.objectContaining({
+        status: "finished",
+        arguments: "{\"symbol\":\"XAUUSD\"}",
+        summary: "bid 2401",
+        duration_ms: 200,
+      }),
+    ]);
     snap = applyEvent(snap, ev("tool", { event: "failed", name: "exec", call_id: "c2", summary: "timeout" }));
-    expect(snap.timeline[1]).toMatchObject({ kind: "tool", status: "failed", call_id: "c2" });
+    expect(snap.timeline.find((entry) => entry.kind === "tool" && entry.call_id === "c2")).toMatchObject({
+      kind: "tool",
+      status: "failed",
+      call_id: "c2",
+    });
   });
 
   test("subagent lifecycle and structured/artifact/notification/job events", () => {
@@ -106,6 +138,35 @@ describe("applyEvent", () => {
     expect(snap.timeline).toEqual([
       expect.objectContaining({ kind: "subagent", subagent_id: "sa1", status: "finished", summary: "no" }),
     ]);
+    snap = applyEvent(snap, ev("subagent", { event: "started", id: "risk", role: "Risk Officer" }));
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "failed", id: "risk", role: "Risk Officer", duration_ms: 200 }),
+    );
+    expect(snap.timeline[1]).toMatchObject({
+      kind: "subagent",
+      subagent_id: "risk",
+      status: "failed",
+      duration_ms: 200,
+    });
+    snap = applyEvent(snap, ev("retry", { state: "waiting", attempt: 2, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "recovered", attempt: 2, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "cleared", attempt: 4, error_kind: "server" }));
+    const retries = snap.timeline.filter((entry) => entry.kind === "retry");
+    expect(retries.map((entry) => entry.retry_id)).toEqual(["retry-2", "fallback"]);
+    expect(retries[0]).toMatchObject({ state: "recovered", status: "finished" });
+    expect(retries[1]).toMatchObject({ state: "cleared", status: "finished" });
+    snap = applyEvent(snap, ev("retry", { state: "exhausted", attempt: 3, error_kind: "timeout" }));
+    expect(snap.timeline.find((entry) => entry.kind === "retry" && entry.retry_id === "retry-3")).toMatchObject({
+      status: "failed",
+    });
+    snap = applyEvent(snap, ev("retry", { state: "waiting", attempt: 1, error_kind: "connection" }));
+    snap = applyEvent(snap, ev("retry", { state: "cancelled", attempt: 1, error_kind: "cancelled" }));
+    expect(snap.timeline.find((entry) => entry.kind === "retry" && entry.retry_id === "retry-1")).toMatchObject({
+      state: "cancelled",
+      status: "failed",
+      error_kind: "cancelled",
+    });
     snap = applyEvent(
       snap,
       ev("structured", {
@@ -207,7 +268,67 @@ describe("applyEvent", () => {
     );
     expect(snap.approvals[0]?.status).toBe("confirmed");
     expect(snap.approvals[0]?.actions).toEqual([]);
-    expect(snap.state.state).toBe("working");
+    expect(snap.state).toEqual({ state: "working", phase: "processing" });
+  });
+});
+
+describe("activityLine", () => {
+  test("groups only the entries that ran, using their display text", () => {
+    let snap = initialSnapshot("s_1");
+    snap = applyEvent(
+      snap,
+      ev("tool", { event: "finished", name: "get_gold_quote", call_id: "c1", display: "تم فحص سعر الذهب" }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("tool", { event: "failed", name: "get_gate_report", call_id: "c2", display: "تعذر فحص شروط القرار" }),
+    );
+    const line = activityLine(snap.timeline, (entry) =>
+      entry.kind === "tool" ? (entry.display ?? entry.name) : entry.kind,
+    );
+    expect(line).toBe("تم فحص سعر الذهب ✓ · تعذر فحص شروط القرار");
+    expect(line).not.toContain("get_gold_quote");
+    expect(line).not.toContain("get_gate_report");
+  });
+
+  test("a running step stays unmarked and an empty timeline stays empty", () => {
+    const snap = applyEvent(
+      initialSnapshot("s_1"),
+      ev("tool", { event: "started", name: "run_trading_kernel", call_id: "c1", display: "يشغّل محرك التحليل" }),
+    );
+    expect(activityLine(snap.timeline, (entry) => (entry.kind === "tool" ? entry.display ?? "" : ""))).toBe(
+      "يشغّل محرك التحليل …",
+    );
+    expect(activityLine([], () => "unused")).toBe("");
+  });
+
+  test("a specialist line uses the event display, not the role label", () => {
+    let snap = initialSnapshot("s_1");
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "started", id: "technical", role: "Technical Analyst", display: "يراجع الهيكل السعري…" }),
+    );
+    snap = applyEvent(
+      snap,
+      ev("subagent", { event: "finished", id: "technical", role: "Technical Analyst", display: "اكتملت مراجعة الهيكل" }),
+    );
+    const entry = snap.timeline[0];
+    expect(entry?.kind).toBe("subagent");
+    const line = activityLine(snap.timeline, (item) =>
+      item.kind === "subagent" ? (item.display ?? item.role) : "",
+    );
+    expect(line).toBe("اكتملت مراجعة الهيكل ✓");
+    expect(line).not.toContain("Technical Analyst");
+  });
+
+  test("a running phrase that already ends with an ellipsis is not marked twice", () => {
+    const snap = applyEvent(
+      initialSnapshot("s_1"),
+      ev("tool", { event: "started", name: "get_gold_quote", call_id: "c1", display: "يفحص سعر الذهب الحالي…" }),
+    );
+    expect(activityLine(snap.timeline, (entry) => (entry.kind === "tool" ? entry.display ?? "" : ""))).toBe(
+      "يفحص سعر الذهب الحالي…",
+    );
   });
 });
 

@@ -5,12 +5,7 @@ description: Gold XAUUSD price-action doctrine — FVG/imbalance, multi-timefram
 
 # Technical analysis (gold)
 
-INTERPRETIVE skill. Numeric thresholds live in `mokli.trading.policy.live()` and the gate chain. Do not invent a second set of numbers.
-
-Read the matching reference with `grep` (`output_mode="count"` first) before loading a whole file:
-
-- Technical and price action: [references/section-1-price-action.md](references/section-1-price-action.md)
-- Playbook entry, retest, trendlines, candles: `mokli/skills/xauusd-playbook/references/` (`P-001` …)
+INTERPRETIVE skill. Numeric thresholds live in `mokli.trading.policy.live()` and the gate chain. Do not invent a second set of numbers. The steps below are the guidance for this turn.
 
 ## Steps
 

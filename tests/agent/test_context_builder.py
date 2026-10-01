@@ -311,7 +311,32 @@ class TestBuildSystemPrompt:
         assert str(tmp_path.resolve()) not in result
         assert "Agent profile: SOUL.md and USER.md" in result
         assert "History log: memory/history.jsonl" in result
+        assert "prefer built-in `grep` for search" in result
         assert "Custom skills: skills/{skill-name}/SKILL.md" in result
+        assert "Tools like read_file and web_fetch can return native image content." in result
+
+    def test_registered_tools_drop_missing_file_tool_invitations(self, tmp_path):
+        registered = ["web_search", "web_fetch", "run_trading_kernel"]
+        unknown = ContextBuilder(tmp_path)._get_identity()
+        result = ContextBuilder(tmp_path)._get_identity(tool_names=registered)
+        import tiktoken
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        print(
+            f"IDENTITY before={len(enc.encode(unknown))} after={len(enc.encode(result))}"
+        )
+
+        assert "History log: memory/history.jsonl (append-only JSONL)." in result
+        assert "grep" not in result
+        assert "read_file" not in result
+        assert "Custom skills:" not in result
+        assert "SKILL.md" not in result
+        assert "Tools like web_fetch can return native image content." in result
+
+        prompt = ContextBuilder(tmp_path).build_system_prompt(tool_names=registered)
+        assert "join them when using `read_file`" not in prompt
+        assert "The following skill descriptions are the full guidance for this turn." in prompt
+        assert "risk-guardrails" in prompt
 
     def test_selected_project_identity_keeps_agent_data_in_agent_workspace(self, tmp_path):
         agent_home = tmp_path / "agent-home"

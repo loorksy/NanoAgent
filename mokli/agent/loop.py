@@ -103,6 +103,7 @@ from mokli.session.recovery import (
 from mokli.session.summary import (
     SessionSummary,
     SessionSummaryCheckpoint,
+    session_tail_needs_archive,
 )
 from mokli.triggers.local_turns import LocalTriggerTurnCoordinator
 from mokli.utils.cancellation import task_is_cancelling
@@ -727,11 +728,15 @@ class AgentLoop:
         msg: InboundMessage,
         session: Session,
         runtime_context_blocks: list[RuntimeContextBlock] | None = None,
+        *,
+        flush: bool = True,
         **kwargs: Any,
     ) -> bool:
         """Persist the triggering user message before the turn starts.
 
-        Returns True if the message was persisted.
+        Returns True if the message was persisted. ``flush`` writes the file
+        immediately. Async callers pass ``flush=False`` and then await
+        ``_flush_session`` so the rewrite does not block the event loop.
         """
         if not turn_continuation.should_persist_user_message(msg.metadata):
             return False
@@ -761,9 +766,33 @@ class AgentLoop:
             followup_id = msg.metadata.get(PENDING_FOLLOWUP_ID_KEY)
             if isinstance(followup_id, str) and followup_id:
                 acknowledge_pending_followups(session, [followup_id])
-            self.sessions.save(session)
+            if flush:
+                self.sessions.save(session)
             return True
         return False
+
+    async def _flush_session(self, session: Session) -> None:
+        """Rewrite the session file off the event loop, then refresh the cache.
+
+        The cache update stays on this thread. Another session can run while
+        this transcript is serialized.
+        """
+        if await asyncio.to_thread(self.sessions.persist_to_disk, session):
+            self.sessions.cache_saved(session)
+
+    async def _open_session(self, key: str) -> Session:
+        """Return the cached session, or read its file off the event loop."""
+        cached = self.sessions.get_cached(key)
+        if cached is not None:
+            return cached
+        loaded = await asyncio.to_thread(self.sessions.load_from_disk, key)
+        cached = self.sessions.get_cached(key)
+        if cached is not None:
+            return cached
+        if loaded is None:
+            loaded = Session(key=key)
+        self.sessions.cache_saved(loaded)
+        return loaded
 
     def _build_transcript_input(self, ctx: TurnContext) -> TranscriptInput:
         """Capture the persisted history and fresh input as separate transcript parts."""
@@ -1029,7 +1058,8 @@ class AgentLoop:
                 public_payload[self._PROVIDER_STATE_CHECKPOINT_VERSION_KEY] = (
                     self._PROVIDER_STATE_CHECKPOINT_VERSION
                 )
-            self._set_runtime_checkpoint(session, public_payload)
+            session.metadata[self._RUNTIME_CHECKPOINT_KEY] = public_payload
+            await self._write_runtime_checkpoint(session)
 
         async def _drain_pending(
             *,
@@ -1298,17 +1328,80 @@ class AgentLoop:
             logger.error("LLM returned error: {}", (result.final_content or "")[:200])
         return result
 
-    def _check_expired_sessions_if_due(self) -> None:
+    async def _check_expired_sessions_if_due(self) -> None:
         """Scan idle sessions no more often than the configured interval."""
         now = time.monotonic()
         if now < self._next_idle_compact_check_at:
             return
         self._next_idle_compact_check_at = now + self._idle_compact_check_interval_s
+        clocks = None
+        ready_keys: set[str] | None = None
+        if self.auto_compact.session_ttl_minutes > 0:
+            clocks = await asyncio.to_thread(self.sessions.list_session_clocks)
+            ready_keys = await self._idle_archive_ready_keys(clocks)
         self.auto_compact.check_expired(
             self.schedule_background,
             self.runtime_for_session,
             active_session_keys=self._pending_queues.keys(),
+            clocks=clocks,
+            ready_keys=ready_keys,
         )
+
+    async def _idle_archive_ready_keys(
+        self,
+        clocks: list[tuple[str, str | None]],
+    ) -> set[str]:
+        """Keys whose transcript still needs an archive, without blocking the loop.
+
+        A cached session is judged in memory. A cold file is read on a worker.
+        A file that has nothing to archive is remembered by its metadata clock
+        so the next tick does not open it again.
+        """
+        now = datetime.now()
+        active = self._pending_queues.keys()
+        compact = self.auto_compact
+        cold: list[str] = []
+        ready: set[str] = set()
+        updated_by_key: dict[str, str | None] = {}
+        for key, updated_at in clocks:
+            if not key or compact._is_internal_session(key) or key in compact._archiving:
+                continue
+            if key in active or not compact._is_expired(updated_at, now):
+                continue
+            updated_by_key[key] = updated_at
+            if compact.idle_archive_known_clean(key, updated_at):
+                continue
+            cached = self.sessions.get_cached(key)
+            if cached is not None:
+                if session_tail_needs_archive(cached.messages, cached.last_archived):
+                    ready.add(key)
+                else:
+                    compact.remember_idle_archive_clean(key, updated_at)
+                continue
+            cold.append(key)
+        if not cold:
+            return ready
+        loaded = await asyncio.to_thread(self.sessions.load_unarchived_sessions, cold)
+        loaded_keys = {session.key for session in loaded}
+        for session in loaded:
+            current = self.sessions.get_cached(session.key)
+            if current is None:
+                self.sessions.cache_saved(session)
+                current = session
+            if session_tail_needs_archive(current.messages, current.last_archived):
+                ready.add(current.key)
+        for key in cold:
+            if key in loaded_keys:
+                continue
+            current = self.sessions.get_cached(key)
+            if current is not None and session_tail_needs_archive(
+                current.messages,
+                current.last_archived,
+            ):
+                ready.add(key)
+                continue
+            compact.remember_idle_archive_clean(key, updated_by_key.get(key))
+        return ready
 
     async def run(self) -> None:
         """Run the agent loop, dispatching messages as tasks to stay responsive to /stop."""
@@ -1320,7 +1413,7 @@ class AgentLoop:
                 try:
                     msg = await asyncio.wait_for(self.bus.consume_inbound(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    self._check_expired_sessions_if_due()
+                    await self._check_expired_sessions_if_due()
                     continue
                 except asyncio.CancelledError:
                     # Preserve real task cancellation so shutdown can complete cleanly.
@@ -1408,7 +1501,7 @@ class AgentLoop:
                                 PENDING_FOLLOWUP_ID_KEY: followup_id,
                             },
                         )
-                        self.sessions.save(session)
+                        await self._flush_session(session)
                     try:
                         self._pending_queues[effective_key].put_nowait(pending_msg)
                     except asyncio.QueueFull:
@@ -1517,7 +1610,7 @@ class AgentLoop:
                         session = self.sessions.get_or_create(key)
                         if restore_runtime_checkpoint(session):
                             self._clear_pending_user_turn(session)
-                            self.sessions.save(session)
+                            await self._flush_session(session)
                             logger.info(
                                 "Restored partial context for cancelled session {}",
                                 key,
@@ -1833,7 +1926,7 @@ class AgentLoop:
                 if ctx.session is None:
                     raise RuntimeError("required session is not active")
             else:
-                ctx.session = self.sessions.get_or_create(ctx.session_key)
+                ctx.session = await self._open_session(ctx.session_key)
         session = ctx.session
         ctx.ephemeral = ctx.ephemeral or not session.policy.persist
         tools = ctx.tools or self.tools
@@ -1865,12 +1958,12 @@ class AgentLoop:
             self.workspace_scopes.persist_message_scope(session, msg)
 
         if restore_runtime_checkpoint(session):
-            self.sessions.save(session)
+            await self._flush_session(session)
         if (
             RECOVERY_INBOUND_METADATA_KEY not in msg.metadata
             and restore_pending_interruption(session)
         ):
-            self.sessions.save(session)
+            await self._flush_session(session)
 
     async def _compact_session(self, ctx: TurnContext) -> None:
         session = ctx.require_session()
@@ -1915,13 +2008,13 @@ class AgentLoop:
             # intentionally clears the session.
             if cmd_ctx.raw.lower() != "/new":
                 ctx.input_persisted_early = self._persist_user_message_early(
-                    ctx.msg, session, _command=True
+                    ctx.msg, session, flush=False, _command=True
                 )
                 session.add_message(
                     "assistant", result.content, _command=True
                 )
                 self._clear_pending_user_turn(session)
-                self.sessions.save(session)
+                await self._flush_session(session)
                 if not ctx.ephemeral:
                     await self.runtime_event_publisher.session_turn_persisted(
                         ctx.msg,
@@ -1973,7 +2066,7 @@ class AgentLoop:
                 # provider compatibility or prompt assembly work. A compatible
                 # staged state replaces this in a second atomic save below.
                 session.provider_state = None
-                self.sessions.save(session)
+                await self._flush_session(session)
             ctx.input_persisted_early = True
         await ctx.delivery.runtime_admitted(runtime)
 
@@ -2031,13 +2124,16 @@ class AgentLoop:
                 ctx.msg,
                 session,
                 runtime_context_blocks=ctx.runtime_context_blocks,
+                flush=False,
             )
             if staged_provider_state and not ctx.input_persisted_early:
                 session.provider_state = stored_state
+            elif ctx.input_persisted_early:
+                await self._flush_session(session)
         elif subagent_followup_persisted and staged_provider_state:
             # Upgrade the replay-safe baseline to the resumable state before
             # prompt assembly and the first model checkpoint.
-            self.sessions.save(session)
+            await self._flush_session(session)
         ctx.transcript_input = self._build_transcript_input(ctx)
 
 
@@ -2121,7 +2217,8 @@ class AgentLoop:
         ctx.delivery.record_latency(ctx.turn_latency_ms)
         self._clear_pending_user_turn(session)
         self._clear_runtime_checkpoint(session)
-        self.sessions.save(session)
+        # The full transcript rewrite waits here, but the event loop stays free.
+        await self._flush_session(session)
         if not ctx.ephemeral:
             await self.runtime_event_publisher.session_turn_persisted(
                 ctx.msg,
@@ -2374,6 +2471,14 @@ class AgentLoop:
         """Persist the latest in-flight turn state into session metadata."""
         session.metadata[self._RUNTIME_CHECKPOINT_KEY] = payload
         self.sessions.save_runtime_checkpoint(session)
+
+    async def _write_runtime_checkpoint(self, session: Session) -> None:
+        """Write the in-flight sidecar off the event loop.
+
+        The caller has already stored the checkpoint on the session. The turn
+        waits for the file before it changes that state again.
+        """
+        await asyncio.to_thread(self.sessions.save_runtime_checkpoint, session)
 
     def _mark_pending_user_turn(self, session: Session) -> None:
         session.metadata[self._PENDING_USER_TURN_KEY] = True

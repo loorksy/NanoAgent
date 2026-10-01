@@ -40,7 +40,8 @@ def test_every_preset_role_gets_non_empty_english_prompt(
     assert "{" not in prompt
     assert f"team specialist: {role}" in prompt
     assert "## Focus:" in prompt
-    assert "You never choose buy or sell" in prompt
+    assert "You never place an order" in prompt
+    assert "STANCE line" in prompt
 
 
 @pytest.mark.parametrize(("preset", "role", "system_prompt"), _preset_agents())
@@ -91,6 +92,87 @@ def test_language_and_product_name_are_injected() -> None:
     default = role_system_prompt("Bull Advocate")
     assert "You are Mokli" in default
     assert "Write in the operator's language" in default
+
+
+def test_decision_review_asks_for_a_stance_the_risk_prompt_allows() -> None:
+    from mokli.trading.teams.runtime import load_preset
+
+    preset = load_preset("gold_decision_review")
+    assert [task.id for task in preset.tasks] == [
+        "task-technical",
+        "task-macro",
+        "task-trend",
+        "task-risk",
+        "task-review",
+    ]
+    for task in preset.tasks:
+        assert "STANCE:" in task.prompt_template
+    risk = role_system_prompt("Risk Officer", system_prompt="role:risk")
+    assert "STANCE: wait" in risk
+    assert "never place an order" in risk
+    assert "You never choose buy or sell" not in risk
+    review = role_system_prompt("Review Analyst", system_prompt="role:lead")
+    assert "unless the task asks for one STANCE line" in review
+    assert "not an order" in review
+    assert "Do not choose a direction, do not propose levels" not in review
+    committee = role_system_prompt("Lead Analyst", system_prompt="role:lead")
+    assert "unless the task asks for one STANCE line" in committee
+    from mokli.utils.helpers import estimate_prompt_tokens
+
+    old_lead = (
+        "## Focus: lead synthesis\n\n"
+        "Synthesise the upstream specialist briefs into one neutral, evidence-ordered summary for the\n"
+        "structured decision call. Rank the points of agreement, then the conflicts, then what remains\n"
+        "unknown. Attribute each point to the brief it came from and drop anything a brief asserted\n"
+        "without evidence. Do not choose a direction, do not propose levels, and do not smooth over a\n"
+        "genuine conflict between briefs.\n"
+    )
+    new_lead = (
+        Path(role_prompts.__file__).resolve().parents[2]
+        / "agent"
+        / "prompt"
+        / "team_roles"
+        / "lead.md"
+    ).read_text(encoding="utf-8")
+    before = estimate_prompt_tokens([{"role": "user", "content": old_lead}])
+    after = estimate_prompt_tokens([{"role": "user", "content": new_lead}])
+    print(f"LEAD_PROMPT before={before} after={after}")
+    assert after > before
+    by_id = {task.id: task for task in preset.tasks}
+    assert by_id["task-risk"].input_from == {
+        "technical": "task-technical",
+        "macro": "task-macro",
+        "trend": "task-trend",
+    }
+    assert by_id["task-review"].input_from == {
+        "technical": "task-technical",
+        "macro": "task-macro",
+        "trend": "task-trend",
+        "risk": "task-risk",
+    }
+    from mokli.trading.teams.runtime import brief_for_upstream
+
+    technical = ("level " * 200) + "\nSTANCE: sell"
+    summaries = {
+        "task-technical": technical,
+        "task-macro": "STANCE: wait",
+        "task-trend": "STANCE: buy",
+        "task-risk": "conflict on the hour\nSTANCE: wait",
+    }
+    risk_upstream = "\n".join(
+        f"{key}: {brief_for_upstream(summaries[src])}"
+        for key, src in by_id["task-risk"].input_from.items()
+    )
+    review_upstream = "\n".join(
+        f"{key}: {brief_for_upstream(summaries[src])}"
+        for key, src in by_id["task-review"].input_from.items()
+    )
+    assert "STANCE: sell" in risk_upstream
+    assert "candles" not in risk_upstream
+    assert len(brief_for_upstream(technical)) < len(technical)
+    assert "STANCE: sell" in review_upstream
+    assert "STANCE: wait" in review_upstream
+    assert "STANCE: buy" in review_upstream
 
 
 def test_role_files_cover_the_legacy_role_set() -> None:

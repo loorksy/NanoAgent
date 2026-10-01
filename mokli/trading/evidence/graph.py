@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Serial layers; nodes within a layer execute concurrently.
+# Declared grouping for subsets and the stage list. Runtime scheduling follows
+# each node's depends_on: a node starts when those dependencies are done and
+# does not wait for unrelated work. The news calendar does not read candles.
+# visual_capture needs only market data.
 DEFAULT_ANALYSIS_LAYERS: tuple[tuple[str, ...], ...] = (
     ("market_data",),
-    ("structure", "liquidity", "supply_demand", "multi_timeframe"),
-    ("news",),
+    ("structure", "liquidity", "supply_demand", "multi_timeframe", "news"),
     ("geometry",),
     ("risk",),
     ("visual_capture",),

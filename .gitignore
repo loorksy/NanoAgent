@@ -82,7 +82,9 @@ Desktop.ini
 
 # Editors & IDEs (local workspace / user settings)
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/agents/
+!.cursor/agents/*.md
 .idea/
 .fleet/
 *.code-workspace

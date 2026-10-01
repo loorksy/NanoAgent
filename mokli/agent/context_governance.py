@@ -9,6 +9,7 @@ session history list in place.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass, replace
@@ -20,6 +21,7 @@ from uuid import uuid4
 from loguru import logger
 
 from mokli.agent.context import TranscriptInput
+from mokli.agent.context_layers import layers_for_transcript_boundary
 from mokli.events import NO_EVENTS, ContextCompactionEvent, EventSink
 from mokli.providers.base import (
     LLMResponse,
@@ -67,6 +69,11 @@ ProviderCompactionConsolidator = Callable[
 SNIP_SAFETY_BUFFER = 1024
 # read_file has its own bound; exempt it to avoid persist->read->persist loops.
 TOOL_RESULT_OFFLOAD_EXEMPT_TOOLS = frozenset({"read_file"})
+# Older tool observations stay in the transcript. The next model call receives
+# a short reference instead of the raw body. The newest tool batch stays intact
+# so the model can still reason on what it just received.
+_REFERENCE_THRESHOLD = 1_200
+_REFERENCE_HEAD = 280
 BACKFILL_CONTENT = "[Tool result unavailable — call was interrupted or lost]"
 PLACEHOLDER_TEXTS = frozenset({
     "[Previous assistant message omitted.]",
@@ -92,6 +99,357 @@ class ContextWindowExceededError(RuntimeError):
             "Model input still exceeds the local context budget after request fitting "
             f"for {session_key or 'default'}: {estimated_tokens}/{input_budget} via {source}"
         )
+
+
+def _image_data_url(block: dict[str, Any]) -> str | None:
+    """Return a data-URL payload when a content block embeds image bytes."""
+    if block.get("type") != "image_url":
+        return None
+    image = block.get("image_url")
+    if not isinstance(image, dict):
+        return None
+    url = image.get("url")
+    if isinstance(url, str) and url.startswith("data:"):
+        return url
+    return None
+
+
+def _without_resent_images(
+    content: list[Any],
+) -> tuple[list[Any] | None, int]:
+    """Drop image bytes the model already received on an earlier round.
+
+    Neighboring text stays. A remote image URL is short and is left in place.
+    """
+    updated: list[Any] | None = None
+    saved = 0
+    for index, block in enumerate(content):
+        url = _image_data_url(block) if isinstance(block, dict) else None
+        if url is None:
+            if updated is not None:
+                updated.append(block)
+            continue
+        note = f"[صورة أُرسلت في الدورة السابقة، {len(url)} حرفاً، ولن تُعاد.]"
+        if updated is None:
+            updated = list(content[:index])
+        updated.append({"type": "text", "text": note})
+        saved += len(url) - len(note)
+    return updated, saved
+
+
+def fold_prior_tool_results(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Replace long tool results from earlier rounds with a short reference.
+
+    The tool messages that belong to the latest assistant tool batch of the
+    current user turn stay complete. A batch that already sits before a later
+    user message is history: the model already answered it, so the next turn
+    receives a short reference. Image bytes inside an earlier tool result are
+    replaced the same way: the round that produced them already showed the
+    picture. Persisted history is not this list; callers pass the model copy.
+    """
+    last_user = -1
+    last_assistant = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "user":
+            last_user = index
+        if message.get("role") == "assistant" and message.get("tool_calls"):
+            last_assistant = index
+    if last_assistant < 0 and last_user < 0:
+        return messages, 0, 0
+    # A tool batch before the newest user message belongs to a finished turn.
+    keep_after = last_assistant if last_assistant > last_user else len(messages)
+
+    updated: list[dict[str, Any]] | None = None
+    referenced = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        if index > keep_after or message.get("role") != "tool":
+            if updated is not None:
+                updated.append(message)
+            continue
+        name = str(message.get("name") or "tool")
+        if name in TOOL_RESULT_OFFLOAD_EXEMPT_TOOLS:
+            if updated is not None:
+                updated.append(message)
+            continue
+        content = message.get("content")
+        if isinstance(content, list):
+            replaced, block_saved = _without_resent_images(content)
+            if replaced is None:
+                if updated is not None:
+                    updated.append(message)
+                continue
+            if updated is None:
+                updated = [dict(item) for item in messages[:index]]
+            cloned = dict(message)
+            cloned["content"] = replaced
+            updated.append(cloned)
+            referenced += 1
+            saved += block_saved
+            continue
+        if not isinstance(content, str) or len(content) <= _REFERENCE_THRESHOLD:
+            if updated is not None:
+                updated.append(message)
+            continue
+        if content.startswith("[مرجع نتيجة سابقة:"):
+            if updated is not None:
+                updated.append(message)
+            continue
+        head = content[:_REFERENCE_HEAD]
+        reference = (
+            f"[مرجع نتيجة سابقة: {name}، {len(content)} حرفاً. "
+            "أُرسل النص الكامل في الدورة التي أنتجته ولن يُعاد.]\n"
+            f"{head}"
+        )
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["content"] = reference
+        updated.append(cloned)
+        referenced += 1
+        saved += len(content) - len(reference)
+    if updated is None:
+        return messages, 0, 0
+    return updated, referenced, saved
+
+
+_CANDLE_ARG = "candles_json"
+_CANDLE_ARG_MARK = "[مرجع شموع سابقة:"
+
+
+def _argument_object(raw: Any) -> dict[str, Any] | None:
+    if isinstance(raw, dict):
+        return cast(dict[str, Any], raw)
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _candle_argument_chars(value: Any) -> int:
+    if isinstance(value, str):
+        return 0 if value.startswith(_CANDLE_ARG_MARK) else len(value)
+    if isinstance(value, (list, dict)):
+        return len(json.dumps(value, ensure_ascii=False))
+    return 0
+
+
+def fold_completed_candle_arguments(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Drop a finished tool call's pasted candle list from the model copy.
+
+    The tool already consumed that argument. The saved transcript is not this
+    list. A call that has no tool result yet keeps the paste so a retry can
+    still see it. Other arguments stay.
+    """
+    completed = {
+        str(message.get("tool_call_id"))
+        for message in messages
+        if message.get("role") == "tool" and message.get("tool_call_id")
+    }
+    if not completed:
+        return messages, 0, 0
+
+    updated: list[dict[str, Any]] | None = None
+    folded = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        calls = message.get("tool_calls") if message.get("role") == "assistant" else None
+        if not isinstance(calls, list):
+            if updated is not None:
+                updated.append(message)
+            continue
+        rewritten: list[Any] | None = None
+        message_saved = 0
+        message_folded = 0
+        for call_index, call in enumerate(calls):
+            if not isinstance(call, dict) or str(call.get("id") or "") not in completed:
+                continue
+            function = call.get("function")
+            if not isinstance(function, dict):
+                continue
+            raw_args = function.get("arguments")
+            parsed = _argument_object(raw_args)
+            if parsed is None or _CANDLE_ARG not in parsed:
+                continue
+            size = _candle_argument_chars(parsed[_CANDLE_ARG])
+            if size <= _REFERENCE_THRESHOLD:
+                continue
+            note = (
+                f"{_CANDLE_ARG_MARK} {size} حرفاً. "
+                "الأداة استهلكتها ولن تُعاد.]"
+            )
+            replacement = dict(parsed)
+            replacement[_CANDLE_ARG] = note
+            if isinstance(raw_args, str):
+                new_args: Any = json.dumps(replacement, ensure_ascii=False)
+                message_saved += len(raw_args) - len(new_args)
+            else:
+                new_args = replacement
+                message_saved += size - len(note)
+            new_function = dict(function)
+            new_function["arguments"] = new_args
+            new_call = dict(call)
+            new_call["function"] = new_function
+            if rewritten is None:
+                rewritten = list(calls)
+            rewritten[call_index] = new_call
+            message_folded += 1
+        if rewritten is None:
+            if updated is not None:
+                updated.append(message)
+            continue
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["tool_calls"] = rewritten
+        updated.append(cloned)
+        folded += message_folded
+        saved += max(0, message_saved)
+    if updated is None:
+        return messages, 0, 0
+    return updated, folded, saved
+
+
+_REASONING_MARK = "[تفكير دورة سابقة:"
+
+
+def _thinking_chars(blocks: Any) -> int:
+    if not isinstance(blocks, list):
+        return 0
+    total = 0
+    for raw_block in cast(list[object], blocks):
+        if not isinstance(raw_block, dict):
+            continue
+        block = cast(dict[str, Any], raw_block)
+        text = block.get("thinking")
+        if isinstance(text, str):
+            total += len(text)
+        signature = block.get("signature")
+        if isinstance(signature, str):
+            total += len(signature)
+    return total
+
+
+def fold_prior_assistant_reasoning(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Drop thinking the provider already consumed on an earlier round.
+
+    The assistant message that still has pending tool calls keeps its thinking
+    and signature. A completed answer does not: the next request does not need
+    it. The caller's transcript list is not mutated.
+    """
+    last_assistant = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "assistant":
+            last_assistant = index
+    keep_at = -1
+    if last_assistant >= 0 and messages[last_assistant].get("tool_calls"):
+        keep_at = last_assistant
+
+    updated: list[dict[str, Any]] | None = None
+    folded = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or index == keep_at:
+            if updated is not None:
+                updated.append(message)
+            continue
+        reasoning = message.get("reasoning_content")
+        reasoning_text = reasoning if isinstance(reasoning, str) else ""
+        block_chars = _thinking_chars(message.get("thinking_blocks"))
+        if (
+            not reasoning_text.strip()
+            and block_chars == 0
+        ) or (
+            reasoning_text.startswith(_REASONING_MARK) and block_chars == 0
+        ):
+            if updated is not None:
+                updated.append(message)
+            continue
+        raw_chars = len(reasoning_text) + block_chars
+        note = f"{_REASONING_MARK} {raw_chars} حرفاً، لن يُعاد.]"
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["reasoning_content"] = note
+        cloned.pop("thinking_blocks", None)
+        updated.append(cloned)
+        folded += 1
+        saved += raw_chars - len(note)
+    if updated is None:
+        return messages, 0, 0
+    return updated, folded, saved
+
+
+_ANNOUNCE_PREFIX = "[Subagent "
+_ANNOUNCE_MARK = "[مرجع نتيجة وكيل سابق:"
+
+
+def fold_prior_subagent_announcements(
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int, int]:
+    """Replace a finished subagent announcement with a short reference.
+
+    ``get_history`` drops ``injected_event``, so a saved announcement is an
+    ordinary assistant message whose text starts with the template header.
+    The turn that first receives it still sees the full task and result: that
+    copy is the current user message, or it is the newest assistant
+    announcement when no later user message exists. A long announcement that
+    already sits before a later user message was summarized once. Older
+    announcements behind that newest unread one are referenced too. A
+    user-role copy is left intact. The saved transcript is not this list.
+    """
+    last_user = -1
+    for index, message in enumerate(messages):
+        if message.get("role") == "user":
+            last_user = index
+    latest_unread = -1
+    for index, message in enumerate(messages):
+        if index <= last_user:
+            continue
+        if message.get("role") == "assistant" and _announce_text(message.get("content")) is not None:
+            latest_unread = index
+
+    updated: list[dict[str, Any]] | None = None
+    referenced = 0
+    saved = 0
+    for index, message in enumerate(messages):
+        content = _announce_text(message.get("content")) if message.get("role") == "assistant" else None
+        if content is None or index == latest_unread or len(content) <= _REFERENCE_THRESHOLD:
+            if updated is not None:
+                updated.append(message)
+            continue
+        header = content.split("\n", 1)[0].strip()
+        if len(header) > 160:
+            header = header[:160]
+        reference = (
+            f"{_ANNOUNCE_MARK} {header}، {len(content)} حرفاً. "
+            "أُرسل النص الكامل في الدورة التي أنتجته ولن يُعاد.]"
+        )
+        if updated is None:
+            updated = [dict(item) for item in messages[:index]]
+        cloned = dict(message)
+        cloned["content"] = reference
+        updated.append(cloned)
+        referenced += 1
+        saved += len(content) - len(reference)
+    if updated is None:
+        return messages, 0, 0
+    return updated, referenced, saved
+
+
+def _announce_text(content: Any) -> str | None:
+    if not isinstance(content, str) or not content.startswith(_ANNOUNCE_PREFIX):
+        return None
+    return content
 
 
 def _tool_call_name_is_valid(tool_call: Any) -> bool:
@@ -421,9 +779,15 @@ class ContextGovernor:
         summary: str,
     ) -> list[dict[str, Any]]:
         """Rebuild only the stable system prefix around a replacement summary."""
+        source = compaction.transcript_input
+        prompt_layers = layers_for_transcript_boundary(
+            current_message=source.current_message,
+            history=source.history,
+            prompt_layers=source.prompt_layers,
+        )
         return compaction.transcript_builder(
             replace(
-                compaction.transcript_input,
+                source,
                 history=[],
                 current_message=None,
                 media=None,
@@ -432,6 +796,7 @@ class ContextGovernor:
                     "last_active": datetime.now().astimezone().isoformat(),
                 },
                 runtime_context_blocks=None,
+                prompt_layers=prompt_layers,
             )
         )
 
@@ -932,7 +1297,24 @@ class ContextGovernor:
                 if updated is messages:
                     updated = [dict(m) for m in messages]
                 updated[idx]["content"] = normalized
-        return updated
+        folded, referenced, saved = fold_prior_tool_results(updated)
+        folded, candle_count, candle_saved = fold_completed_candle_arguments(folded)
+        reasoned, reason_count, reason_saved = fold_prior_assistant_reasoning(folded)
+        announced, announce_count, announce_saved = fold_prior_subagent_announcements(reasoned)
+        if referenced or candle_count or reason_count or announce_count:
+            from mokli.agent.turn_diagnostics import current_turn_diagnostics
+
+            diag = current_turn_diagnostics()
+            if diag is not None:
+                if referenced:
+                    diag.note_references(referenced, saved)
+                if candle_count:
+                    diag.note_candle_arguments(candle_count, candle_saved)
+                if reason_count:
+                    diag.note_reasoning_fold(reason_count, reason_saved)
+                if announce_count:
+                    diag.note_subagent_announcements(announce_count, announce_saved)
+        return announced
 
     def snip_history(
         self,

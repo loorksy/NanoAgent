@@ -61,6 +61,10 @@ class SkillsLoader:
         self.workspace_skills = workspace / "skills"
         self.builtin_skills = builtin_skills_dir or BUILTIN_SKILLS_DIR
         self.disabled_skills = disabled_skills or set()
+        # Directory listing and file text are reused until the file's own
+        # timestamp changes. A prompt used to re-read every skill once per name.
+        self._local_entry_cache: tuple[tuple[object, ...], list[dict[str, str]]] | None = None
+        self._file_cache: dict[str, tuple[int, int, str, dict[str, object] | None]] = {}
 
     def _skill_aliases(self) -> dict[str, str]:
         """Return compatibility aliases owned by installed CLI Apps."""
@@ -100,7 +104,8 @@ class SkillsLoader:
         from mokli.agent.plugins import enabled_agent_plugin_skills
 
         plugin_skills = enabled_agent_plugin_skills(self.workspace)
-        skills = self._skill_entries_from_dir(self.workspace_skills, "workspace")
+        local = self._cached_local_entries()
+        skills = [dict(entry) for entry in local if entry["source"] == "workspace"]
         seen_names = {entry["name"] for entry in skills}
         for name, path in plugin_skills:
             if name in seen_names:
@@ -113,10 +118,11 @@ class SkillsLoader:
                 }
             )
             seen_names.add(name)
-        if self.builtin_skills and self.builtin_skills.exists():
-            skills.extend(
-                self._skill_entries_from_dir(self.builtin_skills, "builtin", skip_names=seen_names)
-            )
+        for entry in local:
+            if entry["source"] == "workspace" or entry["name"] in seen_names:
+                continue
+            skills.append(dict(entry))
+            seen_names.add(entry["name"])
 
         if self.disabled_skills:
             disabled = set(self.disabled_skills)
@@ -126,7 +132,11 @@ class SkillsLoader:
             skills = [s for s in skills if s["name"] not in disabled]
 
         if filter_unavailable:
-            return [skill for skill in skills if self._check_requirements(self._get_skill_meta(skill["name"]))]
+            return [
+                skill
+                for skill in skills
+                if self._check_requirements(self._mokli_meta_at(Path(skill["path"])))
+            ]
         return skills
 
     def load_skill(self, name: str) -> str | None:
@@ -143,7 +153,9 @@ class SkillsLoader:
         available = {skill["name"] for skill in skills}
         resolved = name if name in available else self._skill_aliases().get(name, name)
         entry = next((skill for skill in skills if skill["name"] == resolved), None)
-        return Path(entry["path"]).read_text(encoding="utf-8") if entry else None
+        if entry is None:
+            return None
+        return self._read_skill_text(Path(entry["path"]))
 
     def load_skills_for_context(self, skill_names: list[str]) -> str:
         """
@@ -206,16 +218,19 @@ class SkillsLoader:
         exclude: set[str] | None = None,
         *,
         workspace: Path | None = None,
+        include_paths: bool = True,
     ) -> str:
         """
-        Build a summary of all skills (name, description, path, availability).
+        Build a summary of skills (name, description, availability).
 
-        This is used for progressive loading - the agent can read the full
-        skill content using read_file when needed.
+        File paths are included only when the caller can open them. The gold
+        registry has no ``read_file``, so that prompt passes ``include_paths=False``
+        and keeps the name and description.
 
         Args:
             exclude: Set of skill names to omit from the summary.
             workspace: Effective project workspace used to choose safe display paths.
+            include_paths: Append the SKILL.md path the caller can open.
 
         Returns:
             Markdown-formatted skills summary.
@@ -247,18 +262,25 @@ class SkillsLoader:
                 display_root = Path("plugins" if source == "plugin" else "skills")
             else:
                 display_root = resolved_root
-            lines = [f"### {label} (`{display_root}`)"]
+            if include_paths:
+                lines = [f"### {label} (`{display_root}`)"]
+            else:
+                lines = [f"### {label}"]
             for entry in entries:
                 skill_name = entry["name"]
-                meta = self._get_skill_meta(skill_name)
+                skill_path = Path(entry["path"])
+                meta = self._mokli_meta_at(skill_path)
                 available = self._check_requirements(meta)
-                desc = self.get_skill_description(skill_name)
+                desc = self._description_at(skill_path, skill_name)
                 suffix = ""
                 if not available:
                     missing = self._get_missing_requirements(meta)
                     suffix = f" (unavailable: {missing})" if missing else " (unavailable)"
-                relative_path = Path(entry["path"]).relative_to(root).as_posix()
-                lines.append(f"- **{skill_name}** — {desc}{suffix}  `{relative_path}`")
+                line = f"- **{skill_name}** — {desc}{suffix}"
+                if include_paths:
+                    relative_path = Path(entry["path"]).relative_to(root).as_posix()
+                    line = f"{line}  `{relative_path}`"
+                lines.append(line)
             sections.append("\n".join(lines))
         return "\n\n".join(sections)
 
@@ -352,11 +374,7 @@ class SkillsLoader:
         return [
             entry["name"]
             for entry in self.list_skills(filter_unavailable=True)
-            if (meta := self.get_skill_metadata(entry["name"]) or {})
-            and (
-                self._parse_mokli_metadata(meta.get("metadata")).get("always")
-                or meta.get("always")
-            )
+            if self._is_always(Path(entry["path"]))
         ]
 
     def get_skill_metadata(self, name: str) -> dict[str, object] | None:
@@ -369,4 +387,96 @@ class SkillsLoader:
         Returns:
             Metadata dict or None.
         """
-        return parse_skill_metadata(self.load_skill(name) or "")
+        skills = self.list_skills(filter_unavailable=False)
+        available = {skill["name"] for skill in skills}
+        resolved = name if name in available else self._skill_aliases().get(name, name)
+        entry = next((skill for skill in skills if skill["name"] == resolved), None)
+        if entry is None:
+            return None
+        return self._frontmatter_at(Path(entry["path"]))
+
+    def _cached_local_entries(self) -> list[dict[str, str]]:
+        """Workspace and built-in skill paths, reused until a directory changes."""
+        stamp = (
+            self._directory_stamp(self.workspace_skills),
+            self._directory_stamp(self.builtin_skills),
+        )
+        cached = self._local_entry_cache
+        if cached is not None and cached[0] == stamp:
+            return cached[1]
+        skills = self._skill_entries_from_dir(self.workspace_skills, "workspace")
+        seen_names = {entry["name"] for entry in skills}
+        if self.builtin_skills and self.builtin_skills.exists():
+            skills.extend(
+                self._skill_entries_from_dir(
+                    self.builtin_skills,
+                    "builtin",
+                    skip_names=seen_names,
+                )
+            )
+        self._local_entry_cache = (stamp, skills)
+        return skills
+
+    @staticmethod
+    def _directory_stamp(directory: Path) -> tuple[object, ...]:
+        """Identity of one skill root, including each child directory's timestamp."""
+        try:
+            parent_mtime = directory.stat().st_mtime_ns
+        except OSError:
+            return ("missing", str(directory))
+        children: list[tuple[str, int | None]] = []
+        try:
+            for child in directory.iterdir():
+                try:
+                    children.append((child.name, child.stat().st_mtime_ns))
+                except OSError:
+                    children.append((child.name, None))
+        except OSError:
+            return ("unreadable", str(directory), parent_mtime)
+        children.sort()
+        return (str(directory), parent_mtime, tuple(children))
+
+    def _read_skill_text(self, path: Path) -> str | None:
+        """Return one SKILL.md, reading the disk only when its timestamp changes."""
+        key = str(path)
+        try:
+            stat = path.stat()
+        except OSError:
+            self._file_cache.pop(key, None)
+            return None
+        cached = self._file_cache.get(key)
+        if cached is not None and cached[0] == stat.st_mtime_ns and cached[1] == stat.st_size:
+            return cached[2]
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            self._file_cache.pop(key, None)
+            return None
+        self._file_cache[key] = (stat.st_mtime_ns, stat.st_size, text, parse_skill_metadata(text))
+        return text
+
+    def _frontmatter_at(self, path: Path) -> dict[str, object] | None:
+        if self._read_skill_text(path) is None:
+            return None
+        cached = self._file_cache.get(str(path))
+        if cached is None or cached[3] is None:
+            return None
+        return dict(cached[3])
+
+    def _mokli_meta_at(self, path: Path) -> dict[str, Any]:
+        raw = self._frontmatter_at(path) or {}
+        return self._parse_mokli_metadata(raw.get("metadata"))
+
+    def _description_at(self, path: Path, name: str) -> str:
+        meta = self._frontmatter_at(path)
+        description = meta.get("description") if meta else None
+        if isinstance(description, str) and description:
+            return description
+        return name
+
+    def _is_always(self, path: Path) -> bool:
+        meta = self._frontmatter_at(path) or {}
+        return bool(
+            self._parse_mokli_metadata(meta.get("metadata")).get("always")
+            or meta.get("always")
+        )

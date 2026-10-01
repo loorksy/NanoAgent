@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -79,6 +82,37 @@ async def test_get_gold_quote_publishes_when_present_ui() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_gold_quote_leaves_the_event_loop_free(monkeypatch) -> None:
+    """The price tool waits for the broker, and the event loop keeps running."""
+    from mokli.trading.oanda import OandaQuote
+
+    order: list[str] = []
+
+    def slow_quote(symbol: str, config: object | None = None) -> tuple[OandaQuote, str]:
+        del symbol, config
+        time.sleep(0.2)
+        order.append(
+            "main" if threading.current_thread() is threading.main_thread() else "worker"
+        )
+        return OandaQuote(symbol="XAUUSD", bid=2400.0, ask=2400.4, mid=2400.2, tradeable=True), "oanda"
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append("tick")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", slow_quote)
+    tool = GetGoldQuoteTool(bus=None)
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    raw = await tool.execute()
+    await pending
+    body = json.loads(raw)
+    assert body["mid"] == 2400.2
+    assert order == ["tick", "worker"]
+    assert time.perf_counter() - started < 0.35
+
+
+@pytest.mark.asyncio
 async def test_analyze_gold_returns_live_plan_error_instead_of_second_plan() -> None:
     from mokli.trading.kernel import LivePlanActive
 
@@ -122,17 +156,14 @@ async def test_get_live_recommendation_returns_plan_and_price() -> None:
 
     with request_context(ctx):
         with patch(
-            "mokli.agent.tools.trading_chart.sync_session_live_plan",
-            return_value=live_row,
+            "mokli.trading.recommendations.lifecycle.grade_session_plan",
+            new=AsyncMock(return_value=(live_row, quote)),
         ):
-            with patch("mokli.agent.tools.trading_chart.load_trading_config") as cfg:
-                cfg.return_value = MagicMock(oanda_configured=True)
-                with patch("mokli.agent.tools.trading_chart.fetch_quote", return_value=quote):
-                    with patch(
-                        "mokli.agent.tools.trading_chart.grade_outcome_status",
-                        return_value="in_trade",
-                    ):
-                        raw = await tool.execute()
+            with patch(
+                "mokli.agent.tools.trading_chart.grade_outcome_status",
+                return_value="in_trade",
+            ):
+                raw = await tool.execute()
     payload = json.loads(raw)
     assert payload["has_live_plan"] is True
     assert payload["live_price"] == 4332.5

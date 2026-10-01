@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool
 from mokli.agent.tools.schema import IntegerSchema, StringSchema, tool_parameters_schema
 from mokli.trading.broker_market import broker_candles, broker_quote, broker_symbols
+from mokli.trading.tool_errors import model_json
 
 
 def _json(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    return model_json(payload)
 
 
 class Mt5ListSymbolsTool(Tool):
@@ -24,10 +24,11 @@ class Mt5ListSymbolsTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "List tradable symbols on the operator's connected MT5 account. "
-            "Pass q to filter by name, description, or path (for example gold, EUR, US30). "
-            "Use the returned name exactly in mt5_market. This is the broker catalog, "
-            "not a fixed gold-only list."
+            "List symbols on the operator's execution account. "
+            "This is not the analysis candle or gold-quote feed. "
+            "Pass q to filter by name, description, or path. "
+            "Use a returned name with mt5_market only for that account's own tick. "
+            "A gold analysis price uses get_gold_quote."
         )
 
     @property
@@ -72,8 +73,9 @@ class Mt5ListSymbolsTool(Tool):
                 "total": payload.get("total", len(rows)),
                 "symbols": rows,
                 "instruction": (
-                    "These names are the pairs on the operator's broker account. "
-                    "Call mt5_market with one name for the live bid, ask, spread, and candles."
+                    "These names are on the execution account. "
+                    "Call mt5_market only for that account's own tick. "
+                    "A gold analysis price uses get_gold_quote, not mt5_market."
                 ),
             }
         )
@@ -89,11 +91,11 @@ class Mt5MarketTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Live bid, ask, spread, and recent candles for one symbol on the operator's "
-            "MT5 account. The numbers are the broker's own ticks and rates. "
-            "Call mt5_list_symbols first if the exact symbol name is unknown. "
-            "Quote the returned bid/ask/spread verbatim and do not say the feed is unavailable "
-            "when this tool returns prices."
+            "Bid, ask, spread, and recent candles from the operator's execution account. "
+            "Not the XAUUSD analysis feed: a gold price uses get_gold_quote "
+            "(MetaAPI when configured, otherwise OANDA). "
+            "Call this only for the execution account's own tick. "
+            "Quote a returned bid, ask, and spread verbatim and do not invent a price."
         )
 
     @property
