@@ -435,7 +435,7 @@
 | `mokli/agent_api/sessions.py` | استدعاء `spawn` لا يضيف وكيلاً ثانياً بنص المهمة. مدة الأداة تُقاس حتى الإتمام أو الفشل، لا عند حدث البدء |
 | `mokli/agent/tools/execution.py` | رفض السياسة أو إلغاء الاستدعاء بعد إعلان البدء ينشر حدث فشل بالسبب والمدة، ولا يترك الصف على «يعمل». فشل تحليل مخزّن في الدورة لا ينشر حدث بدء ثانٍ |
 
-## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–6؛ 7–13 مطلوبة للإغلاق)
+## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–7؛ 8–13 مطلوبة للإغلاق)
 
 هذا القسم قائمة تحقق للمشغّل بعد نشر **`main`** وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
@@ -449,7 +449,7 @@
 | 4 | تحليل كامل | «حلل الذهب» أو «هل أشتري؟» | أدوار الفريق ثم بطاقة قرار `structured`/`decision` بمعرّف `res_` | PASS — kernel+decision card res_* verdict wait (OANDA not configured) | rounds=3 in=24924 out=437 tools=2 ctx_ms=207 model_ms=10658 tool_ms=33 retry_ms=7010 nested_in=0 fold_chars=922 static_resends=1 |
 | 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ لا مرحلة وهمية | PARTIAL — spawn started/failed (quota); fetch_evidence finished | rounds=4 in=51744 out=1218 tools=4 ctx_ms=161 model_ms=32085 tool_ms=15413 retry_ms=0 nested_in=0 fold_chars=2200 static_resends=3 |
 | 6 | فشل أداة | قطع شبكة مؤقت أو رمز غير صالح | صف `failed` بلا علامة نجاح؛ خطأ في التفاصيل | PASS — get_gold_quote failed row; no false success marker | rounds=2 in=24730 out=936 tools=1 ctx_ms=3 model_ms=15434 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
-| 7 | إعادة محاولة | مزود يعيد 429/5xx ثم ينجح | صف إعادة محاولة مجمّع بمعرّف المحاولة | | |
+| 7 | إعادة محاولة | مزود يعيد 429/5xx ثم ينجح | صف إعادة محاولة مجمّع بمعرّف المحاولة | PASS — rate_limit waiting then recovered (retry events in JSONL) | rounds=1 in=10931 out=543 tools=0 ctx_ms=1 model_ms=10148 tool_ms=0 retry_ms=7014 nested_in=0 |
 | 8 | مزود بديل | تعطيل المزود الأول في الإعداد | يظهر فقط عند حالة `cleared` في حدث retry | | |
 | 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | | |
 | 10 | اختبار تاريخي على الشموع | `fast_backtest` أو مختبر الاستراتيجية بشموع OANDA | بطاقة نتائج؛ لا لصق آلاف الشموع في الطلب | | |
