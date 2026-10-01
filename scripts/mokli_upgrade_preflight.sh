@@ -101,11 +101,9 @@ echo "INFO §11 scaffold (VPS, no LLM): bash scripts/mokli_upgrade_section11_ini
 echo "INFO §11 toolchain dry-run (no LLM): bash scripts/mokli_upgrade_section11_dry_run.sh"
 echo "INFO after each live turn: SHOW_DIAGNOSTICS on pipe → save JSONL →"
 echo "  python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl"
-echo "  python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --results section11-results.json --markdown --require-through 13"
+echo "  bash scripts/mokli_upgrade_section11_close.sh  # validate+batch+dry-run"
 echo "  partial preview @10: mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10 --allow-partial"
-echo "  bash scripts/mokli_upgrade_section11_validate.sh --dir ./section11-events/ --results section11-results.json"
-echo "  python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events/ --results section11-results.json --dry-run"
-echo "  bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts"
+echo "  bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13  # after live §11 artifacts"
 echo "INFO VPS closure chain (after quota + OANDA): bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota"
 echo "INFO VPS readiness gate: bash scripts/mokli_upgrade_section11_operator_unblock.sh --pull-vps"
 

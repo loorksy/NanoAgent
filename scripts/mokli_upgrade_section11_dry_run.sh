@@ -29,7 +29,7 @@ echo "== extract (fixture) =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_diagnostic_extract.py" --file "$WORK/01-no-tools.jsonl"
 
 echo "== validate row 1 =="
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
   --dir "$WORK" \
   --results "$WORK/section11-results.json" \
   --require-through 1

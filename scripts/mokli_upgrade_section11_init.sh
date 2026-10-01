@@ -44,7 +44,7 @@ echo "Save live JSONL as ${EVENTS}/01-no-tools.jsonl … ${REQUIRE}-….jsonl (s
 echo ""
 echo "== validate (expected incomplete until live runs) =="
 set +e
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
   --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"
 code=$?
 set -e
