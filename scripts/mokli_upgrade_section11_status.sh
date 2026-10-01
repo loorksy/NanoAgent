@@ -50,9 +50,19 @@ fi
 
 echo "== §11 status (events=$EVENTS require-through=$REQUIRE) =="
 VALIDATE_OK=0
-if bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
+CLOSURE_ERRORS=""
+set +e
+VALID_OUT=$(
+  bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
+    --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" 2>&1
+)
+VALID_EC=$?
+set -e
+printf '%s\n' "$VALID_OUT"
+if [[ "$VALID_EC" -eq 0 ]]; then
   VALIDATE_OK=1
+else
+  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 fi
 
 QUOTA_OK=0
@@ -77,5 +87,5 @@ if [[ "$VALIDATE_OK" -eq 1 && "$QUOTA_OK" -eq 1 ]]; then
   exit 0
 fi
 
-echo "INCOMPLETE §11 status: validate_ok=$VALIDATE_OK quota_ok=$QUOTA_OK" >&2
+echo "INCOMPLETE §11 status: validate_ok=$VALIDATE_OK quota_ok=$QUOTA_OK closure_errors=${CLOSURE_ERRORS:-unknown}" >&2
 exit 1

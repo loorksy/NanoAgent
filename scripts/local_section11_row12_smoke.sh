@@ -51,6 +51,6 @@ cat <<'NOTE'
   1. Enable Mokli pipe SHOW_DIAGNOSTICS (and SHOW_TIMELINE if desired).
   2. Chat via UI pipe (not raw Agent API); save JSONL as section11-events/12-desktop-ui.jsonl.
   3. Screenshot activity line + Arabic decision card.
-  4. bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
+  4. bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
 
 NOTE

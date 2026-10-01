@@ -60,6 +60,26 @@ def test_status_skip_quota_passes_validate_only(tmp_path: Path) -> None:
     assert "skip-quota" in proc.stdout
 
 
+def test_status_reports_closure_errors_on_repo_partial_at_13() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-quota", "--require-through", "13"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+        env={"PATH": "/usr/bin:/bin"},
+    )
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 1
+    assert "closure_errors=9" in combined
+    assert "INCOMPLETE" in combined
+
+
 def test_status_require_through_flag(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

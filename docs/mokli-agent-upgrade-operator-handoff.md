@@ -162,7 +162,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 bash scripts/mokli_upgrade_section11_validate.sh \
   --dir ./section11-events --results section11-results.json --require-through 13
 # أو دفعة واحدة (validate+batch+dry-run): bash scripts/mokli_upgrade_section11_close.sh
-# ثم: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
+# ثم: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
 ```
 
 ## بعد `section11_close.sh --apply`

@@ -118,7 +118,7 @@ bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; af
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)
-bash scripts/mokli_upgrade_section11_close.sh  # validate+batch+patch dry-run; add --apply --require-through 13 after live artifacts
+bash scripts/mokli_upgrade_section11_close.sh  # dry-run; --apply --require-through 13 --results section11-results-partial.json after live artifacts
 # Partial pack preview: --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
 # Preview §11 table with partial VPS pack: close.sh --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
 bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # default validate 1–10; pass EVENTS RESULTS 13 for full pack
