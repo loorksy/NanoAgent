@@ -58,6 +58,22 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh"; then
   exit 0
 fi
 
+PARTIAL10_OK=0
+PARTIAL10_GATE=0
+echo ""
+echo "== §11 partial pack (require-through 10; --skip-vps) =="
+if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
+  --skip-vps --require-through 10; then
+  PARTIAL10_OK=1
+  echo ""
+  echo "== production gate @10 (skip quota/OANDA/pull) =="
+  if bash "$ROOT/scripts/mokli_upgrade_section11_production_gate.sh" \
+    --skip-quota --skip-oanda --skip-pull --require-through 10; then
+    PARTIAL10_GATE=1
+  fi
+fi
+echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE"
+
 echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"
 echo "  bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota  # full chain when quota OK"

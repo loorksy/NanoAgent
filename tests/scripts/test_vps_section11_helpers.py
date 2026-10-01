@@ -194,6 +194,30 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "--pull-vps" in text
     assert "vps_pull_main.sh" in text
     assert "operator-handoff.md" in text
+    assert "partial10_ok=" in text
+    assert "mokli_upgrade_section11_production_gate.sh" in text
+    assert "--require-through 10" in text
+
+
+def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> None:
+    partial = ROOT / "section11-results-partial.json"
+    events = ROOT / "section11-events"
+    if not partial.is_file() or not events.is_dir():
+        return
+    script = ROOT / "scripts" / "mokli_upgrade_section11_operator_unblock.sh"
+    proc = subprocess.run(
+        ["bash", str(script), "--skip-probe"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=180,
+    )
+    combined = proc.stdout + proc.stderr
+    assert "OPERATOR_UNBLOCK_EXIT=1" in combined
+    assert "partial10_ok=1" in combined
+    assert "partial10_gate=1" in combined
+    assert proc.returncode == 1
 
 
 def test_post_quota_wires_wait_probe_and_reruns() -> None:
