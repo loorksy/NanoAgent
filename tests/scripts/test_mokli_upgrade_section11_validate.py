@@ -330,6 +330,55 @@ def test_validate_prints_progress_on_failure(tmp_path: Path) -> None:
     assert "  2: incomplete" in proc.stderr
 
 
+def test_validate_rejects_partial_results_when_require_through_13(tmp_path: Path) -> None:
+    for row_id in range(1, 14):
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}})
+            + "\n",
+            encoding="utf-8",
+        )
+    results_map = {row_id: "PASS — live" for row_id in range(1, 14)}
+    results_map[3] = "PARTIAL — one tool only"
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps(results_map), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "PARTIAL" in proc.stderr
+    assert "row 3" in proc.stderr.lower() or "[3]" in proc.stderr or "rows [3" in proc.stderr
+
+    proc_ok = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+            "--allow-partial",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc_ok.returncode == 0
+
+
 def test_example_results_template_fails_production_gate(tmp_path: Path) -> None:
     """docs/section11-results.example.json must not pass --require-through 13."""
     fixture = ROOT / "tests" / "fixtures" / "section11_turn_diagnostics_sample.jsonl"

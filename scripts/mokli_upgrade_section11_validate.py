@@ -186,6 +186,11 @@ def main() -> int:
         default=13,
         help="Require rows 1..N (default 13; use 14 for optional MT5)",
     )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Allow PARTIAL in «النتيجة» (default: reject when --require-through >= 13)",
+    )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
     results_path = args.results.expanduser().resolve()
@@ -247,6 +252,18 @@ def main() -> int:
             f"Placeholder DRY-RUN in results for rows {dry_run_rows} — "
             "replace with live §11 text before production validate"
         )
+
+    if args.require_through >= 13 and not args.allow_partial:
+        partial_rows = [
+            row_id
+            for row_id in sorted(required)
+            if "partial" in str(results_map.get(row_id, "")).lower()
+        ]
+        if partial_rows:
+            errors.append(
+                f"PARTIAL «النتيجة» for rows {partial_rows} — "
+                "rerun live §11 rows (mokli_upgrade_section11_rerun_partials.sh) before closure"
+            )
 
     if errors:
         _print_row_progress(directory, results_map, required)
