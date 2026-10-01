@@ -456,7 +456,7 @@
 
 ## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–8 و10؛ 9 و11–13 مطلوبة للإغلاق)
 
-هذا القسم قائمة تحقق للمشغّل بعد نشر **`main`** وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
+هذا القسم قائمة تحقق للمشغّل بعد نشر فرع **`cursor/section11-vps-rows-d9e1`** (PR **#62** — ليس **`main`** قبل merge) وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
 **متطلبات:** مزود LLM في `~/.mokli/config.json`، OANDA للشموع، MetaAPI أو OANDA للسعر حسب الإعداد، رمز جلسة Mokli UI أو Agent API، حساب ورقي/MT5 حسب السينario، `SHOW_DIAGNOSTICS=true` في أنبوب الدردشة (صمام bool في `mokli_pipe`) عند قياس التوكن والزمن.
 
