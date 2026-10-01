@@ -23,6 +23,57 @@ def test_production_gate_supports_skip_quota() -> None:
     assert "PRODUCTION_GATE_EXIT" in text
 
 
+def test_production_gate_at_ten_can_pass_skip_quota_on_repo_partial_pack() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--skip-quota",
+            "--skip-oanda",
+            "--skip-pull",
+            "--require-through",
+            "10",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "PRODUCTION_GATE_EXIT=0" in proc.stdout
+
+
+def test_production_gate_at_thirteen_fails_on_repo_partial_pack() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--skip-quota",
+            "--skip-oanda",
+            "--skip-pull",
+            "--require-through",
+            "13",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert proc.returncode == 1
+    assert "PRODUCTION_GATE_EXIT=1" in proc.stderr
+    assert "BLOCKERS_EXIT=1" in proc.stderr
+
+
 def test_production_gate_help() -> None:
     proc = subprocess.run(
         ["bash", str(SCRIPT), "--help"],
