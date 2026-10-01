@@ -25,13 +25,12 @@ fi
 
 PROMPT_B64=$(printf '%s' "$PROMPT" | base64 -w0)
 
-vps_ssh bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" "$ROOT" <<'EOS'
+vps_ssh bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" <<'EOS'
 set -euo pipefail
 INSTALL="$1"
 OUT_NAME="$2"
 PROMPT=$(printf '%s' "$3" | base64 -d)
-ROOT="$4"
 # shellcheck source=scripts/section11_agent_api_turn_core.sh
-source "$ROOT/scripts/section11_agent_api_turn_core.sh"
+source "$INSTALL/scripts/section11_agent_api_turn_core.sh"
 section11_run_agent_api_turn "$INSTALL" "$OUT_NAME" "$PROMPT"
 EOS
