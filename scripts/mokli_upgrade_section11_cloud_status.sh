@@ -23,7 +23,8 @@ if bash "$ROOT/scripts/vps_section11_quota_status.sh"; then
 else
   bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
   echo "HINT: live probe: bash scripts/vps_section11_quota_probe.sh" >&2
-  echo "HINT: after reset: bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
+  echo "HINT: after reset: bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
+  echo "HINT: or: bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
 fi
 
 echo ""

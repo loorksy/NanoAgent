@@ -66,4 +66,4 @@ if [[ "$fail" -ne 0 ]]; then
 fi
 
 echo "OK operator smoke (preflight + §11 dry-run + init smoke + scripts pytest)"
-echo "Tip: bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run; operator_unblock.sh --pull-vps (live @13)"
+echo "Tip: timer_wake --dry-run; after reset: timer_wake --wait-quota; operator_unblock --pull-vps (live @13)"
