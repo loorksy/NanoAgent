@@ -5,12 +5,35 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+DRY_RUN=0
+
+usage() {
+  echo "Usage: $0 [--dry-run]" >&2
+  echo "  --dry-run  completion_status only; no live probe or close" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    -h | --help) usage ;;
+    *) echo "Unknown arg: $1" >&2; usage ;;
+  esac
+done
 
 PY="${ROOT}/.venv/bin/pytest"
 [[ -x "$PY" ]] || PY=pytest
 
 echo "== §11 completion status (cached) =="
 bash "$ROOT/scripts/mokli_upgrade_section11_completion_status.sh" || true
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  cat <<'NOTE'
+DRY-RUN: would next run after_reset_wake → remaining_rows → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 → report gate pytest
+NOTE
+  echo "TIMER_WAKE_EXIT=0 (dry-run)"
+  exit 0
+fi
 
 set -e
 
