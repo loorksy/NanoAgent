@@ -19,8 +19,14 @@ echo "== P0 baseline (§2.1) from JSONL =="
 
 BASELINE="${EVENTS}/01-no-tools.jsonl"
 AFTER_P0="${EVENTS}/01-no-tools-after-p0.jsonl"
+QUOTA_PROBE="${EVENTS}/quota-probe.jsonl"
 if [[ -f "$BASELINE" && -f "$AFTER_P0" ]]; then
   echo ""
   echo "== P0 live delta (row 1 after) =="
   bash "${ROOT}/scripts/mokli_upgrade_p0_live_delta.sh" "$BASELINE" "$AFTER_P0"
+elif [[ -f "$BASELINE" && -f "$QUOTA_PROBE" ]]; then
+  echo ""
+  echo "== P0 interim (quota-probe vs row 1; in=0 when quota blocked) =="
+  bash "${ROOT}/scripts/mokli_upgrade_p0_live_delta.sh" "$BASELINE" "$QUOTA_PROBE"
+  echo "NOTE: rerun row 1 after credits → 01-no-tools-after-p0.jsonl for authoritative delta_in"
 fi

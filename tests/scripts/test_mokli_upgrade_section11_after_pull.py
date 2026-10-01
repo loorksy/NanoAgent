@@ -50,3 +50,27 @@ def test_after_pull_runs_p0_delta_when_after_file_exists(tmp_path: Path) -> None
     )
     assert "P0 live delta" in proc.stdout
     assert "delta_in=-7000" in proc.stdout
+
+
+def test_after_pull_runs_interim_delta_from_quota_probe(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(_diag(10000) + "\n", encoding="utf-8")
+    (events / "quota-probe.jsonl").write_text(_diag(0, provider_tools=7) + "\n", encoding="utf-8")
+    (events / "02-single-tool.jsonl").write_text(_diag(20000) + "\n", encoding="utf-8")
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({str(i): f"PASS row {i}" for i in range(1, 3)}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), str(events), str(results), "2"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
+    )
+    assert "P0 interim" in proc.stdout
+    assert "quota-probe" in proc.stdout
+    assert "delta_in=-10000" in proc.stdout

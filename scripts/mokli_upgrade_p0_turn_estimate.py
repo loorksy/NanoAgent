@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _ROOT = _SCRIPT_DIR.parent
@@ -34,7 +35,11 @@ from mokli.config.loader import load_config  # noqa: E402
 def _load_registry(workspace: Path) -> ToolRegistry:
     config = load_config()
     registry = ToolRegistry()
-    ctx = ToolContext(config=config.tools, workspace=str(workspace))
+    ctx = ToolContext(
+        config=config.tools,
+        workspace=str(workspace),
+        subagent_manager=MagicMock(),
+    )
     ToolLoader().load(ctx, registry)
     return registry
 
