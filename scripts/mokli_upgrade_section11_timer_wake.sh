@@ -27,9 +27,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-PY="${ROOT}/.venv/bin/pytest"
-[[ -x "$PY" ]] || PY=pytest
-
 echo "== §11 completion status (cached) =="
 bash "$ROOT/scripts/mokli_upgrade_section11_completion_status.sh" || true
 
@@ -83,10 +80,9 @@ if ! bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --pull-vps
 fi
 
 echo ""
-echo "== close report @13 =="
+echo "== close report @13 (includes §11 report gate pytest on canonical report) =="
 bash "$ROOT/scripts/mokli_upgrade_section11_close.sh" --apply --require-through 13 \
   --dir "$SECTION11_EVENTS" --results "$SECTION11_RESULTS"
-"$PY" tests/scripts/test_mokli_upgrade_report_section11_gate.py -q
 
 echo "TIMER_WAKE_EXIT=0"
 echo "Verify docs/mokli-agent-upgrade-report.md §11 rows 1–13 before marking upgrade complete."

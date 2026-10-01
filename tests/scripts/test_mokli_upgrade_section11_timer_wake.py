@@ -24,6 +24,12 @@ def test_timer_wake_dry_run_exits_zero_without_live_probe() -> None:
     assert proc.returncode == 0
 
 
+def test_timer_wake_report_gate_runs_inside_close_not_duplicated() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "mokli_upgrade_section11_close.sh" in text
+    assert "test_mokli_upgrade_report_section11_gate" not in text
+
+
 def test_timer_wake_supports_wait_quota_flag() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "--wait-quota" in text

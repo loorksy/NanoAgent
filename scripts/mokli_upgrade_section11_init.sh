@@ -49,8 +49,8 @@ bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" \
 code=$?
 set -e
 if [[ "$code" -eq 0 ]]; then
-  echo "OK §11 scaffold: all required rows ready — run section11_close.sh"
+  echo "OK §11 scaffold: all required rows ready — run mokli_upgrade_section11_close.sh --apply --require-through ${REQUIRE} --results section11-results-partial.json"
 else
-  echo "INFO §11 scaffold: fill missing rows, then validate again and section11_close.sh --apply"
+  echo "INFO §11 scaffold: fill missing rows, then close --apply (see operator-handoff; partial results JSON on VPS path)"
 fi
 exit 0
