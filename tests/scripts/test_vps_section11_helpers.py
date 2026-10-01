@@ -263,6 +263,7 @@ def test_rerun_partials_syncs_with_pull_vps() -> None:
     )
     assert "sync_from_vps.sh" in text
     assert "--pull-vps" in text
+    assert "vps_section11_row8_fallback_provider.sh" in text
 
 
 def test_sync_from_vps_supports_pull_vps_flag() -> None:
