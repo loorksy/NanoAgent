@@ -125,5 +125,6 @@ if [[ "$REQUIRE_QUOTA" -eq 1 && "$quota_ok" -eq 0 ]]; then
   fail=1
 elif [[ "$quota_ok" -eq 0 ]]; then
   echo "HINT: llm_quota blocked — use --require-quota before live §11 turns (exit 1)" >&2
+  echo "HINT: or set paid preset: export MOKLI_SECTION11_MODEL=… (docs/section11-vps-env.example)" >&2
 fi
 exit "$fail"
