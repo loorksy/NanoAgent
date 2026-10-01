@@ -68,8 +68,15 @@ elif [[ "$ENV_OK" -eq 0 ]]; then
   echo "NEXT env: bash scripts/vps_section11_env_check.sh --require-quota --require-oanda" >&2
 fi
 if [[ "$VAL_OK" -eq 0 ]]; then
-  if [[ ! -f "$EVENTS/01-no-tools-after-p0.jsonl" ]]; then
+  after_p0="${EVENTS}/01-no-tools-after-p0.jsonl"
+  if [[ ! -f "$after_p0" ]]; then
     echo "NEXT P0: bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
+  else
+    ap_line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$after_p0" 2>/dev/null || true)
+    ap_in=$(echo "$ap_line" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
+    if [[ -z "${ap_in:-}" || "$ap_in" == "0" ]]; then
+      echo "NEXT P0: 01-no-tools-after-p0.jsonl needs live in>0 — bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
+    fi
   fi
   echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13 runbook — execute row scripts/UI/device)" >&2
 fi

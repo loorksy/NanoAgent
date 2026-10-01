@@ -99,6 +99,29 @@ def test_blockers_require_through_ten_can_pass_skip_vps() -> None:
     assert "require-through 10" in proc.stdout
 
 
+def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "01-no-tools-after-p0.jsonl" in text
+    assert "needs live in>0" in text
+
+
+def test_blockers_next_p0_on_partial_pack_require_13() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-vps", "--require-through", "13", str(events), str(partial)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 1
+    assert "NEXT P0:" in proc.stderr
+
+
 def test_blockers_uses_validate_shell_wrapper() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "mokli_upgrade_section11_validate.sh" in text
