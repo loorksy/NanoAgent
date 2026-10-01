@@ -267,15 +267,20 @@ def main() -> int:
             "replace with live §11 text before production validate"
         )
 
-    if (
-        args.require_through >= 13
-        and not args.allow_partial
-        and not (directory / "01-no-tools-after-p0.jsonl").is_file()
-    ):
-        errors.append(
-            "Missing 01-no-tools-after-p0.jsonl — "
-            "bash scripts/vps_section11_row1_after_p0.sh after quota OK"
-        )
+    after_p0 = directory / "01-no-tools-after-p0.jsonl"
+    if args.require_through >= 13 and not args.allow_partial:
+        if not after_p0.is_file():
+            errors.append(
+                "Missing 01-no-tools-after-p0.jsonl — "
+                "bash scripts/vps_section11_row1_after_p0.sh after quota OK"
+            )
+        else:
+            ap_diag = diagnostic_from_text(after_p0.read_text(encoding="utf-8"))
+            if ap_diag is None or _input_tokens(ap_diag) == 0:
+                errors.append(
+                    "01-no-tools-after-p0.jsonl must have diagnostic input_tokens>0 (live P0 after) — "
+                    "bash scripts/vps_section11_row1_after_p0.sh after quota OK"
+                )
 
     if args.require_through >= 13 and not args.allow_partial:
         picked3 = pick_row_diagnostic(directory, 3)

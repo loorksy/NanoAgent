@@ -564,6 +564,79 @@ def test_validate_prints_progress_on_failure(tmp_path: Path) -> None:
     assert "  2: incomplete" in proc.stderr
 
 
+def test_validate_rejects_after_p0_zero_input_when_require_through_13(tmp_path: Path) -> None:
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0}})
+        + "\n",
+        encoding="utf-8",
+    )
+    for row_id in range(1, 14):
+        in_tok = 100
+        tools = 2 if row_id == 3 else 0
+        nested = 1 if row_id == 5 else 0
+        if row_id == 9:
+            line = (
+                json.dumps(
+                    {
+                        "kind": "diagnostic",
+                        "data": {"rounds": 1, "input_tokens": 5000, "tool_calls": 1},
+                    }
+                )
+                + "\n"
+            )
+            (tmp_path / "09-long-session-v3.jsonl").write_text(line * 15, encoding="utf-8")
+            continue
+        if row_id == 10:
+            (tmp_path / "10-backtest.jsonl").write_text(
+                json.dumps(
+                    {
+                        "kind": "diagnostic",
+                        "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 1},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            continue
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {
+                        "rounds": 1,
+                        "input_tokens": in_tok,
+                        "tool_calls": tools,
+                        "nested_rounds": nested,
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({str(i): "PASS — live" for i in range(1, 14)}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "01-no-tools-after-p0.jsonl must have diagnostic input_tokens>0" in proc.stderr
+
+
 def test_validate_requires_after_p0_jsonl_when_require_through_13(tmp_path: Path) -> None:
     for row_id in range(1, 14):
         (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
