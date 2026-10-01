@@ -169,6 +169,54 @@ def test_one_liner_includes_p0_fold_metrics_when_nonzero() -> None:
     assert "nested_rounds=4" in out
 
 
+def test_each_and_session_summary_for_long_session() -> None:
+    lines = [
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "request_input_tokens": 10000, "tool_calls": 1},
+            }
+        ),
+        json.dumps({"kind": "section11_round_marker", "data": {"round": 1}}),
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 2,
+                    "request_input_tokens": 12000,
+                    "tool_calls": 1,
+                    "referenced_chars_saved": 5000,
+                },
+            }
+        ),
+    ]
+    text = "\n".join(lines)
+    each = subprocess.run(
+        [sys.executable, str(SCRIPT), "--each"],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "turn=1" in each.stdout
+    assert "turn=2" in each.stdout
+    assert "in=10000" in each.stdout
+    assert "in=12000" in each.stdout
+    summary = subprocess.run(
+        [sys.executable, str(SCRIPT), "--session-summary"],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = summary.stdout.strip()
+    assert "diagnostics=2" in out
+    assert "in_first=10000" in out
+    assert "in_last=12000" in out
+    assert "in_last_over_first=1.20" in out
+    assert "below_linear_2x=yes" in out
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(

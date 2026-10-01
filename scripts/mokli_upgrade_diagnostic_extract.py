@@ -33,6 +33,67 @@ def _diagnostic_from_obj(obj: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _input_tokens(diag: dict[str, Any]) -> int:
+    raw = diag.get("request_input_tokens", diag.get("input_tokens"))
+    try:
+        return int(raw or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def all_diagnostics_from_text(text: str) -> list[dict[str, Any]]:
+    """Return every diagnostic payload in file order (§11 row 9 long session)."""
+    found: list[dict[str, Any]] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith(":"):
+            continue
+        if line.startswith("data:"):
+            line = line[5:].strip()
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        diag = _diagnostic_from_obj(obj)
+        if diag is not None:
+            found.append(diag)
+    return found
+
+
+def session_summary_line(diags: list[dict[str, Any]]) -> str:
+    """Aggregate §11 row 9 metrics across many turns in one JSONL."""
+    if not diags:
+        return "diagnostics=0"
+    ins = [_input_tokens(d) for d in diags]
+    tools = [int(d.get("tool_calls") or 0) for d in diags]
+    first = ins[0]
+    last = ins[-1]
+    peak = max(ins)
+    parts = [
+        f"diagnostics={len(diags)}",
+        f"in_first={first}",
+        f"in_last={last}",
+        f"in_peak={peak}",
+        f"tools_total={sum(tools)}",
+    ]
+    if first > 0:
+        parts.append(f"in_last_over_first={last / first:.2f}")
+        parts.append(f"in_peak_over_first={peak / first:.2f}")
+        linear_15x = first * len(diags)
+        parts.append(f"below_linear_{len(diags)}x={'yes' if peak < linear_15x else 'no'}")
+    fold = sum(
+        int(d.get("referenced_chars_saved") or 0)
+        + int(d.get("folded_candle_chars") or 0)
+        + int(d.get("folded_subagent_chars") or 0)
+        for d in diags
+    )
+    if fold:
+        parts.append(f"fold_saved_total={fold}")
+    return " ".join(parts)
+
+
 def _scan_lines(lines: list[str]) -> dict[str, Any] | None:
     last: dict[str, Any] | None = None
     for raw in lines:
@@ -114,11 +175,36 @@ def main() -> int:
         action="store_true",
         help="Print full diagnostic JSON instead of a one-line §11 summary",
     )
+    parser.add_argument(
+        "--each",
+        action="store_true",
+        help="Print one summary line per diagnostic (long session / row 9)",
+    )
+    parser.add_argument(
+        "--session-summary",
+        action="store_true",
+        help="Print aggregate input-token growth across all diagnostics (row 9)",
+    )
     args = parser.parse_args()
     if args.file:
         text = open(args.file, encoding="utf-8").read()
     else:
         text = sys.stdin.read()
+    if args.session_summary:
+        diags = all_diagnostics_from_text(text)
+        if not diags:
+            print("No diagnostic event found.", file=sys.stderr)
+            return 1
+        print(session_summary_line(diags))
+        return 0
+    if args.each:
+        diags = all_diagnostics_from_text(text)
+        if not diags:
+            print("No diagnostic event found.", file=sys.stderr)
+            return 1
+        for idx, diag in enumerate(diags, start=1):
+            print(f"turn={idx} " + one_line_summary(diag))
+        return 0
     diag = diagnostic_from_text(text)
     if diag is None:
         print("No diagnostic event found.", file=sys.stderr)
