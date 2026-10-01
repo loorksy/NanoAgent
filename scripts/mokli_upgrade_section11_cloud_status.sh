@@ -21,7 +21,9 @@ QUOTA_OK=0
 if bash "$ROOT/scripts/vps_section11_quota_status.sh"; then
   QUOTA_OK=1
 else
+  bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
   echo "HINT: live probe: bash scripts/vps_section11_quota_probe.sh" >&2
+  echo "HINT: after reset: bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
 fi
 
 echo ""
