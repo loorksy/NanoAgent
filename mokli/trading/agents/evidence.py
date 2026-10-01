@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from typing import Any
 
+from mokli.trading.tool_errors import model_json
 from mokli.trading.types import (
     AgentMarketContext,
     EvidenceSnapshot,
@@ -160,14 +161,14 @@ def evidence_json_for_model(payload: dict[str, Any], *, limit: int = _MODEL_EVID
     parses. The caller's dict is not modified. Other oversized fields are left
     intact rather than cut mid-string.
     """
-    text = json.dumps(payload, ensure_ascii=False, default=str)
+    text = model_json(payload)
     if len(text) <= limit:
         return text
     briefing = payload.get("teamBriefing")
     if not isinstance(briefing, str) or not briefing:
         return text
     fitted = _briefing_that_fits(payload, briefing, limit)
-    return json.dumps({**payload, "teamBriefing": fitted}, ensure_ascii=False, default=str)
+    return model_json({**payload, "teamBriefing": fitted})
 
 
 def _briefing_that_fits(payload: dict[str, Any], briefing: str, limit: int) -> str:
@@ -194,7 +195,7 @@ def _briefing_that_fits(payload: dict[str, Any], briefing: str, limit: int) -> s
         return "\n".join(parts)
 
     def fits(text: str) -> bool:
-        dumped = json.dumps({**payload, "teamBriefing": text}, ensure_ascii=False, default=str)
+        dumped = model_json({**payload, "teamBriefing": text})
         return len(dumped) <= limit
 
     tail_text = tail
@@ -281,10 +282,10 @@ def _shrink_macro_json(tail: str, fits_text: Callable[[str], bool]) -> str:
         return ""
     kept: list[Any] = []
     for item in drivers:
-        trial = json.dumps({"macroDrivers": [*kept, item]}, ensure_ascii=False)
+        trial = model_json({"macroDrivers": [*kept, item]})
         if not fits_text(trial):
             break
         kept.append(item)
     if not kept:
         return ""
-    return json.dumps({"macroDrivers": kept}, ensure_ascii=False)
+    return model_json({"macroDrivers": kept})
