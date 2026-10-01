@@ -42,7 +42,19 @@ echo "== §11 blockers (local artifacts, --skip-vps; expect BLOCKED until row 13
 if bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps; then
   echo "NOTE blockers clear — production §11 may be closable" >&2
 else
-  echo "NOTE blockers reported gaps (expected until VPS live rows 11–13)" >&2
+  echo "NOTE blockers reported gaps (expected until VPS live rows 11–13; PARTIAL rejected at 13)" >&2
+fi
+
+if [[ -d "$ROOT/section11-events" && -f "$ROOT/section11-results-partial.json" ]]; then
+  echo "== §11 partial pack rows 1–10 (--skip-vps) =="
+  if bash scripts/mokli_upgrade_section11_blockers.sh \
+    --skip-vps --require-through 10 \
+    "$ROOT/section11-events" "$ROOT/section11-results-partial.json"; then
+    echo "OK local §11 artifacts through row 10 (PARTIAL rows OK in results JSON)"
+  else
+    echo "WARN §11 rows 1–10 validation failed — sync_from_vps or fix artifacts" >&2
+    fail=1
+  fi
 fi
 
 if [[ "$fail" -ne 0 ]]; then
