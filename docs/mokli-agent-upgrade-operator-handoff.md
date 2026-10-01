@@ -42,6 +42,13 @@ bash scripts/deploy-mokli-vps.sh
 - pytest: **2335** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
+## فواتير المزود (VPS)
+
+- **Anthropic** (preset `claude-opus-5`): رصيد منخفض → صف §11 1 يفشل بلا `input_tokens`.
+- **OpenRouter** (`openrouter/auto`): رفض «API key is out of quota» (2026-10-01).
+- للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
+- بعد شحن الرصيد: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh 01-no-tools.jsonl 'مرحبا، ما اسمك؟'`
+
 ## قبل المحادثة الحية
 
 0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
