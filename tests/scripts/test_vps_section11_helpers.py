@@ -184,6 +184,8 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "--skip-probe" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "mokli_upgrade_section11_post_quota.sh" in text
+    assert "--pull-vps" in text
+    assert "vps_pull_main.sh" in text
     assert "operator-handoff.md" in text
 
 

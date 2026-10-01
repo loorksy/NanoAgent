@@ -5,20 +5,29 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 SKIP_PROBE=0
+DO_PULL=0
+BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
 
 usage() {
-  echo "Usage: $0 [--skip-probe]" >&2
+  echo "Usage: $0 [--skip-probe] [--pull-vps]" >&2
   echo "  --skip-probe  use cached quota-probe JSONL (no live LLM call)" >&2
+  echo "  --pull-vps    vps_pull_main.sh on \$MOKLI_SECTION11_VPS_BRANCH before probe/env" >&2
   exit 2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-probe) SKIP_PROBE=1; shift ;;
+    --pull-vps) DO_PULL=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
+
+if [[ "$DO_PULL" -eq 1 ]]; then
+  echo "== VPS pull ($BRANCH) =="
+  bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
+fi
 
 if [[ "$SKIP_PROBE" -eq 0 ]]; then
   echo "== live quota probe =="
