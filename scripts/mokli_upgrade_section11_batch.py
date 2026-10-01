@@ -49,15 +49,22 @@ def _scenario_jsonl(directory: Path) -> list[Path]:
 def gather_section11_rows(
     directory: Path,
     results_path: Path | None = None,
+    require_through: int | None = None,
 ) -> tuple[dict[int, tuple[str, str]], int]:
     """Build ``{row_id: (result_text, numbers_line)}`` from JSONL + optional results JSON."""
     results_map: dict[int, str] = {}
     if results_path is not None:
         results_map = _load_results(results_path)
+        if require_through is not None:
+            results_map = {
+                row_id: text
+                for row_id, text in results_map.items()
+                if row_id <= require_through
+            }
     row_ids: set[int] = set()
     for path in _scenario_jsonl(directory):
         idx = _row_index(path.stem)
-        if idx is not None:
+        if idx is not None and (require_through is None or idx <= require_through):
             row_ids.add(idx)
     row_ids |= set(results_map.keys())
     out: dict[int, tuple[str, str]] = {}
@@ -115,6 +122,12 @@ def main() -> int:
         type=Path,
         help="JSON file: row id → «النتيجة» string (see docs/section11-results.example.json)",
     )
+    parser.add_argument(
+        "--require-through",
+        type=int,
+        default=None,
+        help="Only rows 1..N (ignore higher keys in results JSON)",
+    )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
     if not directory.is_dir():
@@ -137,7 +150,9 @@ def main() -> int:
             return 1
 
     try:
-        row_map, missing = gather_section11_rows(directory, results_path)
+        row_map, missing = gather_section11_rows(
+            directory, results_path, require_through=args.require_through
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"Invalid results file: {exc}", file=sys.stderr)
         return 1

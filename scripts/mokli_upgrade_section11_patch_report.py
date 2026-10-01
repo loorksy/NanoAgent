@@ -256,7 +256,9 @@ def main() -> int:
             return proc.returncode
 
     try:
-        payloads, missing = gather_section11_rows(events_dir, results_path)
+        payloads, missing = gather_section11_rows(
+            events_dir, results_path, require_through=args.require_through
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"ERROR {exc}", file=sys.stderr)
         return 1
@@ -278,6 +280,12 @@ def main() -> int:
         return 1
 
     if changed == 0:
+        if args.dry_run:
+            print(
+                f"OK dry-run: no changes needed in {report_path} "
+                "(§11 / §2.1 already match artifacts)"
+            )
+            return 0
         print("WARN no §11 table rows updated (check row ids 1–14)", file=sys.stderr)
         return 1
 

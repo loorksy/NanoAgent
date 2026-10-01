@@ -111,6 +111,53 @@ def test_patch_script_dry_run_after_validate(tmp_path: Path) -> None:
     assert "PASS — greeting" not in report.read_text(encoding="utf-8")
 
 
+def test_patch_dry_run_succeeds_when_report_already_matches(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "request_input_tokens": 50, "request_output_tokens": 5},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS — greeting"}), encoding="utf-8")
+    report = tmp_path / "report.md"
+    report.write_text(
+        "| # | a | b | c | d | e | f |\n"
+        "| 1 | p | q | r | | |\n",
+        encoding="utf-8",
+    )
+    base = [
+        sys.executable,
+        str(PATCH),
+        "--dir",
+        str(events),
+        "--results",
+        str(results),
+        "--report",
+        str(report),
+        "--require-through",
+        "1",
+        "--skip-validate",
+    ]
+    first = subprocess.run([*base], capture_output=True, text=True, check=False, cwd=str(ROOT))
+    assert first.returncode == 0, first.stderr
+    second = subprocess.run(
+        [*base, "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(ROOT),
+    )
+    assert second.returncode == 0, second.stderr
+    assert "no changes needed" in second.stdout
+
+
 def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

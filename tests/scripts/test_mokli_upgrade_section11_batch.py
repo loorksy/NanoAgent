@@ -169,6 +169,34 @@ def test_batch_markdown_ignores_non_scenario_jsonl(tmp_path: Path) -> None:
     assert "| 1 |" in proc.stdout
 
 
+def test_batch_require_through_ignores_higher_result_keys(tmp_path: Path) -> None:
+    (tmp_path / "01-x.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS", "11": "", "12": ""}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "1",
+            "--markdown",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "| 11 |" not in proc.stdout
+    assert "| 1 |" in proc.stdout
+
+
 def test_batch_missing_diagnostic_exits_nonzero(tmp_path: Path) -> None:
     (tmp_path / "01-empty.jsonl").write_text('{"kind":"delta"}\n', encoding="utf-8")
     proc = subprocess.run(

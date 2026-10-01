@@ -49,7 +49,7 @@ echo "== validate rows 1..${REQUIRE} =="
 
 echo "== batch markdown =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_batch.py" \
-  --dir "$EVENTS" --results "$RESULTS" --markdown
+  --dir "$EVENTS" --results "$RESULTS" --markdown --require-through "$REQUIRE"
 
 PATCH_ARGS=(
   "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_patch_report.py"
