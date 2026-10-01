@@ -71,7 +71,8 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
         assert "timer_wake.sh --wait-quota" in combined
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "closure_errors=" in combined
-        assert combined.count("closure_errors=") == 1
+        assert "blockers_summary:" in combined
+        assert combined.count("closure_errors=") >= 1
         if (ROOT / "section11-events" / "quota-probe.jsonl").is_file():
             assert "HINT reset:" in combined
 
@@ -149,6 +150,8 @@ def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
     match = re.search(r"closure_errors=(\d+)", combined_b)
     assert match, combined_b[-800:]
     assert int(match.group(1)) == err_count
+    assert "blockers_summary:" in combined_b
+    assert "seconds_until_reset=" in combined_b
 
 
 def test_blockers_next_p0_on_partial_pack_require_13() -> None:

@@ -30,6 +30,11 @@ if [[ $# -gt 2 ]]; then
   usage
 fi
 
+RESET_SEC="unknown"
+RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
+
 ENV_OK=0
 if [[ "$SKIP_VPS" -eq 1 ]]; then
   echo "== VPS env skipped (--skip-vps) =="
@@ -71,6 +76,7 @@ fi
 echo ""
 if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
   echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE --results $RESULTS"
+  echo "blockers_summary: env_ok=1 validate_ok=1 require=$REQUIRE closure_errors=0 seconds_until_reset=$RESET_SEC"
   echo "BLOCKERS_EXIT=0"
   exit 0
 fi
@@ -97,8 +103,9 @@ if [[ "$VAL_OK" -eq 0 ]]; then
 fi
 echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
 echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
-bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 \
+printf '%s\n' "$RESET_OUT" \
   | grep -E 'seconds_until_reset=|OpenRouter free-tier' \
   | sed -e 's/^/HINT reset: /' -e 's/^HINT reset: HINT: /HINT reset: /' >&2 || true
+echo "blockers_summary: env_ok=$ENV_OK validate_ok=$VAL_OK require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC" >&2
 echo "BLOCKERS_EXIT=1" >&2
 exit 1
