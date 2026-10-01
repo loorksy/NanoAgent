@@ -240,3 +240,9 @@ def test_close_apply_on_canonical_report_aborts_before_patch(tmp_path: Path) -> 
     assert canonical.read_text(encoding="utf-8") == before
     assert "report gate" not in proc.stdout.lower()
     assert "OK §11 close" not in proc.stdout
+
+
+def test_close_uses_validate_shell_wrapper() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "mokli_upgrade_section11_validate.sh" in text
+    assert "mokli_upgrade_section11_validate.py" not in text

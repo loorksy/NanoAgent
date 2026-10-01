@@ -45,7 +45,7 @@ if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
 fi
 
 echo "== validate rows 1..${REQUIRE} =="
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" "${VALIDATE_ARGS[@]}"
+bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" "${VALIDATE_ARGS[@]}"
 
 echo "== batch markdown =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_batch.py" \
