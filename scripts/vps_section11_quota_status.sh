@@ -14,26 +14,28 @@ HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 export MOKLI_SSH_HOST="$HOST"
 MAX_AGE_MIN="${MOKLI_QUOTA_STATUS_MAX_AGE_MIN:-360}"
 REQUIRE_FRESH=0
+LOCAL_EVENTS=""
+PYTHON="${ROOT}/.venv/bin/python"
+[[ -x "$PYTHON" ]] || PYTHON=python3
 
 usage() {
-  echo "Usage: $0 [--require-fresh]" >&2
-  echo "  Reads section11-events/quota-probe.jsonl (or newest quota-*.jsonl) on VPS/install." >&2
-  echo "  Exit 0 when last diagnostic in>0 and age <= ${MAX_AGE_MIN}m." >&2
+  echo "Usage: $0 [--local-dir EVENTS] [--require-fresh]" >&2
+  echo "  Reads quota-probe.jsonl (or newest quota-*.jsonl)." >&2
+  echo "  --local-dir: inspect pulled ./section11-events without SSH." >&2
   exit 2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --local-dir) LOCAL_EVENTS="$2"; shift 2 ;;
     --require-fresh) REQUIRE_FRESH=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
 
-_run_status() {
-  local install="$1"
-  local user="$2"
-  local events="$install/section11-events"
+_status_events_dir() {
+  local events="$1"
   local probe=""
   if [[ -f "$events/quota-probe.jsonl" ]]; then
     probe="$events/quota-probe.jsonl"
@@ -49,15 +51,8 @@ _run_status() {
     echo "STALE probe=$(basename "$probe") age_min=$age_min max=$MAX_AGE_MIN"
     return 4
   fi
-  local rel="section11-events/$(basename "$probe")"
   local line
-  if [[ "$(id -un)" == "$user" ]]; then
-    line=$(bash -lc "cd '$install' && source .venv/bin/activate && \
-      python scripts/mokli_upgrade_diagnostic_extract.py --file '$rel'" 2>/dev/null || true)
-  else
-    line=$(sudo -u "$user" bash -lc "cd '$install' && source .venv/bin/activate && \
-      python scripts/mokli_upgrade_diagnostic_extract.py --file '$rel'" 2>/dev/null || true)
-  fi
+  line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$probe" 2>/dev/null || true)
   if [[ -z "${line:-}" ]]; then
     echo "INVALID probe=$(basename "$probe") (no diagnostic)"
     return 5
@@ -72,8 +67,16 @@ _run_status() {
   return 0
 }
 
+if [[ -n "$LOCAL_EVENTS" ]]; then
+  _status_events_dir "$(cd "$LOCAL_EVENTS" && pwd)"
+  exit $?
+fi
+
 if section11_local_ready "$INSTALL_DIR"; then
-  _run_status "$INSTALL_DIR" "$SERVICE_USER"
+  if [[ -x "$INSTALL_DIR/.venv/bin/python" ]]; then
+    PYTHON="$INSTALL_DIR/.venv/bin/python"
+  fi
+  _status_events_dir "$INSTALL_DIR/section11-events"
   exit $?
 fi
 

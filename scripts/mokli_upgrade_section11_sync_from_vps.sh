@@ -17,4 +17,8 @@ echo ""
 bash "$ROOT/scripts/mokli_upgrade_section11_after_pull.sh" "$EVENTS" "$RESULTS" "$REQUIRE"
 
 echo ""
+echo "== cached quota probe (local JSONL, no LLM) =="
+bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$EVENTS" || true
+
+echo ""
 echo "OK sync from VPS (artifacts through row $REQUIRE validated locally)"
