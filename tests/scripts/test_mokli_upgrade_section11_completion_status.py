@@ -50,4 +50,11 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     combined = proc.stdout + proc.stderr
     assert "require=13" in combined
     assert "SECTION11_COMPLETION_EXIT=1" in combined
+    assert "timer_wake.sh --wait-quota" in combined
     assert proc.returncode == 1
+
+
+def test_completion_status_script_wires_timer_wake_when_blocked() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "timer_wake.sh --wait-quota" in text
+    assert "quota_status.sh" in text and "--local-dir" in text
