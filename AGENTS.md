@@ -107,7 +107,7 @@ bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/re
 python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
 python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
 bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
-bash scripts/vps_section11_pull_events.sh && bash scripts/mokli_upgrade_section11_after_pull.sh  # P0 §2.1 table + delta if 01-no-tools-after-p0.jsonl
+bash scripts/mokli_upgrade_section11_sync_from_vps.sh  # pull + P0 §2.1 table + validate 1–10
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
 bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/9/10 when quota (+ OANDA for 10)
 bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable

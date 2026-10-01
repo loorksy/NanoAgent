@@ -23,9 +23,8 @@ else
   echo "SKIP row 10: OANDA not configured" >&2
 fi
 
-echo "== pull + validate hints =="
-bash "$ROOT/scripts/vps_section11_pull_events.sh"
-bash "$ROOT/scripts/mokli_upgrade_section11_after_pull.sh"
+echo "== sync JSONL from VPS + P0 table =="
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh"
 
 cat <<'NOTE'
 Next: rows 11–13 — bash scripts/mokli_upgrade_section11_remaining_rows.sh
