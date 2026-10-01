@@ -38,3 +38,15 @@ vps_ssh() {
   }
   sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 "$target" "$@"
 }
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 REMOTE_COMMAND..." >&2
+    exit 2
+  fi
+  if ! vps_ssh_ready; then
+    echo "vps_ssh: set MOKLI_SSH_HOST or VPS+VPSPASS" >&2
+    exit 1
+  fi
+  vps_ssh "$@"
+fi

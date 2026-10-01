@@ -34,6 +34,12 @@ fi
 
 echo ""
 echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK require_through=$REQUIRE"
+if [[ "$BLOCK_OK" -eq 0 && "$REQUIRE" -gt 10 ]]; then
+  if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
+    --skip-vps --require-through 10 >/dev/null 2>&1; then
+    echo "HINT: local artifacts rows 1–10 OK — bash $0 --require-through 10" >&2
+  fi
+fi
 if [[ "$QUOTA_OK" -eq 1 && "$BLOCK_OK" -eq 1 ]]; then
   echo "READY for section11_close.sh --apply --require-through $REQUIRE"
   exit 0

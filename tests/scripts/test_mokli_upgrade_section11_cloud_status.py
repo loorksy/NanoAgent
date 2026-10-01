@@ -21,4 +21,5 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
     assert "cloud_status:" in combined
     assert "quota_ok=" in combined
     assert "blockers_ok=" in combined
+    assert "HINT: local artifacts rows 1–10 OK" in combined
     assert proc.returncode == 1

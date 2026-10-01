@@ -26,6 +26,22 @@ def test_vps_ssh_defaults_hostinger_when_no_vps_env() -> None:
     assert proc.stdout == "hostinger-vps"
 
 
+def test_vps_ssh_script_runs_remote_command_when_key_works() -> None:
+    proc = subprocess.run(
+        [str(VPS_SSH), "echo", "vps_ssh_cli_ok"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    if proc.returncode == 0:
+        assert "vps_ssh_cli_ok" in proc.stdout
+    else:
+        assert proc.returncode in (1, 255)
+        assert "MOKLI_SSH_HOST" in proc.stderr or "VPS" in proc.stderr
+
+
 def test_vps_ssh_leaves_host_empty_when_vps_password_target_set() -> None:
     proc = subprocess.run(
         [
