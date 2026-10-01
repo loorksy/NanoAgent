@@ -31,6 +31,8 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe
   echo "READY for remaining_rows (11–13) and close --apply @13 when JSONL complete"
 else
   echo "PARTIAL: reruns done but blockers remain (OANDA and/or rows 11–13 JSONL)" >&2
+  echo "== row 12 VPS pre-check (no LLM) =="
+  bash "$ROOT/scripts/vps_section11_row12_desktop.sh" || true
   bash "$ROOT/scripts/mokli_upgrade_section11_remaining_rows.sh"
   exit 1
 fi
