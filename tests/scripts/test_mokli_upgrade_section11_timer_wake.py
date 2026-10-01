@@ -29,3 +29,17 @@ def test_timer_wake_supports_wait_quota_flag() -> None:
     assert "--wait-quota" in text
     assert "wait_quota_reset.sh" in text and "--wait" in text
     assert "vps_section11_quota_probe.sh" in text
+
+
+def test_timer_wake_dry_run_wait_quota_mentions_wait_in_preview() -> None:
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--dry-run", "--wait-quota"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    combined = proc.stdout + proc.stderr
+    assert "DRY-RUN" in combined and "--wait-quota" in combined
+    assert proc.returncode == 0
