@@ -4,7 +4,7 @@
 
 | المتطلب | دليل الإنجاز | الحالة |
 | --- | --- | --- |
-| فرع مستقل + commits صغيرة | `cursor/agent-runtime-efficiency-d9e1` | منجز |
+| فرع مستقل + commits صغيرة | دُمج في **`main`** (`9b1a3f58` وما بعد) | منجز |
 | Phase 0 — تدقيق من الكود | `docs/mokli-agent-upgrade-audit.md` | منجز |
 | P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | `docs/mokli-agent-upgrade-report.md` §1–2؛ `tests/agent/test_turn_efficiency.py` | منجز (قياس محلي/وحدة) |
 | P0 — أرقام before/after على **مزود حي** | جدول §11 عمود «الأرقام» | **معلق** |

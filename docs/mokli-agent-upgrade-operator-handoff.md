@@ -2,8 +2,17 @@
 
 ## الفرع
 
-- `cursor/agent-runtime-efficiency-d9e1` (أساس الدمج: `cursor/broker-market-feed-d9e1`)
-- راجع `git log -1` على الفرع بعد آخر دفع
+- **الإنتاج:** `main` (دمج PR ترقية الوكيل + تغذية OANDA/MetaAPI — راجع `git log -1` على `origin/main`)
+- فرع التطوير السابق: `cursor/agent-runtime-efficiency-d9e1` → دُمج في `cursor/broker-market-feed-d9e1` ثم `main`
+
+### نشر سريع بعد الدمج
+
+```bash
+export VPS='user@host' VPSPASS='…' MOKLI_BRANCH=main
+bash scripts/deploy-mokli-vps.sh
+# أو على /opt/mokli: git fetch origin main && git checkout main && git pull --ff-only
+# ثم pip install -e '.[trading-mt5]' && systemctl restart mokli-gateway
+```
 
 ## ما اكتمل بدون VPS
 
@@ -17,7 +26,7 @@
 ## قبل المحادثة الحية
 
 0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
-1. نشر الفرع وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
+1. نشر **`main`** وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
 2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight + dry-run §11 للصف 1 + **init smoke** (مجلد مؤقت) + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
 3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
