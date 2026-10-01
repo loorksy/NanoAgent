@@ -202,6 +202,7 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
     assert "vps_pull_main.sh" in text
+    assert "timer_wake.sh" in text
 
 
 def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
