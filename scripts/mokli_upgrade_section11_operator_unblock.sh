@@ -42,6 +42,7 @@ echo "== §11 blockers (require-through 13) =="
 if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh"; then
   echo ""
   echo "READY: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13"
+  echo "OPERATOR_UNBLOCK_EXIT=0"
   exit 0
 fi
 
@@ -49,4 +50,5 @@ echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"
 echo "  bash scripts/mokli_upgrade_section11_rerun_partials.sh"
 echo "  bash scripts/mokli_upgrade_section11_remaining_rows.sh"
+echo "OPERATOR_UNBLOCK_EXIT=1" >&2
 exit 1

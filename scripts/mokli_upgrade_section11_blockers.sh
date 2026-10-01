@@ -56,6 +56,7 @@ fi
 echo ""
 if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
   echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE"
+  echo "BLOCKERS_EXIT=0"
   exit 0
 fi
 
@@ -73,4 +74,5 @@ if [[ "$VAL_OK" -eq 0 ]]; then
   echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
 fi
 echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
+echo "BLOCKERS_EXIT=1" >&2
 exit 1
