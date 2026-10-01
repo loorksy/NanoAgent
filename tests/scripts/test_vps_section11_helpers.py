@@ -44,6 +44,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_production_gate.sh",
         "mokli_upgrade_section11_remaining_rows.sh",
         "vps_pull_main.sh",
+        "vps_section11_fix_events_ownership.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -56,6 +57,16 @@ def test_vps_pull_main_waits_gateway_and_agent_api() -> None:
     assert "18791/health" in text
     assert "8766/api/v2/health" in text
     assert "API_OK" in text and "GW_OK" in text
+    assert "section11-events" in text
+
+
+def test_row3_multi_tool_prompt_lists_dir_before_gold() -> None:
+    text = (ROOT / "scripts" / "vps_section11_row3_multi_tool.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "list_dir" in text and "get_gold_quote" in text
+    prompt_line = next(line for line in text.splitlines() if "PROMPT=" in line)
+    assert prompt_line.index("list_dir") < prompt_line.index("get_gold_quote")
 
 
 def test_section11_turn_core_retries_session_create() -> None:

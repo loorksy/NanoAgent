@@ -39,6 +39,9 @@ BRANCH="$4"
 sudo -u "$USER" git -C "$INSTALL" fetch origin "$BRANCH"
 sudo -u "$USER" git -C "$INSTALL" checkout -B "$BRANCH" "origin/$BRANCH"
 sudo -u "$USER" bash -lc "cd '$INSTALL' && source .venv/bin/activate && pip install -U pip wheel -q && pip install -e '.[trading-mt5]' -q"
+if [[ -d "$INSTALL/section11-events" ]]; then
+  chown -R "$USER:$USER" "$INSTALL/section11-events"
+fi
 sudo systemctl restart "$UNIT"
 REV=$(sudo -u "$USER" git -C "$INSTALL" rev-parse --short HEAD)
 GW_OK=0

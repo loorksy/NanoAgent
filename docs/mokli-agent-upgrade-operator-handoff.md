@@ -2,7 +2,7 @@
 
 ## قائمة إغلاق الإنتاج (§11)
 
-1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (`PULL_OK` بعد `:18791` + Agent API `:8766`)
+1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (`PULL_OK` بعد `:18791` + Agent API `:8766`؛ يُصلح ملكية `section11-events/`). عند خطأ Permission denied قديم: `bash scripts/vps_section11_fix_events_ownership.sh`
 2. OpenRouter credits + `OANDA_*`: `bash scripts/vps_section11_set_oanda_env.sh`
 3. جاهزية: `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0؛ يطبع أيضاً `mokli_ui_http` و`mokli_pipe_show_diagnostics` لصف 12)
 4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh`
