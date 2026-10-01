@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 from loguru import logger
 
 from mokli.trading.i18n import tr
+from mokli.trading.tool_errors import model_json
 from mokli.trading.intel import lexicon
 from mokli.trading.news.forex_factory import fetch_upcoming_events
 
@@ -195,7 +196,7 @@ def select_drivers(
 
 def format_team_briefing(verdicts: list[MacroVerdict]) -> str:
     payload = [item.to_wire() for item in verdicts]
-    return json.dumps({"macroDrivers": payload}, ensure_ascii=False)
+    return model_json({"macroDrivers": payload})
 
 
 _RESULT_RE = re.compile(

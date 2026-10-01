@@ -200,7 +200,7 @@ async def _call_model(
         if not isinstance(browse, dict) or not browse.get("verb"):
             break
         answer = _browse_answer(str(browse.get("verb")), browse, market)
-        messages.append({"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False)})
+        messages.append({"role": "assistant", "content": model_json(parsed)})
         messages.append(
             {
                 "role": "user",
