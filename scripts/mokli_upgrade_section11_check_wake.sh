@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Report Cloud Agent background timer_wake --wait-quota (tmux + log). No LLM.
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log}"
+SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
+
+echo "== OpenRouter reset =="
+bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
+
+echo ""
+echo "== tmux session: $SESSION =="
+if tmux -f /exec-daemon/tmux.portal.conf has-session -t "$SESSION" 2>/dev/null; then
+  echo "WAKE_TMUX=running"
+else
+  echo "WAKE_TMUX=missing"
+  echo "HINT: bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
+fi
+
+echo ""
+echo "== wake log: $LOG =="
+if [[ -f "$LOG" ]]; then
+  echo "WAKE_LOG_BYTES=$(wc -c < "$LOG")"
+  tail -12 "$LOG"
+else
+  echo "WAKE_LOG=missing"
+fi
+
+echo ""
+bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 2>&1 \
+  | grep -E 'blockers_summary:|closure_errors=' | tail -2 || true
