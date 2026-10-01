@@ -61,6 +61,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_try_row11_paper.sh",
         "mokli_upgrade_section11_check_wake.sh",
         "mokli_upgrade_section11_monitor_log.sh",
+        "mokli_upgrade_section11_monitor_loop.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
