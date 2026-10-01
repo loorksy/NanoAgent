@@ -48,9 +48,19 @@ fi
 echo ""
 echo "== §11 artifacts (require-through $REQUIRE) =="
 VAL_OK=0
-if bash "$ROOT/scripts/mokli_upgrade_section11_validate.sh" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
+set +e
+VALID_COMBINED=$(
+  bash "$ROOT/scripts/mokli_upgrade_section11_validate.sh" \
+    --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" 2>&1
+)
+VALID_EC=$?
+set -e
+printf '%s\n' "$VALID_COMBINED"
+if [[ "$VALID_EC" -eq 0 ]]; then
   VAL_OK=1
+else
+  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_COMBINED" | grep -c '^ERROR' || true)
+  echo "closure_errors=${CLOSURE_ERRORS}" >&2
 fi
 
 echo ""
