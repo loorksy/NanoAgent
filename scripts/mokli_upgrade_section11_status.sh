@@ -6,9 +6,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
 
-EVENTS="${1:-$ROOT/section11-events}"
-RESULTS="${2:-$ROOT/section11-results-partial.json}"
-REQUIRE="${3:-13}"
+SKIP_QUOTA=0
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --skip-quota) SKIP_QUOTA=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+
+EVENTS="${ARGS[0]:-$ROOT/section11-events}"
+RESULTS="${ARGS[1]:-$ROOT/section11-results-partial.json}"
+REQUIRE="${ARGS[2]:-13}"
 
 if [[ ! -f "$RESULTS" ]]; then
   echo "WARN: results file missing: $RESULTS (copy from docs/section11-results.example.json)" >&2
@@ -23,7 +32,10 @@ if "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
 fi
 
 QUOTA_OK=0
-if [[ -n "${MOKLI_SSH_HOST:-}" ]] || [[ -n "${VPS:-}" ]]; then
+if [[ "$SKIP_QUOTA" -eq 1 ]]; then
+  echo "== VPS LLM quota probe skipped (--skip-quota) =="
+  QUOTA_OK=1
+elif [[ -n "${MOKLI_SSH_HOST:-}" ]] || [[ -n "${VPS:-}" ]]; then
   echo "== VPS LLM quota probe =="
   if bash "${ROOT}/scripts/vps_section11_quota_probe.sh" "quota-status-$(date +%s).jsonl"; then
     QUOTA_OK=1

@@ -22,7 +22,8 @@ bash scripts/cloud_agent_vps_secrets_check.sh
 export MOKLI_SSH_HOST=hostinger-vps MOKLI_INSTALL_DIR=/opt/nanoagent MOKLI_GATEWAY_SERVICE=nanoagent-gateway
 bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
 # قبل دمج PR §11: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh
-bash scripts/mokli_upgrade_section11_status.sh   # exit 0 فقط عند validate+quota OK لـ require-through (افتراضي 13)
+bash scripts/mokli_upgrade_section11_status.sh   # exit 0 عند validate+quota OK (require-through افتراضي 13)
+bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # JSONL/results فقط بلا استدعاء LLM
 # أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل
 ```
 

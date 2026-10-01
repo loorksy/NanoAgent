@@ -30,3 +30,31 @@ def test_status_fails_when_rows_missing(tmp_path: Path) -> None:
     )
     assert proc.returncode == 1
     assert "INCOMPLETE" in proc.stderr or "INCOMPLETE" in proc.stdout
+
+
+def test_status_skip_quota_passes_validate_only(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    for idx, name in [(1, "01-no-tools.jsonl"), (2, "02-single-tool.jsonl")]:
+        (events / name).write_text(
+            json.dumps(
+                {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 100}}
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({"1": "PASS — one", "2": "PASS — two"}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-quota", str(events), str(results), "2"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PATH": "/usr/bin:/bin"},
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "skip-quota" in proc.stdout
