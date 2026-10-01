@@ -863,9 +863,27 @@ class Pipe:
         stage = _as_str(data.get("event"), "started")
         role = _as_str(data.get("role")) or _as_str(data.get("id"))
         summary = _as_str(data.get("summary"))
+        room_id = _as_str(data.get("room_id"))
+        role_id = _as_str(data.get("role_id"))
+        layer = data.get("layer")
         description = f"↳ {turn.label(f'subagent.{stage}')}: {role}".rstrip(": ")
+        if room_id:
+            description = f"{description} · {room_id}"
+        if role_id and role_id != role:
+            description = f"{description} · {role_id}"
+        if isinstance(layer, int) and not isinstance(layer, bool):
+            description = f"{description} · layer {layer}"
+        desk = {
+            "stage": stage,
+            "role": role,
+            "room_id": room_id,
+            "role_id": role_id or role,
+            "layer": layer if isinstance(layer, int) and not isinstance(layer, bool) else None,
+            "summary": summary,
+        }
         await self._emit(
-            emitter, {"type": "status", "data": {"description": description, "done": False}}
+            emitter,
+            {"type": "status", "data": {"description": description, "done": False, "desk": desk}},
         )
         turn.timeline.append(f"{description} - {summary}" if summary else description)
 

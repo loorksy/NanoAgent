@@ -349,9 +349,13 @@ class TradingCronConfig(Base):
 
     Disabled by default — proactive messaging must be agent-initiated or
     explicitly enabled by the operator (see trading-proactive skill).
+
+    ``idle_research`` is a second opt-in. When both flags are on, the news and
+    scan jobs write a read-only note into the news room instead of pushing a channel.
     """
 
     enabled: bool = False
+    idle_research: bool = False
 
 
 class TradingMt5Config(Base):

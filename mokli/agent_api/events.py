@@ -138,10 +138,19 @@ def subagent_data(
     id: str,
     role: str,
     summary: str | None = None,
+    room_id: str | None = None,
+    role_id: str | None = None,
+    layer: int | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "id": id, "role": role}
     if summary is not None:
         data["summary"] = summary
+    if room_id:
+        data["room_id"] = room_id
+    if role_id:
+        data["role_id"] = role_id
+    if layer is not None:
+        data["layer"] = layer
     return data
 
 

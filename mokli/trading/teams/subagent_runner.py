@@ -46,6 +46,8 @@ class TeamAgentEvent:
     summary: str = ""
     layer: int = 0
     duration_ms: int | None = None
+    room_id: str = ""
+    role_id: str = ""
 
     def to_wire(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -55,6 +57,10 @@ class TeamAgentEvent:
             "summary": self.summary,
             "layer": self.layer,
         }
+        if self.room_id:
+            payload["roomId"] = self.room_id
+        if self.role_id:
+            payload["roleId"] = self.role_id
         if self.duration_ms is not None:
             payload["durationMs"] = self.duration_ms
         return payload
@@ -139,6 +145,9 @@ async def run_team_role(
     started = time.time()
 
     role_prompt = resolve_role_prompt(role, system_prompt)
+    from mokli.trading.desk.rooms import room_of_agent
+
+    room_id = room_of_agent(agent_id) or ""
     task_body = (
         f"{task_text.strip()}\n\n"
         f"FROZEN MARKET EVIDENCE (do not invent prices outside this JSON):\n"
@@ -148,7 +157,14 @@ async def run_team_role(
 
     await _publish_team_agent(
         publisher,
-        TeamAgentEvent(agent_id=agent_id, role=role, status="running", layer=layer),
+        TeamAgentEvent(
+            agent_id=agent_id,
+            role=role,
+            status="running",
+            layer=layer,
+            room_id=room_id,
+            role_id=agent_id,
+        ),
         collector,
     )
 
@@ -187,6 +203,8 @@ async def run_team_role(
                 summary=summary[:2000],
                 layer=layer,
                 duration_ms=duration_ms,
+                room_id=room_id,
+                role_id=agent_id,
             ),
             collector,
         )
@@ -204,6 +222,8 @@ async def run_team_role(
                 summary=message,
                 layer=layer,
                 duration_ms=duration_ms,
+                room_id=room_id,
+                role_id=agent_id,
             ),
             collector,
         )

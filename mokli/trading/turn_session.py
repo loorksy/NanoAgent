@@ -40,6 +40,8 @@ class TurnSession:
     session_key: str | None = None
     interval: str = "15m"
     is_subagent: bool = False
+    idle_research: bool = False
+    pending_approvals: list[dict[str, object]] = field(default_factory=list)
     pipeline: PipelineContext | None = None
     tools_called: list[str] = field(default_factory=list)
     nodes_fetched: list[str] = field(default_factory=list)

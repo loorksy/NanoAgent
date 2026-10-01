@@ -92,6 +92,24 @@ def _response_text(value: object) -> str:
     return str(value)
 
 
+def _param_str(params: object, key: str) -> str | None:
+    if not isinstance(params, dict):
+        return None
+    value = params.get(key)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
+
+
+def _param_int(params: object, key: str) -> int | None:
+    if not isinstance(params, dict):
+        return None
+    value = params.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
 class TurnHook(AgentHook):
     """Project tool / subagent lifecycle into public ``tool`` and ``subagent`` events."""
 
@@ -109,6 +127,9 @@ class TurnHook(AgentHook):
         self._session = session
         self._run = run
         self._started: dict[str, float] = {}
+
+    async def on_desk_approval(self, event: dict[str, object]) -> None:
+        self._hub.publish(self._session, "approval", event, run=self._run)
 
     def _emit_tool(
         self,
@@ -159,7 +180,14 @@ class TurnHook(AgentHook):
             self._hub.publish(
                 self._session,
                 "subagent",
-                subagent_data("started", id=tool_call.id, role=role or tool_call.name),
+                subagent_data(
+                    "started",
+                    id=tool_call.id,
+                    role=role or tool_call.name,
+                    room_id=_param_str(params, "room_id"),
+                    role_id=_param_str(params, "role_id"),
+                    layer=_param_int(params, "layer"),
+                ),
                 run=self._run,
             )
 
@@ -178,7 +206,13 @@ class TurnHook(AgentHook):
                 self._session,
                 "subagent",
                 subagent_data(
-                    "finished", id=tool_call.id, role=tool_call.name, summary=_summary(result),
+                    "finished",
+                    id=tool_call.id,
+                    role=tool_call.name,
+                    summary=_summary(result),
+                    room_id=_param_str(params, "room_id"),
+                    role_id=_param_str(params, "role_id"),
+                    layer=_param_int(params, "layer"),
                 ),
                 run=self._run,
             )

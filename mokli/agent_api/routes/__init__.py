@@ -8,6 +8,7 @@ from mokli.agent_api.routes import (
     approvals,
     catalog,
     connect,
+    desk,
     devices,
     jobs,
     labels,
@@ -37,6 +38,7 @@ def setup_routes(app: web.Application) -> None:
     labels.register(router, API_PREFIX)
     recommendations.register(router, API_PREFIX)
     connect.register(router, API_PREFIX)
+    desk.register(router, API_PREFIX)
     log.register(router, API_PREFIX)
     operator.register(router, API_PREFIX)
     devices.register(router, API_PREFIX)

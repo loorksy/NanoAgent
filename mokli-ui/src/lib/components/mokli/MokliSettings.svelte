@@ -4,6 +4,7 @@
 	import { mokliText } from '$lib/mokli/text';
 	import MokliProviders from './MokliProviders.svelte';
 	import RiskPanel from './RiskPanel.svelte';
+	import DeskRulesForm from './DeskRulesForm.svelte';
 
 	export let tab: string;
 	const i18n = getContext<{ language?: string }>('i18n');
@@ -79,6 +80,7 @@
 	<h2 class="text-sm font-medium">{mokliText($i18n?.language, tab)}</h2>
 	{#if tab === 'risk'}
 		<RiskPanel mode="primary" />
+		<DeskRulesForm />
 	{:else if tab === 'advanced'}
 		<RiskPanel mode="advanced" />
 	{:else if tab === 'models'}

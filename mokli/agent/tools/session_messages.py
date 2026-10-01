@@ -125,6 +125,7 @@ class SendSessionMessageTool(Tool):
         clock: Callable[[], float] | None = None,
     ) -> None:
         self._bus = bus
+        self._sessions = sessions
         self._handles = SessionHandleResolver(sessions)
         self._max_messages_per_minute = max_messages_per_minute
         self._schedule_later = schedule_later
@@ -188,6 +189,25 @@ class SendSessionMessageTool(Tool):
         request = current_request_context()
         if request is None or not request.session_key:
             return ToolResult.error("Error: session context is unavailable")
+        if request.session_key.startswith("desk:"):
+            from mokli.trading.desk.handoff import (
+                DeskHandoffError,
+                deliver_handoff,
+                depth_from_metadata,
+            )
+
+            try:
+                target = await asyncio.to_thread(
+                    deliver_handoff,
+                    self._sessions,
+                    request.session_key,
+                    to,
+                    strip_think(content),
+                    depth_from_metadata(request.metadata),
+                )
+            except DeskHandoffError as exc:
+                return ToolResult.error(f"Error: {exc.reason}")
+            return f"Sent to {target.display_name}."
         try:
             target = await self.enqueue(
                 source_session_key=request.session_key,
