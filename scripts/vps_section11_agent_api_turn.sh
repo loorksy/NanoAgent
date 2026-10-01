@@ -9,6 +9,7 @@ source "$ROOT/scripts/vps_ssh.sh"
 # shellcheck source=scripts/section11_agent_api_turn_core.sh
 source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 
+export MOKLI_SSH_HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 OUT_NAME="${1:-01-no-tools.jsonl}"
 PROMPT="${2:-مرحبا، ما اسمك؟}"
