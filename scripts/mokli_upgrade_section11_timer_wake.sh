@@ -46,7 +46,7 @@ if [[ "$WAIT_QUOTA" -eq 1 ]]; then
   echo ""
   echo "== optional wait for OpenRouter reset =="
   if ! bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
-    bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" --wait
+    bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" --wait 2>&1
   fi
 fi
 

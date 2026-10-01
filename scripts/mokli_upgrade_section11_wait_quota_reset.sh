@@ -74,7 +74,8 @@ if [[ "$secs" -gt 0 ]]; then
   while [[ "$remaining" -gt 0 ]]; do
     chunk=$remaining
     [[ "$chunk" -gt "$chunk_sec" ]] && chunk=$chunk_sec
-    echo "WAIT_HEARTBEAT sleep_remaining_sec=${remaining} chunk_sec=${chunk}" >&2
+    # stdout so timer_wake `2>&1 | tee` captures progress during long waits
+    echo "WAIT_HEARTBEAT sleep_remaining_sec=${remaining} chunk_sec=${chunk}"
     sleep "$chunk"
     remaining=$(( remaining - chunk ))
   done
