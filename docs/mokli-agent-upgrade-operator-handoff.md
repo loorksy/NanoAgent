@@ -90,7 +90,7 @@ bash scripts/deploy-mokli-vps.sh
 ## قبل المحادثة الحية
 
 0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
-1. نشر **`main`** وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
+1. نشر فرع §11 على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (PR **#62** — **لا** `main` قبل merge) وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
 2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight + dry-run §11 للصف 1 + **init smoke** (مجلد مؤقت) + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
 3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
 4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
