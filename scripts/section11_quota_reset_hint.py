@@ -34,12 +34,34 @@ def reset_epoch_ms_from_probe(path: Path) -> int | None:
     return best
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        print("Usage: section11_quota_reset_hint.py PROBE.jsonl", file=sys.stderr)
-        return 2
-    path = Path(sys.argv[1])
+def seconds_until_reset(path: Path) -> int | None:
+    """Seconds until reset epoch; 0 if reset time passed; None if not found."""
     reset_ms = reset_epoch_ms_from_probe(path)
+    if reset_ms is None:
+        return None
+    reset_s = reset_ms // 1000 if reset_ms > 10_000_000_000 else reset_ms
+    import time
+
+    return max(0, int(reset_s - time.time()))
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("probe", type=Path)
+    parser.add_argument(
+        "--seconds",
+        action="store_true",
+        help="Print seconds until reset on stdout (-1 if unknown)",
+    )
+    args = parser.parse_args()
+    path = args.probe
+    reset_ms = reset_epoch_ms_from_probe(path)
+    if args.seconds:
+        remaining = seconds_until_reset(path)
+        print(-1 if remaining is None else remaining)
+        return 0
     if reset_ms is None:
         return 0
     reset_s = reset_ms // 1000 if reset_ms > 10_000_000_000 else reset_ms

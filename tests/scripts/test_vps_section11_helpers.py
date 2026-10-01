@@ -51,6 +51,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_cloud_status.sh",
         "mokli_upgrade_aggregate_pytest.sh",
         "mokli_upgrade_section11_operator_unblock.sh",
+        "mokli_upgrade_section11_wait_quota_reset.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
