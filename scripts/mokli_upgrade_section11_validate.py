@@ -110,6 +110,17 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                         "(writes 05-subagents-v2.jsonl)",
                         file=sys.stderr,
                     )
+    if require_through >= 8:
+        picked = pick_row_diagnostic(directory, 8)
+        if picked is not None:
+            name, diag = picked
+            if _input_tokens(diag) == 0:
+                print(
+                    f"HINT row 8 ({name}): in=0 (quota or billing-fail turn) — "
+                    "rerun bash scripts/vps_section11_row8_fallback_provider.sh "
+                    "(writes 08-fallback-provider-v2.jsonl; align VPS modelPreset first)",
+                    file=sys.stderr,
+                )
     if require_through >= 9:
         picked = pick_row_diagnostic(directory, 9)
         if picked is not None:

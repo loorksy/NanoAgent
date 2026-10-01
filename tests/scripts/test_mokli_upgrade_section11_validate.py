@@ -140,6 +140,41 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
     assert "vps_section11_row5_subagents" in proc.stderr
 
 
+def test_validate_hints_row8_when_input_tokens_zero(tmp_path: Path) -> None:
+    for row_id in range(1, 9):
+        in_tok = 0 if row_id == 8 else 100
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 1, "input_tokens": in_tok, "tool_calls": 0},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 9)}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "8",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "HINT row 8" in proc.stderr
+    assert "vps_section11_row8_fallback_provider" in proc.stderr
+
+
 def test_validate_hints_row10_when_oanda_missing(tmp_path: Path) -> None:
     body = (
         '{"kind":"tool","data":{"name":"fast_backtest","summary":"market_feed_unconfigured"}}\n'
