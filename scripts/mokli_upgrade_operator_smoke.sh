@@ -55,9 +55,9 @@ if [[ -d "$ROOT/section11-events" && -f "$ROOT/section11-results-partial.json" ]
     echo "WARN §11 rows 1–10 validation failed — sync_from_vps or fix artifacts" >&2
     fail=1
   fi
-  echo "== §11 completion status (cached quota; require-through 13) =="
-  bash scripts/mokli_upgrade_section11_completion_status.sh \
-    || echo "NOTE completion_status @13 blocked until live rows + after-p0 (expected)" >&2
+  echo "== §11 timer wake dry-run (cached quota + closure chain preview @13) =="
+  bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run \
+    || echo "NOTE timer_wake @13 blocked until live rows + after-p0 (expected)" >&2
 fi
 
 if [[ "$fail" -ne 0 ]]; then
@@ -66,4 +66,4 @@ if [[ "$fail" -ne 0 ]]; then
 fi
 
 echo "OK operator smoke (preflight + §11 dry-run + init smoke + scripts pytest)"
-echo "Tip: bash scripts/mokli_upgrade_section11_completion_status.sh; cloud_status.sh; operator_unblock.sh --pull-vps (live probe @13)"
+echo "Tip: bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run; operator_unblock.sh --pull-vps (live @13)"

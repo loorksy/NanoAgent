@@ -29,6 +29,7 @@ def test_operator_smoke_script() -> None:
         "operator_unblock" in combined
         or "cloud_status" in combined
         or "completion_status" in combined
+        or "timer_wake" in combined
     )
     partial = ROOT / "section11-results-partial.json"
     events = ROOT / "section11-events"
