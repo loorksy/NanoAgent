@@ -123,6 +123,7 @@ bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # default vali
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
 bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/8/9/10 when quota (+ OANDA for 10)
 bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable
+bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # artifact pack while quota blocked
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 

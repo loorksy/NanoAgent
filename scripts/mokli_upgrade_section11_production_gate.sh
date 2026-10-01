@@ -7,11 +7,13 @@ EVENTS="${ROOT}/section11-events"
 RESULTS="${ROOT}/section11-results-partial.json"
 REQUIRE=13
 SKIP_OANDA=0
+SKIP_QUOTA=0
 SKIP_PULL=0
 PULL_VPS=0
 
 usage() {
-  echo "Usage: $0 [--require-through N] [--results PATH] [--skip-oanda] [--skip-pull] [--pull-vps]" >&2
+  echo "Usage: $0 [--require-through N] [--results PATH] [--skip-oanda] [--skip-quota] [--skip-pull] [--pull-vps]" >&2
+  echo "  --skip-quota  cached quota only (no live probe); for artifact check while OpenRouter blocked" >&2
   exit 2
 }
 
@@ -20,6 +22,7 @@ while [[ $# -gt 0 ]]; do
     --require-through) REQUIRE="$2"; shift 2 ;;
     --results) RESULTS="$2"; shift 2 ;;
     --skip-oanda) SKIP_OANDA=1; shift ;;
+    --skip-quota) SKIP_QUOTA=1; shift ;;
     --skip-pull) SKIP_PULL=1; shift ;;
     --pull-vps) PULL_VPS=1; shift ;;
     -h | --help) usage ;;
@@ -27,12 +30,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-ENV_ARGS=(--require-quota)
+ENV_ARGS=()
+if [[ "$SKIP_QUOTA" -eq 0 ]]; then
+  ENV_ARGS+=(--require-quota)
+fi
 if [[ "$SKIP_OANDA" -eq 0 ]]; then
   ENV_ARGS+=(--require-oanda)
 fi
 
-echo "== VPS env (quota + OANDA) =="
+echo "== VPS env =="
 bash "${ROOT}/scripts/vps_section11_env_check.sh" "${ENV_ARGS[@]}"
 
 if [[ "$SKIP_PULL" -eq 0 ]]; then
