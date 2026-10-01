@@ -49,7 +49,8 @@ bash scripts/deploy-mokli-vps.sh
 - **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
-- **OANDA:** غير مهيأ على `/opt/nanoagent` — صفوف 2–4/9–10 تحتاج `tradingOanda` أو `.env` قبل PASS كامل.
+- **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. أضف `OANDA_*` في `/opt/nanoagent/.env` + `systemctl restart nanoagent-gateway`.
+- **صف 2 (2026-10-01):** prompt إنجليزي صريح للأداة → `tools=1` `rounds=2` `in≈25037` `out≈670`؛ أحداث `tool` started/failed + عرض «يفحص سعر الذهب…».
 
 ## قبل المحادثة الحية
 
