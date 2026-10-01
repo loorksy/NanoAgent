@@ -64,7 +64,7 @@ bash scripts/deploy-mokli-vps.sh
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **جزئي** من VPS؛ صفوف 11–13 + P0 after + إغلاق 13 للإنتاج)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2417** ناجية (`bash scripts/mokli_upgrade_aggregate_pytest.sh`)
+- pytest: **2419** ناجية (`bash scripts/mokli_upgrade_aggregate_pytest.sh`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## فواتير المزود (VPS)
