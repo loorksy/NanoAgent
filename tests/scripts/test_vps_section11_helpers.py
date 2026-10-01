@@ -79,6 +79,26 @@ def test_row12_local_smoke_prefers_dev_vite_url() -> None:
     assert "8766" in text
 
 
+def test_jsonl_retry_rate_limit_counts_as_quota_block(tmp_path: Path) -> None:
+    probe = tmp_path / "quota-probe.jsonl"
+    probe.write_text(
+        '{"kind":"retry","data":{"error_kind":"rate_limit","state":"waiting"}}\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_jsonl_indicates_quota_block "{probe}"',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+
+
 def test_quota_probe_sources_unblock_hints() -> None:
     probe = (ROOT / "scripts" / "vps_section11_quota_probe.sh").read_text(encoding="utf-8")
     hints = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")

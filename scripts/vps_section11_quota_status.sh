@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/vps_ssh.sh"
 # shellcheck source=scripts/section11_agent_api_turn_core.sh
 source "$ROOT/scripts/section11_agent_api_turn_core.sh"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 
 INSTALL_DIR="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
 SERVICE_USER="${MOKLI_SERVICE_USER:-nanoagent}"
@@ -53,13 +55,22 @@ _status_events_dir() {
   fi
   local line
   line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$probe" 2>/dev/null || true)
+  if section11_jsonl_indicates_quota_block "$probe"; then
+    if [[ -n "${line:-}" ]]; then
+      echo "probe=$(basename "$probe") age_min=$age_min $line"
+    else
+      echo "probe=$(basename "$probe") age_min=$age_min (no diagnostic; rate limit)"
+    fi
+    echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
+    "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$probe" >&2 || true
+    return 1
+  fi
   if [[ -z "${line:-}" ]]; then
     echo "INVALID probe=$(basename "$probe") (no diagnostic)"
     return 5
   fi
   echo "probe=$(basename "$probe") age_min=$age_min $line"
-  if grep -q 'Rate limit exceeded\|free-models-per-day' "$probe" 2>/dev/null \
-    || echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
+  if echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
     echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
     "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$probe" >&2 || true
     return 1
@@ -116,7 +127,7 @@ if [[ -z "${line:-}" ]]; then
   exit 5
 fi
 echo "probe=$(basename "$probe") age_min=$age_min $line"
-if grep -q 'Rate limit exceeded\|free-models-per-day' "$probe" 2>/dev/null \
+if grep -qE 'Rate limit exceeded|free-models-per-day|"error_kind"[[:space:]]*:[[:space:]]*"rate_limit"' "$probe" 2>/dev/null \
   || echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
   echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
   sudo -u "$user" bash -lc "cd '$install' && source .venv/bin/activate && \

@@ -25,7 +25,7 @@ section11_quota_reset_hint() {
 
 run_probe_checks() {
   local jsonl="$1"
-  if grep -q 'Rate limit exceeded\|free-models-per-day' "$jsonl" 2>/dev/null; then
+  if section11_jsonl_indicates_quota_block "$jsonl"; then
     echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
     section11_print_quota_unblock_hints
     section11_quota_reset_hint "$jsonl"
@@ -43,7 +43,11 @@ run_probe_checks() {
   local in_val
   in_val=$(echo "$line" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
   if [[ -z "${in_val:-}" || "$in_val" == "0" ]]; then
-    echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+    if ! grep -q '"kind": "diagnostic"' "$jsonl" 2>/dev/null; then
+      echo "QUOTA_BLOCKED: no diagnostic in $OUT (incomplete turn; rate limit likely)" >&2
+    else
+      echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+    fi
     section11_print_quota_unblock_hints
     section11_quota_reset_hint "$jsonl"
     return 1
@@ -61,7 +65,8 @@ export MOKLI_SSH_HOST="$HOST"
 MOKLI_SSH_HOST="$HOST" bash "$ROOT/scripts/vps_section11_agent_api_turn.sh" "$OUT" 'Reply with exactly: OK'
 
 if ssh -o BatchMode=yes "$HOST" \
-  "grep -q 'Rate limit exceeded\\|free-models-per-day' ${INSTALL_DIR}/section11-events/$OUT 2>/dev/null"; then
+  "grep -qE 'Rate limit exceeded|free-models-per-day|\"error_kind\"[[:space:]]*:[[:space:]]*\"rate_limit\"' \
+    ${INSTALL_DIR}/section11-events/$OUT 2>/dev/null"; then
   echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
   section11_print_quota_unblock_hints
   ssh -o BatchMode=yes "$HOST" \
@@ -70,13 +75,17 @@ if ssh -o BatchMode=yes "$HOST" \
   exit 1
 fi
 
-IN=$(ssh -o BatchMode=yes "$HOST" \
+extract_out=$(ssh -o BatchMode=yes "$HOST" \
   "sudo -u ${MOKLI_SERVICE_USER:-nanoagent} bash -lc 'cd ${INSTALL_DIR} && source .venv/bin/activate && \
-    python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT'" \
-  | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
+    python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT'" 2>&1) || true
+IN=$(echo "$extract_out" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
 
 if [[ -z "${IN:-}" || "$IN" == "0" ]]; then
-  echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+  if echo "$extract_out" | grep -qi 'no diagnostic'; then
+    echo "QUOTA_BLOCKED: no diagnostic in $OUT (incomplete turn; rate limit likely)" >&2
+  else
+    echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+  fi
   section11_print_quota_unblock_hints
   ssh -o BatchMode=yes "$HOST" \
     "sudo -u ${MOKLI_SERVICE_USER:-nanoagent} bash -lc 'cd $(printf '%q' "$INSTALL_DIR") && \
