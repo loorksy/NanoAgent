@@ -6,6 +6,7 @@ Checks (does not call LLM or broker):
   - each required row has at least one scenario JSONL with a diagnostic (``NN-*.jsonl``)
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
   - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
+  - rows 1–13: ``01-no-tools-after-p0.jsonl`` required (skipped with ``--allow-partial`` preview)
 
   python scripts/mokli_upgrade_section11_validate.py \\
     --dir ./section11-events --results section11-results.json --require-through 13
@@ -252,6 +253,16 @@ def main() -> int:
         errors.append(
             f"Placeholder DRY-RUN in results for rows {dry_run_rows} — "
             "replace with live §11 text before production validate"
+        )
+
+    if (
+        args.require_through >= 13
+        and not args.allow_partial
+        and not (directory / "01-no-tools-after-p0.jsonl").is_file()
+    ):
+        errors.append(
+            "Missing 01-no-tools-after-p0.jsonl — "
+            "bash scripts/vps_section11_row1_after_p0.sh after quota OK"
         )
 
     if args.require_through >= 13 and not args.allow_partial:

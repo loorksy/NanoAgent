@@ -330,6 +330,37 @@ def test_validate_prints_progress_on_failure(tmp_path: Path) -> None:
     assert "  2: incomplete" in proc.stderr
 
 
+def test_validate_requires_after_p0_jsonl_when_require_through_13(tmp_path: Path) -> None:
+    for row_id in range(1, 14):
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}})
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({row_id: "PASS — live" for row_id in range(1, 14)}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "01-no-tools-after-p0.jsonl" in proc.stderr
+
+
 def test_validate_rejects_partial_results_when_require_through_13(tmp_path: Path) -> None:
     for row_id in range(1, 14):
         (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
