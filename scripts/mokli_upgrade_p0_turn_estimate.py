@@ -54,7 +54,11 @@ def estimate_turn(
     )
     tools = registry.get_definitions_for_names(llm_tool_names)
     parts = component_tokens(messages, tools)
-    return {**parts, "tools_registered": len(registry.tool_names)}
+    return {
+        **parts,
+        "tools_registered": len(registry.tool_names),
+        "provider_tools": len(llm_tool_names),
+    }
 
 
 def _print_line(message: str, parts: dict[str, int]) -> None:
@@ -62,6 +66,7 @@ def _print_line(message: str, parts: dict[str, int]) -> None:
     print(
         f"msg={preview!r} final={parts['final']} system={parts['system']} "
         f"conversation={parts['conversation']} tool_defs={parts['tool_definitions']} "
+        f"provider_tools={parts.get('provider_tools', '—')} "
         f"tools_registered={parts.get('tools_registered', '—')}"
     )
 
