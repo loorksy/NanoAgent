@@ -23,7 +23,7 @@
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS `main` (مثال Hostinger) | `git rev-parse` → **`976fdd01`**؛ `nanoagent-gateway` active؛ Agent API `/api/v2/health` OK | **منجز** (2026-10-01) |
-| §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4** PASS (`res_*` decision)؛ **5–13** في التقرير فارغة | **جزئي** |
+| §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4** PASS؛ **5** PARTIAL (spawn)؛ **6** PASS؛ **7–13** فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
 
