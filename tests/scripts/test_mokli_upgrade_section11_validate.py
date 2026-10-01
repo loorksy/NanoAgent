@@ -209,6 +209,33 @@ def test_validate_hints_row1_p0_when_high_in_without_after_p0(tmp_path: Path) ->
     assert "row1_after_p0" in proc.stderr
 
 
+def test_validate_ignores_empty_duplicate_row_jsonl(tmp_path: Path) -> None:
+    (tmp_path / "01-empty.jsonl").write_text('{"kind":"delta"}\n', encoding="utf-8")
+    (tmp_path / "01-good.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 50}})
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+
+
 def test_validate_prints_hints_on_failure_when_rows_11_13_empty(tmp_path: Path) -> None:
     for row_id in range(1, 11):
         (tmp_path / f"{row_id:02d}-x.jsonl").write_text(

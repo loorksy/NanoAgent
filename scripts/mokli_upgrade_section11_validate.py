@@ -3,7 +3,7 @@
 
 Checks (does not call LLM or broker):
   - ``section11-events/*.jsonl`` named with numeric prefix 01–13 (or 14)
-  - each file contains at least one diagnostic event
+  - each required row has at least one scenario JSONL with a diagnostic (``NN-*.jsonl``)
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
 
   python scripts/mokli_upgrade_section11_validate.py \\
@@ -27,7 +27,7 @@ from mokli_upgrade_diagnostic_extract import (  # noqa: E402
     pick_row_diagnostic,
     session_summary_line,
 )
-from mokli_upgrade_section11_batch import _load_results, _row_index  # noqa: E402
+from mokli_upgrade_section11_batch import _load_results, _row_index, _scenario_jsonl  # noqa: E402
 
 
 def _closure_hints(empty_result: list[int]) -> None:
@@ -133,12 +133,18 @@ def _print_row_progress(
 ) -> None:
     jsonl_name: dict[int, str] = {}
     has_diagnostic: dict[int, bool] = {}
-    for path in directory.glob("*.jsonl"):
-        idx = _row_index(path.stem)
-        if idx is None:
-            continue
-        jsonl_name[idx] = path.name
-        has_diagnostic[idx] = diagnostic_from_text(path.read_text(encoding="utf-8")) is not None
+    row_ids = {
+        idx
+        for p in _scenario_jsonl(directory)
+        if (idx := _row_index(p.stem)) is not None
+    }
+    for row_id in sorted(row_ids):
+        picked = pick_row_diagnostic(directory, row_id)
+        if picked is not None:
+            jsonl_name[row_id], diag = picked
+            has_diagnostic[row_id] = bool(diag)
+        else:
+            has_diagnostic[row_id] = False
 
     print(f"§11 progress (rows {min(required)}–{max(required)}):", file=sys.stderr)
     for row_id in sorted(required):
@@ -191,13 +197,13 @@ def main() -> int:
         return 1
 
     found_rows: set[int] = set()
-    for path in directory.glob("*.jsonl"):
+    for path in _scenario_jsonl(directory):
         idx = _row_index(path.stem)
-        if idx is None:
-            continue
-        found_rows.add(idx)
-        if diagnostic_from_text(path.read_text(encoding="utf-8")) is None:
-            errors.append(f"No diagnostic in {path.name}")
+        if idx is not None:
+            found_rows.add(idx)
+    for row_id in sorted(required & found_rows):
+        if pick_row_diagnostic(directory, row_id) is None:
+            errors.append(f"No diagnostic for §11 row {row_id}")
 
     missing_jsonl = sorted(required - found_rows)
     if missing_jsonl:
