@@ -123,5 +123,7 @@ fi
 if [[ "$REQUIRE_QUOTA" -eq 1 && "$quota_ok" -eq 0 ]]; then
   echo "BLOCKED: LLM quota (OpenRouter credits or paid preset)" >&2
   fail=1
+elif [[ "$quota_ok" -eq 0 ]]; then
+  echo "HINT: llm_quota blocked — use --require-quota before live §11 turns (exit 1)" >&2
 fi
 exit "$fail"
