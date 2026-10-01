@@ -233,6 +233,27 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "section11-timer-wake-wait" in text
     assert "timer_wake_wait_quota.log" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
+    assert "wake_after_buffer_utc" in text
+
+
+def test_check_wake_prints_wake_eta_when_reset_known() -> None:
+    probe = ROOT / "section11-events" / "quota-probe.jsonl"
+    if not probe.is_file():
+        return
+    script = ROOT / "scripts" / "mokli_upgrade_section11_check_wake.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    combined = proc.stdout + proc.stderr
+    assert proc.returncode == 0
+    assert "wake_after_buffer_sec=" in combined
+    if "seconds_until_reset=unknown" not in combined:
+        assert "wake_after_buffer_utc=" in combined
 
 
 def test_post_quota_wires_wait_probe_and_reruns() -> None:
