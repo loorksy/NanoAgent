@@ -75,6 +75,7 @@ def test_quota_probe_sources_unblock_hints() -> None:
     assert "section11_quota_hints.sh" in probe
     assert "section11_print_quota_unblock_hints" in probe
     assert "MOKLI_SECTION11_MODEL" in hints
+    assert "free-models-per-day" in hints
 
 
 def test_agent_api_turn_forwards_section11_model_over_ssh() -> None:
