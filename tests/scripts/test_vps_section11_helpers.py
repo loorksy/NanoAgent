@@ -238,7 +238,7 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "section11-timer-wake-wait" in text
     assert "timer_wake_wait_quota.log" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
-    assert "wake_after_buffer_utc" in text
+    assert "section11_emit_wake_after_buffer" in text
 
 
 def test_check_wake_prints_wake_eta_when_reset_known() -> None:
