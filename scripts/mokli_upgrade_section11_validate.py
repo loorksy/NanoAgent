@@ -38,6 +38,12 @@ def _closure_hints(empty_result: list[int]) -> None:
             "bash scripts/mokli_upgrade_section11_remaining_rows.sh",
             file=sys.stderr,
         )
+    if 13 in empty_result:
+        print(
+            "HINT row 13 CI proxy (no device/LLM): "
+            "bash scripts/mokli_upgrade_section11_row13_ci.sh",
+            file=sys.stderr,
+        )
 
 
 def _input_tokens(diag: dict) -> int:

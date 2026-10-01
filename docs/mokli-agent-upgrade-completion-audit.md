@@ -9,7 +9,7 @@
 | P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | §2 + عقود مضغوطة + تأجيل مخططات التداول على الدور الخفيف؛ `test_turn_efficiency`؛ تقدير `final≈4652` للتحية (محلي) | منجز (وحدة/تقدير) |
 | P0 — أرقام before/after على **مزود حي** | تقرير §2.1 + §11؛ إعادة قياس after credits/OANDA | **جزئي** (baseline VPS) |
 | Agent API ينشر `diagnostic` في SSE | `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` | منجز (CI، ليس §11 حي) |
-| P1 — نشاط UI من أحداث وقت التشغيل فقط | `tests/deploy/test_mokli_pipe.py`؛ `mokli-ui` / `mobile` | منجز (CI)؛ **§11 صفوف 12–13 حية** |
+| P1 — نشاط UI من أحداث وقت التشغيل فقط | `tests/deploy/test_mokli_pipe.py`؛ `mokli-sdk`؛ `mokli_upgrade_section11_row13_ci.sh` (Cloud Agent 2026-10-01) | منجز (CI/proxy)؛ **§11 صفوف 12–13 JSONL حية** |
 | P1 — طبقات سياق حسب المهمة | `mokli/agent/context_layers.py`؛ اختبارات الطبقات | منجز |
 | P1 — وكلاء تداول + نقاش/فرعي موجود | `mokli/trading/crew/`؛ `tests/trading/test_i18n_catalog.py` | منجز |
 | P1 — قرارات تداول منظمة | `result_wire`؛ `mokli_pipe`؛ بطاقة `decision` | منجز (CI)؛ **§11 صف 4 حي** |
