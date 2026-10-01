@@ -33,17 +33,38 @@ OUT="$EVENT_DIR/$OUT_NAME"
 SID=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d "{\"title\":\"section11-long\"}" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+wait_session_idle() {
+  for _ in $(seq 1 180); do
+    if curl -sf "$BASE/sessions/$SID" -H "Authorization: Bearer $TOKEN" \
+      | python3 -c "import sys,json; d=json.load(sys.stdin); sd=d.get('state_detail') or d; print('busy' if sd.get('state')=='working' else 'idle')" \
+      | grep -q '^idle$'; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "section11: session still busy after wait" >&2
+  return 1
+}
+
 for n in $(seq 1 "$ROUNDS"); do
+  wait_session_idle || true
   RAW="$EVENT_DIR/raw-${OUT_NAME%.jsonl}-${n}.sse"
+  : > "$RAW"
   curl -sfN --max-time 600 "$BASE/sessions/$SID/events?until_end=1" \
     -H "Authorization: Bearer $TOKEN" -o "$RAW" &
   SSE_PID=$!
   sleep 1
-  curl -sf -X POST "$BASE/sessions/$SID/messages" -H "Authorization: Bearer $TOKEN" \
+  if ! curl -sf -X POST "$BASE/sessions/$SID/messages" -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$(PROMPT="$PROMPT" python3 -c "import json,os; print(json.dumps({'text':os.environ['PROMPT']}))")"
+    -d "$(PROMPT="$PROMPT" python3 -c "import json,os; print(json.dumps({'text':os.environ['PROMPT']}))")"; then
+    echo "section11: round $n message POST failed (409 run_in_progress?)" >&2
+    kill "$SSE_PID" 2>/dev/null || true
+    wait "$SSE_PID" 2>/dev/null || true
+    sleep 5
+    continue
+  fi
   wait "$SSE_PID" || true
-  for _ in $(seq 1 45); do
+  for _ in $(seq 1 90); do
     if grep -q '^data: ' "$RAW" 2>/dev/null && \
       grep '^data: ' "$RAW" | sed 's/^data: //' | grep -q '"kind".*"diagnostic"'; then
       break
@@ -52,7 +73,7 @@ for n in $(seq 1 "$ROUNDS"); do
   done
   grep '^data: ' "$RAW" | sed 's/^data: //' >> "$OUT"
   echo "{\"kind\":\"section11_round_marker\",\"data\":{\"round\":$n}}" >> "$OUT"
-  sleep 1
+  wait_session_idle || true
 done
 sudo -u nanoagent bash -lc "cd '$INSTALL' && source .venv/bin/activate && \
   python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT_NAME"

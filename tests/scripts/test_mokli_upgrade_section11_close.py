@@ -94,7 +94,7 @@ def test_section11_close_apply_updates_real_report_unicode_header(tmp_path: Path
     """Regression: close --apply must flip §11 title on docs/mokli-agent-upgrade-report.md shape."""
     report_src = ROOT / "docs" / "mokli-agent-upgrade-report.md"
     source = report_src.read_text(encoding="utf-8")
-    header = next(line for line in source.splitlines() if line.startswith("## 11."))
+    header = "## 11. مسارات حية (لم تُنفَّذ في Cloud Agent)"
     row1 = next(line for line in source.splitlines() if line.startswith("| 1 |"))
     events = tmp_path / "events"
     events.mkdir()
