@@ -69,7 +69,15 @@ if [[ "$secs" -gt 0 ]]; then
     exit 1
   fi
   echo "Sleeping ${sleep_for}s until reset+buffer…" >&2
-  sleep "$sleep_for"
+  remaining=$sleep_for
+  chunk_sec=1800
+  while [[ "$remaining" -gt 0 ]]; do
+    chunk=$remaining
+    [[ "$chunk" -gt "$chunk_sec" ]] && chunk=$chunk_sec
+    echo "WAIT_HEARTBEAT sleep_remaining_sec=${remaining} chunk_sec=${chunk}" >&2
+    sleep "$chunk"
+    remaining=$(( remaining - chunk ))
+  done
 fi
 
 exec bash "$ROOT/scripts/vps_section11_quota_probe.sh"

@@ -342,6 +342,14 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert "vps_pull_main.sh" in text
 
 
+def test_wait_quota_reset_long_sleep_emits_heartbeats() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_wait_quota_reset.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "WAIT_HEARTBEAT" in text
+    assert "chunk_sec" in text
+
+
 def test_wait_quota_reset_dry_run_on_fixture_probe() -> None:
     probe = ROOT / "section11-events" / "quota-probe.jsonl"
     if not probe.is_file():
