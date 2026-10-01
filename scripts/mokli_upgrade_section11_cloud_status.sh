@@ -16,12 +16,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "== OpenRouter reset =="
+RESET_SEC="unknown"
+RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+printf '%s\n' "$RESET_OUT"
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
+
+echo ""
 echo "== VPS LLM quota (cached probe; no new LLM call) =="
 QUOTA_OK=0
 if bash "$ROOT/scripts/vps_section11_quota_status.sh"; then
   QUOTA_OK=1
 else
-  bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
   echo "HINT: live probe: bash scripts/vps_section11_quota_probe.sh" >&2
   echo "HINT: after reset: bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
   echo "HINT: or: bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
@@ -76,7 +83,7 @@ if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
 fi
 
 echo ""
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0}"
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC"
 if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
