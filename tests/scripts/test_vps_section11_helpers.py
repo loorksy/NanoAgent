@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_vps_section11_helper_scripts_exist_and_executable() -> None:
     names = [
         "section11_agent_api_turn_core.sh",
+        "section11_long_session_core.sh",
         "mokli_upgrade_section11_status.sh",
         "vps_section11_agent_api_turn.sh",
         "vps_section11_long_session.sh",

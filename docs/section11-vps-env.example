@@ -1,0 +1,11 @@
+# Copy to /opt/nanoagent/.env on VPS (chmod 600). Restart: systemctl restart nanoagent-gateway
+# Do not commit real secrets.
+
+# OANDA practice/live — required for §11 rows 2–4, 10–11 full PASS
+OANDA_API_TOKEN=
+OANDA_ACCOUNT_ID=
+OANDA_ENV=practice
+
+# Optional live XAUUSD price when MetaAPI configured
+# METAAPI_TOKEN=
+# METAAPI_ACCOUNT_ID=
