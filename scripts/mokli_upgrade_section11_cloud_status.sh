@@ -16,10 +16,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "== VPS LLM quota (may exit 1 when blocked) =="
+echo "== VPS LLM quota (cached probe; no new LLM call) =="
 QUOTA_OK=0
-if bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
+if bash "$ROOT/scripts/vps_section11_quota_status.sh"; then
   QUOTA_OK=1
+else
+  echo "HINT: live probe: bash scripts/vps_section11_quota_probe.sh" >&2
 fi
 
 echo ""
