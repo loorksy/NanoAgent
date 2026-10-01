@@ -17,10 +17,17 @@ for f in "$BASELINE" "$NEW"; do
   fi
 done
 
-read -r _ base_line <<<"$("$PYTHON" "$EXTRACT" --file "$BASELINE")"
-read -r _ new_line <<<"$("$PYTHON" "$EXTRACT" --file "$NEW")"
-base_in=$(echo "$base_line" | sed -n 's/.*in=\([0-9]*\).*/\1/p')
-new_in=$(echo "$new_line" | sed -n 's/.*in=\([0-9]*\).*/\1/p')
+base_line="$("$PYTHON" "$EXTRACT" --file "$BASELINE")"
+new_line="$("$PYTHON" "$EXTRACT" --file "$NEW")"
+_extract_in() {
+  echo "$1" | awk '{
+    for (i = 1; i <= NF; i++) {
+      if ($i ~ /^in=[0-9]+$/) { sub(/^in=/, "", $i); print $i; exit }
+    }
+  }'
+}
+base_in=$(_extract_in "$base_line")
+new_in=$(_extract_in "$new_line")
 echo "baseline=$BASELINE in=${base_in:-?}"
 echo "new=$NEW in=${new_in:-?}"
 if [[ -n "${base_in:-}" && -n "${new_in:-}" && "$base_in" =~ ^[0-9]+$ && "$new_in" =~ ^[0-9]+$ ]]; then
