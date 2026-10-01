@@ -102,6 +102,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after 
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
 bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
 python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
+bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
 python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
 bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
