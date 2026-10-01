@@ -20,9 +20,9 @@
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2443** ناجية (1 skipped) | منجز |
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers`؛ `production_gate`؛ sync @13؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` (`partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `operator_smoke` | منجز |
-| §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `validate` يرفض صف **8** عند `in=0` مع `@13`؛ `close --apply` يحدّث §2.1 + **P0 live delta** عند `01-no-tools-after-p0.jsonl` | منجز |
+| §11 بوابة تقرير (CI) | `validate` @13 يرفض **3/5/8** عند تشخيص ناقص؛ `pick_row` يفضّل **v2**/`in>0`؛ `close --apply` → §2.1 + **P0 live delta** | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (VPS جزئي 1–10؛ **11–13** فارغة؛ **after-P0**؛ PARTIAL **3,5,9,10**؛ صف **8** قد يحتاج إعادة عند `in=0` قبل `close --apply @13`) |
-| VPS checkout (Hostinger) | PR #62؛ **`git_rev=0b5064e2`** (validate + `pick_row` صف 8 يفضّل `in>0`)؛ preset **`qwen3-8-27b-free`**؛ UI 200 + pipe diagnostics | منجز (rev)؛ **quota/OANDA** محجوب |
+| VPS checkout (Hostinger) | PR #62؛ **`git_rev=9ad892b6`** (validate 3/5/8 + `pick_row`)؛ preset **`qwen3-8-27b-free`**؛ UI 200 + pipe diagnostics | منجز (rev)؛ **quota/OANDA** محجوب |
 | GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2443** green | **infra** — fix GitHub billing then re-run workflow |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`؛ **`in=0` في JSONL** — أعد `row8_fallback` بعد quota)؛ **9** PARTIAL؛ **10** PARTIAL (OANDA off)؛ **11–13** فارغة؛ **صف 12** pre-check (VPS + Cloud `local_section11_row12_smoke`): `ui_http=200` + `pipe_show_diagnostics` (2026-10-01) | **جزئي** |
 
