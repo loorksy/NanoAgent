@@ -50,21 +50,24 @@ def gather_section11_rows(
     results_path: Path | None = None,
 ) -> tuple[dict[int, tuple[str, str]], int]:
     """Build ``{row_id: (result_text, numbers_line)}`` from JSONL + optional results JSON."""
-    files = _collect_jsonl(directory)
     results_map: dict[int, str] = {}
     if results_path is not None:
         results_map = _load_results(results_path)
+    row_ids: set[int] = set()
+    for path in _scenario_jsonl(directory):
+        idx = _row_index(path.stem)
+        if idx is not None:
+            row_ids.add(idx)
+    row_ids |= set(results_map.keys())
     out: dict[int, tuple[str, str]] = {}
     missing = 0
-    for path in files:
-        idx = _row_index(path.stem)
-        if idx is None:
-            continue
-        diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
-        if diag is None:
+    for idx in sorted(row_ids):
+        picked = pick_row_diagnostic(directory, idx)
+        if picked is None:
             numbers = "(no diagnostic)"
             missing += 1
         else:
+            _name, diag = picked
             numbers = one_line_summary(diag)
         result_text = results_map.get(idx, "")
         out[idx] = (result_text, numbers)

@@ -100,6 +100,37 @@ def test_batch_markdown_includes_p0_fold_suffix(tmp_path: Path) -> None:
     assert "fold_chars=3000" in proc.stdout
 
 
+def test_gather_picks_highest_input_tokens_for_duplicate_row_files(tmp_path: Path) -> None:
+    (tmp_path / "01-low.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}})
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "01-high.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 9000}})
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--markdown",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "in=9000" in proc.stdout
+    assert "01-high.jsonl" in proc.stdout
+
+
 def test_batch_markdown_ignores_non_scenario_jsonl(tmp_path: Path) -> None:
     (tmp_path / "01-greeting.jsonl").write_text(
         json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 10}})
