@@ -49,6 +49,7 @@ if ! flock -n 200; then
   exit 2
 fi
 echo "TIMER_WAKE_LOCK=$LOCK_FILE"
+trap 'echo "TIMER_WAKE_FINAL_EXIT=$?"' EXIT
 
 if [[ "$WAIT_QUOTA" -eq 1 ]]; then
   echo ""
