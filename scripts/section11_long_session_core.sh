@@ -8,6 +8,23 @@ section11_run_long_session() {
   local PROMPT="$4"
   local SERVICE_USER="${MOKLI_SERVICE_USER:-nanoagent}"
 
+  if [[ "$(id -un)" != "$SERVICE_USER" ]] && id "$SERVICE_USER" &>/dev/null; then
+    local prompt_b64
+    prompt_b64=$(printf '%s' "$PROMPT" | base64 -w0 2>/dev/null || printf '%s' "$PROMPT" | base64)
+    sudo -u "$SERVICE_USER" env MOKLI_SERVICE_USER="$SERVICE_USER" \
+      bash -s -- "$INSTALL" "$OUT_NAME" "$ROUNDS" "$prompt_b64" <<'SECTION11_LONG_AS_USER'
+set -euo pipefail
+INSTALL="$1"
+OUT_NAME="$2"
+ROUNDS="$3"
+PROMPT=$(printf '%s' "$4" | base64 -d)
+# shellcheck source=/dev/null
+source "$INSTALL/scripts/section11_long_session_core.sh"
+section11_run_long_session "$INSTALL" "$OUT_NAME" "$ROUNDS" "$PROMPT"
+SECTION11_LONG_AS_USER
+    return $?
+  fi
+
   local TOKEN BASE EVENT_DIR OUT SID
   TOKEN=$(cat "$INSTALL/.mokli/workspace/agent_api/admin_token")
   BASE=http://127.0.0.1:8766/api/v2

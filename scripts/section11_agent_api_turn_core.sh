@@ -13,6 +13,25 @@ section11_run_agent_api_turn() {
   local PROMPT="$3"
   local SERVICE_USER="${MOKLI_SERVICE_USER:-nanoagent}"
 
+  # Cloud-agent SSH runs as root; JSONL must be owned by the gateway user for on-VPS reruns.
+  if [[ "$(id -un)" != "$SERVICE_USER" ]] && id "$SERVICE_USER" &>/dev/null; then
+    local prompt_b64
+    prompt_b64=$(printf '%s' "$PROMPT" | base64 -w0 2>/dev/null || printf '%s' "$PROMPT" | base64)
+    sudo -u "$SERVICE_USER" env \
+      MOKLI_SECTION11_MODEL="${MOKLI_SECTION11_MODEL:-}" \
+      MOKLI_SERVICE_USER="$SERVICE_USER" \
+      bash -s -- "$INSTALL" "$OUT_NAME" "$prompt_b64" <<'SECTION11_TURN_AS_USER'
+set -euo pipefail
+INSTALL="$1"
+OUT_NAME="$2"
+PROMPT=$(printf '%s' "$3" | base64 -d)
+# shellcheck source=/dev/null
+source "$INSTALL/scripts/section11_agent_api_turn_core.sh"
+section11_run_agent_api_turn "$INSTALL" "$OUT_NAME" "$PROMPT"
+SECTION11_TURN_AS_USER
+    return $?
+  fi
+
   local TOKEN BASE EVENT_DIR SID RAW SSE_PID
   TOKEN=$(cat "$INSTALL/.mokli/workspace/agent_api/admin_token")
   BASE=http://127.0.0.1:8766/api/v2

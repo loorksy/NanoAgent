@@ -66,6 +66,18 @@ def test_section11_turn_core_retries_session_create() -> None:
     assert "failed to create session" in text
 
 
+def test_section11_turn_core_reexecs_as_service_user_when_root() -> None:
+    turn = (ROOT / "scripts" / "section11_agent_api_turn_core.sh").read_text(
+        encoding="utf-8"
+    )
+    long = (ROOT / "scripts" / "section11_long_session_core.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "SECTION11_TURN_AS_USER" in turn
+    assert "sudo -u" in turn and 'id -un)" != "$SERVICE_USER"' in turn
+    assert "SECTION11_LONG_AS_USER" in long
+
+
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
     script = ROOT / "scripts" / "vps_pull_main.sh"
     proc = subprocess.run(
