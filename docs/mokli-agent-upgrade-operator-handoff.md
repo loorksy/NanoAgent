@@ -1,5 +1,7 @@
 # تسليم ترقية Mokli — للمشغّل (بعد Cloud Agent)
 
+**أثناء حجب OpenRouter:** `bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10` قد يخرج **0** (حزمة JSONL 1–10 سليمة) بينما **`closure_errors=9`** عند `@13` — هذا متوقع حتى quota `in>0` وOANDA وصفوف **11–13** حية.
+
 ## قائمة إغلاق الإنتاج (§11)
 
 1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (`PULL_OK` بعد `:18791` + Agent API `:8766`؛ يُصلح ملكية `section11-events/`). **لا** تشغّل `vps_pull_main.sh` بدون فرع قبل دمج PR — الافتراضي `main` يزيل سكربتات §11؛ `vps_section11_env_check.sh` يطبع `git_branch=` وHINT إن كان الفرع خاطئاً. عند خطأ Permission denied قديم: `bash scripts/vps_section11_fix_events_ownership.sh`
