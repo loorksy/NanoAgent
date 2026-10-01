@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | فرع مستقل + commits صغيرة | PR **#62** — `cursor/section11-vps-rows-d9e1` (يتقدّم على **`main`**؛ merge بعد إغلاق §11) | منجز (فرع)؛ **merge** بعد §11 |
 | Phase 0 — تدقيق من الكود | `docs/mokli-agent-upgrade-audit.md` | منجز |
-| P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | §2 + عقود مضغوطة + تأجيل مخططات التداول على الدور الخفيف؛ `test_turn_efficiency`؛ تقدير `final≈4652` للتحية (محلي) | منجز (وحدة/تقدير) |
+| P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | §2 + عقود مضغوطة + تأجيل مخططات التداول على الدور الخفيف؛ `test_turn_efficiency`؛ تقدير `final≈5159` للتحية (محلي، `p0_turn_estimate --compare`) | منجز (وحدة/تقدير) |
 | P0 — أرقام before/after على **مزود حي** | تقرير §2.1 + §11؛ إعادة قياس after credits/OANDA | **جزئي** (baseline VPS) |
 | Agent API ينشر `diagnostic` في SSE | `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` | منجز (CI، ليس §11 حي) |
 | P1 — نشاط UI من أحداث وقت التشغيل فقط | `tests/deploy/test_mokli_pipe.py`؛ `mokli-sdk`؛ `mokli_upgrade_section11_row13_ci.sh` (Cloud Agent 2026-10-01) | منجز (CI/proxy)؛ **§11 صفوف 12–13 JSONL حية** |
