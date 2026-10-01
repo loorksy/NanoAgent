@@ -53,6 +53,23 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
   ARTIFACT_OK=1
 fi
 
+PARTIAL10_OK=0
+PARTIAL10_GATE=0
+if [[ "$REQUIRE" -gt 10 ]]; then
+  echo ""
+  echo "== §11 partial pack (require-through 10; --skip-vps) =="
+  if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
+    --skip-vps --require-through 10 "$EVENTS" "$RESULTS"; then
+    PARTIAL10_OK=1
+    echo ""
+    echo "== production gate @10 (skip quota/OANDA/pull) =="
+    if bash "$ROOT/scripts/mokli_upgrade_section11_production_gate.sh" \
+      --skip-quota --skip-oanda --skip-pull --require-through 10; then
+      PARTIAL10_GATE=1
+    fi
+  fi
+fi
+
 PROD_OK=0
 if [[ "$LIVE_GATE" -eq 1 ]]; then
   echo ""
@@ -67,7 +84,7 @@ else
 fi
 
 echo ""
-echo "completion_status: artifact_ok=$ARTIFACT_OK production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE"
+echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE"
 if [[ "$PROD_OK" -eq 1 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
@@ -76,8 +93,8 @@ if [[ "$ARTIFACT_OK" -eq 1 && "$REQUIRE" -le 10 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
 fi
-if [[ "$REQUIRE" -gt 10 && "$ARTIFACT_OK" -eq 0 ]]; then
-  echo "HINT: partial pack @10 (no LLM) — bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10" >&2
+if [[ "$REQUIRE" -gt 10 && "$PARTIAL10_OK" -eq 0 ]]; then
+  echo "HINT: sync partial JSONL 1–10 — bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps" >&2
 fi
 echo "SECTION11_COMPLETION_EXIT=1" >&2
 exit 1
