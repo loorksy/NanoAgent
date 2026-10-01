@@ -30,7 +30,7 @@ def test_secrets_check_fails_without_env(monkeypatch) -> None:
     env = {
         k: v
         for k, v in os.environ.items()
-        if k not in ("VPS", "VPSPASS", "vps", "password")
+        if k not in ("VPS", "VPSPASS", "vps", "password", "MOKLI_SSH_HOST")
     }
     proc = subprocess.run(
         ["bash", str(SCRIPT)],

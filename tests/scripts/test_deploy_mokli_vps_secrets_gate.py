@@ -14,7 +14,7 @@ def test_deploy_exits_when_vps_credentials_missing() -> None:
     env = {
         k: v
         for k, v in os.environ.items()
-        if k not in ("VPS", "VPSPASS", "vps", "password")
+        if k not in ("VPS", "VPSPASS", "vps", "password", "MOKLI_SSH_HOST")
     }
     proc = subprocess.run(
         ["bash", str(DEPLOY)],
