@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -104,6 +105,46 @@ def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "01-no-tools-after-p0.jsonl" in text
     assert "needs live in>0" in text
+
+
+def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    validate = ROOT / "scripts" / "mokli_upgrade_section11_validate.sh"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc_v = subprocess.run(
+        [
+            "bash",
+            str(validate),
+            "--dir",
+            str(events),
+            "--results",
+            str(partial),
+            "--require-through",
+            "13",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    combined_v = proc_v.stdout + proc_v.stderr
+    err_count = sum(1 for line in combined_v.splitlines() if line.startswith("ERROR"))
+    assert proc_v.returncode != 0
+    assert err_count >= 1
+    proc_b = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-vps", "--require-through", "13", str(events), str(partial)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    match = re.search(r"closure_errors=(\d+)", proc_b.stderr)
+    assert match, proc_b.stderr
+    assert int(match.group(1)) == err_count
 
 
 def test_blockers_next_p0_on_partial_pack_require_13() -> None:
