@@ -48,7 +48,7 @@ cat <<NOTE
 
 Quota OK and partial reruns finished (if not --skip-rerun).
 Next (full chain): bash scripts/mokli_upgrade_section11_timer_wake.sh  # add --wait-quota if probe was blocked earlier
-  bash scripts/mokli_upgrade_section11_remaining_rows.sh   # rows 11–13 runbook
+  bash scripts/mokli_upgrade_section11_remaining_rows.sh   # rows 11–13 runbook (text only; run row scripts + UI/device)
   bash scripts/mokli_upgrade_section11_operator_unblock.sh # must exit 0
   bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
 

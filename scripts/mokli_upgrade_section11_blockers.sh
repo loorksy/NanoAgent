@@ -71,7 +71,7 @@ if [[ "$VAL_OK" -eq 0 ]]; then
   if [[ ! -f "$EVENTS/01-no-tools-after-p0.jsonl" ]]; then
     echo "NEXT P0: bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
   fi
-  echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
+  echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13 runbook — execute row scripts/UI/device)" >&2
 fi
 echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
 echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
