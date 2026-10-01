@@ -5,6 +5,7 @@ Checks (does not call LLM or broker):
   - ``section11-events/*.jsonl`` named with numeric prefix 01–13 (or 14)
   - each required row has at least one scenario JSONL with a diagnostic (``NN-*.jsonl``)
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
+  - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
 
   python scripts/mokli_upgrade_section11_validate.py \\
     --dir ./section11-events --results section11-results.json --require-through 13
