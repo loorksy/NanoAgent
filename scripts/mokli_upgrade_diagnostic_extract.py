@@ -20,7 +20,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Any
+
+# Report §2.1 live snapshot rows (Agent API on VPS).
+_P0_BASELINE_ROWS: dict[int, str] = {
+    1: "تحية",
+    2: "أداة واحدة",
+    4: "تحليل/قرار",
+    10: "backtest",
+}
 
 
 def _diagnostic_from_obj(obj: dict[str, Any]) -> dict[str, Any] | None:
@@ -126,6 +135,62 @@ def one_line_summary(diag: dict[str, Any]) -> str:
     return _one_line_summary(diag)
 
 
+def _row_index_from_stem(stem: str) -> int | None:
+    prefix = stem.split("-", 1)[0]
+    if prefix.isdigit():
+        return int(prefix)
+    return None
+
+
+def pick_row_diagnostic(directory: Path, row: int) -> tuple[str, dict[str, Any]] | None:
+    """Best diagnostic for a §11 row (prefer highest non-zero input_tokens)."""
+    best_name = ""
+    best_diag: dict[str, Any] | None = None
+    best_in = -1
+    for path in sorted(directory.glob("*.jsonl")):
+        if _row_index_from_stem(path.stem) != row:
+            continue
+        diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
+        if diag is None:
+            continue
+        tin = _input_tokens(diag)
+        if tin > best_in:
+            best_in = tin
+            best_diag = diag
+            best_name = path.name
+    if best_diag is None:
+        return None
+    return best_name, best_diag
+
+
+def p0_baseline_markdown(directory: Path) -> str:
+    """Markdown table rows for report §2.1 from on-disk §11 JSONL."""
+    lines = [
+        "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for row_id, label in sorted(_P0_BASELINE_ROWS.items()):
+        picked = pick_row_diagnostic(directory, row_id)
+        if picked is None:
+            lines.append(f"| {row_id} {label} | — | — | — | — | no JSONL/diagnostic |")
+            continue
+        name, diag = picked
+        note = f"`{name}`"
+        if _input_tokens(diag) == 0:
+            note += "; quota_blocked?"
+        lines.append(
+            "| {label} | {in_t} | {out_t} | {tools} | {rounds} | {note} |".format(
+                label=f"{row_id} {label}",
+                in_t=_input_tokens(diag),
+                out_t=int(diag.get("request_output_tokens") or diag.get("output_tokens") or 0),
+                tools=int(diag.get("tool_calls") or 0),
+                rounds=int(diag.get("rounds") or 0),
+                note=note,
+            )
+        )
+    return "\n".join(lines)
+
+
 def _p0_fold_suffix(diag: dict[str, Any]) -> str:
     """Extra §11 numbers for long-session / P0 checks (omitted when all zero)."""
     extra: list[str] = []
@@ -187,7 +252,20 @@ def main() -> int:
         action="store_true",
         help="Print aggregate input-token growth across all diagnostics (row 9)",
     )
+    parser.add_argument(
+        "--p0-baseline",
+        type=Path,
+        metavar="DIR",
+        help="Print markdown table for report §2.1 from section11-events JSONL",
+    )
     args = parser.parse_args()
+    if args.p0_baseline is not None:
+        directory = args.p0_baseline.expanduser().resolve()
+        if not directory.is_dir():
+            print(f"Not a directory: {directory}", file=sys.stderr)
+            return 1
+        print(p0_baseline_markdown(directory))
+        return 0
     if args.file:
         text = open(args.file, encoding="utf-8").read()
     else:

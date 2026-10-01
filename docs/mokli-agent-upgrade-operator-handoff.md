@@ -54,7 +54,8 @@ bash scripts/deploy-mokli-vps.sh
 - **تجاوز نموذج الجلسة (Agent API):** `MOKLI_SECTION11_MODEL=qwen/qwen3.8-27b:free bash scripts/vps_section11_agent_api_turn.sh …` — يجب أن يكون **معرّف نموذج** ضمن سلسلة `modelPreset`/`fallbackModels` (ليس اسم preset فقط). لتشغيل Anthropic غيّر `agents.defaults.modelPreset` في config ثم أعد تشغيل البوابة.
 - **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب). على **الخادم نفسه** (SSH إلى VPS): `cd /opt/nanoagent && bash scripts/vps_section11_quota_probe.sh` — يستخدم Agent API على `127.0.0.1:8766` بلا SSH متداخل.
 - **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
-- **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` → `./section11-events/` محلياً قبل `section11_batch` / `patch_report`.
+- **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` ثم `bash scripts/mokli_upgrade_section11_after_pull.sh` (validate 1–10 + جدول §2.1 من JSONL).
+- **صف 13 CI (بدون جهاز):** `bash scripts/mokli_upgrade_section11_row13_ci.sh` — pipe projection + `mokli-sdk`؛ لا يغني عن JSONL حي على الهاتف.
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
 - **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. انسخ `docs/section11-vps-env.example` → `/opt/nanoagent/.env` (600) واملأ `OANDA_*` ثم `systemctl restart nanoagent-gateway`.

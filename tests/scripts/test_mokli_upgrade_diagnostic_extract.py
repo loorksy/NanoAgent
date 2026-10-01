@@ -217,6 +217,43 @@ def test_each_and_session_summary_for_long_session() -> None:
     assert "below_linear_2x=yes" in out
 
 
+def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 10934,
+                    "request_output_tokens": 117,
+                    "tool_calls": 0,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (events / "01-probe.jsonl").write_text(
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 0, "tool_calls": 0}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--p0-baseline", str(events)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout
+    assert "10934" in out
+    assert "01-no-tools.jsonl" in out
+    assert "1 تحية" in out or "| 1 " in out
+
+
 def test_session_summary_flags_quota_when_all_input_zero() -> None:
     lines = [
         json.dumps(

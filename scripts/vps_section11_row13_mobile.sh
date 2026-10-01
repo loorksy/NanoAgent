@@ -5,16 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "== mokli-sdk activity (§11.1 row 13; not production §11 closure) =="
-if [[ -d packages/mokli-sdk ]]; then
-  if command -v bun >/dev/null 2>&1; then
-    (cd packages/mokli-sdk && bun test test/store.test.ts) || true
-  else
-    echo "WARN: bun not installed; run: cd packages/mokli-sdk && npm test" >&2
-  fi
-else
-  echo "WARN: packages/mokli-sdk missing" >&2
-fi
+echo "== row 13 CI proxy (SDK + pipe; not production §11 closure) =="
+bash "$ROOT/scripts/mokli_upgrade_section11_row13_ci.sh"
 
 cat <<'NOTE'
 
