@@ -42,6 +42,14 @@ fi
 
 set -e
 
+LOCK_FILE="${MOKLI_SECTION11_TIMER_WAKE_LOCK:-/tmp/mokli_section11_timer_wake.lock}"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  echo "TIMER_WAKE_EXIT=2 (another timer_wake holds $LOCK_FILE)" >&2
+  exit 2
+fi
+echo "TIMER_WAKE_LOCK=$LOCK_FILE"
+
 if [[ "$WAIT_QUOTA" -eq 1 ]]; then
   echo ""
   echo "== optional wait for OpenRouter reset =="

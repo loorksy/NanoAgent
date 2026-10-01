@@ -42,6 +42,8 @@ def test_timer_wake_supports_wait_quota_flag() -> None:
     assert "--wait-quota" in text
     assert "wait_quota_reset.sh" in text and "--wait" in text
     assert "vps_section11_quota_probe.sh" in text
+    assert "flock -n 200" in text
+    assert "TIMER_WAKE_EXIT=2" in text
 
 
 def test_timer_wake_dry_run_wait_quota_mentions_wait_in_preview() -> None:
