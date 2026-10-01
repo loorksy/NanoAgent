@@ -81,7 +81,7 @@ if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
 if [[ "$QUOTA_OK" -eq 1 && "$BLOCK_OK" -eq 1 ]]; then
-  echo "READY for section11_close.sh --apply --require-through $REQUIRE"
+  echo "READY for section11_close.sh --apply --require-through $REQUIRE --results section11-results-partial.json"
   exit 0
 fi
 if [[ "$BLOCK_OK" -eq 1 && "$REQUIRE" -le 10 ]]; then

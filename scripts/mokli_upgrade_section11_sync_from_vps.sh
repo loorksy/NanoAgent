@@ -47,7 +47,7 @@ bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$EVENTS" || true
 
 echo ""
 if [[ -f "$EVENTS/01-no-tools-after-p0.jsonl" ]]; then
-  echo "HINT: after full §11 JSONL — section11_close.sh --apply updates report §11 + §2.1 table/P0 live delta"
+  echo "HINT: after full §11 JSONL — section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
 else
   echo "HINT: after quota — vps_section11_row1_after_p0.sh then close --apply @13 for §2.1 live delta_in"
 fi
