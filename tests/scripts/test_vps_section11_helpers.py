@@ -140,6 +140,15 @@ def test_section11_turn_core_reexecs_as_service_user_when_root() -> None:
     assert "SECTION11_LONG_AS_USER" in long
 
 
+def test_sync_from_vps_supports_pull_vps_flag() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_sync_from_vps.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "--pull-vps" in text
+    assert "MOKLI_SECTION11_VPS_BRANCH" in text
+    assert "vps_pull_main.sh" in text
+
+
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
     script = ROOT / "scripts" / "vps_pull_main.sh"
     proc = subprocess.run(

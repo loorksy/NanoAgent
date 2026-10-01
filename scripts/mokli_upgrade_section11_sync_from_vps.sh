@@ -3,9 +3,34 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EVENTS="${1:-$ROOT/section11-events}"
-RESULTS="${2:-$ROOT/section11-results-partial.json}"
-REQUIRE="${3:-10}"
+PULL_VPS=0
+POSITIONAL=()
+
+usage() {
+  echo "Usage: $0 [--pull-vps] [EVENTS_DIR] [RESULTS_JSON] [REQUIRE_THROUGH]" >&2
+  echo "  --pull-vps  fast-forward VPS checkout (§11 branch) before scp" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pull-vps) PULL_VPS=1; shift ;;
+    -h | --help) usage ;;
+    --) shift; POSITIONAL+=("$@"); break ;;
+    -*) echo "Unknown option: $1" >&2; usage ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+EVENTS="${POSITIONAL[0]:-$ROOT/section11-events}"
+RESULTS="${POSITIONAL[1]:-$ROOT/section11-results-partial.json}"
+REQUIRE="${POSITIONAL[2]:-10}"
+
+if [[ "$PULL_VPS" -eq 1 ]]; then
+  branch="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+  echo "== fast-forward VPS ($branch) =="
+  bash "$ROOT/scripts/vps_pull_main.sh" "$branch"
+fi
 
 echo "== pull from VPS =="
 bash "$ROOT/scripts/vps_section11_pull_events.sh" "$EVENTS"

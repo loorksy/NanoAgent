@@ -8,9 +8,10 @@ RESULTS="${ROOT}/section11-results-partial.json"
 REQUIRE=13
 SKIP_OANDA=0
 SKIP_PULL=0
+PULL_VPS=0
 
 usage() {
-  echo "Usage: $0 [--require-through N] [--results PATH] [--skip-oanda] [--skip-pull]" >&2
+  echo "Usage: $0 [--require-through N] [--results PATH] [--skip-oanda] [--skip-pull] [--pull-vps]" >&2
   exit 2
 }
 
@@ -20,6 +21,7 @@ while [[ $# -gt 0 ]]; do
     --results) RESULTS="$2"; shift 2 ;;
     --skip-oanda) SKIP_OANDA=1; shift ;;
     --skip-pull) SKIP_PULL=1; shift ;;
+    --pull-vps) PULL_VPS=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
@@ -34,7 +36,10 @@ echo "== VPS env (quota + OANDA) =="
 bash "${ROOT}/scripts/vps_section11_env_check.sh" "${ENV_ARGS[@]}"
 
 if [[ "$SKIP_PULL" -eq 0 ]]; then
-  bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" "$EVENTS" "$RESULTS" 10
+  sync_args=()
+  [[ "$PULL_VPS" -eq 1 ]] && sync_args+=(--pull-vps)
+  bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" \
+    "${sync_args[@]}" "$EVENTS" "$RESULTS" 10
 fi
 
 echo "== §11 blockers (artifacts only; env checked above) =="
