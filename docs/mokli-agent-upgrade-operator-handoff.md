@@ -6,7 +6,7 @@
 2. OpenRouter credits + `OANDA_*`: `bash scripts/vps_section11_set_oanda_env.sh` (optional paid model on **this shell** before row scripts: `export MOKLI_SECTION11_MODEL=openai/gpt-4o-mini` — forwarded over SSH; see `docs/section11-vps-env.example`)
 3. جاهزية: `bash scripts/vps_section11_quota_status.sh` (cached؛ بلا نداء LLM؛ عند 429 يطبع **≈وقت إعادة تعيين OpenRouter** من `X-RateLimit-Reset` في `quota-probe.jsonl`) ثم `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0؛ يطبع أيضاً `mokli_ui_http` و`mokli_pipe_show_diagnostics` لصف 12). أو دفعة واحدة (probe حي + env + blockers @13): `bash scripts/mokli_upgrade_section11_operator_unblock.sh` (exit 0 = جاهز لـ `close.sh --apply`). مع سحب الفرع أولاً: `bash scripts/mokli_upgrade_section11_operator_unblock.sh --pull-vps`. عند quota محجوب: `bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe` (بلا نداء LLM إضافي)
 4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh` — أو بعد reset OpenRouter: `bash scripts/mokli_upgrade_section11_after_reset_wake.sh` (= pull + probe + reruns؛ **بدون** انتظار طويل). **سلسلة كاملة (مؤقت Cloud Agent):** `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota` (ينتظر reset إن لزم؛ أثناء الحجب: `--dry-run` بلا LLM). بديل: `bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps`
-5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
+5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh` (يطبع دليلاً فقط — نفّذ أوامر الصف 11/12/13 من المخرجات؛ صف 12 عبر Mokli UI pipe، صف 13 JSONL جهاز/SDK)
 6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps` (يكتب `section11-events/p0-interim-summary.txt` + **P0 local estimate** `--compare` بلا LLM)
 7. بوابة: بعد خطوة 6 استخدم `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0). أو دفعة واحدة (سحب + env + artifacts): `bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps`
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
@@ -143,9 +143,9 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
 | 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |
 | 13 | `13-mobile.jsonl` | هاتف/SDK — `bash scripts/vps_section11_row13_mobile.sh` (SDK smoke + تعليمات الجهاز) |
-
-**صفوف 11–13 (تسلسل):** `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
 | 14 | `14-mt5-live.jsonl` | MT5 حي (اختياري) |
+
+**صفوف 11–13 (تسلسل):** `bash scripts/mokli_upgrade_section11_remaining_rows.sh` — دليل نصي فقط؛ نفّذ سكربتات الصفوف 11–13 أعلاه (لا يستبدل محادثة UI أو JSONL الجهاز).
 
 ## بعد كل سينario من §11
 
