@@ -351,6 +351,31 @@ def main() -> int:
                     f"Row {row_id} diagnostic input_tokens=0 ({name}) — "
                     "bash scripts/mokli_upgrade_section11_remaining_rows.sh"
                 )
+            if row_id == 11:
+                body11 = (directory / name).read_text(encoding="utf-8").lower()
+                if "run_state" not in body11 and "paper" not in body11:
+                    errors.append(
+                        f"Row 11 JSONL missing paper/run_state evidence ({name}) — "
+                        "bash scripts/vps_section11_row11_paper.sh (needs OANDA)"
+                    )
+            if row_id == 13:
+                body13 = (directory / name).read_text(encoding="utf-8")
+                has_runtime_event = any(
+                    needle in body13
+                    for needle in (
+                        '"kind": "tool"',
+                        '"kind":"tool"',
+                        '"kind": "status"',
+                        '"kind":"status"',
+                        '"kind": "structured"',
+                        '"kind":"structured"',
+                    )
+                )
+                if not has_runtime_event:
+                    errors.append(
+                        f"Row 13 JSONL missing tool/status/structured events ({name}) — "
+                        "device/SDK session JSONL (see remaining_rows.sh)"
+                    )
             if row_id == 12:
                 body12 = (directory / name).read_text(encoding="utf-8")
                 if "structured" not in body12 and "decision" not in body12:
