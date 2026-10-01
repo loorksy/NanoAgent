@@ -110,6 +110,7 @@ def test_quota_probe_sources_unblock_hints() -> None:
     hints = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
     assert "section11_quota_hints.sh" in probe
     assert "section11_print_quota_unblock_hints" in probe
+    assert "section11_pull_probe_to_workspace" in probe
     assert "MOKLI_SECTION11_MODEL" in hints
     assert "free-models-per-day" in hints
 

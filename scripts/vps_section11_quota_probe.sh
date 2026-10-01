@@ -23,6 +23,18 @@ section11_quota_reset_hint() {
   "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$jsonl" >&2 || true
 }
 
+section11_pull_probe_to_workspace() {
+  local out="$1"
+  if section11_local_ready "$INSTALL_DIR"; then
+    return 0
+  fi
+  local local_dir="${ROOT}/section11-events"
+  mkdir -p "$local_dir"
+  if scp -o BatchMode=yes "${HOST}:${INSTALL_DIR}/section11-events/${out}" "${local_dir}/" 2>/dev/null; then
+    echo "OK cached probe → ${local_dir}/${out}" >&2
+  fi
+}
+
 run_probe_checks() {
   local jsonl="$1"
   if section11_jsonl_indicates_quota_block "$jsonl"; then
@@ -63,6 +75,7 @@ fi
 
 export MOKLI_SSH_HOST="$HOST"
 MOKLI_SSH_HOST="$HOST" bash "$ROOT/scripts/vps_section11_agent_api_turn.sh" "$OUT" 'Reply with exactly: OK'
+section11_pull_probe_to_workspace "$OUT"
 
 if ssh -o BatchMode=yes "$HOST" \
   "grep -qE 'Rate limit exceeded|free-models-per-day|\"error_kind\"[[:space:]]*:[[:space:]]*\"rate_limit\"' \
