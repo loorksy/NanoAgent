@@ -148,9 +148,9 @@ def _row_pick_rank(row: int, diag: dict[str, Any]) -> tuple[Any, ...]:
     tool_calls = int(diag.get("tool_calls") or 0)
     nested = int(diag.get("nested_rounds") or 0)
     if row == 3:
-        return (1 if tool_calls >= 2 else 0, tool_calls, tin)
+        return (1 if tin > 0 else 0, 1 if tool_calls >= 2 else 0, tool_calls, tin)
     if row == 5:
-        return (1 if nested >= 1 else 0, nested, tin)
+        return (1 if tin > 0 else 0, 1 if nested >= 1 else 0, nested, tin)
     if row == 8:
         return (1 if tin > 0 else 0, tin)
     return (tin,)

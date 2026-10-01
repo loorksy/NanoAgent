@@ -7,7 +7,7 @@ Checks (does not call LLM or broker):
   - ``section11-results.json`` has non-empty «النتيجة» for required rows
   - rows 1–13: «النتيجة» must not contain ``PARTIAL`` unless ``--allow-partial``
   - rows 1–13: ``01-no-tools-after-p0.jsonl`` required (skipped with ``--allow-partial`` preview)
-  - row 8 at @13: diagnostic ``input_tokens`` must be >0 (quota/billing-fail turns are hints only @≤10)
+  - rows 3/5/8 at @13: picked diagnostic must meet row quality (tools≥2, nested≥1, ``in>0``)
 
   python scripts/mokli_upgrade_section11_validate.py \\
     --dir ./section11-events --results section11-results.json --require-through 13
@@ -278,6 +278,24 @@ def main() -> int:
         )
 
     if args.require_through >= 13 and not args.allow_partial:
+        picked3 = pick_row_diagnostic(directory, 3)
+        if picked3 is not None:
+            name3, diag3 = picked3
+            tools3 = int(diag3.get("tool_calls") or 0)
+            if tools3 < 2 or _input_tokens(diag3) == 0:
+                errors.append(
+                    f"Row 3 diagnostic needs tool_calls≥2 and in>0 ({name3}; tools={tools3}) — "
+                    "rerun bash scripts/vps_section11_row3_multi_tool.sh before closure"
+                )
+        picked5 = pick_row_diagnostic(directory, 5)
+        if picked5 is not None:
+            name5, diag5 = picked5
+            nested5 = int(diag5.get("nested_rounds") or 0)
+            if nested5 < 1 or _input_tokens(diag5) == 0:
+                errors.append(
+                    f"Row 5 diagnostic needs nested_rounds≥1 and in>0 ({name5}; nested={nested5}) — "
+                    "rerun bash scripts/vps_section11_row5_subagents.sh before closure"
+                )
         picked8 = pick_row_diagnostic(directory, 8)
         if picked8 is not None:
             name8, diag8 = picked8

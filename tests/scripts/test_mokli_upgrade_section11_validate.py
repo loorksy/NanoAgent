@@ -175,6 +175,55 @@ def test_validate_hints_row8_when_input_tokens_zero(tmp_path: Path) -> None:
     assert "vps_section11_row8_fallback_provider" in proc.stderr
 
 
+def test_validate_rejects_row3_one_tool_when_require_through_13(tmp_path: Path) -> None:
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}})
+        + "\n",
+        encoding="utf-8",
+    )
+    for row_id in range(1, 14):
+        tool_calls = 1 if row_id == 3 else 2
+        nested = 0 if row_id == 5 else 1
+        in_tok = 100 if row_id != 8 else 100
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {
+                        "rounds": 1,
+                        "input_tokens": in_tok,
+                        "tool_calls": tool_calls,
+                        "nested_rounds": nested,
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(
+        json.dumps({str(i): "PASS — live" for i in range(1, 14)}),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "Row 3 diagnostic needs tool_calls≥2" in proc.stderr
+
+
 def test_validate_rejects_row8_zero_input_when_require_through_13(tmp_path: Path) -> None:
     (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
         json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}})

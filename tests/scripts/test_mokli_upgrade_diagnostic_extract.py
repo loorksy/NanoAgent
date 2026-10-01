@@ -411,6 +411,35 @@ def test_pick_row_5_prefers_nested_rounds(tmp_path: Path) -> None:
     assert picked[0] == "05-subagents-v2.jsonl"
 
 
+def test_pick_row_3_prefers_v2_two_tools_over_v1_quota_fail(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "03-multi-tool.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "input_tokens": 0, "tool_calls": 1},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "03-multi-tool-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 26000, "tool_calls": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 3)
+    assert picked is not None
+    assert picked[0] == "03-multi-tool-v2.jsonl"
+
+
 def test_pick_row_8_prefers_nonzero_input_over_quota_fail(tmp_path: Path) -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
