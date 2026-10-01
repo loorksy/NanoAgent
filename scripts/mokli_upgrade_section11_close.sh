@@ -45,7 +45,17 @@ if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
 fi
 
 echo "== validate rows 1..${REQUIRE} =="
-bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" "${VALIDATE_ARGS[@]}"
+set +e
+VALID_OUT=$(
+  bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" "${VALIDATE_ARGS[@]}" 2>&1
+)
+VALID_EC=$?
+set -e
+printf '%s\n' "$VALID_OUT"
+if [[ "$VALID_EC" -ne 0 ]]; then
+  echo "HINT: bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through ${REQUIRE}" >&2
+  exit "$VALID_EC"
+fi
 
 echo "== batch markdown =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_batch.py" \

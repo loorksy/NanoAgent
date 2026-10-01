@@ -219,12 +219,14 @@ def main() -> int:
     if errors:
         for msg in errors:
             print(f"ERROR {msg}", file=sys.stderr)
+        print(f"closure_errors={len(errors)}", file=sys.stderr)
         return 1
 
     try:
         results_map = _load_results(results_path)
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"ERROR invalid results: {exc}", file=sys.stderr)
+        print("closure_errors=1", file=sys.stderr)
         return 1
 
     found_rows: set[int] = set()
@@ -401,6 +403,7 @@ def main() -> int:
         _closure_hints(empty_result)
         for msg in errors:
             print(f"ERROR {msg}", file=sys.stderr)
+        print(f"closure_errors={len(errors)}", file=sys.stderr)
         return 1
 
     print(

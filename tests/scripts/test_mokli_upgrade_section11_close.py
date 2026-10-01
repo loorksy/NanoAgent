@@ -75,6 +75,7 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     assert "validate rows 1..13" in combined
     assert "ERROR" in combined
     assert "Row 3 diagnostic" in combined or "Missing 01-no-tools-after-p0" in combined
+    assert "closure_errors=9" in combined
 
 
 def test_section11_close_rejects_apply_with_allow_partial(tmp_path: Path) -> None:

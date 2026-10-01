@@ -59,7 +59,10 @@ printf '%s\n' "$VALID_COMBINED"
 if [[ "$VALID_EC" -eq 0 ]]; then
   VAL_OK=1
 else
-  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_COMBINED" | grep -c '^ERROR' || true)
+  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
+  if [[ -z "${CLOSURE_ERRORS}" ]]; then
+    CLOSURE_ERRORS=$(printf '%s\n' "$VALID_COMBINED" | grep -c '^ERROR' || true)
+  fi
   echo "closure_errors=${CLOSURE_ERRORS}" >&2
 fi
 

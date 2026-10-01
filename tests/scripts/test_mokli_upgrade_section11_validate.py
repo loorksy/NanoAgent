@@ -61,6 +61,7 @@ def test_validate_fails_on_empty_result(tmp_path: Path) -> None:
     )
     assert proc.returncode == 1
     assert "Empty" in proc.stderr or "Empty" in proc.stdout
+    assert "closure_errors=1" in proc.stderr
 
 
 def test_validate_hints_row3_when_tool_calls_below_two(tmp_path: Path) -> None:
