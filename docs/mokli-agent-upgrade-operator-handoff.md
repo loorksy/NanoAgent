@@ -61,7 +61,7 @@ bash scripts/deploy-mokli-vps.sh
 - **جاهزية VPS:** `bash scripts/vps_section11_env_check.sh` — rev + API + OANDA + quota؛ `--require-quota` / `--require-oanda` قبل صفوف 11–10.
 - للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
 - بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
-- **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. انسخ `docs/section11-vps-env.example` → `/opt/nanoagent/.env` (600) واملأ `OANDA_*` ثم `systemctl restart nanoagent-gateway`.
+- **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. إما `docs/section11-vps-env.example` يدوياً، أو من workstation (لا يطبع الأسرار): `OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh` ثم `bash scripts/vps_section11_env_check.sh --require-oanda`.
 - **صف 2 (2026-10-01):** prompt إنجليزي صريح للأداة → `tools=1` `rounds=2` `in≈25037` `out≈670`؛ أحداث `tool` started/failed + عرض «يفحص سعر الذهب…».
 - **صف 4 (2026-10-01):** `Analyze gold…` → `run_trading_kernel` + بطاقة `structured`/`decision` **`res_…`** (verdict wait، OANDA not configured)؛ `tools=2` `rounds=3` `in≈24924`.
 
