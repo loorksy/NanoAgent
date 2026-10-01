@@ -21,6 +21,7 @@ _TOOL_FORMATS: dict[str, tuple[list[str], str, bool, bool]] = {
     "x_search":   (["query"],                        'search X "{}"', False, False),
     "web_fetch":  (["url"],                            "fetch {}",    True,  False),
     "list_dir":   (["path"],                           "ls {}",       True,  False),
+    "run_python": (["code"],                           "python",      False, False),
 }
 
 # Matches file paths embedded in shell commands, including quoted paths with spaces.

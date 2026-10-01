@@ -42,6 +42,8 @@ _GOLD_AGENT_MODULES = frozenset({
     "long_task",
     "sessions",
     "session_messages",
+    "skill_files",
+    "python_sandbox",
 })
 
 

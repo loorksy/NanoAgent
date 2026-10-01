@@ -325,6 +325,12 @@ TOOL_CONTRACTS: tuple[ToolContract, ...] = (
         "invent file content",
     ),
     ToolContract(
+        ("run_python",),
+        "a short calculation the platform tools do not already return",
+        "stdout and stderr only",
+        "use it to reach the network, read credentials, or place orders",
+    ),
+    ToolContract(
         ("list_sessions", "read_session", "search_sessions", "send_session_message"),
         "the operator refers to another conversation",
         "session listings, transcripts, or delivery result",
