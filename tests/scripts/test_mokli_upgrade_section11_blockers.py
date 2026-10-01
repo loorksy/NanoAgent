@@ -71,6 +71,7 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
         assert "timer_wake.sh --wait-quota" in combined
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "closure_errors=" in combined
+        assert combined.count("closure_errors=") == 1
         if (ROOT / "section11-events" / "quota-probe.jsonl").is_file():
             assert "HINT reset:" in combined
 

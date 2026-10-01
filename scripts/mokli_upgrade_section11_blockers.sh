@@ -63,7 +63,9 @@ else
   if [[ -z "${CLOSURE_ERRORS}" ]]; then
     CLOSURE_ERRORS=$(printf '%s\n' "$VALID_COMBINED" | grep -c '^ERROR' || true)
   fi
-  echo "closure_errors=${CLOSURE_ERRORS}" >&2
+  if ! printf '%s\n' "$VALID_COMBINED" | grep -q '^closure_errors='; then
+    echo "closure_errors=${CLOSURE_ERRORS}" >&2
+  fi
 fi
 
 echo ""

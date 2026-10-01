@@ -42,7 +42,7 @@ Row 13 (mobile / SDK — production needs device JSONL):
 
 Close:
   bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps
-  bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
+  bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
 
 Docs: docs/mokli-agent-upgrade-operator-handoff.md
 EOF

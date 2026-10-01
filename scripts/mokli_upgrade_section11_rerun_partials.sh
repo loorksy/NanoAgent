@@ -30,5 +30,5 @@ bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps \
 
 cat <<'NOTE'
 Next: rows 11–13 — bash scripts/mokli_upgrade_section11_remaining_rows.sh
-Close: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
+Close: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
 NOTE

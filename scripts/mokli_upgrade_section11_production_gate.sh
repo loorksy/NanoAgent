@@ -55,5 +55,5 @@ if ! bash "${ROOT}/scripts/mokli_upgrade_section11_blockers.sh" \
   exit 1
 fi
 
-echo "OK production gate passed — run section11_close.sh --apply --require-through $REQUIRE when results JSON is final"
+echo "OK production gate passed — run section11_close.sh --apply --require-through $REQUIRE --results $RESULTS"
 echo "PRODUCTION_GATE_EXIT=0"
