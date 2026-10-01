@@ -178,6 +178,13 @@ def p0_baseline_markdown(directory: Path) -> str:
         note = f"`{name}`"
         if _input_tokens(diag) == 0:
             note += "; quota_blocked?"
+        provider_tools = diag.get("provider_tool_count")
+        if provider_tools is not None and int(provider_tools or 0) > 0:
+            note += f"; provider_tools={int(provider_tools)}"
+        comp = diag.get("components") or {}
+        final = comp.get("final")
+        if isinstance(final, int) and final > 0:
+            note += f"; comp_final={final}"
         lines.append(
             "| {label} | {in_t} | {out_t} | {tools} | {rounds} | {note} |".format(
                 label=f"{row_id} {label}",

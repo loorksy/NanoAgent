@@ -246,6 +246,8 @@ def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
                     "request_input_tokens": 10934,
                     "request_output_tokens": 117,
                     "tool_calls": 0,
+                    "provider_tool_count": 11,
+                    "components": {"final": 10271},
                 },
             }
         )
@@ -268,6 +270,8 @@ def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
     out = proc.stdout
     assert "10934" in out
     assert "01-no-tools.jsonl" in out
+    assert "provider_tools=11" in out
+    assert "comp_final=10271" in out
     assert "1 تحية" in out or "| 1 " in out
 
 
