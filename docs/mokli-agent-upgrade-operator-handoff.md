@@ -5,6 +5,15 @@
 - **الإنتاج:** `main` (دمج PR ترقية الوكيل + تغذية OANDA/MetaAPI — راجع `git log -1` على `origin/main`)
 - فرع التطوير السابق: `cursor/agent-runtime-efficiency-d9e1` → دُمج في `cursor/broker-market-feed-d9e1` ثم `main`
 
+### أسرار Cloud Agent (نشر من الوكيل)
+
+```bash
+bash scripts/cloud_agent_vps_secrets_check.sh
+```
+
+- المطلوب في البيئة: **`VPS`** (أو `user@host`) و **`VPSPASS`**. الأسماء `vps` / `password` تُعرَض إلى `VPS` / `VPSPASS` عبر `scripts/vps_env.sh`.
+- إذا ظهر `CLOUD_AGENT_INJECTED_SECRET_NAMES=password,vps` لكن الفحص يفشل، الأسرار **مسجّلة ولم تُحقَن** في shell هذا التشغيل — احفظها باسم `VPS`/`VPSPASS` و**ابدأ تشغيل وكيل جديد**، أو صدّرها يدوياً قبل `deploy-mokli-vps.sh`.
+
 ### نشر سريع بعد الدمج
 
 ```bash
