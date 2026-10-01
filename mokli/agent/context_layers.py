@@ -27,6 +27,43 @@ class ContextLayers:
     include_skills: bool
 
 
+# Trading and execution tools stay registered but leave the LLM schema on light turns
+# (short greeting with no task markers). The next task-shaped message restores them.
+_DEFERRED_PROVIDER_TOOLS = frozenset({
+    "analyze_gold",
+    "capture_gold_chart",
+    "fast_backtest",
+    "fetch_evidence",
+    "get_gate_report",
+    "get_gold_quote",
+    "get_live_recommendation",
+    "gold_intel_scan",
+    "manage_trading_plan",
+    "mt5_cancel_order",
+    "mt5_close_position",
+    "mt5_confirm_order",
+    "mt5_get_account",
+    "mt5_list_symbols",
+    "mt5_market",
+    "mt5_modify_order",
+    "mt5_propose_order",
+    "propose_strategy",
+    "run_trading_kernel",
+    "run_trading_team",
+    "spawn",
+})
+
+
+def provider_tool_names_for_layers(
+    registered: Sequence[str],
+    layers: ContextLayers,
+) -> list[str]:
+    """Tool names sent to the provider on this turn (subset on light turns)."""
+    if layers.include_skills:
+        return list(registered)
+    return [name for name in registered if name not in _DEFERRED_PROVIDER_TOOLS]
+
+
 def layers_for_task(text: str | None) -> ContextLayers:
     body = (text or "").strip()
     if not body or len(body) > _SHORT_TURN_CHARS or _TASK_MARKERS.search(body):

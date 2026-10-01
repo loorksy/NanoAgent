@@ -19,6 +19,7 @@ from mokli.agent.context_layers import (
     layers_for_archived_history,
     layers_for_task,
     layers_for_transcript_boundary,
+    provider_tool_names_for_layers,
 )
 from mokli.agent.hook import AgentHook
 from mokli.agent.tools.base import Tool
@@ -476,6 +477,47 @@ def test_short_question_skips_memory_and_skills() -> None:
     trading = layers_for_task("هل أشتري الذهب؟")
     assert trading.include_memory is True
     assert trading.include_skills is True
+
+
+def test_light_turn_defers_trading_tool_schemas() -> None:
+    registered = [
+        "message",
+        "web_search",
+        "get_gold_quote",
+        "run_trading_kernel",
+    ]
+    light = provider_tool_names_for_layers(registered, layers_for_task("مرحبا"))
+    assert light == ["message", "web_search"]
+    full = provider_tool_names_for_layers(registered, layers_for_task("حلل الذهب"))
+    assert full == registered
+
+
+def test_registry_definitions_for_names_subset() -> None:
+    class _NamedTool(Tool):
+        def __init__(self, tool_name: str) -> None:
+            self._name = tool_name
+
+        @property
+        def name(self) -> str:
+            return self._name
+
+        @property
+        def description(self) -> str:
+            return "x"
+
+        @property
+        def parameters(self) -> dict[str, Any]:
+            return {"type": "object", "properties": {}}
+
+        async def execute(self, **kwargs: Any) -> str:
+            return "ok"
+
+    registry = ToolRegistry()
+    registry.register(_NamedTool("alpha"))
+    registry.register(_NamedTool("beta"))
+    names = registry.get_definitions_for_names(["beta"])
+    assert len(names) == 1
+    assert names[0]["function"]["name"] == "beta"
 
 
 def test_short_turn_system_prompt_uses_compact_tool_contracts(tmp_path) -> None:

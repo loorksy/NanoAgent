@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -121,6 +121,7 @@ class AgentRunSpec:
     finalize_on_max_iterations: bool = True
     provider_state: ProviderConversationState | None = None
     llm_usage_source: LLMUsageSource | None = None
+    llm_tool_names: Sequence[str] | None = None
     events: EventSink = NO_EVENTS
 
 
@@ -1004,7 +1005,12 @@ class AgentRunner:
             from mokli.agent.prompt.composer import messages_without_tool_menu
 
             messages = messages_without_tool_menu(messages)
-        tool_definitions = None if omit_tools else spec.tools.get_definitions()
+        if omit_tools:
+            tool_definitions = None
+        elif spec.llm_tool_names is not None:
+            tool_definitions = spec.tools.get_definitions_for_names(spec.llm_tool_names)
+        else:
+            tool_definitions = spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(
             request_state,
             messages,

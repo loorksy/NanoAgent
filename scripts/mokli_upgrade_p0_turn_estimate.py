@@ -20,6 +20,10 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from mokli.agent.context import ContextBuilder, TranscriptInput  # noqa: E402
+from mokli.agent.context_layers import (  # noqa: E402
+    layers_for_task,
+    provider_tool_names_for_layers,
+)
 from mokli.agent.tools.context import ToolContext  # noqa: E402
 from mokli.agent.tools.loader import ToolLoader  # noqa: E402
 from mokli.agent.tools.registry import ToolRegistry  # noqa: E402
@@ -42,11 +46,13 @@ def estimate_turn(
     registry: ToolRegistry,
 ) -> dict[str, int]:
     builder = ContextBuilder(workspace)
+    layers = layers_for_task(message)
+    llm_tool_names = provider_tool_names_for_layers(registry.tool_names, layers)
     messages = builder.build_transcript(
         TranscriptInput(history=[], current_message=message),
-        tool_names=list(registry.tool_names),
+        tool_names=llm_tool_names,
     )
-    tools = registry.get_definitions()
+    tools = registry.get_definitions_for_names(llm_tool_names)
     parts = component_tokens(messages, tools)
     return {**parts, "tools_registered": len(registry.tool_names)}
 

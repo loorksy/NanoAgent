@@ -1198,12 +1198,26 @@ class AgentLoop:
             session_metadata=session.metadata if session is not None else None,
         )
         effective_tools = tools or self.tools
+        from mokli.agent.context_layers import (
+            layers_for_transcript_boundary,
+            provider_tool_names_for_layers,
+        )
+
+        _layers = layers_for_transcript_boundary(
+            current_message=transcript_input.current_message if transcript_input else None,
+            history=transcript_input.history if transcript_input else [],
+            prompt_layers=transcript_input.prompt_layers if transcript_input else None,
+        )
+        llm_tool_names = provider_tool_names_for_layers(
+            effective_tools.tool_names,
+            _layers,
+        )
         transcript_builder = partial(
             self.context.build_transcript,
             channel=request_ctx.channel,
             workspace=effective_scope.project_path,
             include_memory=session.policy.persist if session is not None else True,
-            tool_names=list(effective_tools.tool_names),
+            tool_names=llm_tool_names,
             facts=self._collect_prompt_facts(request_ctx),
         )
         if request_context is None:
@@ -1252,6 +1266,7 @@ class AgentLoop:
             result = await self.runner.run(AgentRunSpec(
                 initial_messages=None,
                 tools=effective_tools,
+                llm_tool_names=llm_tool_names,
                 runtime=runtime,
                 max_iterations=self.max_iterations,
                 max_tool_result_chars=self.max_tool_result_chars,
