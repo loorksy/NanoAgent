@@ -29,6 +29,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 best=-1
+best_path=""
 events_dir=$(dirname "$PROBE")
 for candidate in "$PROBE" "$events_dir"/quota-*.jsonl; do
   [[ -f "$candidate" ]] || continue
@@ -36,6 +37,7 @@ for candidate in "$PROBE" "$events_dir"/quota-*.jsonl; do
   if [[ "$s" != "-1" ]]; then
     if [[ "$best" == "-1" || "$s" -gt "$best" ]]; then
       best=$s
+      best_path=$candidate
     fi
   fi
 done
@@ -52,6 +54,9 @@ fi
 
 secs=$best
 echo "seconds_until_reset=$secs buffer_sec=$BUFFER_SEC"
+if [[ -n "$best_path" ]]; then
+  "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$best_path" >&2
+fi
 
 if [[ "$DO_WAIT" -eq 0 ]]; then
   exit 0
