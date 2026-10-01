@@ -16,6 +16,7 @@ def test_operator_smoke_script() -> None:
         capture_output=True,
         text=True,
         check=False,
+        timeout=600,
     )
     assert "OK §11 dry-run" in proc.stdout
     assert "§11 scaffold" in proc.stdout

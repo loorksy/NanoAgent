@@ -81,8 +81,14 @@ fi
 
 echo ""
 echo "== close report @13 (includes §11 report gate pytest on canonical report) =="
-bash "$ROOT/scripts/mokli_upgrade_section11_close.sh" --apply --require-through 13 \
-  --dir "$SECTION11_EVENTS" --results "$SECTION11_RESULTS"
+if ! bash "$ROOT/scripts/mokli_upgrade_section11_close.sh" --apply --require-through 13 \
+  --dir "$SECTION11_EVENTS" --results "$SECTION11_RESULTS"; then
+  echo "TIMER_WAKE_EXIT=1 (close @13 failed — partial reruns may still help; see blockers_summary)" >&2
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
+    "$SECTION11_EVENTS" "$SECTION11_RESULTS" 2>&1 || true
+  echo "HINT: rows 11–13 — bash scripts/mokli_upgrade_section11_remaining_rows.sh" >&2
+  exit 1
+fi
 
 echo "TIMER_WAKE_EXIT=0"
 echo "Verify docs/mokli-agent-upgrade-report.md §11 rows 1–13 before marking upgrade complete."

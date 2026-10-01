@@ -12,16 +12,22 @@ VPS_SSH = ROOT / "scripts" / "vps_ssh.sh"
 
 
 def test_vps_ssh_defaults_hostinger_when_no_vps_env() -> None:
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("MOKLI_SSH_HOST", "VPS", "VPSPASS", "vps", "password")
+    }
     proc = subprocess.run(
         [
             "bash",
             "-c",
-            f"unset MOKLI_SSH_HOST VPS VPSPASS; source {VPS_SSH}; printf '%s' \"${{MOKLI_SSH_HOST:-}}\"",
+            f"source {VPS_SSH}; printf '%s' \"${{MOKLI_SSH_HOST:-}}\"",
         ],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
         check=True,
+        env=env,
     )
     assert proc.stdout == "hostinger-vps"
 
