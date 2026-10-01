@@ -40,8 +40,7 @@ Row 13 (mobile / SDK — production needs device JSONL):
   Device session → section11-events/13-mobile.jsonl
 
 Close:
-  bash scripts/vps_section11_pull_events.sh
-  bash scripts/mokli_upgrade_section11_production_gate.sh
+  bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps
   bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13
 
 Docs: docs/mokli-agent-upgrade-operator-handoff.md

@@ -140,6 +140,13 @@ def test_section11_turn_core_reexecs_as_service_user_when_root() -> None:
     assert "SECTION11_LONG_AS_USER" in long
 
 
+def test_remaining_rows_close_uses_production_gate_pull_vps() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_remaining_rows.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "production_gate.sh --pull-vps" in text
+
+
 def test_rerun_partials_syncs_with_pull_vps() -> None:
     text = (ROOT / "scripts" / "mokli_upgrade_section11_rerun_partials.sh").read_text(
         encoding="utf-8"
