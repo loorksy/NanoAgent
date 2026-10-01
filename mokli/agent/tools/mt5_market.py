@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool
 from mokli.agent.tools.schema import IntegerSchema, StringSchema, tool_parameters_schema
 from mokli.trading.broker_market import broker_candles, broker_quote, broker_symbols
+from mokli.trading.tool_errors import model_json
 
 
 def _json(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    return model_json(payload)
 
 
 class Mt5ListSymbolsTool(Tool):

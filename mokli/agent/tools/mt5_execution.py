@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool
@@ -20,10 +19,11 @@ from mokli.trading.mt5_execution import (
     mt5_modify_order,
     mt5_propose_order,
 )
+from mokli.trading.tool_errors import model_json
 
 
 def _json(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    return model_json(payload)
 
 
 class Mt5GetAccountTool(Tool):

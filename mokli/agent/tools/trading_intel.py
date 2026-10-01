@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool
@@ -18,10 +17,11 @@ from mokli.trading.intel.rss_aggregator import fetch_rss_headlines
 from mokli.trading.intel.telegram_scraper import TelegramHeadlineSource
 from mokli.trading.intel.vector_playbook import VectorPlaybook
 from mokli.trading.intel.vip_tracker import fetch_vip_statements
+from mokli.trading.tool_errors import model_json
 
 
 def _json(payload: Any) -> str:
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    return model_json(payload)
 
 
 async def collect_intel_sources() -> tuple[Any, Any, Any, Any, TelegramHeadlineSource]:
