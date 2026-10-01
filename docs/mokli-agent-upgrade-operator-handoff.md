@@ -25,7 +25,7 @@
 
 ## مسار Agent API (تسجيل JSONL بدون أنبوب UI)
 
-رمز Bearer (`nbat_…`) من إقران جهاز/عميل Gateway. قاعدة API: `http://127.0.0.1:8766/api/v2`.
+رمز Bearer (`nbat_…`) من إقران جهاز/عميل Gateway — **ليس** `nbat_test-bootstrap-token` من `tests/agent_api/conftest.py` (TestClient داخل pytest فقط؛ البوابة/Agent API الجاري يرفضه). قاعدة API: `http://127.0.0.1:8766/api/v2`.
 
 ```bash
 BASE="http://127.0.0.1:8766/api/v2"
