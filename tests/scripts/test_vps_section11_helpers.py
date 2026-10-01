@@ -21,6 +21,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "local_section11_row12_smoke.sh",
         "mokli_upgrade_section11_row13_ci.sh",
         "mokli_upgrade_section11_after_pull.sh",
+        "mokli_upgrade_p0_turn_estimate.py",
         "vps_section11_row13_mobile.sh",
     ]
     for name in names:
