@@ -18,9 +18,26 @@ section11_run_agent_api_turn() {
   BASE=http://127.0.0.1:8766/api/v2
   EVENT_DIR="$INSTALL/section11-events"
   mkdir -p "$EVENT_DIR"
-  SID=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" -d "{\"title\":\"section11-${OUT_NAME}\"}" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+  SID=""
+  for _try in 1 2 3; do
+    _sess_body=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" -d "{\"title\":\"section11-${OUT_NAME}\"}" || true)
+    if [[ -n "${_sess_body:-}" ]]; then
+      SID=$(printf '%s' "$_sess_body" | python3 -c "import sys,json
+raw=sys.stdin.read().strip()
+if not raw:
+    raise SystemExit('empty session response')
+print(json.loads(raw)['id'])") || true
+    fi
+    if [[ -n "${SID:-}" ]]; then
+      break
+    fi
+    sleep 2
+  done
+  if [[ -z "${SID:-}" ]]; then
+    echo "section11: failed to create session (Agent API may be restarting — retry in a few seconds)" >&2
+    exit 1
+  fi
   RAW="$EVENT_DIR/raw-${OUT_NAME}.sse"
   curl -sfN --max-time 900 "$BASE/sessions/$SID/events?until_end=1" \
     -H "Authorization: Bearer $TOKEN" -o "$RAW" &
