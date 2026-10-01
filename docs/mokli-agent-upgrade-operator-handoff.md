@@ -119,6 +119,8 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
 | 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |
 | 13 | `13-mobile.jsonl` | هاتف/SDK — `bash scripts/vps_section11_row13_mobile.sh` (SDK smoke + تعليمات الجهاز) |
+
+**صفوف 11–13 (تسلسل):** `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
 | 14 | `14-mt5-live.jsonl` | MT5 حي (اختياري) |
 
 ## بعد كل سينario من §11
