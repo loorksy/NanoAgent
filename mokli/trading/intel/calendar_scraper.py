@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -82,4 +83,4 @@ async def fetch_economic_calendar(*, now: datetime | None = None) -> list[Calend
     existing = fetch_upcoming_events(limit=40)
     if existing:
         return parse_calendar_json(existing)
-    return fetch_calendar_json_sync()
+    return await asyncio.to_thread(fetch_calendar_json_sync)

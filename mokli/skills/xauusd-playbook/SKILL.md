@@ -5,19 +5,7 @@ description: 200-rule XAUUSD field playbook — flexible entries, stop philosoph
 
 # XAUUSD playbook (200 rules)
 
-Grep `P-NNN` (zero-padded) in `references/` rather than loading every section. Prefer `grep`/`rg` for a single id or heading, then open only that file.
-
-## References
-
-- [references/playbook-001-025-entry.md](references/playbook-001-025-entry.md)
-- [references/playbook-026-055-stops.md](references/playbook-026-055-stops.md)
-- [references/playbook-056-080-retest.md](references/playbook-056-080-retest.md)
-- [references/playbook-081-105-trendlines.md](references/playbook-081-105-trendlines.md)
-- [references/playbook-106-135-gold-liquidity.md](references/playbook-106-135-gold-liquidity.md)
-- [references/playbook-136-160-targets.md](references/playbook-136-160-targets.md)
-- [references/playbook-161-180-candle-traps.md](references/playbook-161-180-candle-traps.md)
-- [references/playbook-181-200-discipline.md](references/playbook-181-200-discipline.md)
-- Execution, memory, alerts, security, and multi-tasking: sibling skills `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, plus `trading-proactive`
+The steps below are the field guidance for this turn. Sibling skills cover execution, review, and alerts: `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, and `trading-proactive`.
 
 ## Steps
 

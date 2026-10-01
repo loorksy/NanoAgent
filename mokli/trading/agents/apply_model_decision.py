@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from mokli.trading.agents.evidence import split_trailing_json
 from mokli.trading.cards.artifacts import parse_artifacts_requested
 from mokli.trading.i18n import tr
 from mokli.trading.types import (
@@ -29,15 +30,39 @@ MACRO_CONFIDENCE_WEIGHT = 0.12
 _JSON_DIR = re.compile(r"^(buy|sell)$", re.I)
 
 
+def _briefing_payload(text: str) -> Any:
+    """JSON object, JSON list, or the trailing object after role notes.
+
+    A swarm briefing is role lines plus one JSON line. ``json.loads`` on the
+    whole string misses that line, so the confidence rule never saw the drivers.
+    """
+    stripped = text.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            return None
+    _narrative, tail = split_trailing_json(text)
+    if not tail:
+        return None
+    try:
+        return json.loads(tail)
+    except json.JSONDecodeError:
+        return None
+
+
 def parse_macro_drivers(snapshot: EvidenceSnapshot) -> list[dict[str, Any]]:
-    """Read teamBriefing JSON (string or object) from the frozen evidence snapshot."""
+    """Read macro drivers from teamBriefing on the frozen evidence snapshot.
+
+    The briefing may be the driver object itself, or role notes with that
+    object on the last line. Notes without the object contribute no vote.
+    """
     raw = (snapshot.payload or {}).get("teamBriefing") if snapshot else None
     if not raw:
         return []
     if isinstance(raw, str):
-        try:
-            raw = json.loads(raw)
-        except json.JSONDecodeError:
+        raw = _briefing_payload(raw)
+        if raw is None:
             return []
     if isinstance(raw, dict):
         drivers = raw.get("macroDrivers") or raw.get("macro_drivers") or []

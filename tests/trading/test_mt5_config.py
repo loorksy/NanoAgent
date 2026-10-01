@@ -122,8 +122,10 @@ def test_host_and_port_default_when_unset(tmp_path, monkeypatch) -> None:
     assert loaded.mt5_configured is False
 
 
-def test_legacy_metaapi_config_object_still_loads(tmp_path, monkeypatch) -> None:
+def test_metaapi_config_loads_separately_from_the_terminal(tmp_path, monkeypatch) -> None:
     _isolate(tmp_path, monkeypatch)
+    for name in ("METAAPI_TOKEN", "METAAPI_ACCOUNT_ID", "METAAPI_REGION"):
+        monkeypatch.delenv(name, raising=False)
     path = tmp_path / "config.json"
     path.write_text(
         json.dumps({"trading_metaapi": {"token": "old-token", "account_id": "acc", "region": "london"}}),
@@ -131,6 +133,13 @@ def test_legacy_metaapi_config_object_still_loads(tmp_path, monkeypatch) -> None
     )
     loaded = load_config(path)
     assert loaded.trading_mt5.login == ""
-    assert loaded.trading_mt5.host == "localhost"
-    assert loaded.trading_mt5.port == 8001
-    assert "old-token" not in str(loaded.trading_mt5.public_view())
+    assert loaded.trading_metaapi.account_id == "acc"
+    assert loaded.trading_metaapi.region == "london"
+    view = loaded.trading_metaapi.public_view()
+    assert view["configured"] is True
+    assert view["token_set"] is True
+    assert "old-token" not in str(view)
+    trading = load_trading_config()
+    assert trading.metaapi_configured is True
+    assert trading.metaapi_region == "london"
+    assert "old-token" not in repr(trading)

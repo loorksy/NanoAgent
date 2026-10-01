@@ -83,9 +83,10 @@ class MultiTimeframeNode(EvidenceNode):
 
 
 class NewsNode(EvidenceNode):
+    """Calendar rows. They do not read candles or the quote."""
+
     id = "news"
     stage = "news"
-    depends_on = ("market_data",)
 
     async def execute(self, ctx: PipelineContext) -> None:
         ctx.news = await asyncio.to_thread(run_news_macro_agent)

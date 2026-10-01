@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -50,6 +51,14 @@ def _with_retry_hint(payload: str) -> str:
     return payload + _RETRY_HINT
 
 
+def _result_cache_key(name: str, params: Any) -> str:
+    try:
+        encoded = json.dumps(params, sort_keys=True, ensure_ascii=False, default=str)
+    except TypeError:
+        encoded = str(params)
+    return f"{name}\n{encoded}"
+
+
 async def execute_tool_calls(
     tools: ToolRegistry,
     tool_calls: list[ToolCallRequest],
@@ -59,6 +68,7 @@ async def execute_tool_calls(
     workspace_violation_counts: dict[str, int],
     hook: AgentHook,
     context: AgentHookContext,
+    result_cache: dict[str, Any] | None = None,
 ) -> tuple[list[Any], list[dict[str, str]]]:
     """Execute one model response's tool calls in stable result order."""
     tool_results: list[tuple[Any, dict[str, str]]] = []
@@ -72,6 +82,7 @@ async def execute_tool_calls(
                     workspace_violation_counts,
                     hook,
                     context,
+                    result_cache,
                 )
                 for tool_call in batch
             ))
@@ -85,6 +96,7 @@ async def execute_tool_calls(
                     workspace_violation_counts,
                     hook,
                     context,
+                    result_cache,
                 )
                 tool_results.append(result)
 
@@ -100,6 +112,7 @@ async def _execute_tool_call(
     workspace_violation_counts: dict[str, int],
     hook: AgentHook,
     context: AgentHookContext,
+    result_cache: dict[str, Any] | None = None,
 ) -> tuple[Any, dict[str, str]]:
     lookup_error = repeated_external_lookup_error(
         tool_call.name,
@@ -143,6 +156,45 @@ async def _execute_tool_call(
             return handled
         return payload, event
 
+    if tool is not None:
+        resolved = tool
+    else:
+        tool_lookup = getattr(tools, "get", None)
+        resolved = tool_lookup(tool_call.name) if callable(tool_lookup) else None
+    cache_key = _result_cache_key(tool_call.name, params)
+    read_only = getattr(resolved, "read_only", False)
+    if (
+        result_cache is not None
+        and isinstance(read_only, bool)
+        and read_only
+        and cache_key in result_cache
+    ):
+        event = {
+            "name": tool_call.name,
+            "status": "reused",
+            "detail": "cached read-only result",
+        }
+        return (
+            f"[نفس نتيجة {tool_call.name} في هذا الطلب؛ لم تُعد الأداة.]",
+            event,
+        )
+
+    if tool_call.name in {"run_trading_kernel", "analyze_gold", "run_trading_team"}:
+        from mokli.trading.tool_errors import cached_decision_result
+
+        cached_failure = cached_decision_result(tool_call.name, params)
+        if cached_failure is not None:
+            # The analysis already failed in this turn. Do not publish a second
+            # start: the team and the kernel are not running again.
+            return (
+                cached_failure,
+                {
+                    "name": tool_call.name,
+                    "status": "reused",
+                    "detail": "cached failed analysis",
+                },
+            )
+
     await hook.before_execute_tool(context, tool_call, tool, params)
     try:
         from mokli.trading.policy_guard import validate_tool_call
@@ -154,6 +206,7 @@ async def _execute_tool_call(
         else:
             result = await tools.execute(tool_call.name, params)
     except asyncio.CancelledError:
+        await _close_cancelled_tool(hook, context, tool_call, tool, params)
         raise
     except Exception as exc:
         from mokli.trading.policy_guard import PolicyViolation
@@ -161,6 +214,9 @@ async def _execute_tool_call(
         if isinstance(exc, PolicyViolation):
             from mokli.agent.tools.base import ToolResult
 
+            # The start event already went out. A blocked call is a real failure,
+            # so the activity row must finish with the policy reason and duration.
+            await hook.on_execute_tool_error(context, tool_call, tool, params, exc)
             event = {
                 "name": tool_call.name,
                 "status": "error",
@@ -205,6 +261,8 @@ async def _execute_tool_call(
         return payload, event
 
     await hook.after_execute_tool(context, tool_call, tool, params, result)
+    if result_cache is not None and isinstance(read_only, bool) and read_only:
+        result_cache[cache_key] = result
 
     detail = "" if result is None else str(result)
     detail = detail.replace("\n", " ").strip()
@@ -213,6 +271,36 @@ async def _execute_tool_call(
     elif len(detail) > 120:
         detail = detail[:120] + "..."
     return result, {"name": tool_call.name, "status": "ok", "detail": detail}
+
+
+async def _close_cancelled_tool(
+    hook: AgentHook,
+    context: AgentHookContext,
+    tool_call: ToolCallRequest,
+    tool: object,
+    params: object,
+) -> None:
+    """Finish a tool row that already started when the call is cancelled.
+
+    A cancelling task raises again at the next await. Drop one cancellation
+    request so the failure event can be published, then let the caller re-raise.
+    The model does not receive a tool result for this call.
+    """
+    task = asyncio.current_task()
+    if task is not None and task.cancelling():
+        task.uncancel()
+    try:
+        await hook.on_execute_tool_error(
+            context,
+            tool_call,
+            tool,
+            params,
+            asyncio.CancelledError("cancelled"),
+        )
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("failed to close cancelled tool {}", tool_call.name)
 
 
 def is_ssrf_violation(text: str) -> bool:

@@ -13,6 +13,11 @@ from websockets.http11 import Response
 
 from mokli.agent.tools.context import RequestContext, current_request_context, request_context
 from mokli.providers.factory import load_provider_snapshot
+from mokli.surface.http_utils import bearer_token as _bearer_token
+from mokli.surface.http_utils import http_error as _http_error
+from mokli.surface.http_utils import http_json_response as _http_json_response
+from mokli.surface.http_utils import parse_query as _parse_query
+from mokli.surface.http_utils import query_first as _query_first
 from mokli.trading.chart_capture import (
     ChartCaptureError,
     submit_chart_capture,
@@ -24,7 +29,7 @@ from mokli.trading.config import load_trading_config
 from mokli.trading.crew.debate import run_debate_crew
 from mokli.trading.gold import DATA_SYMBOL, GoldOnlyError, coerce_to_gold
 from mokli.trading.i18n import tr
-from mokli.trading.oanda import candle_to_wire, fetch_candles, fetch_quote
+from mokli.trading.oanda import candle_to_wire, fetch_candles
 from mokli.trading.paper import record_paper_action
 from mokli.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
@@ -35,14 +40,9 @@ from mokli.trading.recommendations.store import list_recommendations
 from mokli.trading.result_wire import result_to_wire
 from mokli.trading.runtime_state import get_runtime_store
 from mokli.trading.stage_delivery import TradingStagePublisher
-from mokli.trading.teams.runtime import run_swarm
+from mokli.trading.teams.runtime import review_round_limit, run_swarm
 from mokli.trading.teams.subagent_runner import create_trading_subagent_manager
 from mokli.utils.llm_runtime import runtime_from_provider_snapshot
-from mokli.surface.http_utils import bearer_token as _bearer_token
-from mokli.surface.http_utils import http_error as _http_error
-from mokli.surface.http_utils import http_json_response as _http_json_response
-from mokli.surface.http_utils import parse_query as _parse_query
-from mokli.surface.http_utils import query_first as _query_first
 
 _T = TypeVar("_T")
 
@@ -73,7 +73,7 @@ def _parse_int(value: str | None) -> int | None:
 def handle_trading_klines(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     locale = _locale_of(params)
-    symbol = coerce_to_gold(_query_first(params, "symbol"))
+    raw_symbol = (_query_first(params, "symbol") or "XAUUSD").strip() or "XAUUSD"
     interval = (_query_first(params, "interval") or "1h").strip()
     limit = _parse_int(_query_first(params, "limit")) or 300
     before_ms = _parse_int(_query_first(params, "before"))
@@ -81,6 +81,7 @@ def handle_trading_klines(request: WsRequest) -> Response:
     to_ms = _parse_int(_query_first(params, "to"))
 
     config = load_trading_config()
+    symbol = coerce_to_gold(raw_symbol)
     if not config.oanda_configured:
         return _http_json_response({
             "symbol": symbol,
@@ -126,46 +127,56 @@ def handle_trading_klines(request: WsRequest) -> Response:
 def handle_trading_quote(request: WsRequest) -> Response:
     params = _parse_query(request.path)
     locale = _locale_of(params)
-    symbol = coerce_to_gold(_query_first(params, "symbol"))
+    raw_symbol = (_query_first(params, "symbol") or "XAUUSD").strip() or "XAUUSD"
 
     config = load_trading_config()
-    if not config.oanda_configured:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": False,
-            "quote": None,
-            "error": tr("price.feed_unconfigured", locale),
-        })
+    symbol = coerce_to_gold(raw_symbol)
+    if getattr(config, "metaapi_configured", False) is True or config.oanda_configured:
+        from mokli.trading.market_context import resolve_live_quote
+        from mokli.trading.metaapi_market import quote_time_seconds
 
-    try:
-        quote = fetch_quote(symbol, config=config)
-    except GoldOnlyError as exc:
-        return _http_error(400, str(exc))
-    except Exception as exc:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": True,
-            "quote": None,
-            "error": tr("api.quote_failed", locale, error=exc),
-        }, status=502)
-
-    if quote is None:
-        return _http_json_response({
-            "symbol": symbol,
-            "configured": True,
-            "quote": None,
-            "error": tr("api.quote_missing", locale),
-        })
-
-    return _http_json_response({
-        "symbol": quote.symbol,
-        "configured": True,
-        "quote": {
+        try:
+            quote, source = resolve_live_quote(symbol, config)
+        except GoldOnlyError as exc:
+            return _http_error(400, str(exc))
+        except Exception as exc:
+            return _http_json_response({
+                "symbol": symbol,
+                "configured": True,
+                "source": "oanda",
+                "quote": None,
+                "error": tr("api.quote_failed", locale, error=exc),
+            }, status=502)
+        if quote is None:
+            return _http_json_response({
+                "symbol": symbol,
+                "configured": True,
+                "source": source,
+                "quote": None,
+                "error": tr("api.quote_missing", locale),
+            })
+        tick = {
             "bid": quote.bid,
             "ask": quote.ask,
             "mid": quote.mid,
             "tradeable": quote.tradeable,
-        },
+        }
+        stamp = quote_time_seconds(quote.quoted_at)
+        if stamp is not None:
+            tick["time"] = stamp
+        return _http_json_response({
+            "symbol": quote.symbol,
+            "configured": True,
+            "source": source,
+            "quote": tick,
+        })
+
+    return _http_json_response({
+        "symbol": symbol,
+        "configured": False,
+        "source": "oanda",
+        "quote": None,
+        "error": tr("price.feed_unconfigured", locale),
     })
 
 
@@ -176,6 +187,7 @@ def handle_trading_status(_request: WsRequest) -> Response:
         "symbol": DATA_SYMBOL,
         "oanda_configured": config.oanda_configured,
         "oanda_env": config.oanda_env,
+        "metaapi_configured": config.metaapi_configured,
         "runtime": state.to_dict(),
     })
 
@@ -249,6 +261,7 @@ async def _run_trading_analyze(
                 publisher=publisher,
                 interval=interval,
                 visual_capture=visual_capture,
+                max_review_rounds=review_round_limit(),
             )
             briefing = swarm.get("team_briefing")
             resolved_mode = f"swarm:{preset or 'gold_analysis_committee'}"
@@ -299,12 +312,12 @@ def _enrich_recommendation_rows(rows: list[dict]) -> list[dict]:
 
 def handle_trading_recommendations(_request: WsRequest) -> Response:
     from mokli.trading.gold import DATA_SYMBOL
-    from mokli.trading.oanda import fetch_quote
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
     live_price = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None
@@ -322,13 +335,13 @@ def handle_trading_recommendations(_request: WsRequest) -> Response:
 def performance_document() -> dict[str, Any]:
     from mokli.config.paths import get_data_dir
     from mokli.trading.gold import DATA_SYMBOL
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.memory.decisions import list_recent_decisions
-    from mokli.trading.oanda import fetch_quote
     from mokli.trading.recommendations.outcome_delivery import outcome_web_alerts_from_transitions
 
     live_price = None
     try:
-        quote = fetch_quote(DATA_SYMBOL)
+        quote = live_analysis_quote(DATA_SYMBOL)
         live_price = quote.mid if quote else None
     except Exception:
         live_price = None
@@ -488,23 +501,25 @@ def handle_trading_chart_capture(_request: WsRequest) -> Response:
 
 
 def briefing_document(locale: str | None) -> dict[str, Any]:
-    from mokli.trading.config import load_trading_config
-    from mokli.trading.oanda import fetch_quote
+    from mokli.trading.market_context import live_analysis_quote
     from mokli.trading.recommendations.followup import (
         grade_outcome_status,
         latest_open_recommendation,
         refresh_recommendation_outcomes,
     )
 
-    config = load_trading_config()
-    quote = fetch_quote("XAUUSD", config=config) if config.oanda_configured else None
+    quote = live_analysis_quote("XAUUSD")
     live_price = quote.mid if quote else None
     refresh_recommendation_outcomes(live_price=live_price)
     latest = latest_open_recommendation()
     if latest:
         latest = {
             **latest,
-            "outcomeStatus": grade_outcome_status(latest, live_price=live_price),
+            "outcomeStatus": grade_outcome_status(
+                latest,
+                live_price=live_price,
+                price_known=True,
+            ),
             "livePrice": live_price,
         }
     recs = list_recommendations(limit=5)
@@ -586,9 +601,9 @@ def handle_trading_paper(request: WsRequest) -> Response:
 
 async def dispatch_trading_route(request: WsRequest, path: str) -> Response | None:
     if path == "/api/trading/klines":
-        return handle_trading_klines(request)
+        return await asyncio.to_thread(handle_trading_klines, request)
     if path == "/api/trading/quote":
-        return handle_trading_quote(request)
+        return await asyncio.to_thread(handle_trading_quote, request)
     if path == "/api/trading/status":
         return handle_trading_status(request)
     if path == "/api/trading/runtime/update":
@@ -596,11 +611,11 @@ async def dispatch_trading_route(request: WsRequest, path: str) -> Response | No
     if path == "/api/trading/analyze":
         return await handle_trading_analyze(request)
     if path == "/api/trading/recommendations":
-        return handle_trading_recommendations(request)
+        return await asyncio.to_thread(handle_trading_recommendations, request)
     if path == "/api/trading/briefing":
-        return handle_trading_briefing(request)
+        return await asyncio.to_thread(handle_trading_briefing, request)
     if path == "/api/trading/performance":
-        return handle_trading_performance(request)
+        return await asyncio.to_thread(handle_trading_performance, request)
     if path == "/api/trading/paper":
         return handle_trading_paper(request)
     if path == "/api/trading/recommendations/transition":

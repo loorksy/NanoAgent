@@ -13,9 +13,9 @@ Numeric deterministic rules (risk limits, stop floors, spread and news guards) a
 risk parameters enforced by the platform. Do not memorise or quote them as fixed numbers; read
 them from tool results when they matter.
 
-## Encyclopedias (English, `grep` first)
+## Encyclopedias
 
-Use `grep` with `output_mode="count"` first, then read the matching ids (`P-056`, `N-035`, `C-016`).
+Use the skill whose row matches the question. The steps in that skill are the guidance.
 
 | Skill | When |
 | --- | --- |
@@ -29,10 +29,3 @@ Use `grep` with `output_mode="count"` first, then read the matching ids (`P-056`
 | `security-resilience` | Kill switch, bad ticks, restore |
 | `multi-tasking-scenarios` | Dual conditionals, scalp vs swing, toggles |
 | `trading-proactive` | When to speak outside a conversation |
-
-## References in this skill
-
-- Coverage map: [references/coverage.md](references/coverage.md)
-- Alerts and operator interface: [references/section-6-alerts.md](references/section-6-alerts.md)
-- Behavioural alignment notes: [references/section-9-behavior.md](references/section-9-behavior.md)
-- Spec coverage: [references/spec-coverage.md](references/spec-coverage.md)

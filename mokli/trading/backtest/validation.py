@@ -70,7 +70,13 @@ def bootstrap_expectancy(rs: list[float], *, samples: int = 200, seed: int = 1) 
     }
 
 
-def walk_forward(candles: list[Candle], *, folds: int = 3) -> dict[str, object]:
+def walk_forward(
+    candles: list[Candle],
+    *,
+    folds: int = 3,
+    rules: dict[str, object] | None = None,
+    confirm_candles: list[Candle] | None = None,
+) -> dict[str, object]:
     """Replay contiguous folds. Each fold keeps at least ``MIN_BARS`` when possible."""
     if len(candles) < MIN_BARS:
         return {"ok": False, "reason_key": "backtest.not_enough_bars", "folds": []}
@@ -84,7 +90,10 @@ def walk_forward(candles: list[Candle], *, folds: int = 3) -> dict[str, object]:
         start = index * size
         end = len(candles) if index == fold_count - 1 else (index + 1) * size
         chunk = candles[start:end]
-        card = cast(dict[str, object], replay(chunk))
+        card = cast(
+            dict[str, object],
+            replay(chunk, rules=rules, confirm_candles=confirm_candles),
+        )
         rows.append(
             {
                 "fold": index,

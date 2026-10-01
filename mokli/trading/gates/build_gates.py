@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -208,7 +209,9 @@ def build_gates(inp: GateInputs) -> list[GateDefinition]:
         return {"status": "pass"}
 
     async def g7() -> dict[str, Any]:
-        live = inp.fetch_live_price()
+        # The first check reuses the quote already read. A later round calls
+        # the broker again, still off the event loop.
+        live = await asyncio.to_thread(inp.fetch_live_price)
         result = revalidate_plan(inp.plan, live, inp.atr)
         if result.status == "unavailable":
             return {

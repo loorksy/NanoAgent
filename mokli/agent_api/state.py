@@ -23,6 +23,7 @@ class SessionStateSnapshot(TypedDict):
     outcome: Outcome | None
     run: str | None
     updated_at: int
+    provider_thinking: bool
 
 
 class StateTracker:
@@ -47,6 +48,7 @@ class StateTracker:
             "outcome": None,
             "run": None,
             "updated_at": 0,
+            "provider_thinking": False,
         }
 
     def active_run(self, session: str) -> str | None:
@@ -64,11 +66,27 @@ class StateTracker:
         self._active_runs[session] = run
         return self._set(session, "working", phase="queued", run=run)
 
-    def working(self, session: str, *, phase: str) -> StateData | None:
+    def working(
+        self,
+        session: str,
+        *,
+        phase: str,
+        provider_thinking: bool = False,
+    ) -> StateData | None:
         current = self.snapshot(session)
-        if current["state"] == "working" and current["phase"] == phase:
+        if (
+            current["state"] == "working"
+            and current["phase"] == phase
+            and current["provider_thinking"] == provider_thinking
+        ):
             return None
-        return self._set(session, "working", phase=phase, run=current["run"])
+        return self._set(
+            session,
+            "working",
+            phase=phase,
+            run=current["run"],
+            provider_thinking=provider_thinking,
+        )
 
     def run_finished(self, session: str, run: str | None, outcome: Outcome) -> StateData | None:
         active = self._active_runs.get(session)
@@ -117,8 +135,9 @@ class StateTracker:
             )
         self._pending_approvals.pop(session, None)
         if self.active_run(session) is not None:
+            # The run is still open. That is not a provider thinking signal.
             return self._set(
-                session, "working", phase="thinking", run=self.active_run(session),
+                session, "working", phase="processing", run=self.active_run(session),
             )
         return self._set(session, "completed", outcome=outcome, run=self.snapshot(session)["run"])
 
@@ -133,6 +152,7 @@ class StateTracker:
         waiting_for: WaitingFor | None = None,
         outcome: Outcome | None = None,
         run: str | None,
+        provider_thinking: bool = False,
     ) -> StateData:
         self._states[session] = {
             "session": session,
@@ -142,8 +162,15 @@ class StateTracker:
             "outcome": outcome,
             "run": run,
             "updated_at": int(time.time() * 1000),
+            "provider_thinking": provider_thinking,
         }
-        data = state_data(state, phase=phase, waiting_for=waiting_for, outcome=outcome)
+        data = state_data(
+            state,
+            phase=phase,
+            waiting_for=waiting_for,
+            outcome=outcome,
+            provider_thinking=provider_thinking,
+        )
         return _as_state_data(data)
 
 
@@ -166,6 +193,8 @@ def _as_state_data(data: JsonObject) -> StateData:
     outcome = data.get("outcome")
     if outcome in ("ok", "cancelled", "error", "expired"):
         out["outcome"] = outcome
+    if data.get("provider_thinking") is True:
+        out["provider_thinking"] = True
     return out
 
 

@@ -26,10 +26,11 @@ from mokli.providers.base import ProviderConversationState
 from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     public_history_message,
+    runtime_context_refreshed_each_turn,
 )
 from mokli.session.history_visibility import HIDDEN_HISTORY_META, is_hidden_history_message
 from mokli.session.model_selection import SESSION_MODEL_PRESET_METADATA_KEY
-from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT, session_tail_needs_archive
 from mokli.utils.helpers import (
     content_with_media_breadcrumbs,
     ensure_dir,
@@ -200,6 +201,31 @@ def _migrate_legacy_exec_session_records(
 def _is_provider_state_record_line(line: str) -> bool:
     """Recognize the canonical private record without decoding its opaque payload."""
     return _PROVIDER_STATE_RECORD_PREFIX_RE.match(line) is not None
+
+
+def _preview_from_lines(handle: Any) -> str:
+    """First visible user line, or the first assistant line if none appears.
+
+    Stops once that user line is known so a later transcript is not parsed.
+    """
+    fallback = ""
+    for line in handle:
+        if not line.strip() or _is_provider_state_record_line(line):
+            continue
+        raw_item: object = json.loads(line)
+        item = _json_object(raw_item)
+        if item.get("_type") in {"metadata", _PROVIDER_STATE_RECORD_TYPE}:
+            continue
+        if is_hidden_history_message(item):
+            continue
+        text = _message_preview_text(item)
+        if not text:
+            continue
+        if item.get("role") == "user":
+            return text
+        if not fallback and item.get("role") == "assistant":
+            fallback = text
+    return fallback
 
 
 def _sanitize_assistant_replay_text(content: str) -> str:
@@ -385,12 +411,15 @@ class Session:
         for message in sliced:
             if message.get("_command"):
                 continue
-            has_persisted_runtime_context = isinstance(
-                message.get(RUNTIME_CONTEXT_HISTORY_META),
-                dict,
-            )
+            marker = message.get(RUNTIME_CONTEXT_HISTORY_META)
+            has_persisted_runtime_context = isinstance(marker, dict)
             if not include_runtime_context:
                 message = public_history_message(message)
+            elif isinstance(marker, dict) and runtime_context_refreshed_each_turn(marker):
+                # The next turn injects a fresh copy. The saved suffix stays
+                # on the transcript so the public view can still remove it.
+                message = public_history_message(message)
+                has_persisted_runtime_context = False
             content = message.get("content", "")
             role = message.get("role")
             if role == "assistant" and isinstance(content, str):
@@ -543,6 +572,12 @@ class SessionStore(Protocol):
     ) -> bool: ...
 
     def list_sessions(self) -> list[SessionInfo]: ...
+
+    def list_metadata(self) -> list[SessionMetadataPayload]: ...
+
+    def list_session_clocks(self) -> list[tuple[str, str | None]]: ...
+
+    def read_preview(self, key: str) -> str: ...
 
 
 class JsonlSessionStore:
@@ -1486,6 +1521,21 @@ class JsonlSessionStore:
                 return self.session_payload(repaired)
             return None
 
+    def read_preview(self, key: str) -> str:
+        """Return the chat preview without parsing lines after the first user message."""
+        with self._session_files_lock:
+            path = self.get_session_path(key)
+            if not path.is_file():
+                return ""
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    return _preview_from_lines(handle)
+            except FileNotFoundError:
+                return ""
+            except _SESSION_DATA_ERRORS as exc:
+                logger.warning("Failed to read session preview {}: {}", key, exc)
+                return ""
+
     def read_metadata(self, key: str) -> SessionMetadataPayload | None:
         with self._session_files_lock:
             return self._read_metadata_unlocked(key)
@@ -1535,6 +1585,41 @@ class JsonlSessionStore:
                     "metadata": repaired.metadata,
                 }
             return None
+
+    def list_metadata(self) -> list[SessionMetadataPayload]:
+        """Return each session's metadata line without reading later message lines."""
+        with self._session_files_lock:
+            return self._list_metadata_unlocked()
+
+    def _list_metadata_unlocked(self) -> list[SessionMetadataPayload]:
+        rows: list[SessionMetadataPayload] = []
+        for path in self.sessions_dir.glob("*.jsonl"):
+            storage_key = self.session_key_from_path(path)
+            if storage_key is None:
+                continue
+            try:
+                meta = self._read_metadata_unlocked(storage_key)
+            except FileNotFoundError:
+                continue
+            if meta is not None:
+                rows.append(meta)
+        return rows
+
+    def list_session_clocks(self) -> list[tuple[str, str | None]]:
+        """Return ``(key, updated_at)`` from each session's metadata line.
+
+        The idle scan uses this instead of :meth:`list_sessions`, which also
+        reads a message preview from later lines.
+        """
+        with self._session_files_lock:
+            clocks: list[tuple[str, str | None]] = []
+            for meta in self._list_metadata_unlocked():
+                updated_at = meta.get("updated_at")
+                clocks.append((
+                    meta["key"],
+                    updated_at if isinstance(updated_at, str) else None,
+                ))
+            return clocks
 
     def list_sessions(self) -> list[SessionInfo]:
         with self._session_files_lock:
@@ -1751,7 +1836,7 @@ class SessionManager:
         if session is not None:
             return session
 
-        session = self._load(key)
+        session = self.load_from_disk(key)
         if session is None:
             session = Session(key=key)
 
@@ -1776,6 +1861,33 @@ class SessionManager:
             self._remember(session)
         return session
 
+    def load_unarchived_sessions(self, keys: list[str]) -> list[Session]:
+        """Read cold session files that still have messages to archive.
+
+        Clean files are omitted. The caller caches a session only when it
+        will schedule that archive, so an idle scan does not retain every
+        transcript.
+        """
+        pending: list[Session] = []
+        for key in keys:
+            if not isinstance(key, str) or not key:
+                continue
+            session = self.load_from_disk(key)
+            if session is not None and session_tail_needs_archive(
+                session.messages,
+                session.last_archived,
+            ):
+                pending.append(session)
+        return pending
+
+    def load_from_disk(self, key: str) -> Session | None:
+        """Read a session file without touching the in-memory cache.
+
+        The cache update stays on the caller thread so a long transcript can
+        be parsed on a worker while the event loop keeps serving other sessions.
+        """
+        return self._load(key)
+
     def _load(self, key: str) -> Session | None:
         return self._store.load(key)
 
@@ -1783,13 +1895,25 @@ class SessionManager:
         """Attempt to recover a session from a corrupt JSONL file."""
         return self._jsonl_store.repair(key, path=path)
 
+    def persist_to_disk(self, session: Session, *, fsync: bool = False) -> bool:
+        """Write the session file without touching the in-memory cache.
+
+        The cache update stays on the caller thread. A long transcript can be
+        serialized on a worker while the event loop keeps serving other sessions.
+        """
+        if not session.policy.persist:
+            return False
+        self._store.save(session, fsync=fsync)
+        return True
+
+    def cache_saved(self, session: Session) -> None:
+        """Retain a session that was just written by ``persist_to_disk``."""
+        self._remember(session)
+
     def save(self, session: Session, *, fsync: bool = False) -> None:
         """Persist a session and retain it in the cache."""
-        if not session.policy.persist:
-            return
-
-        self._store.save(session, fsync=fsync)
-        self._remember(session)
+        if self.persist_to_disk(session, fsync=fsync):
+            self.cache_saved(session)
 
     def save_runtime_checkpoint(self, session: Session) -> None:
         """Persist volatile recovery state without rewriting long history."""
@@ -1947,6 +2071,10 @@ class SessionManager:
         """Read session metadata without loading the transcript."""
         return cast(dict[str, Any] | None, self._store.read_metadata(key))
 
+    def read_session_preview(self, key: str) -> str:
+        """Return the chat preview without parsing lines after the first user message."""
+        return self._store.read_preview(key)
+
     def update_session_metadata(
         self,
         key: str,
@@ -1962,3 +2090,11 @@ class SessionManager:
 
     def list_sessions(self) -> list[dict[str, Any]]:
         return cast(list[dict[str, Any]], self._store.list_sessions())
+
+    def list_session_metadata(self) -> list[dict[str, Any]]:
+        """Return each session's metadata line without reading message lines."""
+        return cast(list[dict[str, Any]], self._store.list_metadata())
+
+    def list_session_clocks(self) -> list[tuple[str, str | None]]:
+        """Return ``(key, updated_at)`` without reading message lines."""
+        return self._store.list_session_clocks()

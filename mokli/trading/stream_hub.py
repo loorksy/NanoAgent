@@ -96,7 +96,7 @@ class TradingStreamHub:
                 if not config.oanda_configured:
                     await asyncio.sleep(_QUOTE_FALLBACK_INTERVAL_S)
                     continue
-                quote = fetch_quote(DATA_SYMBOL, config=config)
+                quote = await asyncio.to_thread(fetch_quote, DATA_SYMBOL, config=config)
                 if quote is None or quote.mid is None:
                     await asyncio.sleep(_QUOTE_FALLBACK_INTERVAL_S)
                     continue

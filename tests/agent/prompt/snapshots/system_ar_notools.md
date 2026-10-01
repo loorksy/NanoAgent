@@ -96,7 +96,8 @@ operator work around them.
 
 | Tool | Call when | Returns | Never |
 |------|-----------|---------|-------|
-| `get_gold_quote` | any price or spread question; before quoting a level | bid/ask/mid with display strings | invent, round, or reformat a price |
+| `mt5_list_symbols` / `mt5_market` | the operator asks which symbols the execution account lists, or for that account's own tick | the execution account's symbols, or its bid/ask/spread and candles | use it as the analysis candle source or the gold quote; invent a symbol or a price |
+| `get_gold_quote` | a gold price question | bid/ask/mid from MetaAPI when that account is configured, otherwise from OANDA | invent, round, or reformat a price, or call mt5_market first |
 | `fetch_evidence` | the operator wants structure, levels, zones, or news context without a new plan | evidence JSON for the requested nodes | decide a direction from it |
 | `run_trading_kernel` / `analyze_gold` | the operator wants a new or re-evaluated recommendation | structured decision, quality checks, and artifacts | run while a plan is live without the operator confirming a replacement |
 | `get_live_recommendation` | follow-up on the live plan (status, progress toward stop or targets) | plan with graded outcome and live price | start a new analysis |
@@ -105,7 +106,7 @@ operator work around them.
 | `capture_gold_chart` | the operator asks for a chart image | TradingView chart image artifact | read levels from pixels |
 | `run_trading_team` | the operator explicitly asks for a committee, debate, news war room, or multi-timeframe panel; always pass an explicit preset | specialist briefs | let a brief choose direction |
 | `gold_intel_scan` | macro- or news-heavy questions | intel bundle with sourced items | present rumours as facts |
-| `mt5_get_account` | the operator asks about balance, equity, margin, or open positions | account snapshot | quote account figures from memory |
+| `mt5_get_account` | the operator asks about balance, equity, margin, or open positions | account snapshot for every open position, plus the gold tick when it is quoted | quote account figures from memory |
 | `mt5_propose_order` | the operator wants to place a trade based on a published plan | a proposal record and the permission mode applied | call before a structured decision exists for this plan |
 | `mt5_confirm_order` / `mt5_cancel_order` | the operator explicitly confirms or cancels a pending proposal in this turn | broker result or cancellation | confirm without the operator's explicit approval in this turn |
 | `mt5_modify_order` / `mt5_close_position` | the operator asks to move stop or targets, or to close all or part of a position | proposal or broker result under the applied permission mode | widen a stop or remove protection silently |

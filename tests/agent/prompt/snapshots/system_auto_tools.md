@@ -99,7 +99,8 @@ operator work around them.
 
 | Tool | Call when | Returns | Never |
 |------|-----------|---------|-------|
-| `get_gold_quote` | any price or spread question; before quoting a level | bid/ask/mid with display strings | invent, round, or reformat a price |
+| `mt5_list_symbols` / `mt5_market` | the operator asks which symbols the execution account lists, or for that account's own tick | the execution account's symbols, or its bid/ask/spread and candles | use it as the analysis candle source or the gold quote; invent a symbol or a price |
+| `get_gold_quote` | a gold price question | bid/ask/mid from MetaAPI when that account is configured, otherwise from OANDA | invent, round, or reformat a price, or call mt5_market first |
 | `fetch_evidence` | the operator wants structure, levels, zones, or news context without a new plan | evidence JSON for the requested nodes | decide a direction from it |
 | `run_trading_kernel` | the operator wants a new or re-evaluated recommendation | structured decision, quality checks, and artifacts | run while a plan is live without the operator confirming a replacement |
 | `get_live_recommendation` | follow-up on the live plan (status, progress toward stop or targets) | plan with graded outcome and live price | start a new analysis |

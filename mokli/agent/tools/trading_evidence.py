@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
@@ -14,6 +13,7 @@ from mokli.agent.tools.schema import (
 )
 from mokli.trading.evidence.nodes import NODE_REGISTRY
 from mokli.trading.gold import DATA_SYMBOL
+from mokli.trading.tool_errors import model_json
 from mokli.trading.unified_evidence import fetch_evidence_nodes
 
 _NODE_IDS = tuple(sorted(NODE_REGISTRY))
@@ -73,4 +73,4 @@ class FetchEvidenceTool(Tool):
         except Exception as exc:
             return ToolResult.error(str(exc))
         payload["symbol"] = DATA_SYMBOL
-        return json.dumps(payload, indent=2, default=str)
+        return model_json(payload)

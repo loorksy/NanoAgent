@@ -1106,7 +1106,7 @@ class WebSocketChannel(BaseChannel):
         # Give an idle writer a chance to start without waiting for physical I/O.
         await asyncio.sleep(0)
 
-    def _persist_turn_transcript_event(
+    async def _persist_turn_transcript_event(
         self,
         chat_id: str,
         event: dict[str, Any],
@@ -1119,7 +1119,7 @@ class WebSocketChannel(BaseChannel):
         """Persist one canonical turn event and retain unsafe owners on failure."""
         if not self._temporary_chats.should_persist_transcript(chat_id):
             return True
-        persisted = self._transcripts.prepare_and_append(
+        record = self._transcripts.stage(
             chat_id,
             event,
             metadata=metadata,
@@ -1127,6 +1127,7 @@ class WebSocketChannel(BaseChannel):
             include_source=include_source,
             transcript_overrides=transcript_overrides,
         )
+        persisted = await asyncio.to_thread(self._transcripts.append, chat_id, record)
         return self._retain_turn_on_transcript_failure(
             chat_id,
             persisted=persisted,
@@ -1150,7 +1151,7 @@ class WebSocketChannel(BaseChannel):
             )
         return persisted
 
-    def _persist_turn_stream_event(
+    async def _persist_turn_stream_event(
         self,
         chat_id: str,
         event: dict[str, Any],
@@ -1163,7 +1164,7 @@ class WebSocketChannel(BaseChannel):
         """Persist the canonical end of a live stream, never its wire chunks."""
         if not self._temporary_chats.should_persist_transcript(chat_id):
             return True
-        persisted = self._transcripts.prepare_and_append_stream_event(
+        record = self._transcripts.stage_completed_stream(
             chat_id,
             event,
             completed_text=completed_text,
@@ -1171,6 +1172,9 @@ class WebSocketChannel(BaseChannel):
             phase=phase,
             include_source=include_source,
         )
+        if record is None:
+            return True
+        persisted = await asyncio.to_thread(self._transcripts.append, chat_id, record)
         return self._retain_turn_on_transcript_failure(
             chat_id,
             persisted=persisted,
@@ -1225,7 +1229,7 @@ class WebSocketChannel(BaseChannel):
         elif progress_event:
             payload["kind"] = "progress"
         phase = "activity" if payload.get("kind") in ("tool_hint", "progress") else "answer"
-        self._persist_turn_transcript_event(
+        await self._persist_turn_transcript_event(
             msg.chat_id,
             payload,
             metadata=msg.metadata,
@@ -1265,7 +1269,7 @@ class WebSocketChannel(BaseChannel):
             body["stream_id"] = stream_id
         stream_key = (chat_id, str(stream_id or ""))
         self._reasoning_text_buffers.setdefault(stream_key, []).append(delta)
-        self._persist_turn_stream_event(
+        await self._persist_turn_stream_event(
             chat_id,
             body,
             completed_text=None,
@@ -1296,7 +1300,7 @@ class WebSocketChannel(BaseChannel):
             body["stream_id"] = stream_id
         stream_key = (chat_id, str(stream_id or ""))
         reasoning_text = "".join(self._reasoning_text_buffers.pop(stream_key, []))
-        self._persist_turn_stream_event(
+        await self._persist_turn_stream_event(
             chat_id,
             body,
             completed_text=reasoning_text or None,
@@ -1321,7 +1325,7 @@ class WebSocketChannel(BaseChannel):
             "chat_id": chat_id,
             "edits": edits,
         }
-        self._persist_turn_transcript_event(
+        await self._persist_turn_transcript_event(
             chat_id,
             payload,
             metadata=metadata,
@@ -1375,7 +1379,7 @@ class WebSocketChannel(BaseChannel):
             body["resuming"] = True
         if stream_end and merge_next:
             body["merge_next"] = True
-        self._persist_turn_stream_event(
+        await self._persist_turn_stream_event(
             chat_id,
             body,
             completed_text=completed_text,
@@ -1402,7 +1406,7 @@ class WebSocketChannel(BaseChannel):
         conns = list(self._subs.get(chat_id, ()))
         body: dict[str, Any] = dict(payload)
         if persistence == "turn_activity":
-            self._persist_turn_transcript_event(
+            await self._persist_turn_transcript_event(
                 chat_id,
                 body,
                 metadata=metadata,
@@ -1414,7 +1418,7 @@ class WebSocketChannel(BaseChannel):
                 canonical_mokli_turn
                 and websocket_turn_transcript_persistence_failed(chat_id, turn_owner)
             )
-            persisted = self._persist_turn_transcript_event(
+            persisted = await self._persist_turn_transcript_event(
                 chat_id,
                 body,
                 metadata=metadata,

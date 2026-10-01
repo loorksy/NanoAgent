@@ -22,6 +22,8 @@ export interface StateData {
   phase?: string;
   waiting_for?: WaitingFor;
   outcome?: RunOutcome;
+  /** Set only when the provider sent a reasoning delta for this phase. */
+  provider_thinking?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,9 +110,22 @@ export interface DecisionPayload {
   entry: number | null;
   stop: number | null;
   targets: number[];
-  confidence: number;
+  confidence: number | null;
   reasons: string[];
   gates_passed: string[];
+  permission_level?: PermissionLevel | null;
+  plan_id?: string | null;
+  summary?: string;
+  entry_zone?: { low: number; high: number };
+  risk_pct?: number;
+  rr?: number | null;
+  net_rr?: number | null;
+  agreement?: { stance: Verdict; agreeing: number; votes: number };
+  invalidation?: string;
+  validity_candles?: number;
+  data_sources?: string[];
+  blockers?: string[];
+  alternative?: string;
 }
 
 export type ApprovalType = "execution" | "modify" | "close" | "generic";
@@ -197,13 +212,17 @@ export interface ToolData {
   call_id: string;
   summary?: string;
   duration_ms?: number;
+  display?: string;
+  arguments?: string;
 }
 
 export interface SubagentData {
-  event: "started" | "finished";
+  event: "started" | "finished" | "failed";
   id: string;
   role: string;
+  display?: string;
   summary?: string;
+  duration_ms?: number;
 }
 
 export interface ArtifactData {
@@ -251,6 +270,13 @@ export interface EndData {
   outcome: RunOutcome;
 }
 
+export interface RetryData {
+  state: "waiting" | "recovered" | "cleared" | "exhausted" | "cancelled";
+  attempt: number;
+  error_kind: string;
+  max_attempts?: number;
+}
+
 export interface EventDataMap {
   delta: DeltaData;
   state: StateData;
@@ -262,6 +288,7 @@ export interface EventDataMap {
   notification: NotificationData;
   job: JobData;
   end: EndData;
+  retry: RetryData;
 }
 
 export type EventKind = keyof EventDataMap;

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from aiohttp import web
 
 from mokli.agent_api.auth import require_scope
@@ -13,7 +15,8 @@ from mokli.agent_api.routes._util import json_body, ok, optional_str
 
 async def list_jobs(request: web.Request) -> web.Response:
     require_scope(request, "read")
-    return ok({"jobs": services(request).jobs.list()})
+    records = await asyncio.to_thread(services(request).jobs.list)
+    return ok({"jobs": records})
 
 
 async def get_job(request: web.Request) -> web.Response:
@@ -75,27 +78,17 @@ def _announce(
 
 
 async def task_lab(request: web.Request) -> web.Response:
-    """Replay a named strategy against caller candles or the local warehouse (R14)."""
+    """Replay a named strategy. Empty input loads market bars, not a pasted list."""
     require_scope(request, "read")
-    from pathlib import Path
-
     from mokli.agent.tools.fast_backtest import candles_from_json
-    from mokli.trading.strategy_lab import propose_strategy
-    from mokli.trading.warehouse import CandleWarehouse
+    from mokli.trading.strategy_lab import lab_replay
 
     body = await json_body(request)
     name = optional_str(body, "name") or "atr_breakout"
     raw = body.get("candles_json")
     candles = candles_from_json(raw if isinstance(raw, str) else "")
-    if not candles:
-        path = Path.home() / ".mokli" / "warehouse.sqlite"
-        if path.is_file():
-            store = CandleWarehouse(path)
-            try:
-                candles = store.load("XAUUSD", "15m", limit=200)
-            finally:
-                store.close()
-    return ok(propose_strategy(name, candles))
+    proposal = await asyncio.to_thread(lab_replay, name, candles)
+    return ok(proposal)
 
 
 async def task_desk(request: web.Request) -> web.Response:

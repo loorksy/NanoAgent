@@ -5,7 +5,7 @@ import json
 import time
 import uuid
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict
@@ -408,7 +408,10 @@ class SubagentManager:
                 cfg.restrict_to_workspace = workspace_scope.restrict_to_workspace
             # Construct from the agent workspace; the bound scope below supplies the project cwd.
             tools = self._build_tools(tools_config=cfg)
-            system_prompt = self._build_subagent_prompt(workspace=root)
+            system_prompt = self._build_subagent_prompt(
+                workspace=root,
+                tool_names=list(tools.tool_names),
+            )
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": task},
@@ -530,27 +533,38 @@ class SubagentManager:
         await self.bus.publish_inbound(msg)
         logger.debug("Subagent [{}] announced result to {}:{}", task_id, origin['channel'], origin['chat_id'])
 
-    def _build_subagent_prompt(self, workspace: Path | None = None) -> str:
+    def _build_subagent_prompt(
+        self,
+        workspace: Path | None = None,
+        tool_names: Sequence[str] | None = None,
+    ) -> str:
         """Build a focused system prompt for the subagent."""
         from mokli.agent.skills import SkillsLoader
 
         agent_workspace = self.workspace.expanduser().resolve()
         project_workspace = workspace.expanduser().resolve() if workspace else agent_workspace
+        # No registry means the gold subagent, which cannot open skill files.
+        can_read = tool_names is not None and "read_file" in set(tool_names)
         skills_summary = SkillsLoader(
             self.workspace,
             disabled_skills=self.disabled_skills,
-        ).build_skills_summary(workspace=project_workspace)
+        ).build_skills_summary(workspace=project_workspace, include_paths=can_read)
         history_log = (
             str(agent_workspace / "memory" / "history.jsonl")
             if agent_workspace != project_workspace
             else "memory/history.jsonl"
         )
+        from mokli.agent.context import _native_image_note
+
+        image_note = _native_image_note(tool_names) if tool_names is not None else ""
         return render_template(
             "agent/subagent_system.md",
             workspace=str(project_workspace),
             agent_workspace=str(agent_workspace),
             history_log=history_log,
             skills_summary=skills_summary or "",
+            skill_paths=can_read,
+            image_content_note=image_note,
         )
 
     async def cancel_by_session(self, session_key: str) -> int:

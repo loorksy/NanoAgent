@@ -15,7 +15,7 @@ export interface ContextCompaction {
 }
 
 export interface RetryStatus {
-  state: "waiting" | "recovered" | "cleared" | "exhausted"
+  state: "waiting" | "recovered" | "cleared" | "exhausted" | "cancelled"
   attempt: number
   max_attempts?: number
   error_kind: string
@@ -72,7 +72,7 @@ export function decodeNotification(value: unknown): NotificationEvent | null | u
 
 function isRetryStatus(value: Record<string, unknown>): boolean {
   return typeof value.state === "string"
-    && ["waiting", "recovered", "cleared", "exhausted"].includes(value.state)
+    && ["waiting", "recovered", "cleared", "exhausted", "cancelled"].includes(value.state)
     && typeof value.attempt === "number"
     && Number.isInteger(value.attempt)
     && value.attempt >= 1

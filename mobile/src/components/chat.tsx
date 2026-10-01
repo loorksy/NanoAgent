@@ -1,9 +1,10 @@
-import type { ArtifactEntry, ChatMessage, StateData, TimelineEntry } from "@mokli/sdk";
+import { activityLine, type ArtifactEntry, type ChatMessage, type StateData, type TimelineEntry } from "@mokli/sdk";
 import type { SubscribeStatus } from "@mokli/sdk";
 import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { timelineDetail, workingBadgeCopy } from "../lib/activity";
 import { useLabel, useLocale, useT } from "../lib/app-context";
 import { formatDuration } from "../lib/format";
 import { colors, font, radius, spacing, toneColor, type StateTone } from "../lib/theme";
@@ -20,9 +21,12 @@ export function StateBadge({ state, stream }: { state: StateData; stream?: Subsc
   const t = useT();
   const label = useLabel();
   const tone = toneColor(stateTone(state));
+  let title = t(`state.${state.state}`);
   let detail = "";
-  if (state.state === "working" && state.phase) {
-    detail = label(`phase.${state.phase}`);
+  if (state.state === "working") {
+    const copy = workingBadgeCopy(state.phase, t, label, state.provider_thinking === true);
+    title = copy.title;
+    detail = copy.detail;
   } else if (state.state === "waiting" && state.waiting_for) {
     detail = t(`state.waiting_for.${state.waiting_for.kind}`);
   } else if (state.state === "completed" && state.outcome) {
@@ -31,12 +35,35 @@ export function StateBadge({ state, stream }: { state: StateData; stream?: Subsc
   return (
     <View style={styles.stateRow}>
       <View style={[styles.dot, { backgroundColor: tone }]} />
-      <Text style={[styles.stateText, { color: tone }]}>{t(`state.${state.state}`)}</Text>
+      <Text style={[styles.stateText, { color: tone }]}>{title}</Text>
       {detail ? <Muted>· {detail}</Muted> : null}
       <View style={{ flex: 1 }} />
       {stream && stream !== "open" ? <Muted>{t(`agent.stream.${stream}`)}</Muted> : null}
     </View>
   );
+}
+
+function isHumanRole(role: string): boolean {
+  return Boolean(role) && !role.includes("_") && !(/^[\u0000-\u007f]*$/.test(role) && role === role.toLowerCase());
+}
+
+function stepDisplay(
+  entry: TimelineEntry,
+  translate: (key: string) => string,
+  lookup: (key: string) => string,
+): string {
+  if (entry.kind === "tool") {
+    if (entry.display) return entry.display;
+    const named = lookup(`tool.${entry.name}`);
+    return named.startsWith("tool.") ? translate("timeline.step") : named;
+  }
+  if (entry.kind === "subagent") {
+    if (entry.display) return entry.display;
+    const named = lookup(`subagent.${entry.role}`);
+    if (!named.startsWith("subagent.")) return named;
+    return isHumanRole(entry.role) ? entry.role : translate("timeline.specialist");
+  }
+  return translate(`retry.${entry.state}`);
 }
 
 export function Timeline({ entries }: { entries: TimelineEntry[] }) {
@@ -45,28 +72,30 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   if (entries.length === 0) return null;
+  const line = activityLine(entries, (entry) => stepDisplay(entry, t, label));
   return (
     <View style={styles.timeline}>
+      {line ? <Text style={styles.timelineName}>{line}</Text> : null}
       <Pressable onPress={() => setOpen((value) => !value)} accessibilityRole="button">
         <Muted style={{ color: colors.accent }}>{open ? t("timeline.hide") : t("timeline.show", { count: entries.length })}</Muted>
       </Pressable>
       {open
         ? entries.map((entry) => {
             const tone = entry.status === "failed" ? colors.danger : entry.status === "running" ? colors.info : colors.success;
-            const name = entry.kind === "tool" ? label(`tool.${entry.name}`) : label(`subagent.${entry.role}`);
-            const display = name.startsWith("tool.") || name.startsWith("subagent.") ? (entry.kind === "tool" ? entry.name : entry.role) : name;
+            const duration = "duration_ms" in entry ? entry.duration_ms : undefined;
+            const detail = timelineDetail(entry);
             return (
               <View key={entry.id} style={styles.timelineRow}>
                 <View style={[styles.dot, { backgroundColor: tone }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.timelineName}>
-                    {t(`timeline.${entry.kind}`)} · {display}
+                    {t(`timeline.${entry.kind}`)} · {stepDisplay(entry, t, label)}
                   </Text>
-                  {entry.summary ? <Muted>{entry.summary}</Muted> : null}
+                  {detail ? <Muted>{detail}</Muted> : null}
                 </View>
                 <Muted>
                   {t(`timeline.${entry.status}`)}
-                  {entry.kind === "tool" && entry.duration_ms !== undefined ? ` · ${formatDuration(entry.duration_ms, locale)}` : ""}
+                  {duration !== undefined ? ` · ${formatDuration(duration, locale)}` : ""}
                 </Muted>
               </View>
             );

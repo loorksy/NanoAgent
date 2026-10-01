@@ -36,6 +36,29 @@ ProviderCompactionScope = Literal["prior_context", "current_request"]
 RetryStatusCallback = Callable[[RetryStatusEvent], Awaitable[None]]
 
 
+async def _close_cancelled_retry(
+    on_retry_status: RetryStatusCallback | None,
+    event: RetryStatusEvent,
+) -> None:
+    """Finish a retry row that already showed waiting when the turn is cancelled.
+
+    A cancelling task raises again at the next await. Drop one cancellation
+    request so the terminal event can be published, then let the caller re-raise.
+    The model request does not return a successful response for this wait.
+    """
+    if on_retry_status is None:
+        return
+    task = asyncio.current_task()
+    if task is not None and task.cancelling():
+        task.uncancel()
+    try:
+        await on_retry_status(event)
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logger.exception("failed to close cancelled model retry")
+
+
 def resolve_stream_idle_timeout_s(
     *,
     env_value: str | None = None,
@@ -1697,28 +1720,77 @@ class LLMProvider(ABC):
         on_retry_wait: RetryEventCallback | None = None,
         on_retry_status: RetryStatusCallback | None = None,
     ) -> None:
+        started = time.perf_counter()
         next_retry_at = time.time() + max(0.0, delay)
         remaining = max(0.0, delay)
-        while remaining > 0:
-            if on_retry_wait:
-                kind = "persistent retry" if persistent else "retry"
-                await on_retry_wait(
-                    f"Model request failed, {kind} in {max(1, int(round(remaining)))}s "
-                    f"(attempt {attempt})."
-                )
-            if on_retry_status:
-                await on_retry_status(
+        try:
+            await self._wait_retry(
+                remaining,
+                next_retry_at,
+                attempt,
+                persistent,
+                error_kind,
+                max_attempts,
+                on_retry_wait,
+                on_retry_status,
+            )
+        finally:
+            waited_ms = int((time.perf_counter() - started) * 1000)
+            if waited_ms:
+                from mokli.agent.turn_diagnostics import current_turn_diagnostics
+
+                diag = current_turn_diagnostics()
+                if diag is not None:
+                    diag.note_retry_wait(waited_ms)
+
+    async def _wait_retry(
+        self,
+        remaining: float,
+        next_retry_at: float,
+        attempt: int,
+        persistent: bool,
+        error_kind: str,
+        max_attempts: int | None,
+        on_retry_wait: RetryEventCallback | None,
+        on_retry_status: RetryStatusCallback | None,
+    ) -> None:
+        published_waiting = False
+        try:
+            while remaining > 0:
+                if on_retry_wait:
+                    kind = "persistent retry" if persistent else "retry"
+                    await on_retry_wait(
+                        f"Model request failed, {kind} in {max(1, int(round(remaining)))}s "
+                        f"(attempt {attempt})."
+                    )
+                if on_retry_status:
+                    await on_retry_status(
+                        RetryStatusEvent(
+                            state="waiting",
+                            attempt=attempt,
+                            max_attempts=max_attempts,
+                            error_kind=error_kind,
+                            next_retry_at=next_retry_at,
+                        )
+                    )
+                    published_waiting = True
+                chunk = min(remaining, self._RETRY_HEARTBEAT_CHUNK)
+                await asyncio.sleep(chunk)
+                remaining -= chunk
+        except asyncio.CancelledError:
+            # The waiting row already went out. Close it before the cancel
+            # propagates, and do not invent a row when that event never landed.
+            if published_waiting:
+                await _close_cancelled_retry(
+                    on_retry_status,
                     RetryStatusEvent(
-                        state="waiting",
+                        state="cancelled",
                         attempt=attempt,
                         max_attempts=max_attempts,
-                        error_kind=error_kind,
-                        next_retry_at=next_retry_at,
-                    )
+                        error_kind="cancelled",
+                    ),
                 )
-            chunk = min(remaining, self._RETRY_HEARTBEAT_CHUNK)
-            await asyncio.sleep(chunk)
-            remaining -= chunk
+            raise
 
     @classmethod
     def public_error_kind(cls, response: LLMResponse) -> str:
@@ -1753,6 +1825,10 @@ class LLMProvider(ABC):
         last_response: LLMResponse | None = None
         last_error_key: str | None = None
         identical_error_count = 0
+        # Set only after a waiting event's sleep returns. A cancel during that
+        # sleep is closed inside the wait. A cancel during the next model call
+        # still has that waiting row on screen.
+        open_wait: tuple[int, int | None] | None = None
 
         async def _finish_retry_status(
             state: Literal["recovered", "cleared"],
@@ -1768,151 +1844,166 @@ class LLMProvider(ABC):
                     )
                 )
 
-        while True:
-            attempt += 1
-            response = await call(**kw)
-            if response.finish_reason != "error":
-                await _finish_retry_status("recovered", response)
-                return response
-            last_response = response
-            if should_retry_guard is not None and not should_retry_guard():
-                is_timeout = (response.error_kind or "").lower() == "timeout"
-                if is_timeout:
-                    if on_stream_recover:
-                        logger.warning(
-                            "LLM stream stalled after content was emitted; "
-                            "starting a new stream segment and retrying"
-                        )
-                        await on_stream_recover()
+        try:
+            while True:
+                attempt += 1
+                response = await call(**kw)
+                if response.finish_reason != "error":
+                    await _finish_retry_status("recovered", response)
+                    return response
+                last_response = response
+                if should_retry_guard is not None and not should_retry_guard():
+                    is_timeout = (response.error_kind or "").lower() == "timeout"
+                    if is_timeout:
+                        if on_stream_recover:
+                            logger.warning(
+                                "LLM stream stalled after content was emitted; "
+                                "starting a new stream segment and retrying"
+                            )
+                            await on_stream_recover()
+                        else:
+                            logger.warning(
+                                "LLM stream stalled after content was emitted; "
+                                "suppressing delta callbacks and retrying"
+                            )
+                            kw.setdefault("on_content_delta", None)
+                            kw["on_content_delta"] = None
+                            kw["on_thinking_delta"] = None
+                            kw["on_tool_call_delta"] = None
+                            should_retry_guard = None
                     else:
                         logger.warning(
-                            "LLM stream stalled after content was emitted; "
-                            "suppressing delta callbacks and retrying"
+                            "LLM stream failed after content was emitted; skipping retry"
                         )
-                        kw.setdefault("on_content_delta", None)
-                        kw["on_content_delta"] = None
-                        kw["on_thinking_delta"] = None
-                        kw["on_tool_call_delta"] = None
-                        should_retry_guard = None
+                        await _finish_retry_status("cleared", response)
+                        return response
+                error_key = ((response.content or "").strip().lower() or None)
+                if error_key and error_key == last_error_key:
+                    identical_error_count += 1
                 else:
-                    logger.warning(
-                        "LLM stream failed after content was emitted; skipping retry"
-                    )
+                    last_error_key = error_key
+                    identical_error_count = 1 if error_key else 0
+
+                if not self.is_transient_response(response):
+                    stripped = self._strip_image_content(kw["messages"])
+                    provider_context = kw.get("provider_context")
+                    stripped_context: ProviderCallContext | None = None
+                    if isinstance(provider_context, ProviderCallContext):
+                        state = provider_context.conversation_state
+                        if state is not None and (
+                            stripped is not None
+                            or self._strip_image_content(state.pending_messages) is not None
+                            or self._contains_image_content(state.payload)
+                        ):
+                            # Provider-owned payloads may retain earlier input_image items.
+                            # Rebuild from the stripped public transcript for this retry.
+                            stripped_context = ProviderCallContext(
+                                context_window_tokens=(
+                                    provider_context.context_window_tokens
+                                ),
+                                session_id=provider_context.session_id,
+                                events=provider_context.events,
+                            )
+                    if stripped is not None or stripped_context is not None:
+                        logger.warning(
+                            "Non-transient LLM error with image content, retrying without images"
+                        )
+                        retry_kw = dict(kw)
+                        if stripped is not None:
+                            retry_kw["messages"] = stripped
+                        if stripped_context is not None:
+                            retry_kw["provider_context"] = stripped_context
+                        result = await call(**retry_kw)
+                        # Permanently strip images from the original messages so
+                        # subsequent iterations do not repeat the error-retry cycle.
+                        if result.finish_reason != "error":
+                            self._strip_image_content_inplace(original_messages)
+                        await _finish_retry_status(
+                            "recovered" if result.finish_reason != "error" else "cleared",
+                            result,
+                        )
+                        return result
                     await _finish_retry_status("cleared", response)
                     return response
-            error_key = ((response.content or "").strip().lower() or None)
-            if error_key and error_key == last_error_key:
-                identical_error_count += 1
-            else:
-                last_error_key = error_key
-                identical_error_count = 1 if error_key else 0
 
-            if not self.is_transient_response(response):
-                stripped = self._strip_image_content(kw["messages"])
-                provider_context = kw.get("provider_context")
-                stripped_context: ProviderCallContext | None = None
-                if isinstance(provider_context, ProviderCallContext):
-                    state = provider_context.conversation_state
-                    if state is not None and (
-                        stripped is not None
-                        or self._strip_image_content(state.pending_messages) is not None
-                        or self._contains_image_content(state.payload)
-                    ):
-                        # Provider-owned payloads may retain earlier input_image items.
-                        # Rebuild from the stripped public transcript for this retry.
-                        stripped_context = ProviderCallContext(
-                            context_window_tokens=(
-                                provider_context.context_window_tokens
-                            ),
-                            session_id=provider_context.session_id,
-                            events=provider_context.events,
-                        )
-                if stripped is not None or stripped_context is not None:
+                if persistent and identical_error_count >= self._PERSISTENT_IDENTICAL_ERROR_LIMIT:
                     logger.warning(
-                        "Non-transient LLM error with image content, retrying without images"
+                        "Stopping persistent retry after {} identical transient errors: {}",
+                        identical_error_count,
+                        (response.content or "")[:120].lower(),
                     )
-                    retry_kw = dict(kw)
-                    if stripped is not None:
-                        retry_kw["messages"] = stripped
-                    if stripped_context is not None:
-                        retry_kw["provider_context"] = stripped_context
-                    result = await call(**retry_kw)
-                    # Permanently strip images from the original messages so
-                    # subsequent iterations do not repeat the error-retry cycle.
-                    if result.finish_reason != "error":
-                        self._strip_image_content_inplace(original_messages)
-                    await _finish_retry_status(
-                        "recovered" if result.finish_reason != "error" else "cleared",
-                        result,
-                    )
-                    return result
-                await _finish_retry_status("cleared", response)
-                return response
-
-            if persistent and identical_error_count >= self._PERSISTENT_IDENTICAL_ERROR_LIMIT:
-                logger.warning(
-                    "Stopping persistent retry after {} identical transient errors: {}",
-                    identical_error_count,
-                    (response.content or "")[:120].lower(),
-                )
-                if on_retry_exhausted:
-                    await on_retry_exhausted(
-                        f"Persistent retry stopped after {identical_error_count} identical errors."
-                    )
-                if on_retry_status:
-                    await on_retry_status(
-                        RetryStatusEvent(
-                            state="exhausted",
-                            attempt=attempt,
-                            max_attempts=None,
-                            error_kind=self.public_error_kind(response),
+                    if on_retry_exhausted:
+                        await on_retry_exhausted(
+                            f"Persistent retry stopped after {identical_error_count} identical errors."
                         )
-                    )
-                return response
+                    if on_retry_status:
+                        await on_retry_status(
+                            RetryStatusEvent(
+                                state="exhausted",
+                                attempt=attempt,
+                                max_attempts=None,
+                                error_kind=self.public_error_kind(response),
+                            )
+                        )
+                    return response
 
-            if not persistent and attempt > len(delays):
+                if not persistent and attempt > len(delays):
+                    logger.warning(
+                        "LLM request failed after {} attempts, giving up: {}",
+                        attempt,
+                        (response.content or "")[:120].lower(),
+                    )
+                    if on_retry_exhausted:
+                        await on_retry_exhausted(
+                            f"Model request failed after {attempt} attempts, giving up."
+                        )
+                    if on_retry_status:
+                        await on_retry_status(
+                            RetryStatusEvent(
+                                state="exhausted",
+                                attempt=attempt,
+                                max_attempts=len(delays) + 1,
+                                error_kind=self.public_error_kind(response),
+                            )
+                        )
+                    break
+
+                retry_after = self._extract_retry_after_from_response(response)
+                base_delay = delays[min(attempt - 1, len(delays) - 1)]
+                delay = retry_after + RETRY_AFTER_BUFFER if retry_after else base_delay
+                if persistent:
+                    delay = min(delay, self._PERSISTENT_MAX_DELAY)
+
                 logger.warning(
-                    "LLM request failed after {} attempts, giving up: {}",
+                    "LLM transient error (attempt {}{}), retrying in {}s: {}",
                     attempt,
+                    "+" if persistent and attempt > len(delays) else f"/{len(delays)}",
+                    int(round(delay)),
                     (response.content or "")[:120].lower(),
                 )
-                if on_retry_exhausted:
-                    await on_retry_exhausted(
-                        f"Model request failed after {attempt} attempts, giving up."
-                    )
-                if on_retry_status:
-                    await on_retry_status(
-                        RetryStatusEvent(
-                            state="exhausted",
-                            attempt=attempt,
-                            max_attempts=len(delays) + 1,
-                            error_kind=self.public_error_kind(response),
-                        )
-                    )
-                break
-
-            retry_after = self._extract_retry_after_from_response(response)
-            base_delay = delays[min(attempt - 1, len(delays) - 1)]
-            delay = retry_after + RETRY_AFTER_BUFFER if retry_after else base_delay
-            if persistent:
-                delay = min(delay, self._PERSISTENT_MAX_DELAY)
-
-            logger.warning(
-                "LLM transient error (attempt {}{}), retrying in {}s: {}",
-                attempt,
-                "+" if persistent and attempt > len(delays) else f"/{len(delays)}",
-                int(round(delay)),
-                (response.content or "")[:120].lower(),
-            )
-            await self._sleep_with_heartbeat(
-                delay,
-                attempt=attempt,
-                persistent=persistent,
-                error_kind=self.public_error_kind(response),
-                max_attempts=None if persistent else len(delays) + 1,
-                on_retry_wait=on_retry_wait,
-                on_retry_status=on_retry_status,
-            )
+                await self._sleep_with_heartbeat(
+                    delay,
+                    attempt=attempt,
+                    persistent=persistent,
+                    error_kind=self.public_error_kind(response),
+                    max_attempts=None if persistent else len(delays) + 1,
+                    on_retry_wait=on_retry_wait,
+                    on_retry_status=on_retry_status,
+                )
+                open_wait = (attempt, None if persistent else len(delays) + 1)
+        except asyncio.CancelledError:
+            if open_wait is not None:
+                wait_attempt, wait_max = open_wait
+                await _close_cancelled_retry(
+                    on_retry_status,
+                    RetryStatusEvent(
+                        state="cancelled",
+                        attempt=wait_attempt,
+                        max_attempts=wait_max,
+                        error_kind="cancelled",
+                    ),
+                )
+            raise
 
         return last_response if last_response is not None else await call(**kw)  # pyright: ignore[reportUnnecessaryComparison]
 

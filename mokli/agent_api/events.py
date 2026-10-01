@@ -17,7 +17,7 @@ from mokli.bus.runtime_events import (
     TurnRuntimeAdmitted,
     UserInputAccepted,
 )
-from mokli.events import AgentEvent
+from mokli.events import AgentEvent, DecisionCompletedEvent, RetryStatusEvent, TeamRoleEvent
 from mokli.session.goal_state import goal_state_ws_blob
 
 EventKind = Literal[
@@ -31,6 +31,8 @@ EventKind = Literal[
     "notification",
     "job",
     "end",
+    "diagnostic",
+    "retry",
 ]
 EVENT_KINDS: tuple[EventKind, ...] = (
     "delta",
@@ -43,6 +45,8 @@ EVENT_KINDS: tuple[EventKind, ...] = (
     "notification",
     "job",
     "end",
+    "diagnostic",
+    "retry",
 )
 
 SessionState = Literal["working", "waiting", "completed"]
@@ -69,6 +73,7 @@ class StateData(TypedDict, total=False):
     phase: str
     waiting_for: WaitingFor
     outcome: Outcome
+    provider_thinking: bool
 
 
 AGENT_API_CHANNEL = "agent_api"
@@ -105,6 +110,7 @@ def state_data(
     phase: str | None = None,
     waiting_for: WaitingFor | None = None,
     outcome: Outcome | None = None,
+    provider_thinking: bool = False,
 ) -> JsonObject:
     data: JsonObject = {"state": state}
     if phase is not None:
@@ -113,6 +119,8 @@ def state_data(
         data["waiting_for"] = dict(waiting_for)
     if outcome is not None:
         data["outcome"] = outcome
+    if provider_thinking:
+        data["provider_thinking"] = True
     return data
 
 
@@ -123,25 +131,37 @@ def tool_data(
     call_id: str,
     summary: str | None = None,
     duration_ms: int | None = None,
+    display: str | None = None,
+    arguments: str | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "name": name, "call_id": call_id}
     if summary is not None:
         data["summary"] = summary
     if duration_ms is not None:
         data["duration_ms"] = duration_ms
+    if display is not None:
+        data["display"] = display
+    if arguments is not None:
+        data["arguments"] = arguments
     return data
 
 
 def subagent_data(
-    event: Literal["started", "finished"],
+    event: Literal["started", "finished", "failed"],
     *,
     id: str,
     role: str,
     summary: str | None = None,
+    duration_ms: int | None = None,
+    display: str | None = None,
 ) -> JsonObject:
     data: JsonObject = {"event": event, "id": id, "role": role}
     if summary is not None:
         data["summary"] = summary
+    if duration_ms is not None:
+        data["duration_ms"] = duration_ms
+    if display:
+        data["display"] = display
     return data
 
 
@@ -246,14 +266,14 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
         return {
             "session": session,
             "kind": "state",
-            "data": state_data("working", phase="thinking"),
+            "data": state_data("working", phase="processing"),
         }
     if isinstance(event, TurnRuntimeAdmitted):
         session = session_id_for_key(event.context.session_key)
         return {
             "session": session,
             "kind": "state",
-            "data": state_data("working", phase="thinking"),
+            "data": state_data("working", phase="processing"),
         }
     if isinstance(event, TurnRunStatusChanged):
         if event.status == "idle":
@@ -270,6 +290,49 @@ def translate_runtime_event(event: AgentEvent) -> Translated | None:
             "session": session,
             "kind": "state",
             "data": state_data("completed", outcome=outcome_from_turn(event)),
+        }
+    if isinstance(event, TeamRoleEvent):
+        if not event.session_key:
+            return None
+        stage: Literal["started", "finished", "failed"] = {
+            "running": "started",
+            "done": "finished",
+            "failed": "failed",
+        }[event.status]
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "subagent",
+            "data": subagent_data(
+                stage,
+                id=event.agent_id,
+                role=event.role,
+                summary=event.summary or None,
+                duration_ms=event.duration_ms,
+                display=event.display or None,
+            ),
+        }
+    if isinstance(event, DecisionCompletedEvent):
+        if not event.session_key:
+            return None
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "structured",
+            "data": structured_data("decision", "", dict(event.payload)),
+        }
+    if isinstance(event, RetryStatusEvent):
+        if not event.session_key:
+            return None
+        data: JsonObject = {
+            "state": event.state,
+            "attempt": event.attempt,
+            "error_kind": event.error_kind,
+        }
+        if event.max_attempts is not None:
+            data["max_attempts"] = event.max_attempts
+        return {
+            "session": session_id_for_key(event.session_key),
+            "kind": "retry",
+            "data": data,
         }
     if isinstance(event, GoalStateChanged):
         session = session_id_for_key(event.context.session_key)

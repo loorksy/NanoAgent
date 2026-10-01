@@ -40,6 +40,76 @@ async def test_klines_returns_wire_candles(client: TestClient, monkeypatch) -> N
     assert body["candles"][0]["close"] == 2305.0
 
 
+async def test_klines_stay_on_oanda_and_symbols_are_gold(
+    client: TestClient, monkeypatch
+) -> None:
+    candle = SimpleNamespace(
+        time_ms=1_700_000_000_000,
+        open=2300.0,
+        high=2310.0,
+        low=2290.0,
+        close=2305.0,
+        volume=4,
+        complete=True,
+    )
+    monkeypatch.setattr(
+        "mokli.trading.config.load_trading_config",
+        lambda: SimpleNamespace(oanda_configured=True, metaapi_configured=False),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.oanda.fetch_candles",
+        lambda *_args, **_kwargs: ([candle], False),
+    )
+    candles = await client.get(
+        "/api/v2/market/klines?symbol=XAUUSD&interval=15m&limit=10",
+        headers=auth(),
+    )
+    assert candles.status == 200
+    body = await candles.json()
+    assert body["source"] == "oanda"
+    assert body["symbol"] == "XAUUSD"
+    assert body["candles"][0]["close"] == 2305.0
+
+    symbols = await client.get("/api/v2/market/symbols?q=xau", headers=auth())
+    assert symbols.status == 200
+    listed = await symbols.json()
+    assert listed["source"] == "oanda"
+    assert listed["symbols"][0]["name"] == "XAUUSD"
+
+    other = await client.get("/api/v2/market/symbols?q=eur", headers=auth())
+    assert (await other.json())["symbols"] == []
+
+
+async def test_quote_uses_metaapi_when_configured(client: TestClient, monkeypatch) -> None:
+    from mokli.trading.oanda import OandaQuote
+
+    monkeypatch.setattr(
+        "mokli.trading.config.load_trading_config",
+        lambda: SimpleNamespace(oanda_configured=False, metaapi_configured=True),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.market_context.fetch_metaapi_quote",
+        lambda *_args, **_kwargs: OandaQuote(
+            symbol="XAUUSD",
+            bid=2400.1,
+            ask=2400.3,
+            mid=2400.2,
+            tradeable=True,
+            quoted_at="2026-09-29T12:00:00Z",
+        ),
+    )
+
+    def _oanda_must_not_run(*_args, **_kwargs):
+        raise AssertionError("oanda quote")
+
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _oanda_must_not_run)
+    quote = await client.get("/api/v2/market/quote?symbol=XAUUSD", headers=auth())
+    assert quote.status == 200
+    quoted = await quote.json()
+    assert quoted["source"] == "metaapi"
+    assert quoted["quote"]["bid"] == 2400.1
+
+
 async def test_klines_unconfigured_feed(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         "mokli.trading.config.load_trading_config",
@@ -105,6 +175,8 @@ def test_every_gold_tool_has_a_schema(tmp_path) -> None:
         "mt5_close_position",
         "mt5_confirm_order",
         "mt5_get_account",
+        "mt5_list_symbols",
+        "mt5_market",
         "mt5_modify_order",
         "mt5_propose_order",
         "propose_strategy",

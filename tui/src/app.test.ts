@@ -16,6 +16,7 @@ import {
 
 import {
   MokliTui,
+  retryStatusLine,
   sessionExitMessage,
   terminalModelFailureLine,
   type AppOptions,
@@ -2615,6 +2616,14 @@ describe("MokliTui layout", () => {
     app.accept({ event: "turn_end", chat_id: "chat" })
     await setup.flush()
     expect(ui.composer.placeholder).toBe("Ask mokli anything")
+  })
+
+  test("a cancelled model retry does not stay on the retrying line", () => {
+    expect(retryStatusLine({
+      state: "cancelled",
+      attempt: 1,
+      error_kind: "cancelled",
+    })).toBe("Retry cancelled")
   })
 
   test("updates retry state in place and ends failed turns explicitly", async () => {

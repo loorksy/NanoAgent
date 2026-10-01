@@ -7,6 +7,8 @@ keeps; this module only exposes them on ``/api/v2``.
 
 from __future__ import annotations
 
+import asyncio
+
 from aiohttp import web
 
 from mokli.agent_api.auth import require_scope
@@ -17,7 +19,8 @@ async def performance(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from mokli.surface.trading_api import performance_document
 
-    return ok(performance_document())
+    # The page shows a live mid, so the broker read stays off this event loop.
+    return ok(await asyncio.to_thread(performance_document))
 
 
 async def briefing(request: web.Request) -> web.Response:
@@ -25,7 +28,7 @@ async def briefing(request: web.Request) -> web.Response:
     from mokli.surface.trading_api import briefing_document
 
     locale = request.query.get("locale") or None
-    return ok(briefing_document(locale))
+    return ok(await asyncio.to_thread(briefing_document, locale))
 
 
 async def usage(request: web.Request) -> web.Response:
@@ -33,7 +36,8 @@ async def usage(request: web.Request) -> web.Response:
     from mokli.llm_usage import llm_usage_payload
 
     days = query_int(request, "days", 30, maximum=371)
-    return ok(llm_usage_payload(days=days))
+    # The usage page aggregates the call store. That read stays off this loop.
+    return ok(await asyncio.to_thread(llm_usage_payload, days=days))
 
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:

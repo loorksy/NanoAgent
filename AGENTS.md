@@ -16,9 +16,9 @@ uv sync --all-extras --dev
 uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
 uv run --no-sync basedpyright
 
-# Browser client (Mokli fork). The legacy React app under mokli/src is gone.
-# Charting library assets remain at mokli/public/charting_library/.
-cd mokli-ui && npm run dev
+# Browser client (Open WebUI fork in mokli-ui/). Charting library assets remain at
+# mokli-ui/public/charting_library/.
+cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 cd mokli-ui && npm run build
 
 # Gateway
@@ -81,5 +81,30 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for contribution flow and PR guidelin
 - Provider base / new provider template: `mokli/providers/base.py`
 - Channel base / new channel template: `mokli/channels/base.py`
 - Tool registry: `mokli/agent/tools/registry.py`
-- Mokli dev proxy config: `mokli/vite.config.ts`
+- Mokli dev proxy config: `mokli-ui/vite.config.ts` (default `MOKLI_BACKEND_URL=http://localhost:8766`)
+
+## Cursor Cloud specific instructions
+
+Mokli upgrade work on this repo often cannot reach live LLM, OANDA, or MetaAPI keys. Prefer measured unit tests and local smoke without inventing credentials.
+
+```bash
+/workspace/.venv/bin/mokli gateway --background --port 18791
+# Agent API default 8766 when gateway runs with agentApi enabled
+cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
+curl -s http://127.0.0.1:5173/api/v2/health
+bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
+bash scripts/mokli_upgrade_section11_init.sh  # VPS: scaffold events/ + results + progress (no LLM)
+bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
+/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
+python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
+# Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
+bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
+python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
+python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
+python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
+bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
+# Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
+```
+
+Aggregate pytest target: 2332 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
 - Tests mirror the `mokli/` package structure.

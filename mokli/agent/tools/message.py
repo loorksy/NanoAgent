@@ -53,10 +53,7 @@ def capture_message_deliveries() -> Generator[set[tuple[str, str]], None, None]:
         ),
         media=ArraySchema(
             StringSchema(""),
-            description=(
-                "Optional list of existing file paths to attach. "
-                "Use artifact paths returned by generate_image here when delivering generated images."
-            ),
+            description="Optional list of existing file paths or http(s) URLs to attach.",
         ),
         buttons=ArraySchema(
             ArraySchema(StringSchema("Button label")),
@@ -119,15 +116,12 @@ class MessageTool(Tool):
     @property
     def description(self) -> str:
         return (
-            "Proactively send a message to a user/channel, optionally with file attachments. "
-            "Use this for reminders, cross-channel delivery, or explicit proactive sends. "
+            "Proactively send a message to a user or channel, optionally with existing file attachments. "
+            "Use this for reminders, cross-channel delivery, or an explicit request to send a file. "
             "Do not use this for the normal reply in the current chat: answer naturally instead. "
-            "If channel/chat_id would target the current runtime conversation, do not call this tool "
-            "unless the user explicitly asked you to proactively send an existing file attachment. "
-            "When generate_image creates images in the current chat, use the message tool "
-            "with the artifact paths in the media parameter to deliver the images to the user. "
-            "For proactive attachment delivery, use the 'media' parameter with file paths. "
-            "Do NOT use read_file to send files — that only reads content for your own analysis."
+            "If channel or chat_id would target the current conversation, do not call this tool "
+            "unless the user explicitly asked you to send an existing file. "
+            "Attach existing file paths in the media parameter."
         )
 
     def _resolve_media(self, media: list[str]) -> list[str]:

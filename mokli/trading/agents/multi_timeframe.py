@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import contextvars
+from concurrent.futures import ThreadPoolExecutor
+
 from mokli.trading.agents.structure import run_structure_agent
 from mokli.trading.geometry.detectors import find_swings, infer_trend
 from mokli.trading.gold import DATA_SYMBOL
@@ -25,12 +28,35 @@ def _bias_from_context(market: AgentMarketContext) -> Bias:
     return _trend_to_bias(infer_trend(find_swings(market.candles)))
 
 
+# Same window a trend role loads, so a graph prefetch and that role share one download.
+HIGHER_TF_INTERVALS = ("1h", "4h", "1d")
+HIGHER_TF_LIMIT = 120
+
+
+def load_higher_timeframe(interval: str) -> AgentMarketContext:
+    """Bars only. The bias does not use a live quote."""
+    return build_agent_market_context(
+        DATA_SYMBOL,
+        interval,
+        HIGHER_TF_LIMIT,
+        include_quote=False,
+    )
+
+
 def run_multi_timeframe_agent(market: AgentMarketContext) -> MultiTimeframeResult:
     """M15 comes from the caller; H1/H4/D1 are loaded. Daily is real D1, not a resample of H1."""
     m15 = _trend_to_bias(run_structure_agent(market).trend)
-    h1_ctx = build_agent_market_context(DATA_SYMBOL, "1h", limit=120)
-    h4_ctx = build_agent_market_context(DATA_SYMBOL, "4h", limit=120)
-    d1_ctx = build_agent_market_context(DATA_SYMBOL, "1d", limit=120)
+    # Each worker gets its own context copy so the candle cache is visible.
+    # The bias uses bars only, so these loads do not download a live quote.
+    intervals = HIGHER_TF_INTERVALS
+    contexts = [contextvars.copy_context() for _ in intervals]
+
+    def _load(item: tuple[contextvars.Context, str]) -> AgentMarketContext:
+        ctx, interval = item
+        return ctx.run(load_higher_timeframe, interval)
+
+    with ThreadPoolExecutor(max_workers=len(intervals)) as pool:
+        h1_ctx, h4_ctx, d1_ctx = tuple(pool.map(_load, zip(contexts, intervals, strict=True)))
     h1 = _bias_from_context(h1_ctx)
     h4 = _bias_from_context(h4_ctx)
     daily = _bias_from_context(d1_ctx)

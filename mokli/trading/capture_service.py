@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import uuid
 from typing import Any
@@ -18,6 +17,7 @@ from mokli.trading.chart_photo import lead_chart_frame, write_chart_snapshot_fil
 from mokli.trading.i18n import tr
 from mokli.trading.locale import locale_from_text, normalize_locale
 from mokli.trading.stage_delivery import TradingStagePublisher
+from mokli.trading.tool_errors import model_json
 
 
 def _msg(key: str, locale: str) -> str:
@@ -196,4 +196,17 @@ async def run_chart_capture(
 
 
 def chart_capture_tool_result(payload: dict[str, Any]) -> str:
-    return json.dumps(payload, indent=2)
+    """Model-facing capture result. The image already went to the operator UI."""
+    snapshots = payload.get("chartSnapshots")
+    frames = len(snapshots) if isinstance(snapshots, list) else 0
+    brief = {
+        "ok": payload.get("ok") is True,
+        "interval": payload.get("interval"),
+        "frames": frames,
+        "delivered": payload.get("ok") is True,
+        "instruction": (
+            "The chart image was delivered to the operator interface. "
+            "Price levels are not in this result; do not invent them from pixels."
+        ),
+    }
+    return model_json(brief)

@@ -7,12 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
+from mokli.agent.context_layers import ContextLayers, layers_for_transcript_boundary
 from mokli.agent.memory import MemoryStore
 from mokli.agent.prompt.composer import (
     WORKSPACE_LAYER,
     PromptContext,
     PromptSettings,
     compose_system_prompt,
+    has_tool,
     render_layer,
     render_placeholders,
 )
@@ -21,6 +23,7 @@ from mokli.agent.tools import image_generation as image_generation_tools
 from mokli.agent.tools import mcp as mcp_tools
 from mokli.agent.tools import sessions as session_tools
 from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.turn_diagnostics import current_turn_diagnostics
 from mokli.apps.cli import utils as cli_app_utils
 from mokli.bus.events import (
     INBOUND_META_RUNTIME_CONTROL,
@@ -36,7 +39,7 @@ from mokli.security.workspace_access import WorkspaceScopeResolver
 from mokli.session.keys import last_channel_from_metadata
 from mokli.session.manager import Session
 from mokli.session.summary import SessionSummary
-from mokli.utils.helpers import detect_image_mime, load_bundled_template
+from mokli.utils.helpers import detect_image_mime, estimate_message_tokens, load_bundled_template
 from mokli.utils.prompt_templates import render_template
 
 
@@ -46,6 +49,18 @@ def session_extra(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
         cli_app_utils.session_extra(metadata)
         | mcp_tools.session_extra(metadata)
         | session_tools.session_extra(metadata)
+    )
+
+
+def _native_image_note(tool_names: Sequence[str] | None) -> str:
+    """Name only image-capable tools that are actually registered."""
+    names = [name for name in ("read_file", "web_fetch") if has_tool(tool_names, name)]
+    if not names:
+        return ""
+    listed = "read_file and web_fetch" if len(names) == 2 else names[0]
+    return (
+        f"- Tools like {listed} can return native image content. "
+        "Read visual resources directly when needed instead of relying on text descriptions."
     )
 
 
@@ -87,6 +102,7 @@ class TranscriptInput:
     current_role: str = "user"
     session_summary: SessionSummary | None = None
     runtime_context_blocks: Sequence[RuntimeContextBlock] | None = None
+    prompt_layers: ContextLayers | None = None
 
     @property
     def message_count(self) -> int:
@@ -124,6 +140,7 @@ class ContextBuilder:
         session_summary: SessionSummary | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        include_skills: bool = True,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> str:
@@ -146,19 +163,27 @@ class ContextBuilder:
                 memory_section = f"# Memory\n\n## Long-term Memory\n{memory}"
 
         active_section = ""
-        active_skills = self.skills.get_always_skills()
-        if active_skills:
-            active_content = self.skills.load_skills_for_context(active_skills)
-            if active_content:
-                active_section = f"# Active Skills\n\n{active_content}"
-
+        active_skills: list[str] = []
         skills_section = ""
-        skills_summary = self.skills.build_skills_summary(
-            exclude=set(active_skills),
-            workspace=root,
-        )
-        if skills_summary:
-            skills_section = render_template("agent/skills_section.md", skills_summary=skills_summary)
+        if include_skills:
+            active_skills = self.skills.get_always_skills()
+            if active_skills:
+                active_content = self.skills.load_skills_for_context(active_skills)
+                if active_content:
+                    active_section = f"# Active Skills\n\n{active_content}"
+
+            open_skill_files = has_tool(tool_names, "read_file")
+            skills_summary = self.skills.build_skills_summary(
+                exclude=set(active_skills),
+                workspace=root,
+                include_paths=open_skill_files,
+            )
+            if skills_summary:
+                skills_section = render_template(
+                    "agent/skills_section.md",
+                    skills_summary=skills_summary,
+                    skill_paths=open_skill_files,
+                )
 
         archived = ""
         if session_summary and session_summary["text"] != "(nothing)":
@@ -168,13 +193,27 @@ class ContextBuilder:
                 f"{session_summary['text']}"
             )
 
+        diag = current_turn_diagnostics()
+        if diag is not None:
+            diag.memory_chars = len(memory_section)
+            diag.skills_chars = len(active_section) + len(skills_section)
+            diag.memory_tokens = (
+                estimate_message_tokens({"role": "system", "content": memory_section})
+                if memory_section else 0
+            )
+            skills_text = "\n".join(part for part in (active_section, skills_section) if part)
+            diag.skills_tokens = (
+                estimate_message_tokens({"role": "system", "content": skills_text})
+                if skills_text else 0
+            )
+
         return compose_system_prompt(
             PromptContext(
                 settings=self.prompt_settings,
                 channel=channel,
                 tool_names=tool_names,
                 facts=dict(facts or {}),
-                workspace=self._get_identity(workspace=root),
+                workspace=self._get_identity(workspace=root, tool_names=tool_names),
                 bootstrap=self._load_bootstrap_files(root),
                 project=project,
                 memory=memory_section,
@@ -184,7 +223,12 @@ class ContextBuilder:
             )
         )
 
-    def _get_identity(self, channel: str | None = None, workspace: Path | None = None) -> str:
+    def _get_identity(
+        self,
+        channel: str | None = None,
+        workspace: Path | None = None,
+        tool_names: Sequence[str] | None = None,
+    ) -> str:
         """Runtime and workspace facts (paths, memory contract, external-content policy)."""
         del channel
         root = workspace or self.workspace
@@ -199,14 +243,19 @@ class ContextBuilder:
         else:
             prefix = ""
             paths = []
+        history = f"- History log: {prefix}memory/history.jsonl (append-only JSONL"
+        if has_tool(tool_names, "grep"):
+            history += "; prefer built-in `grep` for search"
+        history += ")."
         paths.extend(
             [
                 f"- Agent profile: {prefix}SOUL.md and {prefix}USER.md",
                 f"- Long-term memory: {prefix}memory/MEMORY.md",
-                f"- History log: {prefix}memory/history.jsonl (append-only JSONL; prefer built-in `grep` for search).",
-                f"- Custom skills: {prefix}skills/{{skill-name}}/SKILL.md",
+                history,
             ]
         )
+        if has_tool(tool_names, "read_file"):
+            paths.append(f"- Custom skills: {prefix}skills/{{skill-name}}/SKILL.md")
         if system == "Windows":
             platform_notes = (
                 "Platform: Windows. Do not assume GNU tools like `grep`, `sed`, or `awk` exist; "
@@ -218,7 +267,7 @@ class ContextBuilder:
                 "Platform: POSIX. Prefer UTF-8 and standard shell tools; use file tools when they "
                 "are simpler or more reliable than shell commands."
             )
-        return render_layer(
+        rendered = render_layer(
             WORKSPACE_LAYER,
             {
                 "runtime": runtime,
@@ -226,6 +275,10 @@ class ContextBuilder:
                 "workspace_paths": "\n".join(paths),
             },
         )
+        image_note = _native_image_note(tool_names)
+        if image_note:
+            return f"{rendered}\n{image_note}"
+        return rendered
 
     @staticmethod
     def _merge_message_content(left: Any, right: Any) -> str | list[dict[str, Any]]:
@@ -310,6 +363,7 @@ class ContextBuilder:
         runtime_context_blocks: Sequence[RuntimeContextBlock] | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        context_layers: ContextLayers | None = None,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
@@ -326,6 +380,7 @@ class ContextBuilder:
             channel=channel,
             workspace=workspace,
             include_memory=include_memory,
+            context_layers=context_layers,
             tool_names=tool_names,
             facts=facts,
         )
@@ -354,11 +409,17 @@ class ContextBuilder:
         channel: str | None = None,
         workspace: Path | None = None,
         include_memory: bool = True,
+        context_layers: ContextLayers | None = None,
         tool_names: Sequence[str] | None = None,
         facts: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Build a model transcript while preserving the fresh-turn boundary."""
         root = workspace or self.workspace
+        layers = layers_for_transcript_boundary(
+            current_message=transcript.current_message,
+            history=transcript.history,
+            prompt_layers=context_layers or transcript.prompt_layers,
+        )
         messages: list[dict[str, Any]] = [
             {
                 "role": "system",
@@ -366,7 +427,8 @@ class ContextBuilder:
                     channel=channel,
                     session_summary=transcript.session_summary,
                     workspace=root,
-                    include_memory=include_memory,
+                    include_memory=include_memory and layers.include_memory,
+                    include_skills=layers.include_skills,
                     tool_names=tool_names,
                     facts=facts,
                 ),

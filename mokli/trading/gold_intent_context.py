@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from mokli.agent.tools.context import RequestContext
 from mokli.runtime_context import RuntimeContextBlock, wrap_runtime_context_lines
-from mokli.trading.config import load_trading_config
-from mokli.trading.gold import DATA_SYMBOL
-from mokli.trading.oanda import fetch_quote
-from mokli.trading.recommendations.lifecycle import sync_session_live_plan
+from mokli.trading.decision_route import is_gold_decision_question
+from mokli.trading.recommendations.lifecycle import grade_session_plan
 
 
 def _plain_price(value: object | None) -> str | None:
@@ -22,13 +20,32 @@ def _plain_price(value: object | None) -> str | None:
 async def gold_intent_runtime_context(
     request: RequestContext,
 ) -> RuntimeContextBlock | None:
-    """Tell the LLM when a live plan exists and inject fresh platform prices."""
+    """Tell the LLM when a live plan exists.
+
+    A live row is graded with one quote read off the event loop. The tick is
+    not copied into the prompt; a price follow-up calls get_gold_quote.
+    """
     text = (request.original_user_text or "").strip()
     if not text:
         return None
-    live = sync_session_live_plan(request.session_key)
+    live, _quote = await grade_session_plan(
+        request.session_key,
+        reuse_turn_grade=True,
+    )
     if not live:
-        return None
+        if not is_gold_decision_question(text):
+            return None
+        return RuntimeContextBlock(
+            source="gold_intent",
+            content=wrap_runtime_context_lines(
+                [
+                    "The operator asked for a gold buy/sell decision.",
+                    "The runtime runs run_trading_kernel with decision_review=true before you answer.",
+                    "That runs gold_decision_review, then the kernel. The kernel is the only BUY/SELL path.",
+                    "Use the tool result already in this turn. Do not call the kernel again.",
+                ]
+            ),
+        )
 
     direction = str(live.get("direction") or "wait").upper()
     lines = [
@@ -51,15 +68,6 @@ async def gold_intent_runtime_context(
         if targets:
             level_bits.append("targets=" + "/".join(t for t in targets if t))
         lines.append("Stored plan levels (plain): " + ", ".join(level_bits))
-
-    config = load_trading_config()
-    if config.oanda_configured:
-        try:
-            quote = fetch_quote(DATA_SYMBOL, config=config)
-            if quote and quote.mid is not None:
-                lines.append(f"Platform live XAUUSD mid now: {_plain_price(quote.mid)}")
-        except Exception:
-            pass
 
     if request.channel == "websocket":
         from mokli.agent.delivery_targets import default_telegram_chat_id

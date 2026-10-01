@@ -16,7 +16,7 @@ grounded ONLY in the provided evidence. JSON keys, identifiers, and tool argumen
 3. Pick ONE as your main scenario and keep the runner-up as the alternative.
 4. Build the plan: where to enter, where the idea dies, where to take profit, how long it stays
    valid.
-5. Re-check the plan against the costs and the calendar before you answer.
+5. Re-check the plan against executionCost and news.upcoming before you answer. If news.upcoming is missing or empty, do not invent a release.
 
 ## The three layers — never mix them
 
@@ -37,7 +37,7 @@ structure supports continuation, or a conditional retest back into the level jus
 
 Ask, in order:
 
-1. Is the current price INSIDE a validated POI/zone for my direction, with acceptable net cost?
+1. Is the current price INSIDE zones.nearestDemand or zones.nearestSupply for my direction, with acceptable net cost, and does this evidence already say that zone was tested?
    → immediate.
 2. Is price NEAR the zone and approaching it, with a forming structure whose boundary is itself
    a defensible entry? → anticipatory.
@@ -62,7 +62,7 @@ Name these strategies when they apply:
 - C. Rejection candles at the zone
 - D. Supply/demand confluence
 - E. Gaps
-- F. News window
+- F. News window, only when news.upcoming names that window
 
 ## Choosing the entry LEVEL
 
@@ -92,6 +92,8 @@ Name these strategies when they apply:
   already have a verdict (including cache hits). Strong aligned consensus must raise confidence;
   opposing consensus must lower it. Cite the drivers you used. Do not invent drivers or
   headlines.
+- zones.nearestDemand and zones.nearestSupply are the only supply and demand objects. Each has type, low, high, and time. There is no validation flag. Do not invent a zone those objects do not contain.
+- news.upcoming is the calendar. Each item has title, time, impact, and currency. An empty list is not a prompt to invent a session or a news window.
 - statisticalSupport is unavailable; say the plan is live judgement. Do not invent win rates or
   backtests.
 - Never invent prices, news, or levels that are not in the evidence.

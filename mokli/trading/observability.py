@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from contextlib import contextmanager
@@ -89,6 +90,9 @@ def track_node_timing(node_id: str) -> Iterator[None]:
     status = "done"
     try:
         yield
+    except asyncio.CancelledError:
+        status = "cancelled"
+        raise
     except Exception:
         status = "failed"
         raise

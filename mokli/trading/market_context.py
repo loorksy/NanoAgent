@@ -1,12 +1,25 @@
-"""Build agent market context from OANDA candles."""
+"""Build agent market context from OANDA candles and the live quote.
+
+Candles come from OANDA. The live bid/ask comes from MetaAPI when that
+account is configured, and from OANDA otherwise.
+"""
 
 from __future__ import annotations
 
-from mokli.trading.config import load_trading_config
+import contextvars
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
+from mokli.trading.config import TradingConfig, load_trading_config
 from mokli.trading.geometry.detectors import compute_atr
 from mokli.trading.gold import DATA_SYMBOL, require_gold
-from mokli.trading.oanda import OandaCandle, fetch_candles, fetch_quote
+from mokli.trading.metaapi_market import fetch_metaapi_quote
+from mokli.trading.oanda import OandaCandle, OandaQuote, fetch_candles, fetch_quote
 from mokli.trading.types import AgentMarketContext, Candle, MarketSync
+
+logger = logging.getLogger(__name__)
+
+_MIN_BARS = 20
 
 
 def _to_candle(row: OandaCandle) -> Candle:
@@ -21,32 +34,114 @@ def _to_candle(row: OandaCandle) -> Candle:
     )
 
 
+def resolve_live_quote(
+    symbol: str = DATA_SYMBOL,
+    config: TradingConfig | None = None,
+) -> tuple[OandaQuote | None, str]:
+    """Live gold quote and the feed that produced it.
+
+    Overlapping reads in one turn share the download already in progress.
+    A later read, after that download finishes, fetches again.
+    """
+    require_gold(symbol)
+    config = config or load_trading_config()
+
+    def _fetch() -> tuple[OandaQuote | None, str]:
+        if getattr(config, "metaapi_configured", False) is True:
+            try:
+                quote = fetch_metaapi_quote(symbol, config=config)
+            except Exception:
+                logger.warning("MetaAPI analysis quote failed")
+                quote = None
+            if quote is not None:
+                return quote, "metaapi"
+        return fetch_quote(symbol, config=config), "oanda"
+
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None:
+        return _fetch()
+    return turn.share_inflight(
+        ("quote", symbol),
+        _fetch,
+        on_reuse=lambda: setattr(turn, "quote_reuses", turn.quote_reuses + 1),
+    )
+
+
+def live_analysis_quote(symbol: str = DATA_SYMBOL) -> OandaQuote | None:
+    """Bid/ask used by the recommendation gates."""
+    quote, _source = resolve_live_quote(symbol)
+    return quote
+
+
 def build_agent_market_context(
     symbol: str = DATA_SYMBOL,
     interval: str = "15m",
     limit: int = 240,
+    *,
+    include_quote: bool = True,
 ) -> AgentMarketContext:
     require_gold(symbol)
     config = load_trading_config()
-    candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
-    candles = [_to_candle(c) for c in candles_raw]
-    quote = fetch_quote(symbol, config=config)
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+
+    def _fetch_rows() -> list[Candle]:
+        candles_raw, _ = fetch_candles(symbol, interval, limit, config=config)
+        return [_to_candle(row) for row in candles_raw]
+
+    def _load_candles() -> list[Candle]:
+        if turn is None:
+            return _fetch_rows()
+        return turn.load_candles(symbol, interval, limit, _fetch_rows)
+
+    # Callers that only need bars (a higher-timeframe bias, a trend window)
+    # must not download a quote they discard. Gates still read a fresh quote.
+    # Candles and the live quote are separate feeds, so a context that needs
+    # both starts them together instead of waiting for the bars to finish.
+    quote = None
+    if include_quote:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            # A context can be entered by one thread only, so each feed gets its own copy.
+            candle_task = pool.submit(contextvars.copy_context().run, _load_candles)
+            quote_task = pool.submit(
+                contextvars.copy_context().run,
+                resolve_live_quote,
+                symbol,
+                config,
+            )
+            candle_error: Exception | None = None
+            quote_error: Exception | None = None
+            try:
+                candles = candle_task.result()
+            except Exception as exc:
+                candle_error = exc
+            try:
+                quote, _source = quote_task.result()
+            except Exception as exc:
+                quote_error = exc
+            if candle_error is not None:
+                raise candle_error
+            if quote_error is not None:
+                raise quote_error
+    else:
+        candles = _load_candles()
 
     sync = MarketSync(ok=True)
     if not config.oanda_configured:
         sync = MarketSync(ok=False, reason="OANDA not configured")
-    elif len(candles) < 20:
+    elif len(candles) < _MIN_BARS:
         sync = MarketSync(ok=False, reason="Insufficient candle history", gapped=True)
 
     last_close = candles[-1].close if candles else 0.0
-    atr = compute_atr(candles)
-
     return AgentMarketContext(
         symbol=symbol,
         interval=interval,
         candles=candles,
         last_close=last_close,
-        atr=atr,
+        atr=compute_atr(candles),
         sync=sync,
         quote_mid=quote.mid if quote else None,
         quote_bid=quote.bid if quote else None,

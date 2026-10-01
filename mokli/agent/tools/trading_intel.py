@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
 from typing import Any
 
 from mokli.agent.tools.base import Tool
@@ -17,10 +17,23 @@ from mokli.trading.intel.rss_aggregator import fetch_rss_headlines
 from mokli.trading.intel.telegram_scraper import TelegramHeadlineSource
 from mokli.trading.intel.vector_playbook import VectorPlaybook
 from mokli.trading.intel.vip_tracker import fetch_vip_statements
+from mokli.trading.tool_errors import model_json
 
 
 def _json(payload: Any) -> str:
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    return model_json(payload)
+
+
+async def collect_intel_sources() -> tuple[Any, Any, Any, Any, TelegramHeadlineSource]:
+    """RSS, VIP statements, the calendar, and Telegram are independent reads."""
+    telegram = TelegramHeadlineSource()
+    headlines, vips, calendar, telegram_rows = await asyncio.gather(
+        fetch_rss_headlines(),
+        fetch_vip_statements(),
+        fetch_economic_calendar(),
+        telegram.fetch_recent(),
+    )
+    return headlines, vips, calendar, telegram_rows, telegram
 
 
 class GoldIntelScanTool(Tool):
@@ -56,11 +69,7 @@ class GoldIntelScanTool(Tool):
         **kwargs: Any,
     ) -> Any:
         del kwargs
-        headlines = await fetch_rss_headlines()
-        vips = await fetch_vip_statements()
-        calendar = await fetch_economic_calendar()
-        telegram = TelegramHeadlineSource()
-        telegram_rows = await telegram.fetch_recent()
+        headlines, vips, calendar, telegram_rows, telegram = await collect_intel_sources()
         emergency = scan_emergency(text, apply_lock=bool(text))
         sentiment = await classify_sentiment(text or " ".join(h.title for h in headlines[:5]))
         book = VectorPlaybook()

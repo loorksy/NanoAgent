@@ -197,7 +197,7 @@ class TurnDelivery:
 
     def __post_init__(self) -> None:
         self._routed_events = _bind_events(self.bus, self.route)
-        self.events = EventSink(self._publish_event, self._routed_events.accepts)
+        self.events = EventSink(self._publish_event, self._accepts_event)
         self.delivery_message = dataclasses.replace(
             self.input_message,
             channel=self.route.channel,
@@ -364,9 +364,25 @@ class TurnDelivery:
         assert self._stream_base_id is not None
         return f"{self._stream_base_id}:{self._stream_segment}"
 
+    def _accepts_event(self, event_type: type[AgentEvent]) -> bool:
+        """User turns keep retry status even when the channel does not print it."""
+        if (
+            event_type is RetryStatusEvent
+            and self.route.publish_lifecycle
+            and self.route.channel != "system"
+        ):
+            return True
+        return self._routed_events.accepts(event_type)
+
     async def _publish_event(self, event: AgentEvent) -> None:
         if isinstance(event, RetryStatusEvent):
             self._retry_status = event if event.state == "exhausted" else None
+            stamped = (
+                event
+                if event.session_key
+                else dataclasses.replace(event, session_key=self.session_key)
+            )
+            await self.bus.publish(stamped)
         if isinstance(event, StreamDeltaEvent | StreamEndEvent):
             if not self.streaming:
                 return
