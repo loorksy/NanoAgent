@@ -232,6 +232,7 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "wait_quota_reset.sh" in text
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
+    assert "mokli_upgrade_section11_try_row11_paper.sh" in text
     assert "vps_pull_main.sh" in text
     assert "timer_wake.sh" in text
 

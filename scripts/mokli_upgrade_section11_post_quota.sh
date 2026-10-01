@@ -42,6 +42,11 @@ fi
 if [[ "$SKIP_RERUN" -eq 0 ]]; then
   echo "== partial reruns + sync =="
   bash "$ROOT/scripts/mokli_upgrade_section11_rerun_partials.sh"
+  if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
+    :
+  else
+    echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
+  fi
 fi
 
 cat <<NOTE
