@@ -40,13 +40,18 @@ sudo -u "$USER" git -C "$INSTALL" fetch origin "$BRANCH"
 sudo -u "$USER" git -C "$INSTALL" checkout -B "$BRANCH" "origin/$BRANCH"
 sudo -u "$USER" bash -lc "cd '$INSTALL' && source .venv/bin/activate && pip install -U pip wheel -q && pip install -e '.[trading-mt5]' -q"
 sudo systemctl restart "$UNIT"
+REV=$(sudo -u "$USER" git -C "$INSTALL" rev-parse --short HEAD)
+GW_OK=0
+API_OK=0
 for _ in $(seq 1 15); do
-  if curl -sf http://127.0.0.1:18791/health >/dev/null 2>&1; then
-    echo "PULL_OK rev=$(sudo -u "$USER" git -C "$INSTALL" rev-parse --short HEAD)"
+  curl -sf http://127.0.0.1:18791/health >/dev/null 2>&1 && GW_OK=1
+  curl -sf http://127.0.0.1:8766/api/v2/health >/dev/null 2>&1 && API_OK=1
+  if [[ "$GW_OK" -eq 1 && "$API_OK" -eq 1 ]]; then
+    echo "PULL_OK rev=$REV"
     exit 0
   fi
   sleep 2
 done
-echo "PULL_WARN gateway health not ready after restart" >&2
-sudo -u "$USER" git -C "$INSTALL" rev-parse --short HEAD
+echo "PULL_WARN health not ready after restart (gateway_ok=$GW_OK agent_api_ok=$API_OK)" >&2
+echo "$REV"
 EOS
