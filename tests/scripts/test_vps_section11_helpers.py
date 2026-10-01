@@ -70,6 +70,13 @@ def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     assert "sudo -u" in text
 
 
+def test_row12_local_smoke_prefers_dev_vite_url() -> None:
+    text = (ROOT / "scripts" / "local_section11_row12_smoke.sh").read_text(encoding="utf-8")
+    assert "127.0.0.1:5173" in text
+    assert "MOKLI_UI_URL" in text
+    assert "8766" in text
+
+
 def test_quota_probe_sources_unblock_hints() -> None:
     probe = (ROOT / "scripts" / "vps_section11_quota_probe.sh").read_text(encoding="utf-8")
     hints = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
