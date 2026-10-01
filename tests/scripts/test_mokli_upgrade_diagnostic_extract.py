@@ -217,6 +217,25 @@ def test_each_and_session_summary_for_long_session() -> None:
     assert "below_linear_2x=yes" in out
 
 
+def test_session_summary_flags_quota_when_all_input_zero() -> None:
+    lines = [
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 0, "tool_calls": 0}}
+        )
+        for _ in range(5)
+    ]
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--session-summary"],
+        input="\n".join(lines),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout.strip()
+    assert "diagnostics=5" in out
+    assert "quota_blocked_likely=yes" in out
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(

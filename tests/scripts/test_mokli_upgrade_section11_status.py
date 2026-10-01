@@ -58,3 +58,37 @@ def test_status_skip_quota_passes_validate_only(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "skip-quota" in proc.stdout
+
+
+def test_status_require_through_flag(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 100}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS — one"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--skip-quota",
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "1",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PATH": "/usr/bin:/bin"},
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "require-through=1" in proc.stdout

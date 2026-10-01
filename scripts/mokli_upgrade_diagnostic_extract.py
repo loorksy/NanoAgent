@@ -83,6 +83,8 @@ def session_summary_line(diags: list[dict[str, Any]]) -> str:
         parts.append(f"in_peak_over_first={peak / first:.2f}")
         linear_15x = first * len(diags)
         parts.append(f"below_linear_{len(diags)}x={'yes' if peak < linear_15x else 'no'}")
+    elif len(diags) > 1 and peak == 0:
+        parts.append("quota_blocked_likely=yes")
     fold = sum(
         int(d.get("referenced_chars_saved") or 0)
         + int(d.get("folded_candle_chars") or 0)

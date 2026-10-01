@@ -7,17 +7,38 @@ PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
 
 SKIP_QUOTA=0
-ARGS=()
-for arg in "$@"; do
-  case "$arg" in
-    --skip-quota) SKIP_QUOTA=1 ;;
-    *) ARGS+=("$arg") ;;
+EVENTS="$ROOT/section11-events"
+RESULTS="$ROOT/section11-results-partial.json"
+REQUIRE=13
+
+usage() {
+  echo "Usage: $0 [--skip-quota] [--dir EVENTS] [--results JSON] [--require-through N]" >&2
+  echo "  Legacy: $0 [EVENTS] [RESULTS] [REQUIRE]" >&2
+  exit 2
+}
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-quota) SKIP_QUOTA=1; shift ;;
+    --dir) EVENTS="$2"; shift 2 ;;
+    --results) RESULTS="$2"; shift 2 ;;
+    --require-through) REQUIRE="$2"; shift 2 ;;
+    -h | --help) usage ;;
+    --*) echo "Unknown flag: $1" >&2; usage ;;
+    *) POSITIONAL+=("$1"); shift ;;
   esac
 done
 
-EVENTS="${ARGS[0]:-$ROOT/section11-events}"
-RESULTS="${ARGS[1]:-$ROOT/section11-results-partial.json}"
-REQUIRE="${ARGS[2]:-13}"
+if [[ ${#POSITIONAL[@]} -ge 1 ]]; then
+  EVENTS="${POSITIONAL[0]}"
+fi
+if [[ ${#POSITIONAL[@]} -ge 2 ]]; then
+  RESULTS="${POSITIONAL[1]}"
+fi
+if [[ ${#POSITIONAL[@]} -ge 3 ]]; then
+  REQUIRE="${POSITIONAL[2]}"
+fi
 
 if [[ ! -f "$RESULTS" ]]; then
   echo "WARN: results file missing: $RESULTS (copy from docs/section11-results.example.json)" >&2
