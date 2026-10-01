@@ -39,7 +39,7 @@ bash scripts/mokli_upgrade_aggregate_pytest.sh
 
 ## Cloud Agent (هذا الـ VM)
 
-بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. SSH بمفتاح (`MOKLI_SSH_HOST`) يكفي لـ `sync_from_vps` و`quota_probe` و`blockers --skip-vps`؛ **`cloud_status --require-through 10`** يخرج **0** عندما حزمة JSONL 1–10 محلية سليمة (حتى مع quota محجوب). **`vps_section11_quota_status.sh`** / **`quota_probe`** يطبعان **≈وقت إعادة تعيين OpenRouter** من `X-RateLimit-Reset` في `quota-probe.jsonl` (مثلاً **2026-10-02 00:00 UTC** عند حد free-models-per-day). **`row1_after_p0` / إغلاق 13** يتوقفان حتى quota OK (`in>0`) أو credits/`MOKLI_SECTION11_MODEL`. المزيد من pytest **لا يغلق** الهدف.
+بدون مفاتيح LLM/OANDA/MetaAPI في `~/.mokli/config.json` أو البيئة، **لا يمكن** تنفيذ صفوف §11 1–13 هنا. بعد إعادة تعيين OpenRouter: `bash scripts/mokli_upgrade_section11_after_reset_wake.sh` (pull + probe + `rerun_partials`؛ لا ينتظر 17h). SSH بمفتاح (`MOKLI_SSH_HOST`) يكفي لـ `sync_from_vps` و`quota_probe` و`blockers --skip-vps`؛ **`cloud_status --require-through 10`** يخرج **0** عندما حزمة JSONL 1–10 محلية سليمة (حتى مع quota محجوب). **`vps_section11_quota_status.sh`** / **`quota_probe`** يطبعان **≈وقت إعادة تعيين OpenRouter** من `X-RateLimit-Reset` في `quota-probe.jsonl` (مثلاً **2026-10-02 00:00 UTC** عند حد free-models-per-day). **`row1_after_p0` / إغلاق 13** يتوقفان حتى quota OK (`in>0`) أو credits/`MOKLI_SECTION11_MODEL`. المزيد من pytest **لا يغلق** الهدف.
 
 ## بعد VPS (المشغّل)
 
