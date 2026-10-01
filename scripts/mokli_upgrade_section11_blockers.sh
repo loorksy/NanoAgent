@@ -34,6 +34,10 @@ ENV_OK=0
 if [[ "$SKIP_VPS" -eq 1 ]]; then
   echo "== VPS env skipped (--skip-vps) =="
   ENV_OK=1
+  if [[ -d "$EVENTS" ]]; then
+    echo "== cached LLM quota (local JSONL) =="
+    bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$EVENTS" || true
+  fi
 else
   echo "== VPS env (quota + OANDA required for full closure) =="
   if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda; then

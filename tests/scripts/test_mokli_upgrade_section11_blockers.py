@@ -10,6 +10,31 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "mokli_upgrade_section11_blockers.sh"
 
 
+def test_blockers_skip_vps_prints_local_cached_quota(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+        encoding="utf-8",
+    )
+    (events / "quota-probe.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS"}), encoding="utf-8")
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-vps", "--require-through", "1", str(events), str(results)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert "cached LLM quota" in proc.stdout
+    assert "QUOTA_BLOCKED" in proc.stdout or "QUOTA_BLOCKED" in proc.stderr
+
+
 def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
     partial = ROOT / "section11-results-partial.json"
     if not partial.is_file():
