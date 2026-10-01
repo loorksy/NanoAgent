@@ -28,7 +28,14 @@ section11_run_agent_api_turn() {
   sleep 1
   curl -sf -X POST "$BASE/sessions/$SID/messages" -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$(PROMPT="$PROMPT" python3 -c "import json,os; print(json.dumps({'text':os.environ['PROMPT']}))")"
+    -d "$(PROMPT="$PROMPT" MOKLI_SECTION11_MODEL="${MOKLI_SECTION11_MODEL:-}" python3 -c "
+import json, os
+body = {'text': os.environ['PROMPT']}
+preset = os.environ.get('MOKLI_SECTION11_MODEL', '').strip()
+if preset:
+    body['model'] = preset
+print(json.dumps(body))
+")"
   wait "$SSE_PID" || true
   for _ in $(seq 1 30); do
     grep '^data: ' "$RAW" | sed 's/^data: //' > "$EVENT_DIR/$OUT_NAME"

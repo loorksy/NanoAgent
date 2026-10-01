@@ -50,6 +50,7 @@ bash scripts/deploy-mokli-vps.sh
 - **Anthropic** (preset `claude-opus-5`): رصيد منخفض → صف §11 1 يفشل بلا `input_tokens`.
 - **OpenRouter** (`openrouter/auto`): رفض «API key is out of quota» (2026-10-01).
 - **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
+- **تجربة preset آخر بلا تعديل config:** `MOKLI_SECTION11_MODEL=claude-opus-5 bash scripts/vps_section11_agent_api_turn.sh …` (حقل `model` في POST Agent API).
 - **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب). على **الخادم نفسه** (SSH إلى VPS): `cd /opt/nanoagent && bash scripts/vps_section11_quota_probe.sh` — يستخدم Agent API على `127.0.0.1:8766` بلا SSH متداخل.
 - **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
 - **سحب JSONL من VPS:** `bash scripts/vps_section11_pull_events.sh` → `./section11-events/` محلياً قبل `section11_batch` / `patch_report`.
