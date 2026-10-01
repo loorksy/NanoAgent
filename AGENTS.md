@@ -115,6 +115,7 @@ bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 
 bash scripts/mokli_upgrade_section11_cloud_status.sh # quota snapshot + blockers @13 (+ partial10_ok/gate)
 bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + production_gate @10 on partial pack
 bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; after reset: --wait-quota then full chain @13
+# Background on Cloud Agent VM (sleep until reset, then VPS reruns): tmux session section11-timer-wake-wait → log /opt/cursor/artifacts/timer_wake_wait_quota.log
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)
