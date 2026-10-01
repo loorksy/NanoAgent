@@ -68,7 +68,7 @@ fi
 
 echo ""
 if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
-  echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE"
+  echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE --results $RESULTS"
   echo "BLOCKERS_EXIT=0"
   exit 0
 fi

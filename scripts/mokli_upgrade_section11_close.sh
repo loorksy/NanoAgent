@@ -34,6 +34,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ ! -f "$RESULTS" && -f "${ROOT}/section11-results-partial.json" ]]; then
+  echo "INFO: results file missing; using ${ROOT}/section11-results-partial.json" >&2
+  RESULTS="${ROOT}/section11-results-partial.json"
+fi
+
 if [[ "$APPLY" -eq 1 && "$ALLOW_PARTIAL" -eq 1 ]]; then
   echo "ERROR: --apply cannot be used with --allow-partial (fix PARTIAL rows first)" >&2
   exit 1
@@ -85,6 +90,15 @@ if [[ "$APPLY" -eq 1 ]]; then
     echo "== §11 report gate (canonical report) =="
     "$PYTEST" "${ROOT}/tests/scripts/test_mokli_upgrade_report_section11_gate.py" -q
     echo "OK §11 report gate"
+  fi
+  if [[ "$REQUIRE" -ge 13 ]]; then
+    CANONICAL_RESULTS="${ROOT}/section11-results.json"
+    RESULTS_ABS="$(readlink -f "$RESULTS" 2>/dev/null || true)"
+    PARTIAL_ABS="$(readlink -f "${ROOT}/section11-results-partial.json" 2>/dev/null || true)"
+    if [[ -n "$RESULTS_ABS" && -n "$PARTIAL_ABS" && "$RESULTS_ABS" == "$PARTIAL_ABS" ]]; then
+      cp "$RESULTS_ABS" "$CANONICAL_RESULTS"
+      echo "OK promoted partial results → $CANONICAL_RESULTS"
+    fi
   fi
 else
   echo "== patch report (dry-run) =="

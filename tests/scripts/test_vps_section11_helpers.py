@@ -245,6 +245,7 @@ def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
     assert "after_reset_wake.sh" in text
     assert "operator_unblock.sh" in text and "--pull-vps" in text
     assert "close.sh" in text and "--require-through 13" in text
+    assert '--results "$SECTION11_RESULTS"' in text
     assert "sync_from_vps.sh" in text and "SECTION11_REQUIRE" in text
     assert "TIMER_WAKE_EXIT" in text
     assert "set -e" in text

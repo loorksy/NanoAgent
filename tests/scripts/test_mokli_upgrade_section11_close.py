@@ -78,6 +78,12 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     assert "closure_errors=9" in combined
 
 
+def test_section11_close_script_promotes_partial_on_apply_at_13() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "section11-results-partial.json" in text
+    assert "OK promoted partial results" in text
+
+
 def test_section11_close_rejects_apply_with_allow_partial(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

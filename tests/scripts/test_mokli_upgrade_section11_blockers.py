@@ -131,8 +131,10 @@ def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
         timeout=60,
     )
     combined_v = proc_v.stdout + proc_v.stderr
-    err_count = sum(1 for line in combined_v.splitlines() if line.startswith("ERROR"))
+    match_v = re.search(r"closure_errors=(\d+)", combined_v)
     assert proc_v.returncode != 0
+    assert match_v, combined_v[-500:]
+    err_count = int(match_v.group(1))
     assert err_count >= 1
     proc_b = subprocess.run(
         ["bash", str(SCRIPT), "--skip-vps", "--require-through", "13", str(events), str(partial)],

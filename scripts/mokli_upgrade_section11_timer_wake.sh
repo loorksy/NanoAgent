@@ -84,7 +84,8 @@ fi
 
 echo ""
 echo "== close report @13 =="
-bash "$ROOT/scripts/mokli_upgrade_section11_close.sh" --apply --require-through 13
+bash "$ROOT/scripts/mokli_upgrade_section11_close.sh" --apply --require-through 13 \
+  --dir "$SECTION11_EVENTS" --results "$SECTION11_RESULTS"
 "$PY" tests/scripts/test_mokli_upgrade_report_section11_gate.py -q
 
 echo "TIMER_WAKE_EXIT=0"

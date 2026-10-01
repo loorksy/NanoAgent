@@ -59,7 +59,7 @@ set -e
 printf '%s\n' "$BLOCK_COMBINED"
 if [[ "$BLOCK_EC" -eq 0 ]]; then
   echo ""
-  echo "READY: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13"
+  echo "READY: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
   echo "OPERATOR_UNBLOCK_EXIT=0"
   exit 0
 fi

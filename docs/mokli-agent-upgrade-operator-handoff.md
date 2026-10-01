@@ -12,7 +12,7 @@
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
    - إغلاق 1–13: validate يرفض PARTIAL؛ **`01-no-tools-after-p0.jsonl` مع `in>0`**؛ **3–10** بجودة JSONL؛ **11** paper/`run_state`؛ **12** structured/decision + `in>0`؛ **13** أحداث tool/status/structured (ليس diagnostic فقط) — `remaining_rows.sh` (معاينة: `close.sh --allow-partial` بدون `--apply`)
    - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10 --allow-partial` (dry-run patch؛ يتجاهل مفاتيح 11–14 الفارغة في JSON)
-8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL؛ يحدّث أيضاً جدول §2.1 وفقرة **P0 live delta** عند وجود `01-no-tools-after-p0.jsonl` مع `in>0`)
+8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json` (إن غاب `section11-results.json` يُستخدم `section11-results-partial.json` تلقائياً؛ بعد `--apply` @13 يُنسَخ الجزئي → `section11-results.json`). صف 9: عمود «الأرقام» يضم `session-summary` عند تعدد diagnostics؛ يحدّث §2.1 و**P0 live delta** عند `01-no-tools-after-p0.jsonl` مع `in>0`.
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`؛ اختياري قبل الدمج: `bash scripts/mokli_upgrade_aggregate_pytest.sh`
 
 ## الفرع
