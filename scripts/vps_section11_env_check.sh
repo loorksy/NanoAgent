@@ -48,11 +48,27 @@ _snapshot_body() {
     && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
     oanda=yes
   fi
+  model_preset=unknown
+  model_preset=$(python3 - <<'PY' 2>/dev/null || echo unknown
+import json
+from pathlib import Path
+
+p = Path.home() / ".mokli" / "config.json"
+if not p.is_file():
+    print("missing")
+else:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    agents = data.get("agents") or {}
+    defaults = agents.get("defaults") or {}
+    print(defaults.get("modelPreset") or "null")
+PY
+)
   echo "REV=$rev"
   echo "API_HEALTH=$health"
   echo "OANDA=$oanda"
   echo "UI_HTTP=$ui_http"
   echo "PIPE_DIAG=$pipe_diag"
+  echo "MODEL_PRESET=$model_preset"
 }
 
 if section11_local_ready "$INSTALL_DIR"; then
@@ -80,11 +96,27 @@ if [[ -f "$install/.env" ]] \
   && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
   oanda=yes
 fi
+model_preset=unknown
+model_preset=$(python3 - <<'PY' 2>/dev/null || echo unknown
+import json
+from pathlib import Path
+
+p = Path.home() / ".mokli" / "config.json"
+if not p.is_file():
+    print("missing")
+else:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    agents = data.get("agents") or {}
+    defaults = agents.get("defaults") or {}
+    print(defaults.get("modelPreset") or "null")
+PY
+)
 echo "REV=$rev"
 echo "API_HEALTH=$health"
 echo "OANDA=$oanda"
 echo "UI_HTTP=$ui_http"
 echo "PIPE_DIAG=$pipe_diag"
+echo "MODEL_PRESET=$model_preset"
 INNER
 EOS
 )
@@ -98,12 +130,19 @@ health=$(echo "$lines" | sed -n 's/^API_HEALTH=//p')
 oanda=$(echo "$lines" | sed -n 's/^OANDA=//p')
 ui_http=$(echo "$lines" | sed -n 's/^UI_HTTP=//p')
 pipe_diag=$(echo "$lines" | sed -n 's/^PIPE_DIAG=//p')
+model_preset=$(echo "$lines" | sed -n 's/^MODEL_PRESET=//p')
 
 echo "git_rev=${rev:-?}"
 echo "agent_api_health=${health:-?}"
 echo "oanda_configured=${oanda:-?}"
 echo "mokli_ui_http=${ui_http:-?}"
 echo "mokli_pipe_show_diagnostics=${pipe_diag:-?}"
+echo "gateway_model_preset=${model_preset:-?}"
+if [[ -n "${MOKLI_SECTION11_MODEL:-}" ]]; then
+  echo "section11_model_override=set"
+else
+  echo "section11_model_override=unset"
+fi
 
 quota_ok=0
 quota_line=""

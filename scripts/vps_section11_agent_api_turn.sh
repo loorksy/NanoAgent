@@ -26,7 +26,7 @@ fi
 
 PROMPT_B64=$(printf '%s' "$PROMPT" | base64 -w0)
 
-vps_ssh bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" <<'EOS'
+vps_ssh env MOKLI_SECTION11_MODEL="${MOKLI_SECTION11_MODEL:-}" bash -s -- "$INSTALL_DIR" "$OUT_NAME" "$PROMPT_B64" <<'EOS'
 set -euo pipefail
 INSTALL="$1"
 OUT_NAME="$2"
