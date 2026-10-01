@@ -70,6 +70,10 @@ IFS='|' read -r new_pt new_final new_tool_defs <<< "$(_p0_metrics "$NEW")"
 
 echo "baseline=$BASELINE in=${base_in:-?} provider_tools=${base_pt} comp_final=${base_final} tool_defs=${base_tool_defs}"
 echo "new=$NEW in=${new_in:-?} provider_tools=${new_pt} comp_final=${new_final} tool_defs=${new_tool_defs}"
+if [[ "${new_in:-}" == "0" ]]; then
+  echo "delta_in=skipped (new turn in=0 — quota or incomplete; use 01-no-tools-after-p0.jsonl for live delta)"
+  exit 0
+fi
 if [[ -n "${base_in:-}" && -n "${new_in:-}" && "$base_in" =~ ^[0-9]+$ && "$new_in" =~ ^[0-9]+$ ]]; then
   echo "delta_in=$((new_in - base_in))"
   if [[ "$base_final" =~ ^[0-9]+$ && "$new_final" =~ ^[0-9]+$ ]]; then

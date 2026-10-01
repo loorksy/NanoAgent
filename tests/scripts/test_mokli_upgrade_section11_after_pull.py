@@ -97,7 +97,7 @@ def test_after_pull_runs_interim_delta_from_quota_probe(tmp_path: Path) -> None:
     )
     assert "P0 interim" in proc.stdout
     assert "quota-probe" in proc.stdout
-    assert "delta_in=-10000" in proc.stdout
+    assert "delta_in=skipped" in proc.stdout
 
 
 def test_after_pull_interim_survives_quota_probe_without_diagnostic(tmp_path: Path) -> None:

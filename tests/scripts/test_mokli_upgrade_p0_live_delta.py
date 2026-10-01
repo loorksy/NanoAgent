@@ -76,3 +76,39 @@ def test_live_delta_quota_probe_without_diagnostic(tmp_path: Path) -> None:
     assert "in=10934" in proc.stdout
     assert "quota blocked" in proc.stdout
     assert "delta_in=skipped" in proc.stdout
+
+
+def test_live_delta_skips_numeric_delta_when_new_in_zero(tmp_path: Path) -> None:
+    diag = {
+        "kind": "diagnostic",
+        "data": {
+            "rounds": 1,
+            "request_input_tokens": 10934,
+            "provider_tool_count": 7,
+            "components": {"final": 10271},
+        },
+    }
+    probe_diag = {
+        "kind": "diagnostic",
+        "data": {
+            "rounds": 1,
+            "request_input_tokens": 0,
+            "provider_tool_count": 7,
+            "components": {"final": 3603},
+        },
+    }
+    base = tmp_path / "01-no-tools.jsonl"
+    probe = tmp_path / "quota-probe.jsonl"
+    base.write_text(json.dumps(diag) + "\n", encoding="utf-8")
+    probe.write_text(json.dumps(probe_diag) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), str(base), str(probe)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "in=10934" in proc.stdout
+    assert "in=0" in proc.stdout
+    assert "delta_in=skipped" in proc.stdout
+    assert "delta_in=-" not in proc.stdout
