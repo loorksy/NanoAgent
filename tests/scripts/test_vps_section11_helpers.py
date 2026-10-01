@@ -51,6 +51,21 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         assert path.stat().st_mode & 0o111, f"{name} should be executable"
 
 
+def test_vps_pull_main_waits_gateway_and_agent_api() -> None:
+    text = (ROOT / "scripts" / "vps_pull_main.sh").read_text(encoding="utf-8")
+    assert "18791/health" in text
+    assert "8766/api/v2/health" in text
+    assert "API_OK" in text and "GW_OK" in text
+
+
+def test_section11_turn_core_retries_session_create() -> None:
+    text = (ROOT / "scripts" / "section11_agent_api_turn_core.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "for _try in" in text
+    assert "failed to create session" in text
+
+
 def test_vps_pull_main_rejects_extra_positional_args() -> None:
     script = ROOT / "scripts" / "vps_pull_main.sh"
     proc = subprocess.run(
