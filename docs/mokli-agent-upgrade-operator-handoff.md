@@ -52,6 +52,18 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 # أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل
 ```
 
+**سطور ملخص قابلة للمسح (بدون LLM):** عند الحجب ابحث في stderr/stdout عن:
+
+| سطر | سكربت |
+| --- | --- |
+| `blockers_summary:` | `blockers.sh` — `env_ok`, `validate_ok`, `closure_errors`, `seconds_until_reset` |
+| `completion_status:` | `completion_status.sh` — `artifact_ok`, `partial10_*`, `closure_errors`, `seconds_until_reset` |
+| `cloud_status:` | `cloud_status.sh` — `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `seconds_until_reset` |
+| `operator_unblock:` | `operator_unblock.sh` — `partial10_*`, `closure_errors`, `seconds_until_reset` |
+| `INCOMPLETE §11 status:` | `section11_status.sh` — `validate_ok`, `quota_ok`, `closure_errors`, `seconds_until_reset` |
+
+إغلاق الإنتاج = `closure_errors=0` على `blockers_summary` (أو validate) مع `quota_ok=1` وOANDA.
+
 **كلمة مرور SSH:**
 
 ```bash

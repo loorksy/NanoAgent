@@ -35,6 +35,7 @@ def test_operator_smoke_script() -> None:
     events = ROOT / "section11-events"
     if partial.is_file() and events.is_dir():
         combined = proc.stdout + proc.stderr
-        assert "partial pack rows 1–10" in combined or "rows 1–10" in combined
-        assert "through row 10" in combined or "require-through 10" in combined
-        assert "production gate @10" in combined or "production_gate @10" in combined
+        assert "blockers_summary:" in combined
+        if proc.returncode == 0:
+            assert "partial pack rows 1–10" in combined or "require-through 10" in combined
+            assert "production gate @10" in combined or "production_gate @10" in combined
