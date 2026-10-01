@@ -24,7 +24,7 @@ else
 fi
 
 echo "== sync JSONL from VPS + P0 table =="
-bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh"
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps
 
 cat <<'NOTE'
 Next: rows 11–13 — bash scripts/mokli_upgrade_section11_remaining_rows.sh
