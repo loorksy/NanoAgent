@@ -22,7 +22,7 @@
 | أدوات المشغّل §11 | `section11_init`، `operator_smoke`، `section11_close`، `production_gate`، `remaining_rows` (11–13)، `vps_section11_env_check`، `set_oanda_env`، `row1_after_p0`، `p0_live_delta`، `pull_events`، `quota_probe`، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report` | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
-| VPS checkout (Hostinger) | **`497cba11`** on branch `cursor/section11-vps-rows-d9e1` (PR #62 §11 pack)؛ gateway active؛ quota **BLOCKED**؛ probe `provider_tools=7` | **منجز** (2026-10-01) |
+| VPS checkout (Hostinger) | **`b7b83cc4`** on branch `cursor/section11-vps-rows-d9e1` (PR #62 §11 pack)؛ gateway active؛ quota **BLOCKED**؛ probe `provider_tools=7` | **منجز** (2026-10-01) |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
