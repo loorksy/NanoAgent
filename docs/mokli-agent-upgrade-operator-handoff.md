@@ -11,7 +11,7 @@
 7. بوابة: `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0)
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10`
    - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10` (بدون `--apply`)
-8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13`
+8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL)
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`
 
 ## الفرع
