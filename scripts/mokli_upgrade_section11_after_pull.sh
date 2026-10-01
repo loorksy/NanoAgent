@@ -16,3 +16,11 @@ bash "${ROOT}/scripts/mokli_upgrade_section11_status.sh" \
 echo ""
 echo "== P0 baseline (§2.1) from JSONL =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_diagnostic_extract.py" --p0-baseline "$EVENTS"
+
+BASELINE="${EVENTS}/01-no-tools.jsonl"
+AFTER_P0="${EVENTS}/01-no-tools-after-p0.jsonl"
+if [[ -f "$BASELINE" && -f "$AFTER_P0" ]]; then
+  echo ""
+  echo "== P0 live delta (row 1 after) =="
+  bash "${ROOT}/scripts/mokli_upgrade_p0_live_delta.sh" "$BASELINE" "$AFTER_P0"
+fi
