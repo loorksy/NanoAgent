@@ -16,6 +16,16 @@ bash scripts/cloud_agent_vps_secrets_check.sh
 
 ### نشر سريع بعد الدمج
 
+**مفتاح SSH (بدون VPS/VPSPASS):** إذا كان `~/.ssh/config` يعرّف المضيف (مثلاً `hostinger-vps`):
+
+```bash
+export MOKLI_SSH_HOST=hostinger-vps MOKLI_INSTALL_DIR=/opt/nanoagent MOKLI_GATEWAY_SERVICE=nanoagent-gateway
+bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
+# أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل
+```
+
+**كلمة مرور SSH:**
+
 ```bash
 export VPS='user@host' VPSPASS='…' MOKLI_BRANCH=main
 bash scripts/deploy-mokli-vps.sh

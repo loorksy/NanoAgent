@@ -26,7 +26,9 @@ if ! bash "$ROOT/scripts/cloud_agent_vps_secrets_check.sh" >&2; then
   exit 1
 fi
 
-command -v sshpass >/dev/null || { echo "deploy: sshpass required" >&2; exit 1; }
+if [[ -z "${MOKLI_SSH_HOST:-}" ]]; then
+  command -v sshpass >/dev/null || { echo "deploy: sshpass required (or set MOKLI_SSH_HOST)" >&2; exit 1; }
+fi
 
 WEB_TOKEN="${MOKLI_WEB_TOKEN:-$(openssl rand -hex 24)}"
 
@@ -283,9 +285,11 @@ echo "DEPLOY_OK domain=$DOMAIN web_port=$WEB_PORT"
 EOS
 )
 
-echo "Deploying Mokli to ${SSH_TARGET} (${DOMAIN})..."
-OUT=$(sshpass -p "$VPSPASS" ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 "$SSH_TARGET" \
-  "bash -s" -- "$INSTALL_DIR" "$SERVICE_USER" "$WEB_PORT" "$HEALTH_PORT" "$DOMAIN" "$BRANCH" "$REPO_URL" "$WEB_TOKEN" <<< "$REMOTE_SCRIPT")
+DEPLOY_LABEL="${MOKLI_SSH_HOST:-$SSH_TARGET}"
+echo "Deploying Mokli to ${DEPLOY_LABEL} (${DOMAIN})..."
+# shellcheck source=scripts/vps_ssh.sh
+source "$ROOT/scripts/vps_ssh.sh"
+OUT=$(vps_ssh "bash -s" -- "$INSTALL_DIR" "$SERVICE_USER" "$WEB_PORT" "$HEALTH_PORT" "$DOMAIN" "$BRANCH" "$REPO_URL" "$WEB_TOKEN" <<< "$REMOTE_SCRIPT")
 
 echo "$OUT"
 echo ""

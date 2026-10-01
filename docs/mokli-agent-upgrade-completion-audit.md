@@ -22,6 +22,8 @@
 | أدوات المشغّل §11 | `section11_init.sh`، `operator_smoke.sh`، `section11_close.sh` (validate+batch+patch؛ gate تلقائي عند `--apply` + require-through 13 على التقرير الرسمي)، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report`، `cloud_agent_vps_secrets_check.sh` (+ `section11-results.example.json`، fixture JSONL) | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** |
+| VPS `main` (مثال Hostinger) | `git rev-parse` → **`976fdd01`**؛ `nanoagent-gateway` active؛ Agent API `/api/v2/health` OK | **منجز** (2026-10-01) |
+| §11 حي على VPS | محاولة صف 1 عبر Agent API: رصيد Anthropic منخفض → لا `input_tokens` حية | **محجوب** (مزود) |
 
 ## أوامر تحقق سريعة (محلي)
 

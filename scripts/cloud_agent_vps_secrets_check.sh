@@ -12,6 +12,15 @@ pass_ok=0
 [[ -n "${VPS:-}" ]] && vps_ok=1
 [[ -n "${VPSPASS:-}" ]] && pass_ok=1
 
+if [[ -n "${MOKLI_SSH_HOST:-}" ]]; then
+  if ssh -o BatchMode=yes -o ConnectTimeout=15 "$MOKLI_SSH_HOST" true 2>/dev/null; then
+    echo "OK  VPS SSH key auth (MOKLI_SSH_HOST=$MOKLI_SSH_HOST)"
+    exit 0
+  fi
+  echo "FAIL MOKLI_SSH_HOST=$MOKLI_SSH_HOST — key auth failed (BatchMode)" >&2
+  exit 1
+fi
+
 if [[ "$vps_ok" -eq 1 && "$pass_ok" -eq 1 ]]; then
   echo "OK  VPS deploy credentials present (VPS + VPSPASS)"
   exit 0
