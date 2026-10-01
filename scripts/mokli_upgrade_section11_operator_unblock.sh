@@ -26,6 +26,8 @@ if [[ "$SKIP_PROBE" -eq 0 ]]; then
     echo "QUOTA: OK — safe to run rerun_partials / row scripts"
   else
     echo "QUOTA: BLOCKED — add credits or export MOKLI_SECTION11_MODEL before §11 live rows" >&2
+    bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
+    echo "HINT: after reset — bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps" >&2
     echo "HINT: retry with --skip-probe to inspect env/blockers without another LLM call" >&2
   fi
 else
