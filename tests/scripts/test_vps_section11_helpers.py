@@ -54,6 +54,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_wait_quota_reset.sh",
         "mokli_upgrade_section11_post_quota.sh",
         "mokli_upgrade_section11_after_reset_wake.sh",
+        "mokli_upgrade_section11_completion_status.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -197,6 +198,17 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
     assert "vps_pull_main.sh" in text
+
+
+def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_completion_status.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "completion_status:" in text
+    assert "SECTION11_COMPLETION_EXIT" in text
+    assert "--live-gate" in text
+    assert "operator_unblock.sh --pull-vps" in text
+    assert "blockers.sh" in text and "--skip-vps" in text
 
 
 def test_after_reset_wake_probe_without_long_wait() -> None:
