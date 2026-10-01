@@ -236,6 +236,7 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "mokli_upgrade_section11_try_row11_paper.sh" in text
     assert "vps_pull_main.sh" in text
     assert "timer_wake.sh" in text
+    assert "mokli_upgrade_section11_blockers.sh" in text
 
 
 def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:

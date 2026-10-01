@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+SECTION11_EVENTS="$ROOT/section11-events"
+SECTION11_RESULTS="$ROOT/section11-results-partial.json"
 DO_WAIT=0
 DO_PULL=0
 SKIP_RERUN=0
@@ -47,6 +49,10 @@ if [[ "$SKIP_RERUN" -eq 0 ]]; then
   else
     echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
   fi
+  echo ""
+  echo "== §11 blockers snapshot (--skip-vps @13) =="
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
+    "$SECTION11_EVENTS" "$SECTION11_RESULTS" 2>&1 || true
 fi
 
 cat <<NOTE
