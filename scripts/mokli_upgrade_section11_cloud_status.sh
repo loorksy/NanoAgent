@@ -25,6 +25,19 @@ else
 fi
 
 echo ""
+echo "== VPS env snapshot (SSH; no live LLM turn) =="
+# shellcheck source=scripts/vps_ssh.sh
+source "$ROOT/scripts/vps_ssh.sh"
+if vps_ssh_ready; then
+  install="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+  vps_ssh "cd $(printf '%q' "$install") && bash scripts/vps_section11_env_check.sh" 2>&1 \
+    | grep -E '^(git_rev|agent_api_health|oanda_configured|mokli_ui_http|mokli_pipe_show_diagnostics)=' \
+    || echo "WARN: vps_section11_env_check failed" >&2
+else
+  echo "SKIP: set MOKLI_SSH_HOST or VPS+VPSPASS for VPS snapshot" >&2
+fi
+
+echo ""
 echo "== Local §11 artifacts (--skip-vps) =="
 BLOCK_OK=0
 if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \

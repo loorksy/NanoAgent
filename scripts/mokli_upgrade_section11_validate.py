@@ -90,7 +90,8 @@ def _quality_hints(directory: Path, require_through: int) -> None:
             if tool_calls < 2:
                 print(
                     f"HINT row 3 ({name}): tool_calls={tool_calls} — "
-                    "rerun bash scripts/vps_section11_row3_multi_tool.sh",
+                    "rerun bash scripts/vps_section11_row3_multi_tool.sh "
+                    "(writes 03-multi-tool-v2.jsonl)",
                     file=sys.stderr,
                 )
     if require_through >= 5:
@@ -103,7 +104,8 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                 if "spawn" in body and ("429" in body or "rate-limit" in body.lower()):
                     print(
                         f"HINT row 5 ({name}): spawn nested_rounds=0 (quota?) — "
-                        "rerun bash scripts/vps_section11_row5_subagents.sh",
+                        "rerun bash scripts/vps_section11_row5_subagents.sh "
+                        "(writes 05-subagents-v2.jsonl)",
                         file=sys.stderr,
                     )
     if require_through >= 9:
@@ -119,7 +121,8 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                 ):
                     print(
                         f"HINT row 9 ({name}): {summary} — "
-                        "rerun bash scripts/vps_section11_row9_long_session.sh",
+                        "rerun bash scripts/vps_section11_row9_long_session.sh "
+                        "(writes 09-long-session-v3.jsonl)",
                         file=sys.stderr,
                     )
     if require_through >= 10:
