@@ -12,6 +12,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
     names = [
         "section11_agent_api_turn_core.sh",
         "section11_long_session_core.sh",
+        "section11_quota_hints.sh",
         "mokli_upgrade_section11_status.sh",
         "vps_section11_agent_api_turn.sh",
         "vps_section11_long_session.sh",
@@ -61,6 +62,14 @@ def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     assert "vps_section11_quota_status.sh" in text
     assert "REQUIRE_QUOTA" in text and "quota_probe.sh" in text
     assert "gateway_model_preset=" in text
+
+
+def test_quota_probe_sources_unblock_hints() -> None:
+    probe = (ROOT / "scripts" / "vps_section11_quota_probe.sh").read_text(encoding="utf-8")
+    hints = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
+    assert "section11_quota_hints.sh" in probe
+    assert "section11_print_quota_unblock_hints" in probe
+    assert "MOKLI_SECTION11_MODEL" in hints
 
 
 def test_agent_api_turn_forwards_section11_model_over_ssh() -> None:

@@ -62,7 +62,7 @@ fi
 echo "BLOCKED §11 production closure (env_ok=$ENV_OK validate_ok=$VAL_OK)" >&2
 echo "See: docs/mokli-agent-upgrade-operator-handoff.md (9-step checklist)" >&2
 if [[ "$ENV_OK" -eq 0 && "$SKIP_VPS" -eq 0 ]]; then
-  echo "NEXT env: OpenRouter credits + OANDA (bash scripts/vps_section11_set_oanda_env.sh)" >&2
+  echo "NEXT env: export MOKLI_SECTION11_MODEL=… or OpenRouter credits; OANDA: bash scripts/vps_section11_set_oanda_env.sh" >&2
 elif [[ "$ENV_OK" -eq 0 ]]; then
   echo "NEXT env: bash scripts/vps_section11_env_check.sh --require-quota --require-oanda" >&2
 fi

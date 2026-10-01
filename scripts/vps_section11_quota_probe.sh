@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/vps_ssh.sh
 source "$ROOT/scripts/vps_ssh.sh"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 # shellcheck source=scripts/section11_agent_api_turn_core.sh
 source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 
@@ -17,6 +19,7 @@ run_probe_checks() {
   local jsonl="$1"
   if grep -q 'Rate limit exceeded\|free-models-per-day' "$jsonl" 2>/dev/null; then
     echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
+    section11_print_quota_unblock_hints
     return 1
   fi
   local extract_cmd
@@ -32,6 +35,7 @@ run_probe_checks() {
   in_val=$(echo "$line" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
   if [[ -z "${in_val:-}" || "$in_val" == "0" ]]; then
     echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+    section11_print_quota_unblock_hints
     return 1
   fi
   echo "QUOTA_OK in=$in_val file=$OUT"
@@ -49,6 +53,7 @@ MOKLI_SSH_HOST="$HOST" bash "$ROOT/scripts/vps_section11_agent_api_turn.sh" "$OU
 if ssh -o BatchMode=yes "$HOST" \
   "grep -q 'Rate limit exceeded\\|free-models-per-day' ${INSTALL_DIR}/section11-events/$OUT 2>/dev/null"; then
   echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
+  section11_print_quota_unblock_hints
   exit 1
 fi
 
@@ -59,6 +64,7 @@ IN=$(ssh -o BatchMode=yes "$HOST" \
 
 if [[ -z "${IN:-}" || "$IN" == "0" ]]; then
   echo "QUOTA_BLOCKED: diagnostic input_tokens=0 in $OUT" >&2
+  section11_print_quota_unblock_hints
   exit 1
 fi
 

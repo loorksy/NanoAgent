@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/vps_ssh.sh
 source "$ROOT/scripts/vps_ssh.sh"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 # shellcheck source=scripts/section11_agent_api_turn_core.sh
 source "$ROOT/scripts/section11_agent_api_turn_core.sh"
 
@@ -169,10 +171,11 @@ if [[ "$REQUIRE_OANDA" -eq 1 && "${oanda:-}" != yes ]]; then
   fail=1
 fi
 if [[ "$REQUIRE_QUOTA" -eq 1 && "$quota_ok" -eq 0 ]]; then
-  echo "BLOCKED: LLM quota (OpenRouter credits or paid preset)" >&2
+  echo "BLOCKED: LLM quota (gateway preset=${model_preset:-?}; credits or MOKLI_SECTION11_MODEL on this shell)" >&2
+  section11_print_quota_unblock_hints
   fail=1
 elif [[ "$quota_ok" -eq 0 ]]; then
   echo "HINT: llm_quota blocked — use --require-quota before live §11 turns (exit 1)" >&2
-  echo "HINT: or set paid preset: export MOKLI_SECTION11_MODEL=… (docs/section11-vps-env.example)" >&2
+  section11_print_quota_unblock_hints
 fi
 exit "$fail"

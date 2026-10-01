@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Shared stderr hints when §11 LLM quota probe fails (sourced, not executed).
+
+section11_print_quota_unblock_hints() {
+  echo "HINT: OpenRouter credits or export MOKLI_SECTION11_MODEL=… on this shell (forwarded over SSH; docs/section11-vps-env.example)" >&2
+  if [[ -n "${MOKLI_SECTION11_MODEL:-}" ]]; then
+    echo "HINT: MOKLI_SECTION11_MODEL is set but probe still failed — verify model id / provider billing" >&2
+  fi
+}
