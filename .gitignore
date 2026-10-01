@@ -5,6 +5,10 @@ graphify-out/
 .assets
 .docs
 .env
+section11-events/
+section11-events-vps/
+section11-results.json
+section11-results-partial.json
 .web
 .orion
 
