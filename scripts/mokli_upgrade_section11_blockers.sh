@@ -5,13 +5,37 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
-EVENTS="${1:-$ROOT/section11-events}"
-RESULTS="${2:-$ROOT/section11-results-partial.json}"
+SKIP_VPS=0
+EVENTS="$ROOT/section11-events"
+RESULTS="$ROOT/section11-results-partial.json"
+
+usage() {
+  echo "Usage: $0 [--skip-vps] [EVENTS_DIR] [RESULTS_JSON]" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-vps) SKIP_VPS=1; shift ;;
+    -h | --help) usage ;;
+    --*) echo "Unknown flag: $1" >&2; usage ;;
+    *) break ;;
+  esac
+done
+EVENTS="${1:-$EVENTS}"
+RESULTS="${2:-$RESULTS}"
+if [[ $# -gt 2 ]]; then
+  usage
+fi
 
 ENV_OK=0
-echo "== VPS env (quota + OANDA required for full closure) =="
-if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda; then
-  ENV_OK=1
+if [[ "$SKIP_VPS" -eq 1 ]]; then
+  echo "== VPS env skipped (--skip-vps) =="
+else
+  echo "== VPS env (quota + OANDA required for full closure) =="
+  if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda; then
+    ENV_OK=1
+  fi
 fi
 
 echo ""

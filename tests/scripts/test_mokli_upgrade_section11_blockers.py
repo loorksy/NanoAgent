@@ -1,0 +1,50 @@
+"""Tests for scripts/mokli_upgrade_section11_blockers.sh"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "mokli_upgrade_section11_blockers.sh"
+
+
+def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
+    partial = ROOT / "section11-results-partial.json"
+    if not partial.is_file():
+        payload = {str(i): "PASS" for i in range(1, 11)}
+        payload.update({11: "", 12: "", 13: ""})
+        partial = tmp_path / "results.json"
+        partial.write_text(json.dumps(payload), encoding="utf-8")
+    events = ROOT / "section11-events"
+    if not events.is_dir():
+        events = tmp_path / "events"
+        events.mkdir()
+        (events / "01-no-tools.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+            encoding="utf-8",
+        )
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--skip-vps", str(events), str(partial)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 1
+    assert "BLOCKED" in proc.stderr or "BLOCKED" in proc.stdout
+    assert "skip-vps" in proc.stdout.lower() or "skipped" in proc.stdout.lower()
+
+
+def test_blockers_help() -> None:
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--help"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Usage" in proc.stderr

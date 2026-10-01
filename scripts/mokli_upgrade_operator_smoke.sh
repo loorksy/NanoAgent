@@ -35,6 +35,13 @@ fi
 echo "== pytest scripts/ (excluding this smoke harness) =="
 "$PY" tests/scripts/ -q --ignore=tests/scripts/test_mokli_upgrade_operator_smoke.py
 
+echo "== §11 blockers (local artifacts, --skip-vps; expect BLOCKED until row 13 live) =="
+if bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps; then
+  echo "NOTE blockers clear — production §11 may be closable" >&2
+else
+  echo "NOTE blockers reported gaps (expected until VPS live rows 11–13)" >&2
+fi
+
 if [[ "$fail" -ne 0 ]]; then
   echo "WARN operator smoke: preflight reported failures (dry-run + scripts pytest OK)" >&2
   exit 1

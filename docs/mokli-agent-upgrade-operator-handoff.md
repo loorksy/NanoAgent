@@ -115,8 +115,8 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء — `bash scripts/vps_section11_row4_gold_analysis.sh` |
 | 5 | `05-subagents.jsonl` | spawn / سرب — `bash scripts/vps_section11_row5_subagents.sh` |
 | 6 | `06-tool-failure.jsonl` | فشل أداة — `bash scripts/vps_section11_row6_tool_failure.sh` |
-| 7 | `07-retry.jsonl` | إعادة محاولة |
-| 8 | `08-fallback-provider.jsonl` | مزود بديل |
+| 7 | `07-retry.jsonl` | إعادة محاولة — `bash scripts/vps_section11_row7_retry.sh` |
+| 8 | `08-fallback-provider.jsonl` | مزود بديل — `bash scripts/vps_section11_row8_fallback_provider.sh` (+ `modelPreset` على VPS) |
 | 9 | `09-long-session.jsonl` | جلسة طويلة — `bash scripts/vps_section11_row9_long_session.sh` (quota + 15 rounds) |
 | 10 | `10-backtest.jsonl` | backtest — `bash scripts/vps_section11_row10_backtest.sh` (quota + OANDA) |
 | 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |

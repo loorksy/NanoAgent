@@ -27,6 +27,8 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_blockers.sh",
         "vps_section11_row4_gold_analysis.sh",
         "vps_section11_row6_tool_failure.sh",
+        "vps_section11_row7_retry.sh",
+        "vps_section11_row8_fallback_provider.sh",
         "vps_section11_row12_desktop.sh",
         "local_section11_row12_smoke.sh",
         "mokli_upgrade_section11_row13_ci.sh",
