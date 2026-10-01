@@ -10,7 +10,7 @@
 6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps` (يكتب `section11-events/p0-interim-summary.txt` + **P0 local estimate** `--compare` بلا LLM)
 7. بوابة: بعد خطوة 6 استخدم `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0). أو دفعة واحدة (سحب + env + artifacts): `bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps`
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
-   - إغلاق 1–13: validate يرفض PARTIAL؛ **`01-no-tools-after-p0.jsonl` مع `in>0`**؛ صفوف **3–10** بجودة JSONL؛ **11–13** JSONL + `in>0` (12: أحداث structured/decision من pipe) — أعد سكربت الصف/`remaining_rows` بعد quota/OANDA (معاينة: `close.sh --allow-partial` بدون `--apply`)
+   - إغلاق 1–13: validate يرفض PARTIAL؛ **`01-no-tools-after-p0.jsonl` مع `in>0`**؛ **3–10** بجودة JSONL؛ **11** paper/`run_state`؛ **12** structured/decision + `in>0`؛ **13** أحداث tool/status/structured (ليس diagnostic فقط) — `remaining_rows.sh` (معاينة: `close.sh --allow-partial` بدون `--apply`)
    - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10 --allow-partial` (dry-run patch؛ يتجاهل مفاتيح 11–14 الفارغة في JSON)
 8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL؛ يحدّث أيضاً جدول §2.1 وفقرة **P0 live delta** عند وجود `01-no-tools-after-p0.jsonl` مع `in>0`)
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`؛ اختياري قبل الدمج: `bash scripts/mokli_upgrade_aggregate_pytest.sh`
