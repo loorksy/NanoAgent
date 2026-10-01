@@ -97,6 +97,7 @@ async def test_sse_diagnostic_matches_section11_extract(
         "tool_calls": 1,
         "context_ms": 30,
         "model_ms": 800,
+        "provider_tool_count": 3,
     }
     monkeypatch.setattr(
         "mokli.agent_api.sessions.latest_diagnostics",
@@ -133,6 +134,7 @@ async def test_sse_diagnostic_matches_section11_extract(
     assert "rounds=2" in summary
     assert "in=1200" in summary
     assert "tools=1" in summary
+    assert "provider_tools=3" in summary
 
 
 async def test_timeline_excludes_deltas_and_supports_after(client: TestClient) -> None:
