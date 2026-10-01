@@ -7,7 +7,7 @@
 3. جاهزية: `bash scripts/vps_section11_quota_status.sh` (cached؛ بلا نداء LLM) ثم `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0؛ يطبع أيضاً `mokli_ui_http` و`mokli_pipe_show_diagnostics` لصف 12). أو دفعة واحدة (probe حي + env + blockers @13): `bash scripts/mokli_upgrade_section11_operator_unblock.sh` (exit 0 = جاهز لـ `close.sh --apply`). عند quota محجوب: `bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe` (بلا نداء LLM إضافي)
 4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh`
 5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
-6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps` (يكتب أيضاً `section11-events/p0-interim-summary.txt`)
+6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps` (يكتب `section11-events/p0-interim-summary.txt` + **P0 local estimate** `--compare` بلا LLM)
 7. بوابة: بعد خطوة 6 استخدم `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0). أو دفعة واحدة (سحب + env + artifacts): `bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps`
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
    - إغلاق 1–13: validate يرفض PARTIAL ويتطلب `01-no-tools-after-p0.jsonl` عند `--require-through 13` (معاينة: `close.sh --allow-partial` بدون `--apply`)

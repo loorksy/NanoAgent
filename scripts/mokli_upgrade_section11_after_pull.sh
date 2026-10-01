@@ -44,3 +44,8 @@ elif [[ -n "$BASELINE" && -f "$BASELINE" && -f "$QUOTA_PROBE" ]]; then
     echo "NOTE: rerun row 1 after credits → 01-no-tools-after-p0.jsonl for authoritative delta_in"
   } | tee "$P0_SUMMARY"
 fi
+
+echo ""
+echo "== P0 local estimate (no LLM; compare to VPS row 1 in=10934 baseline) =="
+"$PYTHON" "${ROOT}/scripts/mokli_upgrade_p0_turn_estimate.py" --compare "مرحبا" "حلل الذهب" \
+  || echo "WARN: mokli_upgrade_p0_turn_estimate.py failed" >&2
