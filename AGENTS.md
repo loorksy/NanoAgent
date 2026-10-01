@@ -129,5 +129,5 @@ bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oand
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2438 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+Aggregate pytest target: 2442 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
 - Tests mirror the `mokli/` package structure.
