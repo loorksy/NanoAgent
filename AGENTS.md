@@ -87,6 +87,8 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for contribution flow and PR guidelin
 
 Mokli upgrade work on this repo often cannot reach live LLM, OANDA, or MetaAPI keys. Prefer measured unit tests and local smoke without inventing credentials.
 
+VPS deploy from Cloud Agent: set environment secrets **`VPS`** (host or `user@host`) and **`VPSPASS`** (SSH password). Legacy names `vps` / `password` are mapped by `scripts/vps_env.sh`. Then `MOKLI_BRANCH=main bash scripts/deploy-mokli-vps.sh`.
+
 ```bash
 /workspace/.venv/bin/mokli gateway --background --port 18791
 # Agent API default 8766 when gateway runs with agentApi enabled
