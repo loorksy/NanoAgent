@@ -29,11 +29,21 @@ SID=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d "{\"title\":\"section11-${OUT_NAME}\"}" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 RAW="$EVENT_DIR/raw-${OUT_NAME}.sse"
-curl -sfN "$BASE/sessions/$SID/events?until_end=1" -H "Authorization: Bearer $TOKEN" -o "$RAW" &
+curl -sfN --max-time 900 "$BASE/sessions/$SID/events?until_end=1" \
+  -H "Authorization: Bearer $TOKEN" -o "$RAW" &
+SSE_PID=$!
 sleep 1
 curl -sf -X POST "$BASE/sessions/$SID/messages" -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d "$(python3 -c "import json,sys; print(json.dumps({'text':sys.argv[1]}))" "$PROMPT")"
-wait
+wait "$SSE_PID" || true
+for _ in $(seq 1 30); do
+  grep '^data: ' "$RAW" | sed 's/^data: //' > "$EVENT_DIR/$OUT_NAME"
+  if grep -q '"kind": "diagnostic"' "$EVENT_DIR/$OUT_NAME" 2>/dev/null \
+    || grep -q '"kind":"diagnostic"' "$EVENT_DIR/$OUT_NAME" 2>/dev/null; then
+    break
+  fi
+  sleep 2
+done
 grep '^data: ' "$RAW" | sed 's/^data: //' > "$EVENT_DIR/$OUT_NAME"
 sudo -u nanoagent bash -lc "cd '$INSTALL' && source .venv/bin/activate && \
   python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT_NAME"
