@@ -3,6 +3,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 REQUIRE=13
 
 while [[ $# -gt 0 ]]; do
@@ -20,6 +22,11 @@ echo "== OpenRouter reset =="
 RESET_SEC="unknown"
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
 printf '%s\n' "$RESET_OUT"
+WAKE_BUFFER_OUT=$(section11_emit_wake_after_buffer "$RESET_OUT")
+if [[ -n "$WAKE_BUFFER_OUT" ]]; then
+  printf '%s\n' "$WAKE_BUFFER_OUT"
+fi
+WAKE_UTC=$(printf '%s\n' "$WAKE_BUFFER_OUT" | sed -n 's/^wake_after_buffer_utc=\(.*\)/\1/p' | tail -1)
 parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
 [[ -n "$parsed" ]] && RESET_SEC="$parsed"
 
@@ -83,7 +90,9 @@ if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
 fi
 
 echo ""
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC"
+WAKE_UTC_FIELD="wake_after_buffer_utc=unknown"
+[[ -n "${WAKE_UTC:-}" ]] && WAKE_UTC_FIELD="wake_after_buffer_utc=$WAKE_UTC"
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
 if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
