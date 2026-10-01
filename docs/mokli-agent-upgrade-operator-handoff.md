@@ -12,7 +12,7 @@
    - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
    - إغلاق 1–13: validate يرفض PARTIAL ويتطلب `01-no-tools-after-p0.jsonl` عند `--require-through 13` (معاينة: `close.sh --allow-partial` بدون `--apply`)
    - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10` (بدون `--apply`)
-8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL)
+8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13` (صف 9: عمود «الأرقام» يضم `session-summary` تلقائياً عند تعدد diagnostics في JSONL؛ يحدّث أيضاً جدول §2.1 وفقرة **P0 live delta** عند وجود `01-no-tools-after-p0.jsonl` مع `in>0`)
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`؛ اختياري قبل الدمج: `bash scripts/mokli_upgrade_aggregate_pytest.sh`
 
 ## الفرع
