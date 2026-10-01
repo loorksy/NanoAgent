@@ -89,6 +89,15 @@ python scripts/mokli_upgrade_section11_patch_report.py \
 # أو: bash scripts/mokli_upgrade_section11_close.sh (validate+batch+dry-run) ثم --apply
 ```
 
+## بعد `section11_close.sh --apply`
+
+```bash
+pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q
+git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifacts refs مع الفرع
+```
+
+يجب أن يمرّ gate (عنوان VPS + صفوف 1–13 مملوءة بلا `DRY-RUN`؛ الصف 14 اختياري).
+
 يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). عند الفشل يطبع `validate` جدول **§11 progress** (ready / incomplete لكل صف). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `docs/section11-results.example.json` **لا يمرّ** `--require-through 13` (قالب فقط). `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`. عند `--apply` وصفوف 1–`require-through` مكتملة، يُحدَّث عنوان §11 من «لم تُنفَّذ في Cloud Agent» إلى «تم التعبئة من تشغيل VPS» (المطابقة تتسامح مع اختلاف تركيب علامات «نُفِّذ» في Markdown).
 
 ## ما نرسله لجلسة لاحقة

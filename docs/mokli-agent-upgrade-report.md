@@ -475,4 +475,4 @@
 | 10–11 | `tests/trading/test_strategy_spec.py`، `tests/trading/test_fast_backtest_tool.py`، مقاييس ATR في `tests/agent/test_turn_efficiency.py` |
 | 12–13 | `tests/deploy/test_mokli_pipe.py` (`test_activity_projection_matches_real_events`)، `packages/mokli-sdk/test/store.test.ts` (`activityLine`) |
 | 14 | سياسة التنفيذ في `tests/trading/` — لا اختبار حساب MT5 حي |
-| (سكربتات §11) | `tests/scripts/` (init/extract/batch/validate/patch_report/close/workflow/dry_run/operator_smoke/preflight)، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
+| (سكربتات §11) | `tests/scripts/` (init/extract/batch/validate/patch_report/close/workflow/dry_run/operator_smoke/preflight)، `test_mokli_upgrade_report_section11_gate.py`، `tests/fixtures/section11_turn_diagnostics_sample.jsonl`، `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` |
