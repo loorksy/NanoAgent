@@ -49,7 +49,11 @@ if [[ "$SKIP_PULL" -eq 0 ]]; then
 fi
 
 echo "== §11 blockers (artifacts only; env checked above) =="
-bash "${ROOT}/scripts/mokli_upgrade_section11_blockers.sh" \
-  --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS"
+if ! bash "${ROOT}/scripts/mokli_upgrade_section11_blockers.sh" \
+  --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS"; then
+  echo "PRODUCTION_GATE_EXIT=1" >&2
+  exit 1
+fi
 
 echo "OK production gate passed — run section11_close.sh --apply --require-through $REQUIRE when results JSON is final"
+echo "PRODUCTION_GATE_EXIT=0"

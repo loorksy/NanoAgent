@@ -20,6 +20,7 @@ def test_production_gate_supports_skip_quota() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "--skip-quota" in text
     assert "SKIP_QUOTA" in text
+    assert "PRODUCTION_GATE_EXIT" in text
 
 
 def test_production_gate_help() -> None:

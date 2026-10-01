@@ -39,7 +39,8 @@ bash scripts/vps_ssh.sh 'cd /opt/nanoagent && git rev-parse --short HEAD'   # on
 bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
 # قبل دمج PR §11: bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1
 # (أو: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh)
-bash scripts/mokli_upgrade_section11_production_gate.sh  # env + pull + status (require-through 13)
+bash scripts/mokli_upgrade_section11_production_gate.sh  # env + pull + blockers @13 (live quota)
+bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # pack 1–10 while quota blocked
 bash scripts/mokli_upgrade_section11_blockers.sh  # quota+OANDA + validate 13 (no pull); exit 0 = ready to close
 bash scripts/mokli_upgrade_section11_status.sh   # exit 0 عند validate+quota OK (require-through افتراضي 13)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota --require-through 10  # صفوف 1–10 فقط
