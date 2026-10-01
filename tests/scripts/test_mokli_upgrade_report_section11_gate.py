@@ -42,15 +42,24 @@ def test_section11_either_pending_or_vps_filled() -> None:
     assert all(row_id in rows for row_id in core_rows)
     assert 14 in rows, "optional MT5 row should remain in §11 table"
 
-    pending = "Cloud Agent" in header and "تم التعبئة من تشغيل VPS" not in header
-    filled = "تم التعبئة من تشغيل VPS" in header
+    pending = "Cloud Agent" in header and "تعبئة جزئية" not in header and "تم التعبئة من تشغيل VPS" not in header
+    partial = "تعبئة جزئية" in header
+    filled = "تم التعبئة من تشغيل VPS" in header and not partial
 
-    assert pending or filled, f"unexpected §11 header: {header!r}"
+    assert pending or partial or filled, f"unexpected §11 header: {header!r}"
 
     if pending:
         for row_id in core_rows:
             result, numbers = rows[row_id]
             assert not result and not numbers, f"row {row_id} must stay empty until VPS fill"
+    elif partial:
+        any_fill = any(rows[row_id][0].strip() for row_id in core_rows)
+        assert any_fill, "partial §11 header requires at least one filled row"
+        for row_id in core_rows:
+            result, numbers = rows[row_id]
+            if result.strip() or numbers.strip():
+                assert result.strip() and numbers.strip(), f"row {row_id} needs both columns"
+                assert "dry-run" not in result.lower(), f"row {row_id} still placeholder"
     else:
         for row_id in core_rows:
             result, numbers = rows[row_id]
