@@ -222,6 +222,7 @@ def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> No
     assert "OPERATOR_UNBLOCK_EXIT=1" in combined
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
+    assert "seconds_until_reset=" in combined
     assert proc.returncode == 1
 
 

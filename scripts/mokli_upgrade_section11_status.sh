@@ -48,6 +48,11 @@ if [[ ! -f "$RESULTS" ]]; then
   exit 1
 fi
 
+RESET_SEC="unknown"
+RESET_OUT=$(bash "${ROOT}/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
+
 echo "== §11 status (events=$EVENTS require-through=$REQUIRE) =="
 VALIDATE_OK=0
 CLOSURE_ERRORS=""
@@ -76,6 +81,7 @@ elif vps_ssh_ready; then
     echo "LLM: ready for live §11 turns"
   else
     echo "LLM: blocked (see operator handoff — credits or preset)"
+    printf '%s\n' "$RESET_OUT"
   fi
 else
   echo "== VPS LLM quota probe skipped (no VPS SSH — set MOKLI_SSH_HOST or VPS+VPSPASS) =="
@@ -87,5 +93,5 @@ if [[ "$VALIDATE_OK" -eq 1 && "$QUOTA_OK" -eq 1 ]]; then
   exit 0
 fi
 
-echo "INCOMPLETE §11 status: validate_ok=$VALIDATE_OK quota_ok=$QUOTA_OK closure_errors=${CLOSURE_ERRORS:-unknown}" >&2
+echo "INCOMPLETE §11 status: validate_ok=$VALIDATE_OK quota_ok=$QUOTA_OK closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC" >&2
 exit 1

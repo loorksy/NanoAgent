@@ -77,6 +77,7 @@ def test_status_reports_closure_errors_on_repo_partial_at_13() -> None:
     combined = proc.stdout + proc.stderr
     assert proc.returncode == 1
     assert "closure_errors=9" in combined
+    assert "seconds_until_reset=" in combined
     assert "INCOMPLETE" in combined
 
 
