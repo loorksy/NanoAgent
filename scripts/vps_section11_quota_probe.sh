@@ -30,9 +30,37 @@ section11_pull_probe_to_workspace() {
   fi
   local local_dir="${ROOT}/section11-events"
   mkdir -p "$local_dir"
-  if scp -o BatchMode=yes "${HOST}:${INSTALL_DIR}/section11-events/${out}" "${local_dir}/" 2>/dev/null; then
-    echo "OK cached probe → ${local_dir}/${out}" >&2
+  local dest="${local_dir}/${out}"
+  local bak="${dest}.bak"
+  if [[ -f "$dest" ]]; then
+    cp "$dest" "$bak"
   fi
+  if ! scp -o BatchMode=yes "${HOST}:${INSTALL_DIR}/section11-events/${out}" "${local_dir}/" 2>/dev/null; then
+    if [[ -f "$bak" ]]; then
+      mv "$bak" "$dest"
+    fi
+    return 1
+  fi
+  echo "OK cached probe → ${dest}" >&2
+  if [[ ! -f "$dest" ]]; then
+    return 1
+  fi
+  local has_diag=0
+  if grep -q '"kind": "diagnostic"' "$dest" 2>/dev/null; then
+    has_diag=1
+  fi
+  local secs=-1
+  secs=$("$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" --seconds "$dest" 2>/dev/null || echo -1)
+  if [[ "$has_diag" -eq 0 && "$secs" == "-1" && -f "$bak" ]]; then
+    local bak_secs=-1
+    bak_secs=$("$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" --seconds "$bak" 2>/dev/null || echo -1)
+    if [[ "$bak_secs" != "-1" ]] || grep -q '"kind": "diagnostic"' "$bak" 2>/dev/null; then
+      echo "WARN: incomplete probe pulled — keeping previous ${out}" >&2
+      mv "$bak" "$dest"
+      return 0
+    fi
+  fi
+  rm -f "$bak"
 }
 
 run_probe_checks() {
