@@ -40,7 +40,28 @@ def _closure_hints(empty_result: list[int]) -> None:
         )
 
 
+def _input_tokens(diag: dict) -> int:
+    for key in ("request_input_tokens", "input_tokens"):
+        val = diag.get(key)
+        if isinstance(val, int):
+            return val
+        if isinstance(val, str) and val.isdigit():
+            return int(val)
+    return 0
+
+
 def _quality_hints(directory: Path, require_through: int) -> None:
+    if require_through >= 1 and not (directory / "01-no-tools-after-p0.jsonl").is_file():
+        picked = pick_row_diagnostic(directory, 1)
+        if picked is not None:
+            name, diag = picked
+            tin = _input_tokens(diag)
+            if tin > 8000:
+                print(
+                    f"HINT row 1 P0 ({name}): baseline in={tin}, no after-p0 JSONL — "
+                    "bash scripts/vps_section11_row1_after_p0.sh",
+                    file=sys.stderr,
+                )
     if require_through >= 3:
         picked = pick_row_diagnostic(directory, 3)
         if picked is not None:

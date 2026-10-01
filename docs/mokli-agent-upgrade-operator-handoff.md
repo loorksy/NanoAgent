@@ -46,7 +46,7 @@ bash scripts/deploy-mokli-vps.sh
 - `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
-- pytest: **2358** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
+- pytest: **2367** ناجية (مجمّع + سكربتات §11 في `tests/scripts/`)
 - سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
 
 ## فواتير المزود (VPS)
@@ -109,7 +109,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 
 | # | اسم ملف مقترح | مسار §11 |
 | --- | --- | --- |
-| 1 | `01-no-tools.jsonl` | تحية / بلا أدوات |
+| 1 | `01-no-tools.jsonl` | تحية — `vps_section11_row1_greeting.sh`؛ بعد P0: `vps_section11_row1_after_p0.sh` |
 | 2 | `02-single-tool.jsonl` | سعر الذهب — `bash scripts/vps_section11_row2_single_tool.sh` |
 | 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء — `bash scripts/vps_section11_row4_gold_analysis.sh` |
