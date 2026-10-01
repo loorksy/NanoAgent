@@ -325,6 +325,64 @@ def test_resolve_row_prefers_highest_in_and_excludes_stem(tmp_path: Path) -> Non
     assert proc.stdout.strip().endswith("01-high.jsonl")
 
 
+def test_pick_row_3_prefers_two_tools_over_higher_input_one_tool(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "03-multi-tool.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "input_tokens": 30000, "tool_calls": 1},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "03-multi-tool-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 28000, "tool_calls": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 3)
+    assert picked is not None
+    assert picked[0] == "03-multi-tool-v2.jsonl"
+
+
+def test_pick_row_5_prefers_nested_rounds(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "05-subagents.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 4, "input_tokens": 50000, "tool_calls": 4, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 40000, "tool_calls": 3, "nested_rounds": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 5)
+    assert picked is not None
+    assert picked[0] == "05-subagents-v2.jsonl"
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(

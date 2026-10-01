@@ -22,7 +22,7 @@
 | أدوات المشغّل §11 | … + `blockers` (`--require-through`، `--skip-vps` للصفوف 1–10)، `production_gate` → blockers | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
-| VPS checkout (Hostinger) | **`ab5ecf42`** on `cursor/section11-vps-rows-d9e1` (PR #62)؛ quota **BLOCKED**؛ OANDA off؛ §11 re-exec + `section11-events` chown on pull | **منجز** |
+| VPS checkout (Hostinger) | **`0052be8d`** on `cursor/section11-vps-rows-d9e1` (PR #62)؛ quota **BLOCKED**؛ OANDA off؛ §11 re-exec + chown on pull؛ `pick_row` يفضّل `tools≥2` / `nested≥1` | **منجز** |
 | GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2375** green | **infra** — re-run workflow on GitHub |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 

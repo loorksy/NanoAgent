@@ -9,3 +9,6 @@ OANDA_ENV=practice
 # Optional live XAUUSD price when MetaAPI configured
 # METAAPI_TOKEN=
 # METAAPI_ACCOUNT_ID=
+
+# Optional: paid OpenRouter model for §11 when free tier is rate-limited (export before row scripts)
+# MOKLI_SECTION11_MODEL=openai/gpt-4o-mini

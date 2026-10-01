@@ -142,16 +142,28 @@ def _row_index_from_stem(stem: str) -> int | None:
     return None
 
 
+def _row_pick_rank(row: int, diag: dict[str, Any]) -> tuple[Any, ...]:
+    """Sort key for §11 row JSONL (higher is better). Quality before raw input size."""
+    tin = _input_tokens(diag)
+    tool_calls = int(diag.get("tool_calls") or 0)
+    nested = int(diag.get("nested_rounds") or 0)
+    if row == 3:
+        return (1 if tool_calls >= 2 else 0, tool_calls, tin)
+    if row == 5:
+        return (1 if nested >= 1 else 0, nested, tin)
+    return (tin,)
+
+
 def pick_row_diagnostic(
     directory: Path,
     row: int,
     *,
     exclude_stem_substrings: tuple[str, ...] = (),
 ) -> tuple[str, dict[str, Any]] | None:
-    """Best diagnostic for a §11 row (prefer highest non-zero input_tokens)."""
+    """Best diagnostic for a §11 row (row-aware quality, then input_tokens)."""
     best_name = ""
     best_diag: dict[str, Any] | None = None
-    best_in = -1
+    best_rank: tuple[Any, ...] = ()
     for path in sorted(directory.glob("*.jsonl")):
         if _row_index_from_stem(path.stem) != row:
             continue
@@ -160,9 +172,9 @@ def pick_row_diagnostic(
         diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
         if diag is None:
             continue
-        tin = _input_tokens(diag)
-        if tin > best_in:
-            best_in = tin
+        rank = _row_pick_rank(row, diag)
+        if rank > best_rank:
+            best_rank = rank
             best_diag = diag
             best_name = path.name
     if best_diag is None:
