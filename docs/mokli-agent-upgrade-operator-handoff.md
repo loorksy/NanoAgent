@@ -91,6 +91,8 @@ python scripts/mokli_upgrade_section11_patch_report.py \
 
 ## بعد `section11_close.sh --apply`
 
+عند `--require-through 13` على `docs/mokli-agent-upgrade-report.md`، يشغّل `close` **بوابة التقرير** تلقائياً (`test_mokli_upgrade_report_section11_gate.py`). للتحقق اليدوي أو مسار تقرير آخر:
+
 ```bash
 pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q
 git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifacts refs مع الفرع

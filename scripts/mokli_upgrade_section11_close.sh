@@ -53,6 +53,18 @@ if [[ "$APPLY" -eq 1 ]]; then
   echo "== patch report (write) =="
   "${PATCH_ARGS[@]}"
   echo "OK §11 close: report updated at $REPORT"
+  CANONICAL_REPORT="${ROOT}/docs/mokli-agent-upgrade-report.md"
+  REPORT_ABS="$(readlink -f "$REPORT")"
+  CANONICAL_ABS="$(readlink -f "$CANONICAL_REPORT")"
+  if [[ "$REQUIRE" -ge 13 && "$REPORT_ABS" == "$CANONICAL_ABS" ]]; then
+    PYTEST="${ROOT}/.venv/bin/pytest"
+    if [[ ! -x "$PYTEST" ]]; then
+      PYTEST=pytest
+    fi
+    echo "== §11 report gate (canonical report) =="
+    "$PYTEST" "${ROOT}/tests/scripts/test_mokli_upgrade_report_section11_gate.py" -q
+    echo "OK §11 report gate"
+  fi
 else
   echo "== patch report (dry-run) =="
   "${PATCH_ARGS[@]}" --dry-run

@@ -84,6 +84,7 @@ def test_section11_close_apply_writes_report(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0, proc.stderr or proc.stdout
     assert "OK §11 close" in proc.stdout
+    assert "report gate" not in proc.stdout.lower()
     body = report.read_text(encoding="utf-8")
     assert "PASS — applied" in body
     assert "rounds=2" in body and "in=99" in body
