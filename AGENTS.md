@@ -109,7 +109,8 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after 
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
 bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
 python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
-bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps # after OpenRouter reset: probe + partial reruns --require-through 13
+bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps # before/at reset: wait + probe + partial reruns
+bash scripts/mokli_upgrade_section11_after_reset_wake.sh # after reset: probe + partial reruns (no long sleep) --require-through 13
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)
