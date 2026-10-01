@@ -83,6 +83,14 @@ def validate_tool_call(
     is_subagent: bool | None = None,
 ) -> ToolCallPermit:
     """Hard Law interceptor for unified-loop tool calls."""
+    if tool_name == "run_python":
+        from mokli.trading.code_policy import CodePolicyError, review_python
+
+        try:
+            review_python(str((args or {}).get("code") or ""))
+        except CodePolicyError as exc:
+            raise PolicyViolation(exc.reason) from exc
+
     from mokli.trading.evidence.node_sets import SYNTHESIS_REQUIRED_NODES
     from mokli.trading.evidence.nodes import NODE_REGISTRY
     from mokli.trading.gold import DATA_SYMBOL, require_gold
