@@ -217,6 +217,23 @@ def test_each_and_session_summary_for_long_session() -> None:
     assert "below_linear_2x=yes" in out
 
 
+def test_one_liner_includes_provider_tool_count_when_present() -> None:
+    line = json.dumps(
+        {
+            "kind": "diagnostic",
+            "data": {"rounds": 1, "request_input_tokens": 100, "provider_tool_count": 3},
+        }
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--each"],
+        input=line,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "provider_tools=3" in proc.stdout
+
+
 def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

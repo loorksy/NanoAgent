@@ -219,6 +219,7 @@ def _p0_fold_suffix(diag: dict[str, Any]) -> str:
 
 
 def _one_line_summary(diag: dict[str, Any]) -> str:
+    provider_tools = diag.get("provider_tool_count")
     parts = [
         f"rounds={diag.get('rounds')}",
         f"in={diag.get('request_input_tokens', diag.get('input_tokens'))}",
@@ -231,7 +232,10 @@ def _one_line_summary(diag: dict[str, Any]) -> str:
         f"nested_in={diag.get('nested_input_tokens')}",
     ]
     base = " ".join(str(p) for p in parts if not str(p).endswith("=None"))
-    return base + _p0_fold_suffix(diag)
+    suffix = _p0_fold_suffix(diag)
+    if provider_tools is not None and int(provider_tools or 0) > 0:
+        suffix += f" provider_tools={int(provider_tools)}"
+    return base + suffix
 
 
 def main() -> int:

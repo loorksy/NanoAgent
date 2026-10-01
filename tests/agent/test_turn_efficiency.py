@@ -860,6 +860,19 @@ def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> N
         + payload["components"]["other"]
         + payload["components"]["tool_definitions"]
     )
+    assert payload["provider_tool_count"] == 0
+
+
+def test_note_prepared_records_provider_tool_count() -> None:
+    from mokli.agent.turn_diagnostics import TurnDiagnostics
+
+    diag = TurnDiagnostics(model="test", provider="Test")
+    diag.note_prepared(
+        [{"role": "system", "content": "x"}, {"role": "user", "content": "hi"}],
+        [{"type": "function", "function": {"name": "a", "description": "d", "parameters": {}}}],
+    )
+    assert diag.provider_tool_count == 1
+    assert diag.to_dict()["provider_tool_count"] == 1
 
 
 def test_component_tokens_count_subagent_results_apart_from_tools() -> None:

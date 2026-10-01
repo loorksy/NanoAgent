@@ -117,6 +117,7 @@ class TurnDiagnostics:
     memory_tokens: int = 0
     skills_tokens: int = 0
     static_resends: int = 0
+    provider_tool_count: int = 0
     nested_model_ms: int = 0
     nested_rounds: int = 0
     nested_input_tokens: int = 0
@@ -138,6 +139,7 @@ class TurnDiagnostics:
         components["memory"] = self.memory_tokens
         components["skills"] = self.skills_tokens
         self.components = components
+        self.provider_tool_count = len(tools) if tools else 0
         system = next((m.get("content") for m in messages if m.get("role") == "system"), "")
         fingerprint = system if isinstance(system, str) else str(system)
         if self._system_fingerprint and fingerprint == self._system_fingerprint:
@@ -285,6 +287,7 @@ class TurnDiagnostics:
             "memory_tokens": self.memory_tokens,
             "skills_tokens": self.skills_tokens,
             "static_resends": self.static_resends,
+            "provider_tool_count": self.provider_tool_count,
             "cost_estimate_usd": round(input_cost + output_cost, 6),
             "cost_rate_note": (
                 f"illustrative ${_INPUT_USD_PER_MILLION}/M input and "
