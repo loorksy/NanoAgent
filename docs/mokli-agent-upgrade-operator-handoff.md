@@ -1,5 +1,17 @@
 # تسليم ترقية Mokli — للمشغّل (بعد Cloud Agent)
 
+## قائمة إغلاق الإنتاج (§11)
+
+1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1`
+2. OpenRouter credits + `OANDA_*`: `bash scripts/vps_section11_set_oanda_env.sh`
+3. جاهزية: `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0)
+4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh`
+5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
+6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh`
+7. بوابة: `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0)
+8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13`
+9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`
+
 ## الفرع
 
 - **الإنتاج:** `main` (دمج PR ترقية الوكيل + تغذية OANDA/MetaAPI — راجع `git log -1` على `origin/main`)
