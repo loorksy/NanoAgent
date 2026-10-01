@@ -294,6 +294,37 @@ def test_session_summary_flags_quota_when_all_input_zero() -> None:
     assert "quota_blocked_likely=yes" in out
 
 
+def test_resolve_row_prefers_highest_in_and_excludes_stem(tmp_path: Path) -> None:
+    (tmp_path / "01-low.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}}) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "01-high.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 9000}}) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}}) + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--resolve-row",
+            "1",
+            "--dir",
+            str(tmp_path),
+            "--exclude-stem",
+            "after-p0",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert proc.stdout.strip().endswith("01-high.jsonl")
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(

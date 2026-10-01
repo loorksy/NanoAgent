@@ -17,18 +17,24 @@ echo ""
 echo "== P0 baseline (§2.1) from JSONL =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_diagnostic_extract.py" --p0-baseline "$EVENTS"
 
-BASELINE="${EVENTS}/01-no-tools.jsonl"
 AFTER_P0="${EVENTS}/01-no-tools-after-p0.jsonl"
 QUOTA_PROBE="${EVENTS}/quota-probe.jsonl"
 P0_SUMMARY="${EVENTS}/p0-interim-summary.txt"
-if [[ -f "$BASELINE" && -f "$AFTER_P0" ]]; then
+BASELINE=""
+if [[ -f "${EVENTS}/01-no-tools.jsonl" ]]; then
+  BASELINE="${EVENTS}/01-no-tools.jsonl"
+else
+  BASELINE="$("$PYTHON" "${ROOT}/scripts/mokli_upgrade_diagnostic_extract.py" \
+    --resolve-row 1 --dir "$EVENTS" --exclude-stem after-p0 2>/dev/null || true)"
+fi
+if [[ -n "$BASELINE" && -f "$BASELINE" && -f "$AFTER_P0" ]]; then
   echo ""
   echo "== P0 live delta (row 1 after) =="
   {
     echo "# P0 live delta $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     bash "${ROOT}/scripts/mokli_upgrade_p0_live_delta.sh" "$BASELINE" "$AFTER_P0"
   } | tee "$P0_SUMMARY"
-elif [[ -f "$BASELINE" && -f "$QUOTA_PROBE" ]]; then
+elif [[ -n "$BASELINE" && -f "$BASELINE" && -f "$QUOTA_PROBE" ]]; then
   echo ""
   echo "== P0 interim (quota-probe vs row 1; in=0 when quota blocked) =="
   {

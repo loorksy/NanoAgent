@@ -142,13 +142,20 @@ def _row_index_from_stem(stem: str) -> int | None:
     return None
 
 
-def pick_row_diagnostic(directory: Path, row: int) -> tuple[str, dict[str, Any]] | None:
+def pick_row_diagnostic(
+    directory: Path,
+    row: int,
+    *,
+    exclude_stem_substrings: tuple[str, ...] = (),
+) -> tuple[str, dict[str, Any]] | None:
     """Best diagnostic for a §11 row (prefer highest non-zero input_tokens)."""
     best_name = ""
     best_diag: dict[str, Any] | None = None
     best_in = -1
     for path in sorted(directory.glob("*.jsonl")):
         if _row_index_from_stem(path.stem) != row:
+            continue
+        if exclude_stem_substrings and any(s in path.stem for s in exclude_stem_substrings):
             continue
         diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
         if diag is None:
@@ -161,6 +168,28 @@ def pick_row_diagnostic(directory: Path, row: int) -> tuple[str, dict[str, Any]]
     if best_diag is None:
         return None
     return best_name, best_diag
+
+
+def resolve_row_jsonl(
+    directory: Path,
+    row: int,
+    *,
+    prefer_name: str | None = None,
+    exclude_stem_substrings: tuple[str, ...] = (),
+) -> Path | None:
+    """Path to the canonical JSONL for a §11 row (see ``pick_row_diagnostic``)."""
+    if prefer_name:
+        preferred = directory / prefer_name
+        if preferred.is_file() and diagnostic_from_text(preferred.read_text(encoding="utf-8")):
+            return preferred
+    picked = pick_row_diagnostic(
+        directory,
+        row,
+        exclude_stem_substrings=exclude_stem_substrings,
+    )
+    if picked is None:
+        return None
+    return directory / picked[0]
 
 
 def p0_baseline_markdown(directory: Path) -> str:
@@ -269,7 +298,48 @@ def main() -> int:
         metavar="DIR",
         help="Print markdown table for report §2.1 from section11-events JSONL",
     )
+    parser.add_argument(
+        "--resolve-row",
+        type=int,
+        metavar="N",
+        help="Print path to best JSONL for §11 row N (with --dir)",
+    )
+    parser.add_argument(
+        "--dir",
+        type=Path,
+        metavar="DIR",
+        help="Events directory (for --resolve-row)",
+    )
+    parser.add_argument(
+        "--prefer",
+        type=str,
+        help="Prefer this filename when resolving a row JSONL",
+    )
+    parser.add_argument(
+        "--exclude-stem",
+        action="append",
+        default=[],
+        help="Skip JSONL stems containing this substring (repeatable)",
+    )
     args = parser.parse_args()
+    if args.resolve_row is not None:
+        if args.dir is None:
+            print("--resolve-row requires --dir", file=sys.stderr)
+            return 2
+        directory = args.dir.expanduser().resolve()
+        if not directory.is_dir():
+            print(f"Not a directory: {directory}", file=sys.stderr)
+            return 1
+        path = resolve_row_jsonl(
+            directory,
+            args.resolve_row,
+            prefer_name=args.prefer,
+            exclude_stem_substrings=tuple(args.exclude_stem or ()),
+        )
+        if path is None:
+            return 1
+        print(path)
+        return 0
     if args.p0_baseline is not None:
         directory = args.p0_baseline.expanduser().resolve()
         if not directory.is_dir():
