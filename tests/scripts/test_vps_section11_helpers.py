@@ -113,6 +113,7 @@ def test_quota_probe_sources_unblock_hints() -> None:
     assert "section11_print_quota_unblock_hints" in probe
     assert "section11_pull_probe_to_workspace" in probe
     assert "incomplete probe pulled" in probe
+    assert "section11_probe_cache_preserve.py" in probe
     assert "MOKLI_SECTION11_MODEL" in hints
     assert "free-models-per-day" in hints
     assert "vps_section11_quota_status.sh" in hints
