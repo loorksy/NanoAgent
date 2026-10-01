@@ -48,6 +48,35 @@ def test_section11_close_dry_run(tmp_path: Path) -> None:
     assert "PASS" not in report.read_text(encoding="utf-8")
 
 
+def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(partial),
+            "--require-through",
+            "13",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode != 0, proc.stdout
+    combined = proc.stdout + proc.stderr
+    assert "validate rows 1..13" in combined
+    assert "ERROR" in combined
+    assert "Row 3 diagnostic" in combined or "Missing 01-no-tools-after-p0" in combined
+
+
 def test_section11_close_rejects_apply_with_allow_partial(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()
