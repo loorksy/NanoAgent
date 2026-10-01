@@ -66,6 +66,12 @@ echo ""
 echo "NOTE: remaining_rows.sh prints the row 11–13 runbook only (no LLM/UI)." >&2
 echo "NOTE: row 12 needs Mokli UI pipe JSONL; row 13 needs device/SDK JSONL — see operator-handoff." >&2
 
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
+  :
+else
+  echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
+fi
+
 echo ""
 echo "== sync + production unblock =="
 bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps \

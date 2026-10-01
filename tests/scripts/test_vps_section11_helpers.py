@@ -58,6 +58,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_after_reset_wake.sh",
         "mokli_upgrade_section11_completion_status.sh",
         "mokli_upgrade_section11_timer_wake.sh",
+        "mokli_upgrade_section11_try_row11_paper.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -248,6 +249,7 @@ def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
     assert "set -e" in text
     assert "--dry-run" in text
     assert "remaining_rows.sh prints the row 11" in text
+    assert "mokli_upgrade_section11_try_row11_paper.sh" in text
 
 
 def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
@@ -280,6 +282,21 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     assert "remaining_rows.sh" in text
     assert "require-oanda" in text
     assert "vps_section11_row12_desktop.sh" in text
+    assert "mokli_upgrade_section11_try_row11_paper.sh" in text
+
+
+def test_try_row11_paper_skips_without_quota_or_oanda() -> None:
+    script = ROOT / "scripts" / "mokli_upgrade_section11_try_row11_paper.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert proc.returncode == 0
+    assert "SKIP §11 row 11" in proc.stderr or "SKIP §11 row 11" in proc.stdout
 
 
 def test_remaining_rows_close_uses_production_gate_pull_vps() -> None:

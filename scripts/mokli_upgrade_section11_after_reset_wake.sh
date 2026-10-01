@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cloud Agent / timer wake: resume §11 after OpenRouter daily reset (no long sleep).
-# Does not fill rows 11–13 (UI/device) — operator still runs remaining_rows.sh.
+# Auto row 11 when quota+OANDA OK; rows 12–13 (UI/device) remain operator-driven.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,6 +24,13 @@ fi
 
 echo "== partial reruns + sync =="
 bash "$ROOT/scripts/mokli_upgrade_section11_rerun_partials.sh"
+
+echo ""
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
+  :
+else
+  echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
+fi
 
 echo ""
 echo "== operator unblock check =="
