@@ -247,6 +247,7 @@ def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
     assert "TIMER_WAKE_EXIT" in text
     assert "set -e" in text
     assert "--dry-run" in text
+    assert "remaining_rows.sh prints the row 11" in text
 
 
 def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
