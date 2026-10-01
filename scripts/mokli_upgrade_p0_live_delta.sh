@@ -18,7 +18,33 @@ for f in "$BASELINE" "$NEW"; do
 done
 
 base_line="$("$PYTHON" "$EXTRACT" --file "$BASELINE")"
-new_line="$("$PYTHON" "$EXTRACT" --file "$NEW")"
+new_line="$("$PYTHON" "$EXTRACT" --file "$NEW" 2>/dev/null)" || new_line=""
+if [[ -z "$new_line" ]]; then
+  if grep -qE \
+    'Rate limit exceeded|free-models-per-day|"error_kind"[[:space:]]*:[[:space:]]*"rate_limit"' \
+    "$NEW" 2>/dev/null; then
+    base_in=$("$PYTHON" "$EXTRACT" --file "$BASELINE" | awk '{
+      for (i = 1; i <= NF; i++) {
+        if ($i ~ /^in=[0-9]+$/) { sub(/^in=/, "", $i); print $i; exit }
+      }
+    }')
+    IFS='|' read -r base_pt base_final base_tool_defs <<< "$("$PYTHON" "$EXTRACT" --file "$BASELINE" --json | "$PYTHON" -c "
+import json, sys
+d = json.load(sys.stdin)
+comp = d.get('components') or {}
+pt = d.get('provider_tool_count')
+final = comp.get('final')
+tool_defs = comp.get('tool_definitions')
+print(f'{pt if pt is not None else \"?\"}|{final if final is not None else \"?\"}|{tool_defs if tool_defs is not None else \"?\"}')
+")"
+    echo "baseline=$BASELINE in=${base_in:-?} provider_tools=${base_pt} comp_final=${base_final} tool_defs=${base_tool_defs}"
+    echo "new=$NEW in=0 (no diagnostic; rate_limit — quota blocked)"
+    echo "delta_in=skipped (no diagnostic on new turn)"
+    exit 0
+  fi
+  echo "No diagnostic event found in: $NEW" >&2
+  exit 1
+fi
 _extract_in() {
   echo "$1" | awk '{
     for (i = 1; i <= NF; i++) {

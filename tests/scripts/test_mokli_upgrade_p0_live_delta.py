@@ -41,3 +41,38 @@ def test_live_delta_extracts_in_token_field(tmp_path: Path) -> None:
     assert "provider_tools=11" in proc.stdout
     assert "provider_tools=3" in proc.stdout
     assert "delta_comp_final=-1900" in proc.stdout
+
+
+def test_live_delta_quota_probe_without_diagnostic(tmp_path: Path) -> None:
+    diag = {
+        "kind": "diagnostic",
+        "data": {
+            "rounds": 1,
+            "request_input_tokens": 10934,
+            "provider_tool_count": 7,
+            "components": {"final": 10271},
+        },
+    }
+    base = tmp_path / "01-no-tools.jsonl"
+    probe = tmp_path / "quota-probe.jsonl"
+    base.write_text(json.dumps(diag) + "\n", encoding="utf-8")
+    probe.write_text(
+        json.dumps(
+            {
+                "kind": "retry",
+                "data": {"state": "waiting", "error_kind": "rate_limit", "attempt": 1},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), str(base), str(probe)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "in=10934" in proc.stdout
+    assert "quota blocked" in proc.stdout
+    assert "delta_in=skipped" in proc.stdout
