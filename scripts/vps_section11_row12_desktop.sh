@@ -28,7 +28,7 @@ EOS
 cat <<'NOTE'
 
 §11 row 12 (desktop) — operator steps (after quota probe passes):
-  1. Open WebUI → Admin → Functions → Mokli pipe → enable SHOW_DIAGNOSTICS (and SHOW_TIMELINE if desired).
+  1. Mokli UI → Admin → Functions → Mokli pipe → enable SHOW_DIAGNOSTICS (and SHOW_TIMELINE if desired).
   2. Chat in Mokli UI (Arabic gold question or «حلل الذهب») through the pipe, not raw Agent API.
   3. Save pipe/gateway JSONL (diagnostic + tool + structured/decision events) as section11-events/12-desktop-ui.jsonl.
   4. Screenshot: activity line wrap + Arabic decision card.
