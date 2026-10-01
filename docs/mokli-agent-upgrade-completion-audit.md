@@ -22,7 +22,7 @@
 | أدوات المشغّل §11 | validate: PARTIAL + `01-no-tools-after-p0.jsonl` @13؛ `close.sh --allow-partial`؛ `operator_smoke`؛ `blockers`؛ `operator_unblock.sh` | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
-| VPS checkout (Hostinger) | PR #62؛ rev **`e0c09223`** (فرع `cursor/section11-vps-rows-d9e1`؛ `git_branch=` في env_check)؛ preset **`qwen3-8-27b-free`**؛ quota **BLOCKED**؛ OANDA **no** | منجز |
+| VPS checkout (Hostinger) | PR #62؛ rev **`9fa0cc3b`** (فرع `cursor/section11-vps-rows-d9e1`؛ `git_branch=` في env_check)؛ preset **`qwen3-8-27b-free`**؛ quota **BLOCKED**؛ OANDA **no** | منجز |
 | GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2404** green | **infra** — re-run workflow on GitHub |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 
@@ -31,6 +31,7 @@
 ```bash
 bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
 bash scripts/mokli_upgrade_section11_cloud_status.sh   # cached quota + blockers --skip-vps (Cloud Agent)
+bash scripts/mokli_upgrade_section11_operator_unblock.sh   # live probe + env + blockers @13 (operator)
 bash scripts/vps_section11_quota_status.sh   # last quota-probe JSONL (no LLM)
 bash scripts/mokli_upgrade_section11_init.sh # VPS: events/ + results + progress (no LLM)
 bash scripts/mokli_upgrade_aggregate_pytest.sh
@@ -42,4 +43,4 @@ bash scripts/mokli_upgrade_aggregate_pytest.sh
 
 ## بعد VPS (المشغّل)
 
-اتبع **قائمة الإغلاق (9 خطوات)** في `docs/mokli-agent-upgrade-operator-handoff.md`: credits + OANDA → `rerun_partials` → 11–13 → `sync_from_vps` (`p0-interim-summary.txt`) → `blockers` exit 0 → `section11_close.sh --apply --require-through 13` → gate pytest.
+اتبع **قائمة الإغلاق (9 خطوات)** في `docs/mokli-agent-upgrade-operator-handoff.md`: credits + OANDA → `operator_unblock.sh` exit 0 → `rerun_partials` → 11–13 → `sync_from_vps --pull-vps` → `blockers` exit 0 → `section11_close.sh --apply --require-through 13` → gate pytest.
