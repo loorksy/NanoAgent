@@ -18,6 +18,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_section11_quota_probe.sh",
         "vps_section11_pull_events.sh",
         "vps_section11_row11_paper.sh",
+        "vps_section11_row3_multi_tool.sh",
         "vps_section11_row12_desktop.sh",
         "local_section11_row12_smoke.sh",
         "mokli_upgrade_section11_row13_ci.sh",

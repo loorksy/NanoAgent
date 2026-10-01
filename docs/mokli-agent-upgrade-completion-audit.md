@@ -19,7 +19,7 @@
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
 | pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2358** ناجية (1 skipped) | منجز |
-| أدوات المشغّل §11 | `section11_init`، `operator_smoke`، `section11_close`، `production_gate`، `remaining_rows` (11–13)، `vps_section11_env_check`، `set_oanda_env`، `row1_after_p0`، `p0_live_delta`، `pull_events`، `quota_probe`، `preflight`، `dry_run`، `extract`، `batch`، `validate`، `patch_report` | منجز |
+| أدوات المشغّل §11 | … + `vps_section11_row3_multi_tool`، `validate` يطبع HINT عند `tool_calls<2` لصف 3 | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS checkout (Hostinger) | **`858d41b6`** on branch `cursor/section11-vps-rows-d9e1` (PR #62 §11 pack)؛ gateway active؛ quota **BLOCKED** (`in=0` probe)؛ `provider_tools=7`؛ `after_pull` interim `delta_comp_final≈-6668` | **منجز** (2026-10-01) |

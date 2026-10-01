@@ -109,7 +109,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | --- | --- | --- |
 | 1 | `01-no-tools.jsonl` | تحية / بلا أدوات |
 | 2 | `02-single-tool.jsonl` | سعر الذهب |
-| 3 | `03-multi-tool.jsonl` | عدة أدوات |
+| 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء |
 | 5 | `05-subagents.jsonl` | spawn / سرب |
 | 6 | `06-tool-failure.jsonl` | فشل أداة |

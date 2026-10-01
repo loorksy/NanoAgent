@@ -9,6 +9,10 @@ cat <<EOF
   bash scripts/vps_section11_env_check.sh --require-quota --require-oanda
   bash scripts/vps_section11_row1_after_p0.sh   # optional P0 live delta
 
+Row 3 (multi-tool, if row 3 still PARTIAL):
+  bash scripts/vps_section11_row3_multi_tool.sh
+  → 03-multi-tool-v2.jsonl; expect tools>=2 in diagnostic extract
+
 Row 11 (paper, Agent API + OANDA candles):
   bash scripts/vps_section11_row11_paper.sh
   → section11-events/11-paper.jsonl on VPS; fill «النتيجة» in section11-results.json

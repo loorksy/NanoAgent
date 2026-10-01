@@ -63,6 +63,40 @@ def test_validate_fails_on_empty_result(tmp_path: Path) -> None:
     assert "Empty" in proc.stderr or "Empty" in proc.stdout
 
 
+def test_validate_hints_row3_when_tool_calls_below_two(tmp_path: Path) -> None:
+    for row_id in (1, 2, 3):
+        (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 1 if row_id == 3 else 0},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({1: "PASS", 2: "PASS", 3: "PARTIAL"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "3",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "HINT row 3" in proc.stderr
+    assert "vps_section11_row3_multi_tool" in proc.stderr
+
+
 def test_validate_rejects_dry_run_when_require_multiple_rows(tmp_path: Path) -> None:
     for row_id in (1, 2):
         (tmp_path / f"{row_id:02d}-scenario.jsonl").write_text(

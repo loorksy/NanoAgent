@@ -21,7 +21,10 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from mokli_upgrade_diagnostic_extract import diagnostic_from_text  # noqa: E402
+from mokli_upgrade_diagnostic_extract import (  # noqa: E402
+    diagnostic_from_text,
+    pick_row_diagnostic,
+)
 from mokli_upgrade_section11_batch import _load_results, _row_index  # noqa: E402
 
 
@@ -138,6 +141,17 @@ def main() -> int:
     print(
         f"OK §11 artifacts: rows 1–{args.require_through} have JSONL+diagnostic and non-empty results"
     )
+    if args.require_through >= 3:
+        picked = pick_row_diagnostic(directory, 3)
+        if picked is not None:
+            name, diag = picked
+            tool_calls = int(diag.get("tool_calls") or 0)
+            if tool_calls < 2:
+                print(
+                    f"HINT row 3 ({name}): tool_calls={tool_calls} — "
+                    "rerun bash scripts/vps_section11_row3_multi_tool.sh",
+                    file=sys.stderr,
+                )
     return 0
 
 
