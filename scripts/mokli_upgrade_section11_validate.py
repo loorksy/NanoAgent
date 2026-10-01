@@ -285,7 +285,8 @@ def main() -> int:
         if partial_rows:
             errors.append(
                 f"PARTIAL «النتيجة» for rows {partial_rows} — "
-                "rerun live §11 rows (mokli_upgrade_section11_rerun_partials.sh) before closure"
+                "rerun live §11 rows (mokli_upgrade_section11_rerun_partials.sh; "
+                "row 8 if in=0) before closure"
             )
 
     if errors:
