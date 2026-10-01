@@ -23,7 +23,7 @@
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
 | VPS checkout (Hostinger) | PR #62؛ **`git_rev=cb1a35b5`** على `cursor/section11-vps-rows-d9e1` (يُقارَن بالمحلي عبر `vps_section11_env_check.sh`)؛ preset **`qwen3-8-27b-free`**؛ quota/OANDA من env_check | منجز (rev)؛ **quota/OANDA** محجوب |
-| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2412** green | **infra** — re-run workflow on GitHub |
+| GitHub Actions (PR #62) | Jobs fail in ~5s with **empty steps** / log 404 (all matrix jobs)؛ local aggregate pytest **2414** green | **infra** — re-run workflow on GitHub |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة؛ **صف 12** pre-check VPS: `ui_http=200` + `pipe_show_diagnostics=present` (2026-10-01) | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
