@@ -87,3 +87,60 @@ def test_section11_close_apply_writes_report(tmp_path: Path) -> None:
     body = report.read_text(encoding="utf-8")
     assert "PASS — applied" in body
     assert "rounds=2" in body and "in=99" in body
+
+
+def test_section11_close_apply_updates_real_report_unicode_header(tmp_path: Path) -> None:
+    """Regression: close --apply must flip §11 title on docs/mokli-agent-upgrade-report.md shape."""
+    report_src = ROOT / "docs" / "mokli-agent-upgrade-report.md"
+    source = report_src.read_text(encoding="utf-8")
+    header = next(line for line in source.splitlines() if line.startswith("## 11."))
+    row1 = next(line for line in source.splitlines() if line.startswith("| 1 |"))
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 9500,
+                    "request_output_tokens": 80,
+                    "tool_calls": 0,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "section11-results.json"
+    results.write_text(json.dumps({"1": "PASS — no-tools live"}), encoding="utf-8")
+    report = tmp_path / "report.md"
+    report.write_text(
+        f"{header}\n| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام |\n{row1}\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(report),
+            "--require-through",
+            "1",
+            "--apply",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    body = report.read_text(encoding="utf-8")
+    assert "PASS — no-tools live" in body
+    assert "rounds=1" in body and "in=9500" in body
+    assert "تم التعبئة من تشغيل VPS" in body
+    assert "Cloud Agent" not in body.split("###", 1)[0]
