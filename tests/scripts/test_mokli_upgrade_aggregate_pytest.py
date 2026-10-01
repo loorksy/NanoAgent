@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "mokli_upgrade_aggregate_pytest.sh"
 
-# Keep in sync with AGENTS.md «Aggregate pytest target» (passed count may be collected−1 skip).
-MIN_COLLECTED = 2402
+# Keep in sync with AGENTS.md «Aggregate pytest target» (2432 passed + 1 skipped → 2433 collected).
+MIN_COLLECTED = 2430
 
 
 def test_aggregate_pytest_script_exists() -> None:
