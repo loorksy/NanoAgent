@@ -12,6 +12,8 @@ PY="${ROOT}/.venv/bin/pytest"
 echo "== §11 completion status (cached) =="
 bash "$ROOT/scripts/mokli_upgrade_section11_completion_status.sh" || true
 
+set -e
+
 echo ""
 echo "== after OpenRouter reset (live probe + partial reruns) =="
 if ! bash "$ROOT/scripts/mokli_upgrade_section11_after_reset_wake.sh"; then

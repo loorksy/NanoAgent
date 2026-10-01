@@ -210,6 +210,7 @@ def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
     assert "operator_unblock.sh" in text and "--pull-vps" in text
     assert "close.sh" in text and "--require-through 13" in text
     assert "TIMER_WAKE_EXIT" in text
+    assert "set -e" in text
 
 
 def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
