@@ -107,8 +107,10 @@ bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/re
 python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
 python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
 bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
+bash scripts/vps_section11_pull_events.sh && bash scripts/mokli_upgrade_section11_after_pull.sh  # P0 §2.1 table + delta if 01-no-tools-after-p0.jsonl
+bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2357 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+Aggregate pytest target: 2358 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
 - Tests mirror the `mokli/` package structure.
