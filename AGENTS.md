@@ -106,5 +106,5 @@ bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifac
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2331 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
+Aggregate pytest target: 2332 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
 - Tests mirror the `mokli/` package structure.
