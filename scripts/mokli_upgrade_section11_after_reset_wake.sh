@@ -35,7 +35,7 @@ fi
 echo ""
 echo "== operator unblock check =="
 if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe; then
-  echo "READY for remaining_rows (11–13) and close --apply @13 when JSONL complete"
+  echo "READY for remaining_rows (11–13) then: mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
 else
   echo "PARTIAL: reruns done but blockers remain (OANDA and/or rows 11–13 JSONL)" >&2
   echo "== row 12 VPS pre-check (no LLM) =="

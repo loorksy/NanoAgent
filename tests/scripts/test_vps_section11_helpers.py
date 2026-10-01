@@ -285,6 +285,7 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     assert "require-oanda" in text
     assert "vps_section11_row12_desktop.sh" in text
     assert "mokli_upgrade_section11_try_row11_paper.sh" in text
+    assert "section11-results-partial.json" in text
 
 
 def test_try_row11_paper_skips_without_quota_or_oanda() -> None:
