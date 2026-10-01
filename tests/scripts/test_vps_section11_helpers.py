@@ -15,6 +15,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_section11_pull_events.sh",
         "vps_section11_row11_paper.sh",
         "vps_section11_row12_desktop.sh",
+        "vps_section11_row13_mobile.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
