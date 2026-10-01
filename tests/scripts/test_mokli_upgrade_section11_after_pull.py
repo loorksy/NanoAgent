@@ -50,6 +50,7 @@ def test_after_pull_runs_p0_delta_when_after_file_exists(tmp_path: Path) -> None
     )
     assert "P0 live delta" in proc.stdout
     assert "delta_in=-7000" in proc.stdout
+    assert (events / "p0-interim-summary.txt").is_file()
 
 
 def test_after_pull_runs_interim_delta_from_quota_probe(tmp_path: Path) -> None:
