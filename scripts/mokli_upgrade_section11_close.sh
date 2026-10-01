@@ -44,6 +44,11 @@ if [[ "$APPLY" -eq 1 && "$ALLOW_PARTIAL" -eq 1 ]]; then
   exit 1
 fi
 
+RESET_SEC="unknown"
+RESET_OUT=$(bash "${ROOT}/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
+
 VALIDATE_ARGS=(--dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE")
 if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
   VALIDATE_ARGS+=(--allow-partial)
@@ -58,6 +63,8 @@ VALID_EC=$?
 set -e
 printf '%s\n' "$VALID_OUT"
 if [[ "$VALID_EC" -ne 0 ]]; then
+  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
+  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC apply=$APPLY" >&2
   echo "HINT: bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through ${REQUIRE}" >&2
   exit "$VALID_EC"
 fi

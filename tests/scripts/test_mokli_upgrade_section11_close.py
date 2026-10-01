@@ -76,6 +76,8 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     assert "ERROR" in combined
     assert "Row 3 diagnostic" in combined or "Missing 01-no-tools-after-p0" in combined
     assert "closure_errors=9" in combined
+    assert "close_summary:" in combined
+    assert "seconds_until_reset=" in combined
 
 
 def test_section11_close_script_promotes_partial_on_apply_at_13() -> None:

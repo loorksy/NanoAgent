@@ -63,6 +63,7 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 | `cloud_status:` | `cloud_status.sh` — `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `seconds_until_reset` |
 | `operator_unblock:` | `operator_unblock.sh` — `partial10_*`, `closure_errors`, `seconds_until_reset` |
 | `INCOMPLETE §11 status:` | `section11_status.sh` — `validate_ok`, `quota_ok`, `closure_errors`, `seconds_until_reset` |
+| `close_summary:` | `close.sh` — on validate failure: `closure_errors`, `seconds_until_reset`, `apply` |
 
 إغلاق الإنتاج = `closure_errors=0` على `blockers_summary` (أو validate) مع `quota_ok=1` وOANDA.
 
