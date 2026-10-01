@@ -4,7 +4,7 @@
 
 1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1`
 2. OpenRouter credits + `OANDA_*`: `bash scripts/vps_section11_set_oanda_env.sh`
-3. جاهزية: `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0)
+3. جاهزية: `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0؛ يطبع أيضاً `mokli_ui_http` و`mokli_pipe_show_diagnostics` لصف 12)
 4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh`
 5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
 6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh` (يكتب أيضاً `section11-events/p0-interim-summary.txt`)

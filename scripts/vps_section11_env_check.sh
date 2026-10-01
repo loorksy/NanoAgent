@@ -31,10 +31,17 @@ done
 
 _snapshot_body() {
   local install="$1"
-  local rev health oanda
+  local rev health oanda ui_http pipe_diag
   rev=$(git -C "$install" rev-parse --short HEAD 2>/dev/null || echo unknown)
   health=fail
   curl -sf http://127.0.0.1:8766/api/v2/health >/dev/null 2>&1 && health=ok
+  ui_http=000
+  ui_http=$(curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ 2>/dev/null || echo 000)
+  pipe_diag=missing
+  if [[ -f "$install/deploy/mokliui/functions/mokli_pipe.py" ]] \
+    && grep -q SHOW_DIAGNOSTICS "$install/deploy/mokliui/functions/mokli_pipe.py" 2>/dev/null; then
+    pipe_diag=present
+  fi
   oanda=no
   if [[ -f "$install/.env" ]] \
     && grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
@@ -44,6 +51,8 @@ _snapshot_body() {
   echo "REV=$rev"
   echo "API_HEALTH=$health"
   echo "OANDA=$oanda"
+  echo "UI_HTTP=$ui_http"
+  echo "PIPE_DIAG=$pipe_diag"
 }
 
 if section11_local_ready "$INSTALL_DIR"; then
@@ -58,6 +67,13 @@ install="$1"
 rev=$(git -C "$install" rev-parse --short HEAD 2>/dev/null || echo unknown)
 health=fail
 curl -sf http://127.0.0.1:8766/api/v2/health >/dev/null 2>&1 && health=ok
+ui_http=000
+ui_http=$(curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ 2>/dev/null || echo 000)
+pipe_diag=missing
+if [[ -f "$install/deploy/mokliui/functions/mokli_pipe.py" ]] \
+  && grep -q SHOW_DIAGNOSTICS "$install/deploy/mokliui/functions/mokli_pipe.py" 2>/dev/null; then
+  pipe_diag=present
+fi
 oanda=no
 if [[ -f "$install/.env" ]] \
   && grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
@@ -67,6 +83,8 @@ fi
 echo "REV=$rev"
 echo "API_HEALTH=$health"
 echo "OANDA=$oanda"
+echo "UI_HTTP=$ui_http"
+echo "PIPE_DIAG=$pipe_diag"
 INNER
 EOS
 )
@@ -78,10 +96,14 @@ fi
 rev=$(echo "$lines" | sed -n 's/^REV=//p')
 health=$(echo "$lines" | sed -n 's/^API_HEALTH=//p')
 oanda=$(echo "$lines" | sed -n 's/^OANDA=//p')
+ui_http=$(echo "$lines" | sed -n 's/^UI_HTTP=//p')
+pipe_diag=$(echo "$lines" | sed -n 's/^PIPE_DIAG=//p')
 
 echo "git_rev=${rev:-?}"
 echo "agent_api_health=${health:-?}"
 echo "oanda_configured=${oanda:-?}"
+echo "mokli_ui_http=${ui_http:-?}"
+echo "mokli_pipe_show_diagnostics=${pipe_diag:-?}"
 
 quota_ok=0
 quota_line=""
