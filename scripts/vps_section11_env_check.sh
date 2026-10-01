@@ -31,6 +31,41 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+_read_gateway_model_preset() {
+  local user="${1:-${MOKLI_SERVICE_USER:-nanoagent}}"
+  if [[ "$(id -un)" == "$user" ]]; then
+    python3 - <<'PY' 2>/dev/null || echo unknown
+import json
+from pathlib import Path
+
+p = Path.home() / ".mokli" / "config.json"
+if not p.is_file():
+    print("missing")
+else:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    agents = data.get("agents") or {}
+    defaults = agents.get("defaults") or {}
+    print(defaults.get("modelPreset") or "null")
+PY
+  elif id "$user" &>/dev/null; then
+    sudo -u "$user" python3 - <<'PY' 2>/dev/null || echo unknown
+import json
+from pathlib import Path
+
+p = Path.home() / ".mokli" / "config.json"
+if not p.is_file():
+    print("missing")
+else:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    agents = data.get("agents") or {}
+    defaults = agents.get("defaults") or {}
+    print(defaults.get("modelPreset") or "null")
+PY
+  else
+    echo unknown
+  fi
+}
+
 _snapshot_body() {
   local install="$1"
   local rev health oanda ui_http pipe_diag
@@ -50,21 +85,7 @@ _snapshot_body() {
     && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
     oanda=yes
   fi
-  model_preset=unknown
-  model_preset=$(python3 - <<'PY' 2>/dev/null || echo unknown
-import json
-from pathlib import Path
-
-p = Path.home() / ".mokli" / "config.json"
-if not p.is_file():
-    print("missing")
-else:
-    data = json.loads(p.read_text(encoding="utf-8"))
-    agents = data.get("agents") or {}
-    defaults = agents.get("defaults") or {}
-    print(defaults.get("modelPreset") or "null")
-PY
-)
+  model_preset=$(_read_gateway_model_preset "$SERVICE_USER")
   echo "REV=$rev"
   echo "API_HEALTH=$health"
   echo "OANDA=$oanda"

@@ -62,6 +62,8 @@ def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     assert "vps_section11_quota_status.sh" in text
     assert "REQUIRE_QUOTA" in text and "quota_probe.sh" in text
     assert "gateway_model_preset=" in text
+    assert "_read_gateway_model_preset" in text
+    assert "sudo -u" in text
 
 
 def test_quota_probe_sources_unblock_hints() -> None:
