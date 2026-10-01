@@ -22,7 +22,7 @@
 | أدوات المشغّل §11 | … + `blockers`، صفوف 2–6/9–11 scripts، `validate` HINTs حتى عند فشل 13 | منجز |
 | §11 بوابة تقرير (CI) | `tests/scripts/test_mokli_upgrade_report_section11_gate.py`؛ `test_section11_close_apply_updates_real_report_unicode_header`؛ `test_close_apply_on_canonical_report_aborts_before_patch` | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمودا «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (تقرير: **جزئي** 1–2) |
-| VPS checkout (Hostinger) | **`a0868305`** on branch `cursor/section11-vps-rows-d9e1` (PR #62 §11 pack)؛ gateway active؛ quota **BLOCKED** (`in=0` probe)؛ `provider_tools=7`؛ `after_pull` interim `delta_comp_final≈-6668` | **منجز** (2026-10-01) |
+| VPS checkout (Hostinger) | **`55d3d563`** on `cursor/section11-vps-rows-d9e1` (PR #62)؛ gateway active؛ quota **BLOCKED**؛ OANDA off؛ `provider_tools=7`؛ sync interim `delta_comp_final≈-6668` | **منجز** (2026-10-01 pull) |
 | §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`)؛ **9** PARTIAL (15 rounds؛ OpenRouter quota)؛ **10** PARTIAL (backtest؛ OANDA off)؛ **11–13** فارغة | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)

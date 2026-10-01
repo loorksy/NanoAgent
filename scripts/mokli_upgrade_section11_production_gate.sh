@@ -34,10 +34,7 @@ echo "== VPS env (quota + OANDA) =="
 bash "${ROOT}/scripts/vps_section11_env_check.sh" "${ENV_ARGS[@]}"
 
 if [[ "$SKIP_PULL" -eq 0 ]]; then
-  echo "== pull §11 JSONL from VPS =="
-  bash "${ROOT}/scripts/vps_section11_pull_events.sh" "$EVENTS"
-  echo "== P0 table / interim delta (rows 1–10) =="
-  bash "${ROOT}/scripts/mokli_upgrade_section11_after_pull.sh" "$EVENTS" "$RESULTS" 10
+  bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" "$EVENTS" "$RESULTS" 10
 fi
 
 echo "== §11 artifact + quota status (require-through=$REQUIRE) =="
