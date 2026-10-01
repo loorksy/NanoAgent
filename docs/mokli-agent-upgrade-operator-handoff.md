@@ -60,7 +60,7 @@ bash scripts/deploy-mokli-vps.sh
 ## ما اكتمل بدون VPS
 
 - `docs/mokli-agent-upgrade-audit.md` — تدقيق المرحلة 0
-- `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **فارغ** حتى التشغيل الحي)
+- `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **جزئي** من VPS؛ صفوف 11–13 + P0 after + إغلاق 13 للإنتاج)
 - `docs/mokli-settings-audit.md` — P2/P3 إعدادات
 - `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
 - pytest: **2405** ناجية (`bash scripts/mokli_upgrade_aggregate_pytest.sh`)
