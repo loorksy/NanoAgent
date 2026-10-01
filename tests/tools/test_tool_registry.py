@@ -4,7 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 from mokli.agent.tools.base import Tool, ToolResult
-from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.registry import ToolRegistry, filter_tool_definitions
 
 
 class _FakeTool(Tool):
@@ -322,3 +322,12 @@ def test_unregister_invalidates_cache() -> None:
     second = registry.get_definitions()
     assert first is not second
     assert len(second) == 1
+
+
+def test_filter_tool_definitions_preserves_order() -> None:
+    registry = ToolRegistry()
+    for name in ("alpha", "beta", "gamma"):
+        registry.register(_FakeTool(name))
+    all_defs = registry.get_definitions()
+    filtered = filter_tool_definitions(all_defs, ["gamma", "alpha"])
+    assert _tool_names(filtered) == ["alpha", "gamma"]
