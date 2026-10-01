@@ -38,10 +38,24 @@ def _closure_hints(empty_result: list[int]) -> None:
             "bash scripts/mokli_upgrade_section11_remaining_rows.sh",
             file=sys.stderr,
         )
+    if 11 in empty_result:
+        print(
+            "HINT row 11 JSONL: 11-paper.jsonl (vps_section11_row11_paper.sh; needs OANDA)",
+            file=sys.stderr,
+        )
+    if 12 in empty_result:
+        print(
+            "HINT row 12 JSONL: 12-desktop-ui.jsonl (Mokli UI pipe + SHOW_DIAGNOSTICS)",
+            file=sys.stderr,
+        )
     if 13 in empty_result:
         print(
             "HINT row 13 CI proxy (no device/LLM): "
             "bash scripts/mokli_upgrade_section11_row13_ci.sh",
+            file=sys.stderr,
+        )
+        print(
+            "HINT row 13 production JSONL: 13-mobile.jsonl (device/SDK session)",
             file=sys.stderr,
         )
 

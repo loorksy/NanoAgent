@@ -355,3 +355,34 @@ def test_example_results_template_fails_production_gate(tmp_path: Path) -> None:
     )
     assert proc.returncode == 1
     assert "Missing JSONL" in proc.stderr or "Empty" in proc.stderr
+
+
+def test_validate_closure_hints_name_row11_12_13_jsonl(tmp_path: Path) -> None:
+    for row_id in range(1, 11):
+        (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    payload = {str(i): "PASS" for i in range(1, 11)}
+    payload.update({"11": "", "12": "", "13": ""})
+    results.write_text(json.dumps(payload), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "11-paper.jsonl" in proc.stderr
+    assert "12-desktop-ui.jsonl" in proc.stderr
+    assert "13-mobile.jsonl" in proc.stderr

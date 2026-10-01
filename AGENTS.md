@@ -95,6 +95,7 @@ VPS deploy from Cloud Agent: set environment secrets **`VPS`** (host or `user@ho
 cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 curl -s http://127.0.0.1:5173/api/v2/health
 bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
+bash scripts/mokli_upgrade_section11_cloud_status.sh  # VPS quota probe + local blockers (exit 1 until row 13 closable)
 bash scripts/mokli_upgrade_section11_init.sh  # VPS: scaffold events/ + results + progress (no LLM)
 bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
 /workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
