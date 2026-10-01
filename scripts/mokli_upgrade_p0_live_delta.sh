@@ -26,10 +26,27 @@ _extract_in() {
     }
   }'
 }
+_p0_metrics() {
+  "$PYTHON" "$EXTRACT" --file "$1" --json | "$PYTHON" -c "
+import json, sys
+d = json.load(sys.stdin)
+comp = d.get('components') or {}
+pt = d.get('provider_tool_count')
+final = comp.get('final')
+tool_defs = comp.get('tool_definitions')
+print(f'{pt if pt is not None else \"?\"}|{final if final is not None else \"?\"}|{tool_defs if tool_defs is not None else \"?\"}')
+"
+}
 base_in=$(_extract_in "$base_line")
 new_in=$(_extract_in "$new_line")
-echo "baseline=$BASELINE in=${base_in:-?}"
-echo "new=$NEW in=${new_in:-?}"
+IFS='|' read -r base_pt base_final base_tool_defs <<< "$(_p0_metrics "$BASELINE")"
+IFS='|' read -r new_pt new_final new_tool_defs <<< "$(_p0_metrics "$NEW")"
+
+echo "baseline=$BASELINE in=${base_in:-?} provider_tools=${base_pt} comp_final=${base_final} tool_defs=${base_tool_defs}"
+echo "new=$NEW in=${new_in:-?} provider_tools=${new_pt} comp_final=${new_final} tool_defs=${new_tool_defs}"
 if [[ -n "${base_in:-}" && -n "${new_in:-}" && "$base_in" =~ ^[0-9]+$ && "$new_in" =~ ^[0-9]+$ ]]; then
   echo "delta_in=$((new_in - base_in))"
+  if [[ "$base_final" =~ ^[0-9]+$ && "$new_final" =~ ^[0-9]+$ ]]; then
+    echo "delta_comp_final=$((new_final - base_final))"
+  fi
 fi

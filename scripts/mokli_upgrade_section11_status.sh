@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/vps_ssh.sh
+source "$ROOT/scripts/vps_ssh.sh"
+export MOKLI_SSH_HOST="${MOKLI_SSH_HOST:-hostinger-vps}"
 PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
 
@@ -56,7 +59,7 @@ QUOTA_OK=0
 if [[ "$SKIP_QUOTA" -eq 1 ]]; then
   echo "== VPS LLM quota probe skipped (--skip-quota) =="
   QUOTA_OK=1
-elif [[ -n "${MOKLI_SSH_HOST:-}" ]] || [[ -n "${VPS:-}" ]]; then
+elif vps_ssh_ready; then
   echo "== VPS LLM quota probe =="
   if bash "${ROOT}/scripts/vps_section11_quota_probe.sh" "quota-status-$(date +%s).jsonl"; then
     QUOTA_OK=1
@@ -65,7 +68,7 @@ elif [[ -n "${MOKLI_SSH_HOST:-}" ]] || [[ -n "${VPS:-}" ]]; then
     echo "LLM: blocked (see operator handoff — credits or preset)"
   fi
 else
-  echo "== VPS LLM quota probe skipped (set MOKLI_SSH_HOST) =="
+  echo "== VPS LLM quota probe skipped (no VPS SSH — set MOKLI_SSH_HOST or VPS+VPSPASS) =="
   QUOTA_OK=1
 fi
 
