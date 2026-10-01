@@ -117,6 +117,9 @@ class TurnHook(AgentHook):
         self._run = run
         self._started: dict[str, float] = {}
 
+    async def on_desk_approval(self, event: dict[str, object]) -> None:
+        self._hub.publish(self._session, "approval", event, run=self._run)
+
     def _emit_tool(
         self,
         event: str,

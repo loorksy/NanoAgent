@@ -228,6 +228,8 @@ async def run_swarm(
     emit: Any | None = None,
     visual_capture: Any = None,
     max_review_rounds: int = 1,
+    sessions: Any | None = None,
+    control: Any | None = None,
 ) -> dict[str, Any]:
     """Run every role of a preset and return their briefs (never a BUY/SELL).
 
@@ -242,7 +244,12 @@ async def run_swarm(
     summaries: dict[str, str] = {}
     layers = topological_layers(preset.tasks)
     collector = TeamRunCollector()
+    from mokli.trading.desk.board import SwarmControl, bind_swarm_control
+    from mokli.trading.desk.sessions import persist_room_brief
 
+    if control is None:
+        control = SwarmControl()
+    bind_swarm_control(control)
     # Macro searches do not read candles, the quote, or role summaries.
     # Start them with the market download only when a role reads the driver list.
     macro_task: asyncio.Task[tuple[list[Any], int]] | None = None
@@ -258,8 +265,12 @@ async def run_swarm(
         market = await asyncio.to_thread(run_market_data_agent, "XAUUSD", interval)
         evidence_text = format_market_evidence(market)
         for layer_index, layer in enumerate(layers):
+            if control.cancelled:
+                break
 
-            async def run_task(task: SwarmTask) -> tuple[str, str | None]:
+            async def run_task(
+                task: SwarmTask, layer_index: int = layer_index
+            ) -> tuple[str, str | None]:
                 upstream = "\n".join(
                     f"{key}: {brief_for_upstream(summaries[src])}"
                     for key, src in task.input_from.items()
@@ -307,12 +318,15 @@ async def run_swarm(
                 if summary is None:
                     continue
                 summaries[task_id] = summary
-        if macro_task is None:
+            if control.cancelled:
+                break
+        if control.cancelled or macro_task is None:
             verdicts, duration_ms = [], 0
         else:
             verdicts, duration_ms = await macro_task
         macro_briefing = format_team_briefing(verdicts) if verdicts else ""
         team_briefing = _format_swarm_briefing(preset_name, summaries, macro_briefing)
+        persist_room_brief(sessions, preset_name, team_briefing)
         return {
             "preset": preset_name,
             "task_summaries": summaries,
@@ -320,9 +334,11 @@ async def run_swarm(
             "team_briefing": team_briefing,
             "team_agents": list(collector.agents),
             "final": None,
+            "cancelled": control.cancelled,
             "stages": [emit_stage("macro_drivers", "done", duration_ms=duration_ms).to_wire()],
         }
     finally:
+        bind_swarm_control(None)
         if macro_task is not None and not macro_task.done():
             macro_task.cancel()
             try:

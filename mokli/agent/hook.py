@@ -101,6 +101,10 @@ class AgentHook:
         """Observe a provider-hosted tool lifecycle event."""
         pass
 
+    async def on_desk_approval(self, event: dict[str, Any]) -> None:
+        """Publish an operator approval card. Default hooks ignore it."""
+        pass
+
     async def before_execute_tools(self, context: AgentHookContext) -> None:
         pass
 
@@ -209,6 +213,9 @@ class CompositeHook(AgentHook):
         event: dict[str, Any],
     ) -> None:
         await self._for_each_hook_safe("on_provider_tool_event", context, event)
+
+    async def on_desk_approval(self, event: dict[str, Any]) -> None:
+        await self._for_each_hook_safe("on_desk_approval", event)
 
     async def before_execute_tools(self, context: AgentHookContext) -> None:
         await self._for_each_hook_safe("before_execute_tools", context)

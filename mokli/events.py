@@ -35,6 +35,9 @@ class TeamRoleEvent(AgentEvent):
     summary: str = ""
     duration_ms: int | None = None
     display: str = ""
+    room_id: str = ""
+    role_id: str = ""
+    layer: int | None = None
 
 
 @dataclass(frozen=True)

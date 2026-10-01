@@ -256,7 +256,8 @@ TOOL_CONTRACTS: tuple[ToolContract, ...] = (
         "the operator explicitly asks for a committee, debate, news war room, or "
         "multi-timeframe panel; always pass an explicit preset",
         "specialist briefs",
-        "let a brief choose direction",
+        "let a brief choose direction; the desk distributes reading and proposals, "
+        "confirmation stays with the operator, and idle research writes only in the news room",
     ),
     ToolContract(
         ("gold_intel_scan",),

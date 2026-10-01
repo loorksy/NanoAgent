@@ -12,6 +12,7 @@
 	import { get, type Unsubscriber, type Writable } from 'svelte/store';
 	import type { i18n as i18nType } from 'i18next';
 	import { MOKLI_BASE_URL } from '$lib/constants';
+	import { noteDeskStatus } from '$lib/mokli/desk-board';
 	import { applyStatusUpdate } from '$lib/mokli/statusHistory';
 	import equal from 'fast-deep-equal';
 
@@ -1216,6 +1217,9 @@
 				const data = event?.data?.data ?? null;
 
 				if (type === 'status') {
+					if (data?.desk) {
+						noteDeskStatus(data.desk);
+					}
 					if (data && typeof data === 'object') {
 						message.statusHistory = applyStatusUpdate(message.statusHistory, data);
 					}

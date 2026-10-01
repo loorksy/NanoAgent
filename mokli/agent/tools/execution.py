@@ -209,6 +209,17 @@ async def _execute_tool_call(
         await _close_cancelled_tool(hook, context, tool_call, tool, params)
         raise
     except Exception as exc:
+        from mokli.trading.desk.rules import ApprovalRequired, hold_for_approval
+
+        if isinstance(exc, ApprovalRequired):
+            approval = hold_for_approval(exc)
+            await hook.on_desk_approval(approval)
+            message = f"Waiting for operator approval before {exc.tool_name}."
+            return message, {
+                "name": tool_call.name,
+                "status": "approval",
+                "detail": message[:120],
+            }
         from mokli.trading.policy_guard import PolicyViolation
 
         if isinstance(exc, PolicyViolation):

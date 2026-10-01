@@ -1354,6 +1354,10 @@ class Pipe:
         role = _as_str(data.get("role")) or _as_str(data.get("id"))
         summary = _as_str(data.get("summary"))
         duration = _as_int(data.get("duration_ms"))
+        room_id = _as_str(data.get("room_id"))
+        role_id = _as_str(data.get("role_id"))
+        layer = data.get("layer")
+        layer_n = layer if isinstance(layer, int) and not isinstance(layer, bool) else None
         sub_id = _as_str(data.get("id")) or f"sub-{len(turn.steps)}"
         label = _role_label(data, turn.label)
         existing = next((step for step in turn.steps if step.get("id") == sub_id), None)
@@ -1387,13 +1391,23 @@ class Pipe:
                 record["error"] = summary
             else:
                 record["summary"] = summary
+        status_data: dict[str, object] = {
+            "description": activity_line(turn.steps),
+            "done": False,
+        }
+        if room_id or role_id or layer_n is not None:
+            status_data["desk"] = {
+                "stage": stage,
+                "role": role,
+                "room_id": room_id,
+                "role_id": role_id or role,
+                "layer": layer_n,
+                "summary": summary,
+            }
         if turn.steps:
             await self._emit(
                 emitter,
-                {
-                    "type": "status",
-                    "data": {"description": activity_line(turn.steps), "done": False},
-                },
+                {"type": "status", "data": status_data},
             )
         _upsert_detail(turn, f"sub:{sub_id}", detail_line(record))
 

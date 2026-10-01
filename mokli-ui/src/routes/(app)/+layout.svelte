@@ -16,6 +16,7 @@
 	import { MOKLI_VERSION, MOKLI_API_BASE_URL } from '$lib/constants';
 	import MokliStatus from '$lib/components/mokli/MokliStatus.svelte';
 	import MokliChartSheet from '$lib/components/mokli/MokliChartSheet.svelte';
+	import TradingDeskBoard from '$lib/components/mokli/TradingDeskBoard.svelte';
 	import { compareVersion } from '$lib/utils';
 
 	import {
@@ -448,6 +449,7 @@
 				<AccountPending />
 			{:else}
 				<MokliStatus />
+				<TradingDeskBoard />
 				<MokliChartSheet />
 				<Sidebar />
 
