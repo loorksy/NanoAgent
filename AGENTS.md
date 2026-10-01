@@ -132,4 +132,6 @@ bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oand
 ```
 
 Aggregate pytest target: 2466 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+
+While OpenRouter quota is blocked (`vps_section11_quota_probe.sh` → `in=0`): prefer `check_wake.sh` / `completion_status.sh` monitoring only—avoid audit `git_rev`-only commits and repeated operator-smoke unless the branch changed. After `wake_after_buffer_utc`: `timer_wake` (or `after_reset_wake` if probe already OK), then operator `vps_section11_set_oanda_env.sh` and `remaining_rows.sh` for 11–13 before `close.sh --apply @13`.
 - Tests mirror the `mokli/` package structure.
