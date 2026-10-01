@@ -197,7 +197,7 @@ git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifact
 
 ## Cloud Agent — مؤقت بعد reset OpenRouter
 
-على جلسة Cloud Agent نشطة، يمكن جدولة متابعة تلقائية باسم **`mokli-section11-after-openrouter-reset`** (one-shot بعد `X-RateLimit-Reset` + buffer). عند الإطلاق: `vps_pull_main.sh` → `quota_probe` → **`timer_wake --wait-quota`** → إغلاق §11 عند اكتمال JSONL. **لا يغني** عن OANDA وصفوف 11–13 (UI/جهاز). للتحقق: `list_subscriptions` (MCP) أو أعد الجدولة يدوياً: `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota`.
+على جلسة Cloud Agent نشطة: **tmux** `section11-timer-wake-wait` مع **`timer_wake --wait-quota`** (سجل `/opt/cursor/artifacts/timer_wake_wait_quota.log`)؛ **`check_wake.sh`** للمتابعة. **احتياط:** مؤقت one-shot **`mokli-section11-after-openrouter-reset-backup`** (بعد reset إن مات tmux) — يفحص السجل ثم **`timer_wake`** بدون `--wait-quota` عند الحاجة. **لا يغني** عن OANDA وصفوف 11–13 (UI/جهاز). للتحقق: `list_subscriptions` (MCP) أو يدوياً: `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota`.
 
 ## PR §11 (قبل الدمج في main)
 
