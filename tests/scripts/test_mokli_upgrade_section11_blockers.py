@@ -36,6 +36,7 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
     assert proc.returncode == 1
     assert "BLOCKED" in proc.stderr or "BLOCKED" in proc.stdout
     assert "skip-vps" in proc.stdout.lower() or "skipped" in proc.stdout.lower()
+    assert "NEXT §11" in proc.stderr
 
 
 def test_blockers_help() -> None:

@@ -53,6 +53,17 @@ if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
 fi
 
 echo "BLOCKED §11 production closure (env_ok=$ENV_OK validate_ok=$VAL_OK)" >&2
-echo "See: docs/mokli-agent-upgrade-operator-handoff.md" >&2
+echo "See: docs/mokli-agent-upgrade-operator-handoff.md (9-step checklist)" >&2
+if [[ "$ENV_OK" -eq 0 && "$SKIP_VPS" -eq 0 ]]; then
+  echo "NEXT env: OpenRouter credits + OANDA (bash scripts/vps_section11_set_oanda_env.sh)" >&2
+elif [[ "$ENV_OK" -eq 0 ]]; then
+  echo "NEXT env: bash scripts/vps_section11_env_check.sh --require-quota --require-oanda" >&2
+fi
+if [[ "$VAL_OK" -eq 0 ]]; then
+  if [[ ! -f "$EVENTS/01-no-tools-after-p0.jsonl" ]]; then
+    echo "NEXT P0: bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
+  fi
+  echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
+fi
 echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
 exit 1
