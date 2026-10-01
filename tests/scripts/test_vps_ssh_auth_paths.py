@@ -8,6 +8,38 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECK = ROOT / "scripts" / "cloud_agent_vps_secrets_check.sh"
+VPS_SSH = ROOT / "scripts" / "vps_ssh.sh"
+
+
+def test_vps_ssh_defaults_hostinger_when_no_vps_env() -> None:
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f"unset MOKLI_SSH_HOST VPS VPSPASS; source {VPS_SSH}; printf '%s' \"${{MOKLI_SSH_HOST:-}}\"",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert proc.stdout == "hostinger-vps"
+
+
+def test_vps_ssh_leaves_host_empty_when_vps_password_target_set() -> None:
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f"unset MOKLI_SSH_HOST; export VPS=user@example.com; source {VPS_SSH}; "
+            "if [[ -n \"${MOKLI_SSH_HOST:-}\" ]]; then echo set; else echo unset; fi",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert proc.stdout.strip() == "unset"
 
 
 def test_secrets_check_accepts_mokli_ssh_host_when_key_works(monkeypatch) -> None:

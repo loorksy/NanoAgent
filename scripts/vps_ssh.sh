@@ -9,6 +9,10 @@ source "$ROOT/scripts/vps_env.sh"
 source "$ROOT/scripts/vps_ssh_target.sh"
 
 MOKLI_SSH_HOST="${MOKLI_SSH_HOST:-}"
+# Default key-auth host for Cloud Agent when neither host nor VPS= password target is set.
+if [[ -z "${MOKLI_SSH_HOST:-}" && -z "${VPS:-}" ]]; then
+  export MOKLI_SSH_HOST=hostinger-vps
+fi
 
 vps_ssh_ready() {
   if [[ -n "${MOKLI_SSH_HOST:-}" ]]; then
