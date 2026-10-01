@@ -27,17 +27,18 @@ Row 10 (backtest, if market_feed_unconfigured):
 
 Row 11 (paper, Agent API + OANDA candles):
   bash scripts/vps_section11_row11_paper.sh
-  → section11-events/11-paper.jsonl on VPS; fill «النتيجة» in section11-results.json
+  → section11-events/11-paper.jsonl on VPS; JSONL must include paper/run_state (validate @13)
 
 Row 12 (desktop UI + Mokli pipe, not raw Agent API):
   bash scripts/local_section11_row12_smoke.sh     # dev pre-check
   bash scripts/vps_section11_row12_desktop.sh     # VPS UI/API/pipe check
   Chat via Open WebUI Mokli pipe with SHOW_DIAGNOSTICS; save JSONL as 12-desktop-ui.jsonl
+  → must include structured/decision events + diagnostic in>0 (validate @13)
 
 Row 13 (mobile / SDK — production needs device JSONL):
-  bash scripts/mokli_upgrade_section11_row13_ci.sh  # CI proxy only
+  bash scripts/mokli_upgrade_section11_row13_ci.sh  # CI proxy only (does NOT satisfy validate @13)
   bash scripts/vps_section11_row13_mobile.sh
-  Device session → section11-events/13-mobile.jsonl
+  Device session → section11-events/13-mobile.jsonl (tool/status/structured events, not diagnostic-only)
 
 Close:
   bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps
