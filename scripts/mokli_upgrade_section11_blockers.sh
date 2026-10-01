@@ -6,17 +6,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
 SKIP_VPS=0
+REQUIRE=13
 EVENTS="$ROOT/section11-events"
 RESULTS="$ROOT/section11-results-partial.json"
 
 usage() {
-  echo "Usage: $0 [--skip-vps] [EVENTS_DIR] [RESULTS_JSON]" >&2
+  echo "Usage: $0 [--skip-vps] [--require-through N] [EVENTS_DIR] [RESULTS_JSON]" >&2
   exit 2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-vps) SKIP_VPS=1; shift ;;
+    --require-through) REQUIRE="$2"; shift 2 ;;
     -h | --help) usage ;;
     --*) echo "Unknown flag: $1" >&2; usage ;;
     *) break ;;
@@ -31,6 +33,7 @@ fi
 ENV_OK=0
 if [[ "$SKIP_VPS" -eq 1 ]]; then
   echo "== VPS env skipped (--skip-vps) =="
+  ENV_OK=1
 else
   echo "== VPS env (quota + OANDA required for full closure) =="
   if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda; then
@@ -39,16 +42,16 @@ else
 fi
 
 echo ""
-echo "== §11 artifacts (require-through 13) =="
+echo "== §11 artifacts (require-through $REQUIRE) =="
 VAL_OK=0
 if "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through 13; then
+  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"; then
   VAL_OK=1
 fi
 
 echo ""
 if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
-  echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through 13"
+  echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE"
   exit 0
 fi
 

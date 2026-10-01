@@ -9,7 +9,8 @@
 5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh`
 6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh` (يكتب أيضاً `section11-events/p0-interim-summary.txt`)
 7. بوابة: `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0)
-   - معاينة جدول §11 للصفوف 1–10 فقط (قبل 11–13): `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10` (بدون `--apply`)
+   - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10`
+   - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10` (بدون `--apply`)
 8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13`
 9. `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`
 

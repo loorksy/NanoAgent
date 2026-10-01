@@ -37,8 +37,8 @@ if [[ "$SKIP_PULL" -eq 0 ]]; then
   bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" "$EVENTS" "$RESULTS" 10
 fi
 
-echo "== §11 artifact + quota status (require-through=$REQUIRE) =="
-bash "${ROOT}/scripts/mokli_upgrade_section11_status.sh" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"
+echo "== §11 blockers (artifacts only; env checked above) =="
+bash "${ROOT}/scripts/mokli_upgrade_section11_blockers.sh" \
+  --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS"
 
-echo "OK production gate passed — run section11_close.sh --apply when results JSON is final"
+echo "OK production gate passed — run section11_close.sh --apply --require-through $REQUIRE when results JSON is final"

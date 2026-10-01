@@ -39,6 +39,31 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
     assert "NEXT §11" in proc.stderr
 
 
+def test_blockers_require_through_ten_can_pass_skip_vps() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--skip-vps",
+            "--require-through",
+            "10",
+            str(events),
+            str(partial),
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "require-through 10" in proc.stdout
+
+
 def test_blockers_help() -> None:
     proc = subprocess.run(
         ["bash", str(SCRIPT), "--help"],
