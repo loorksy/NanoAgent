@@ -241,6 +241,8 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "timer_wake_wait_quota.log" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "section11_emit_wake_after_buffer" in text
+    assert "WAIT_HEARTBEAT" in text
+    assert "section11-monitor-loop" in text
 
 
 def test_check_wake_prints_wake_eta_when_reset_known() -> None:

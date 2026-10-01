@@ -36,6 +36,12 @@ if [[ -f "$LOG" ]]; then
   else
     tail -8 "$LOG"
   fi
+  if tmux -f /exec-daemon/tmux.portal.conf has-session -t "$SESSION" 2>/dev/null; then
+    if grep -qE 'Sleeping [0-9]{5,}s until reset' "$LOG" 2>/dev/null \
+      && ! grep -q 'WAIT_HEARTBEAT' "$LOG" 2>/dev/null; then
+      echo "HINT: monolithic quota sleep (no WAIT_HEARTBEAT in log) — monitor: tmux section11-monitor-loop or monitor_log.sh; after wake use timer_wake without --wait-quota if chain did not finish" >&2
+    fi
+  fi
 else
   echo "WAKE_LOG=missing"
 fi
