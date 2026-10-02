@@ -66,6 +66,7 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 | `completion_status:` | `completion_status.sh` — `artifact_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors` (markdown preview gate), `seconds_until_reset`, `wake_after_buffer_utc` |
 | `cloud_status:` | `cloud_status.sh` — `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
 | `operator_unblock:` | `operator_unblock.sh` — `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
+| `sync_summary:` | `sync_from_vps.sh` — `validate_ok`, `require`, `closure_errors` (P0 delta always refreshed; exit 0) |
 | `INCOMPLETE §11 status:` | `section11_status.sh` — `validate_ok`, `quota_ok`, `closure_errors`, `seconds_until_reset` |
 | `close_summary:` | `close.sh` — on validate failure: `closure_errors`, `seconds_until_reset`, `apply` |
 

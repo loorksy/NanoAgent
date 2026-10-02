@@ -54,4 +54,23 @@ if [[ -f "$EVENTS/01-no-tools-after-p0.jsonl" ]]; then
 else
   echo "HINT: after quota — vps_section11_row1_after_p0.sh then close --apply @13 for §2.1 live delta_in"
 fi
-echo "OK sync from VPS (artifacts through row $REQUIRE validated locally)"
+
+VALIDATE_OK=0
+CLOSURE_ERRORS=""
+set +e
+VALID_OUT=$(
+  bash "$ROOT/scripts/mokli_upgrade_section11_validate.sh" \
+    --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" 2>&1
+)
+VALID_EC=$?
+set -e
+CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
+if [[ "$VALID_EC" -eq 0 ]]; then
+  VALIDATE_OK=1
+  CLOSURE_ERRORS=${CLOSURE_ERRORS:-0}
+  echo "OK sync from VPS (artifacts through row $REQUIRE validated locally)"
+else
+  echo "INCOMPLETE sync from VPS (P0 table/delta refreshed; rows 1–$REQUIRE not closable yet)" >&2
+  printf '%s\n' "$VALID_OUT" | grep -E '^ERROR |^HINT row |^closure_errors=' | head -20 >&2 || true
+fi
+echo "sync_summary: validate_ok=$VALIDATE_OK require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown}"

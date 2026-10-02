@@ -648,6 +648,8 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert "vps_pull_main.sh" in text
     assert "section11_prune_row5_stale_no_nested" in text
     assert 'REQUIRE="${POSITIONAL[2]:-13}"' in text
+    assert "sync_summary:" in text
+    assert "INCOMPLETE sync from VPS" in text
 
 
 def test_wait_quota_reset_long_sleep_emits_heartbeats() -> None:
