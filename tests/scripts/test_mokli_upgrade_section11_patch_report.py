@@ -33,6 +33,24 @@ def test_patch_p0_live_delta_replaces_interim_paragraph(tmp_path: Path) -> None:
     assert "**Other:** keep" in updated
 
 
+def test_patch_p0_live_delta_is_idempotent_on_second_apply(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_live_delta_paragraph
+
+    events = tmp_path / "events"
+    events.mkdir()
+    diag_base = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 10934}}
+    diag_after = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 4061}}
+    (events / "01-no-tools.jsonl").write_text(json.dumps(diag_base) + "\n", encoding="utf-8")
+    (events / "01-no-tools-after-p0.jsonl").write_text(json.dumps(diag_after) + "\n", encoding="utf-8")
+    report = "**P0 مكونات (VPS — interim):** stale.\n"
+    first, changed1 = patch_p0_live_delta_paragraph(report, events)
+    assert changed1 == 1
+    second, changed2 = patch_p0_live_delta_paragraph(first, events)
+    assert changed2 == 0
+    assert second == first
+
+
 def test_patch_p0_baseline_table_updates_section_21() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_p0_baseline_table

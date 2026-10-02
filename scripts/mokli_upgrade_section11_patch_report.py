@@ -179,9 +179,13 @@ def patch_p0_live_delta_paragraph(text: str, events_dir: Path) -> tuple[str, int
     )
     if _P0_LIVE_DELTA_LINE.search(text):
         updated, count = _P0_LIVE_DELTA_LINE.subn(new_line, text, count=1)
+        if updated == text:
+            return text, 0
         return updated, count
     if _P0_INTERIM_LINE.search(text):
         updated, count = _P0_INTERIM_LINE.subn(new_line, text, count=1)
+        if updated == text:
+            return text, 0
         return updated, count
     return text, 0
 
@@ -202,6 +206,8 @@ def apply_section11_patch(
         changed += p0_changed
         updated, live_changed = patch_p0_live_delta_paragraph(updated, events_dir)
         changed += live_changed
+    if updated == text:
+        return text, 0
     return updated, changed
 
 
@@ -283,14 +289,15 @@ def main() -> int:
         return 1
 
     if changed == 0:
+        msg = (
+            f"OK no changes needed in {report_path} "
+            "(§11 / §2.1 already match artifacts)"
+        )
         if args.dry_run:
-            print(
-                f"OK dry-run: no changes needed in {report_path} "
-                "(§11 / §2.1 already match artifacts)"
-            )
+            print(f"OK dry-run: {msg.removeprefix('OK ')}")
             return 0
-        print("WARN no §11 table rows updated (check row ids 1–14)", file=sys.stderr)
-        return 1
+        print(msg)
+        return 0
 
     if args.dry_run:
         print(f"OK dry-run: would update {changed} row(s) in {report_path}")
