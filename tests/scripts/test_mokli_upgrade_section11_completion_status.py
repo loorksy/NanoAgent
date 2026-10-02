@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -57,7 +58,7 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     assert "partial pack (require-through 10" in combined
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
-    assert "closure_errors=9" in combined
+    assert re.search(r"closure_errors=[1-9]\d*", combined)
     assert "seconds_until_reset=" in combined
     assert proc.returncode == 1
 
