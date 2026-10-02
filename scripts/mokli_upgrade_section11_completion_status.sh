@@ -41,9 +41,6 @@ section11_print_cloud_vps_rev "$ROOT" "$VPS_BRANCH"
 
 echo ""
 echo "== live rerun rows (validate --print-live-rerun-rows) =="
-if [[ -d "$EVENTS" ]]; then
-  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-fi
 RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
   --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
 echo "live_rerun_rows=${RERUN_ROWS:-none}"

@@ -82,9 +82,6 @@ if [[ "$VALID_EC" -ne 0 ]]; then
         "$EVENTS" "$RESULTS" "$REQUIRE"
     )
   fi
-  if [[ -d "$EVENTS" ]]; then
-    section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-  fi
   RERUN_ROWS=$("$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
     --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
   echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} allow_partial_closure_errors=${ALLOW_PARTIAL_CE:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC apply=$APPLY allow_partial=$ALLOW_PARTIAL" >&2
