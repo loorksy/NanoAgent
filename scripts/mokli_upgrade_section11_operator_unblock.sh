@@ -39,6 +39,26 @@ if [[ "$DO_PULL" -eq 1 ]]; then
   bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 fi
 
+echo "== branch =="
+CLOUD_REV=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+echo "cloud_agent_rev=$CLOUD_REV"
+# shellcheck source=scripts/vps_ssh.sh
+source "$ROOT/scripts/vps_ssh.sh"
+VPS_INSTALL="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+VPS_USER="${MOKLI_SERVICE_USER:-nanoagent}"
+if vps_ssh_ready; then
+  VPS_REV=$(
+    vps_ssh "sudo -u ${VPS_USER} git -C ${VPS_INSTALL} rev-parse --short=7 HEAD" 2>/dev/null || true
+  )
+  VPS_REV=${VPS_REV:-unknown}
+  echo "vps_rev=$VPS_REV"
+  if [[ "$VPS_REV" != unknown && "$CLOUD_REV" != unknown && "$VPS_REV" != "$CLOUD_REV" ]]; then
+    echo "HINT: VPS rev != Cloud Agent — bash scripts/vps_pull_main.sh ${BRANCH}" >&2
+  fi
+else
+  echo "vps_rev=skipped (no SSH)"
+fi
+
 RESET_SEC="unknown"
 WAKE_UTC=""
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)

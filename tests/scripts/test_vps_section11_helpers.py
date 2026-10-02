@@ -475,6 +475,8 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "allow_partial_closure_errors=" in text
     assert "wake_after_buffer_utc=" in text
     assert "section11_prune_row5_stale_no_nested" in text
+    assert "cloud_agent_rev=" in text
+    assert "vps_rev=" in text
 
 
 def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> None:

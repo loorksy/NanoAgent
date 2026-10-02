@@ -65,7 +65,7 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 | `close_summary:` | `close.sh` — `closure_errors`, `allow_partial_closure_errors` (preview count when strict fail), `live_rerun_rows`, `allow_partial` |
 | `completion_status:` | `completion_status.sh` — `cloud_agent_rev` / `vps_rev`, `artifact_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
 | `cloud_status:` | `cloud_status.sh` — `cloud_agent_rev` / `vps_rev`, `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
-| `operator_unblock:` | `operator_unblock.sh` — `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
+| `operator_unblock:` | `operator_unblock.sh` — `cloud_agent_rev` / `vps_rev`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
 | `sync_summary:` | `sync_from_vps.sh` — `validate_ok`, `require`, `closure_errors` (P0 delta always refreshed; exit 0) |
 | `INCOMPLETE §11 status:` | `section11_status.sh` — `validate_ok`, `quota_ok`, `closure_errors`, `seconds_until_reset` |
 | `close_summary:` | `close.sh` — on validate failure: `closure_errors`, `seconds_until_reset`, `apply` |
