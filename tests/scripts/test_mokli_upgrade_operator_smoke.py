@@ -40,3 +40,10 @@ def test_operator_smoke_script() -> None:
         if proc.returncode == 0:
             assert "partial pack rows 1–10" in combined or "require-through 10" in combined
             assert "production gate @10" in combined or "production_gate @10" in combined
+        assert "allow_partial_closure_errors=" in combined or "closure_errors=" in combined
+
+
+def test_operator_smoke_does_not_abort_on_pytest_failure() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "if !" in text and "scripts pytest failed" in text
+    assert "continuing §11 blockers" in text

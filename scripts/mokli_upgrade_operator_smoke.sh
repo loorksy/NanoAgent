@@ -33,10 +33,16 @@ if [[ ! -x "$PY" ]]; then
 fi
 
 echo "== pytest scripts/ (excluding this smoke harness) =="
-"$PY" tests/scripts/ -q --ignore=tests/scripts/test_mokli_upgrade_operator_smoke.py
+if ! "$PY" tests/scripts/ -q --ignore=tests/scripts/test_mokli_upgrade_operator_smoke.py; then
+  echo "WARN scripts pytest failed — continuing §11 blockers/gates below" >&2
+  fail=1
+fi
 
 echo "== §11 row 13 CI proxy (pipe + mokli-sdk; not production closure) =="
-bash scripts/mokli_upgrade_section11_row13_ci.sh
+if ! bash scripts/mokli_upgrade_section11_row13_ci.sh; then
+  echo "WARN row13 CI proxy failed" >&2
+  fail=1
+fi
 
 echo "== §11 UI prechecks (optional; needs VPS SSH for row 12 VPS) =="
 echo "HINT: bash scripts/mokli_upgrade_section11_precheck_ui.sh" >&2
