@@ -27,6 +27,11 @@ section11_prune_quota_failed_output() {
   local event_dir="$1"
   local out_name="$2"
   local install="${3:-}"
+  case "$out_name" in
+    quota-probe.jsonl | quota-probe*.jsonl | quota-before-* | probe-* | q-*.jsonl | on-vps-local-probe.jsonl)
+      return 0
+      ;;
+  esac
   local path="$event_dir/$out_name"
   [[ -f "$path" ]] || return 0
   local py="${install}/.venv/bin/python"

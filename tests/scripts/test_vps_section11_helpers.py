@@ -78,6 +78,28 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     assert "section11_prune_quota_failed_output" in text
 
 
+def test_prune_skips_quota_probe_filenames(tmp_path: Path) -> None:
+    probe = tmp_path / "quota-probe.jsonl"
+    probe.write_text(
+        '{"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0}}\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_prune_quota_failed_output "{tmp_path}" "quota-probe.jsonl" "{ROOT}"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert probe.is_file()
+
+
 def test_prune_quota_failed_output_removes_in_zero_jsonl(tmp_path: Path) -> None:
     stale = tmp_path / "05-subagents-v2.jsonl"
     stale.write_text(
