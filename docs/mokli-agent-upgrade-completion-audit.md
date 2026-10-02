@@ -23,7 +23,7 @@
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (`closure_errors=5` @13: **5** JSONL، **10** OANDA، **11–13** فارغة، PARTIAL «النتيجة» **5,10** حتى `close --apply`) |
 | VPS checkout (Hostinger) | PR #62؛ **`git_rev=1fcbcf64`**؛ `oanda_configured=no`؛ quota **BLOCKED**؛ **`wake_after_buffer_utc=2026-10-03T00:01:59Z`**)؛ tmux **`section11-timer-wake-wait`**؛ **`live_rerun_rows=5 10`** في status/unblock scripts | منجز (rev)؛ **quota/OANDA/11–13** محجوز |
-| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2518** green | **infra** — fix GitHub billing then re-run workflow |
+| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2522** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
 | §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** spawn upstream 429؛ **10** OANDA؛ **11–13** فارغة؛ تقرير §11 محدّث 2026-10-02؛ **`sync_cloud_branch`** قبل wake | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
