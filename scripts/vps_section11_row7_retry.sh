@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-07-retry-v2.jsonl}"
 PROMPT="${2:-Reply with exactly: OK}"
 
-bash "$ROOT/scripts/vps_section11_quota_probe.sh" "quota-before-${OUT}" || {
+bash "$ROOT/scripts/vps_section11_quota_gate.sh" "quota-before-${OUT}" || {
   echo "Abort row 7: fix LLM quota first" >&2
   exit 1
 }

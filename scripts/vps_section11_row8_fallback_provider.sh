@@ -12,7 +12,7 @@ cat <<'NOTE' >&2
 See docs/mokli-agent-upgrade-operator-handoff.md (OpenRouter / Anthropic preset).
 NOTE
 
-bash "$ROOT/scripts/vps_section11_quota_probe.sh" "quota-before-${OUT}" || {
+bash "$ROOT/scripts/vps_section11_quota_gate.sh" "quota-before-${OUT}" || {
   echo "Abort row 8: fix LLM quota first" >&2
   exit 1
 }

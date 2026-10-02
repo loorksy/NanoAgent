@@ -19,6 +19,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_section11_agent_api_turn.sh",
         "vps_section11_long_session.sh",
         "vps_section11_quota_probe.sh",
+        "vps_section11_quota_gate.sh",
         "vps_section11_quota_status.sh",
         "vps_section11_pull_events.sh",
         "vps_section11_row11_paper.sh",

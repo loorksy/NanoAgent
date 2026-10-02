@@ -16,7 +16,7 @@ BASELINE="${2:-01-no-tools.jsonl}"
 PROMPT="${3:-مرحبا، ما اسمك؟}"
 
 echo "== quota probe (must pass) =="
-bash "$ROOT/scripts/vps_section11_quota_probe.sh" || {
+bash "$ROOT/scripts/vps_section11_quota_gate.sh" || {
   echo "Abort row 1 after P0: fix LLM quota first" >&2
   exit 1
 }
