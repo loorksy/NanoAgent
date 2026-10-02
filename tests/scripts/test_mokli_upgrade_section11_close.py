@@ -82,6 +82,7 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     )
     assert re.search(r"closure_errors=[1-9]\d*", combined)
     assert "close_summary:" in combined
+    assert "allow_partial_closure_errors=" in combined
     assert "seconds_until_reset=" in combined
     if (ROOT / "section11-events").is_dir() and (ROOT / "section11-results-partial.json").is_file():
         assert "live_rerun_rows=" in combined
@@ -293,4 +294,5 @@ def test_close_uses_validate_shell_wrapper() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "mokli_upgrade_section11_validate.sh" in text
     assert "print-live-rerun-rows" in text
-    assert text.count("mokli_upgrade_section11_validate.py") == 1
+    assert text.count("mokli_upgrade_section11_validate.py") == 2  # allow_partial + live_rerun_rows
+    assert "section11_allow_partial_closure_errors" in text

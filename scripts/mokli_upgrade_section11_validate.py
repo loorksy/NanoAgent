@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -32,6 +33,23 @@ from mokli_upgrade_diagnostic_extract import (  # noqa: E402
     session_summary_line,
 )
 from mokli_upgrade_section11_batch import _load_results, _row_index, _scenario_jsonl  # noqa: E402
+
+_REPO_ROOT = _SCRIPT_DIR.parent
+
+
+def _prune_row5_stale_spawn429(directory: Path) -> None:
+    """Drop spawn-429 05-subagents.jsonl so pick_row prefers v2 (bash helper)."""
+    hints = _REPO_ROOT / "scripts" / "section11_quota_hints.sh"
+    if not directory.is_dir() or not hints.is_file():
+        return
+    subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{hints}" && section11_prune_row5_stale_no_nested "{directory}" "{_REPO_ROOT}"',
+        ],
+        check=False,
+    )
 
 
 def _closure_hints(empty_result: list[int]) -> None:
@@ -282,6 +300,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
+    _prune_row5_stale_spawn429(directory)
     if args.print_live_rerun_rows:
         if not directory.is_dir():
             print("ERROR missing events dir", file=sys.stderr)
