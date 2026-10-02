@@ -77,6 +77,15 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     assert "section11_emit_wake_after_buffer" in text
     assert "section11_parse_probe_in" in text
     assert "section11_prune_quota_failed_output" in text
+    assert "section11_prune_row5_stale_no_nested" in text
+
+
+def test_scp_branch_scripts_includes_row5_and_diagnostic_extract() -> None:
+    text = (ROOT / "scripts" / "vps_section11_scp_branch_scripts.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "mokli_upgrade_diagnostic_extract.py" in text
+    assert "vps_section11_row5_subagents.sh" in text
 
 
 def test_prune_skips_quota_probe_filenames(tmp_path: Path) -> None:
