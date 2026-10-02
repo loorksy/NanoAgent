@@ -24,7 +24,7 @@
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (strict @13 typ. **`closure_errors=5`**؛ **`partial10`** **`closure_errors=0`**؛ `allow_partial_closure_errors=2` — **11–13** + reruns **5/10** حتى `close --apply`) |
 | VPS checkout (Hostinger) | PR #62؛ Cloud+VPS **`git_rev` matched** (`check_wake`)؛ quota **BLOCKED** (live probe `in=0`؛ reset ≈**2026-10-03T00:00Z**)؛ **OANDA** keys missing؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`**؛ tmux **`section11-timer-wake-wait`** → **`wake_after_buffer_utc≈2026-10-03T00:02Z`** | منجز (rev)؛ **11–13** محجوز |
 | GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2546** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
-| §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** stale spawn-429 v1 (rerun after credits)؛ **10** market feed؛ **11–13** فارغة؛ strict **`closure_errors=5`**؛ **`partial10`** @10 **`closure_errors=0`**؛ preview **`allow_partial_closure_errors=2`**؛ **`cloud_status`/`completion_status`** لا يحذفان JSONL على القرص | **جزئي** |
+| §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** stale spawn-429 v1 (rerun after credits)؛ **10** market feed؛ **11–13** فارغة؛ strict **`closure_errors=5`**؛ **`partial10`** @10 **`closure_errors=0`**؛ preview **`allow_partial_closure_errors=2`**؛ **`cloud_status`/`completion_status`** لا يحذفان JSONL على القرص؛ **12** pre-check VPS: UI **200** + Agent API + `SHOW_DIAGNOSTICS` في pipe | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
 
