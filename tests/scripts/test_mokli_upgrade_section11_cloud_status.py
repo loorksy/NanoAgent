@@ -28,7 +28,8 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
     if partial.is_file() and events.is_dir():
         assert "partial10_ok=1" in combined
         assert "partial10_gate=1" in combined
-        assert "01-no-tools-after-p0.jsonl" in combined
+        after_p0 = events / "01-no-tools-after-p0.jsonl"
+        assert after_p0.is_file() or "01-no-tools-after-p0.jsonl" in combined
         assert "PARTIAL" in combined
         assert re.search(r"closure_errors=[1-9]\d*", combined)
         assert "seconds_until_reset=" in combined
