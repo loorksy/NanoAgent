@@ -646,6 +646,8 @@ def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
     assert "--live-gate" in text
     assert "operator_unblock.sh --pull-vps" in text
     assert "blockers.sh" in text and "--skip-vps" in text
+    assert "vps_section11_row12_pipe_turn.sh" in text
+    assert "vps_section11_row13_export_session.sh" in text
 
 
 def test_quota_status_ssh_path_treats_rate_limit_before_invalid() -> None:

@@ -140,5 +140,10 @@ fi
 if [[ "$REQUIRE" -gt 10 && "$PARTIAL10_OK" -eq 0 ]]; then
   echo "HINT: sync partial JSONL 1–10 — bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps" >&2
 fi
+if [[ "$REQUIRE" -gt 10 && "$ARTIFACT_OK" -eq 0 ]]; then
+  echo "HINT: post-quota runbook — docs/section11-post-reset-runbook.md" >&2
+  echo "HINT: row 12 — bash scripts/vps_section11_row12_pipe_turn.sh" >&2
+  echo "HINT: row 13 — mobile/SDK chat then bash scripts/vps_section11_row13_export_session.sh" >&2
+fi
 echo "SECTION11_COMPLETION_EXIT=1" >&2
 exit 1
