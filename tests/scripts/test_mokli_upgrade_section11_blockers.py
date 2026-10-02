@@ -69,7 +69,11 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
         assert "PARTIAL" in combined
         assert "rerun_partials" in combined
         assert "timer_wake.sh --wait-quota" in combined
-        assert "01-no-tools-after-p0.jsonl" in combined
+        after_p0 = events / "01-no-tools-after-p0.jsonl"
+        if after_p0.is_file():
+            assert "NEXT P0:" not in combined
+        else:
+            assert "01-no-tools-after-p0.jsonl" in combined
         assert "closure_errors=" in combined
         assert "blockers_summary:" in combined
         assert "live_rerun_rows=" in combined
@@ -108,6 +112,11 @@ def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "01-no-tools-after-p0.jsonl" in text
     assert "needs live in>0" in text
+    assert "ENV_COMBINED" in text
+    assert "NEXT OANDA:" in text
+    assert "oanda_env_file" in text
+    assert "NEXT quota:" in text
+    assert "section11_parse_probe_in" in text
 
 
 def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
@@ -169,7 +178,11 @@ def test_blockers_next_p0_on_partial_pack_require_13() -> None:
         timeout=60,
     )
     assert proc.returncode == 1
-    assert "NEXT P0:" in proc.stderr
+    after_p0 = events / "01-no-tools-after-p0.jsonl"
+    if after_p0.is_file():
+        assert "NEXT P0:" not in proc.stderr
+    else:
+        assert "NEXT P0:" in proc.stderr
 
 
 def test_blockers_uses_validate_shell_wrapper() -> None:

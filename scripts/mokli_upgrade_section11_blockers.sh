@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 PYTHON="${ROOT}/.venv/bin/python"
 [[ -x "$PYTHON" ]] || PYTHON=python3
 SKIP_VPS=0
@@ -39,6 +41,7 @@ parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*
 [[ -n "$parsed" ]] && RESET_SEC="$parsed"
 
 ENV_OK=0
+ENV_COMBINED=""
 if [[ "$SKIP_VPS" -eq 1 ]]; then
   echo "== VPS env skipped (--skip-vps) =="
   ENV_OK=1
@@ -48,7 +51,12 @@ if [[ "$SKIP_VPS" -eq 1 ]]; then
   fi
 else
   echo "== VPS env (quota + OANDA required for full closure) =="
-  if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda; then
+  set +e
+  ENV_COMBINED=$(bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota --require-oanda 2>&1)
+  ENV_EC=$?
+  set -e
+  printf '%s\n' "$ENV_COMBINED"
+  if [[ "$ENV_EC" -eq 0 ]]; then
     ENV_OK=1
   fi
 fi
@@ -87,7 +95,22 @@ fi
 echo "BLOCKED §11 production closure (env_ok=$ENV_OK validate_ok=$VAL_OK)" >&2
 echo "See: docs/mokli-agent-upgrade-operator-handoff.md (9-step checklist)" >&2
 if [[ "$ENV_OK" -eq 0 && "$SKIP_VPS" -eq 0 ]]; then
-  echo "NEXT env: export MOKLI_SECTION11_MODEL=… or OpenRouter credits; OANDA: bash scripts/vps_section11_set_oanda_env.sh" >&2
+  oanda_cfg=$(printf '%s\n' "$ENV_COMBINED" | sed -n 's/^oanda_configured=//p' | tail -1)
+  oanda_ef=$(printf '%s\n' "$ENV_COMBINED" | sed -n 's/^oanda_env_file=//p' | tail -1)
+  llm_q=$(printf '%s\n' "$ENV_COMBINED" | sed -n 's/^llm_quota=//p' | tail -1)
+  if [[ "${llm_q:-}" == BLOCKED* ]]; then
+    echo "NEXT quota: OpenRouter credits or export MOKLI_SECTION11_MODEL=… (docs/section11-vps-env.example)" >&2
+  fi
+  if [[ "${oanda_cfg:-}" == no ]]; then
+    if [[ "${oanda_ef:-}" == present ]]; then
+      echo "NEXT OANDA: OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh (.env on VPS exists; keys missing)" >&2
+    else
+      echo "NEXT OANDA: OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh" >&2
+    fi
+  fi
+  if [[ -z "${oanda_cfg:-}" && -z "${llm_q:-}" ]]; then
+    echo "NEXT env: export MOKLI_SECTION11_MODEL=… or OpenRouter credits; OANDA: bash scripts/vps_section11_set_oanda_env.sh" >&2
+  fi
 elif [[ "$ENV_OK" -eq 0 ]]; then
   echo "NEXT env: bash scripts/vps_section11_env_check.sh --require-quota --require-oanda" >&2
 fi
@@ -97,7 +120,7 @@ if [[ "$VAL_OK" -eq 0 ]]; then
     echo "NEXT P0: bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
   else
     ap_line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$after_p0" 2>/dev/null || true)
-    ap_in=$(echo "$ap_line" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
+    ap_in=$(section11_parse_probe_in "$ap_line")
     if [[ -z "${ap_in:-}" || "$ap_in" == "0" ]]; then
       echo "NEXT P0: 01-no-tools-after-p0.jsonl needs live in>0 — bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
     fi
