@@ -485,7 +485,7 @@
 | 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | PASS — 09-long-session-v3.jsonl: 15 diagnostics in_first=13201 in_last=13201 tools_total=0 | rounds=1 in=13201 out=525 tools=0 ctx_ms=4 model_ms=15483 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=35 diagnostics=15 in_first=13201 in_last=13201 in_peak=13201 tools_total=0 in_last_over_first=1.00 in_peak_over_first=1.00 below_linear_15x=yes |
 | 10 | اختبار تاريخي على الشموع | `fast_backtest` أو مختبر الاستراتيجية بشموع OANDA | بطاقة نتائج؛ لا لصق آلاف الشموع في الطلب | PARTIAL — fast_backtest finished; market_feed_unconfigured (no candle paste in prompt) | rounds=2 in=24864 out=480 tools=1 ctx_ms=4 model_ms=15779 tool_ms=7 retry_ms=0 nested_in=0 static_resends=1 |
 | 11 | تداول ورقي | اعتماد بعد `replay` + سطر دفتر ورق | لا أمر حي؛ `run_state` paper مسجّل | | |
-| 12 | واجهة سطح المكتب | Mokli UI + Pipe | سطر نشاط يلتف؛ بطاقة قرار بالعربية | | |
+| 12 | واجهة سطح المكتب | Mokli UI + Pipe، أو `bash scripts/vps_section11_row12_pipe_turn.sh` (headless pipe → `12-desktop-ui.jsonl`) | سطر نشاط يلتف؛ بطاقة قرار بالعربية | | |
 | 13 | واجهة الهاتف | تطبيق mobile/SDK | نفس الأحداث؛ توسيع الصف يظهر مدخلات/نتيجة | | |
 | 14 | (اختياري) MT5 حي | فقط بعد ورق وسياسة | تأكيد صريح؛ لا تجاوز `policy_guard` | | |
 

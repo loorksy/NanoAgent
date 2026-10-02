@@ -22,6 +22,11 @@ FILES=(
   scripts/mokli_upgrade_section11_sync_cloud_branch.sh
   scripts/section11_quota_hints.sh
   scripts/section11_agent_api_turn_core.sh
+  scripts/section11_pipe_turn_core.py
+  scripts/section11_pipe_turn_core.sh
+  scripts/vps_section11_pipe_turn.sh
+  scripts/vps_section11_row12_pipe_turn.sh
+  scripts/mokli_upgrade_section11_try_row12_pipe.sh
   scripts/vps_section11_row5_subagents.sh
   scripts/vps_section11_env_check.sh
 )
