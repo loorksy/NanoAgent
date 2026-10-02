@@ -20,6 +20,7 @@ FILES=(
   scripts/section11_quota_hints.sh
   scripts/section11_agent_api_turn_core.sh
   scripts/vps_section11_row5_subagents.sh
+  scripts/vps_section11_env_check.sh
 )
 
 if ! vps_ssh_ready; then

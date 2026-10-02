@@ -98,6 +98,8 @@ def test_scp_branch_scripts_includes_row5_and_diagnostic_extract() -> None:
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "mokli_upgrade_section11_close.sh" in text
     assert "vps_section11_row5_subagents.sh" in text
+    assert "vps_section11_env_check.sh" in text
+    assert text.count('scripts/') >= 10
 
 
 def test_prune_skips_quota_probe_filenames(tmp_path: Path) -> None:
