@@ -383,6 +383,7 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     text = (ROOT / "scripts" / "mokli_upgrade_section11_post_quota.sh").read_text(
         encoding="utf-8"
     )
+    assert "sync_cloud_branch.sh" in text
     assert "wait_quota_reset.sh" in text
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text

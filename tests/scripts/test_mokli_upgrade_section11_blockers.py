@@ -72,6 +72,7 @@ def test_blockers_exit_one_on_partial_pack_skip_vps(tmp_path: Path) -> None:
         assert "01-no-tools-after-p0.jsonl" in combined
         assert "closure_errors=" in combined
         assert "blockers_summary:" in combined
+        assert "live_rerun_rows=" in combined
         assert combined.count("closure_errors=") >= 1
         if (ROOT / "section11-events" / "quota-probe.jsonl").is_file():
             assert "HINT reset:" in combined
@@ -174,7 +175,8 @@ def test_blockers_next_p0_on_partial_pack_require_13() -> None:
 def test_blockers_uses_validate_shell_wrapper() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "mokli_upgrade_section11_validate.sh" in text
-    assert "mokli_upgrade_section11_validate.py" not in text
+    assert "print-live-rerun-rows" in text
+    assert text.count("mokli_upgrade_section11_validate.py") == 1
 
 
 def test_blockers_help() -> None:

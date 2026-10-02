@@ -30,6 +30,9 @@ if [[ $# -gt 2 ]]; then
   usage
 fi
 
+RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+  --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
+
 RESET_SEC="unknown"
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
 parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
@@ -76,7 +79,7 @@ fi
 echo ""
 if [[ "$ENV_OK" -eq 1 && "$VAL_OK" -eq 1 ]]; then
   echo "OK §11 blockers clear — run mokli_upgrade_section11_close.sh --apply --require-through $REQUIRE --results $RESULTS"
-  echo "blockers_summary: env_ok=1 validate_ok=1 require=$REQUIRE closure_errors=0 seconds_until_reset=$RESET_SEC"
+  echo "blockers_summary: env_ok=1 validate_ok=1 require=$REQUIRE closure_errors=0 live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC"
   echo "BLOCKERS_EXIT=0"
   exit 0
 fi
@@ -99,13 +102,13 @@ if [[ "$VAL_OK" -eq 0 ]]; then
       echo "NEXT P0: 01-no-tools-after-p0.jsonl needs live in>0 — bash scripts/vps_section11_row1_after_p0.sh (after quota OK)" >&2
     fi
   fi
-  echo "NEXT §11: bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13 runbook — execute row scripts/UI/device)" >&2
+  echo "NEXT §11 live rows: ${RERUN_ROWS:-none} — bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
 fi
-echo "Quick reruns when quota returns: bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
+echo "Quick reruns when quota returns (live_rerun_rows=${RERUN_ROWS:-none}): bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
 echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
 printf '%s\n' "$RESET_OUT" \
   | grep -E 'seconds_until_reset=|OpenRouter free-tier' \
   | sed -e 's/^/HINT reset: /' -e 's/^HINT reset: HINT: /HINT reset: /' >&2 || true
-echo "blockers_summary: env_ok=$ENV_OK validate_ok=$VAL_OK require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC" >&2
+echo "blockers_summary: env_ok=$ENV_OK validate_ok=$VAL_OK require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC" >&2
 echo "BLOCKERS_EXIT=1" >&2
 exit 1

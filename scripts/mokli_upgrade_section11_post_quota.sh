@@ -30,6 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$DO_PULL" -eq 1 ]]; then
+  bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
   echo "== VPS pull ($BRANCH) =="
   bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 fi
