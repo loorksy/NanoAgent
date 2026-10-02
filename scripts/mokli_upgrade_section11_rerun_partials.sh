@@ -16,6 +16,10 @@ section11_after_p0_in_ok() {
   [[ -n "$in_val" && "$in_val" -gt 0 ]]
 }
 
+if [[ -d "$ROOT/section11-events" ]]; then
+  section11_prune_row5_stale_no_nested "$ROOT/section11-events" "$ROOT"
+fi
+
 echo "== VPS readiness (quota; OANDA warned for row 10/11) =="
 bash "$ROOT/scripts/vps_section11_env_check.sh" --require-quota || exit 1
 bash "$ROOT/scripts/vps_section11_env_check.sh" || true

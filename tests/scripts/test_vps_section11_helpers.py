@@ -103,7 +103,8 @@ def test_scp_branch_scripts_includes_row5_and_diagnostic_extract() -> None:
     assert "mokli_upgrade_section11_close.sh" in text
     assert "vps_section11_row5_subagents.sh" in text
     assert "vps_section11_env_check.sh" in text
-    assert text.count('scripts/') >= 10
+    assert "mokli_upgrade_section11_validate.sh" in text
+    assert text.count('scripts/') >= 11
 
 
 def test_prune_skips_quota_probe_filenames(tmp_path: Path) -> None:
@@ -629,6 +630,7 @@ def test_rerun_partials_syncs_with_pull_vps() -> None:
     assert 'section11-results-partial.json" 13' in text or "partial.json\" 13" in text
     assert "vps_section11_row8_fallback_provider.sh" in text
     assert "print-live-rerun-rows" in text
+    assert "section11_prune_row5_stale_no_nested" in text
 
 
 def test_sync_from_vps_supports_pull_vps_flag() -> None:
@@ -638,6 +640,7 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert "--pull-vps" in text
     assert "MOKLI_SECTION11_VPS_BRANCH" in text
     assert "vps_pull_main.sh" in text
+    assert "section11_prune_row5_stale_no_nested" in text
 
 
 def test_wait_quota_reset_long_sleep_emits_heartbeats() -> None:

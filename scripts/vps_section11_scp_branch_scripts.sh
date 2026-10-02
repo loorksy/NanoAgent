@@ -12,6 +12,7 @@ SERVICE_USER="${MOKLI_SERVICE_USER:-nanoagent}"
 
 FILES=(
   scripts/mokli_upgrade_section11_validate.py
+  scripts/mokli_upgrade_section11_validate.sh
   scripts/mokli_upgrade_diagnostic_extract.py
   scripts/mokli_upgrade_section11_rerun_partials.sh
   scripts/mokli_upgrade_section11_blockers.sh

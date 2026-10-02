@@ -32,6 +32,10 @@ if [[ $# -gt 2 ]]; then
   usage
 fi
 
+if [[ -d "$EVENTS" ]]; then
+  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
+fi
+
 RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
   --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
 
@@ -63,9 +67,6 @@ fi
 
 echo ""
 echo "== §11 artifacts (require-through $REQUIRE) =="
-if [[ -d "$EVENTS" ]]; then
-  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-fi
 VAL_OK=0
 set +e
 VALID_COMBINED=$(
