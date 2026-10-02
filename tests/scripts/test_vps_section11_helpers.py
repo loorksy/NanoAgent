@@ -185,6 +185,22 @@ def test_parse_probe_in_ignores_nested_in_zero() -> None:
     assert proc.stdout.strip() == "4058"
 
 
+def test_parse_probe_in_ignores_nested_in_on_multi_round_row() -> None:
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source scripts/section11_quota_hints.sh; section11_parse_probe_in '
+            '"rounds=4 in=51744 out=1218 tools=4 nested_in=0"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.stdout.strip() == "51744"
+
+
 def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     text = (ROOT / "scripts" / "vps_section11_env_check.sh").read_text(encoding="utf-8")
     assert "MOKLI_SECTION11_MODEL" in text
