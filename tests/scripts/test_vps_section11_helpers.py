@@ -360,6 +360,8 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "WAIT_HEARTBEAT" in text
     assert "section11-monitor-loop" in text
     assert "cloud_agent_rev=" in text
+    assert "vps_rev=" in text
+    assert "vps_pull_main.sh" in text
 
 
 def test_check_wake_prints_wake_eta_when_reset_known() -> None:
