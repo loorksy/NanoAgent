@@ -5,6 +5,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 EVENTS="$ROOT/section11-events"
+RESULTS="$ROOT/section11-results-partial.json"
 PYTHON="${ROOT}/.venv/bin/python"
 if [[ ! -x "$PYTHON" ]]; then
   PYTHON=python3
@@ -80,6 +81,17 @@ if [[ "$BLOCK_EC" -eq 0 ]]; then
 fi
 CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 
+ALLOW_PARTIAL_CE=""
+if [[ -d "$EVENTS" && -f "$RESULTS" ]]; then
+  set +e
+  ALLOW_PARTIAL_CE=$(
+    "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+      --dir "$EVENTS" --results "$RESULTS" --require-through 13 --allow-partial 2>&1 \
+      | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+  )
+  set -e
+fi
+
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
 echo ""
@@ -94,7 +106,7 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
     PARTIAL10_GATE=1
   fi
 fi
-echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC"
+echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE closure_errors=${CLOSURE_ERRORS:-unknown} allow_partial_closure_errors=${ALLOW_PARTIAL_CE:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC"
 
 echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"
