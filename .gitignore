@@ -7,6 +7,7 @@ graphify-out/
 .env
 section11-events/
 section11-events-vps/
+/@13/
 section11-results.json
 section11-results-partial.json
 .web
