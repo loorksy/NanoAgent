@@ -1,5 +1,7 @@
 # تسليم ترقية Mokli — للمشغّل (بعد Cloud Agent)
 
+**After OpenRouter reset (English checklist):** `docs/section11-post-reset-runbook.md`
+
 **أثناء حجب OpenRouter:** `bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10` قد يخرج **0** (حزمة JSONL 1–10 سليمة) بينما **`closure_errors=5`** typ. عند `@13` (rows **5/10** reruns + **11–13**) — متوقع حتى quota `in>0` وOANDA وصفوف **11–13** حية. سكربتات الحالة (`cloud_status`، `completion_status`، `blockers`، `validate`) **لا** تحذف JSONL صف 5؛ التنظيف قبل turn حي فقط (`vps_section11_row5_subagents.sh`). معاينة: **`live_rerun_rows=5 10`**.
 
 ## قائمة إغلاق الإنتاج (§11)
