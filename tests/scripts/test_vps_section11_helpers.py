@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -142,6 +143,45 @@ def test_prune_quota_failed_output_removes_in_zero_jsonl(tmp_path: Path) -> None
     assert proc.returncode == 0
     assert not stale.is_file()
     assert "quota-failed" in proc.stderr
+
+
+def test_prune_quota_failed_keeps_row5_jsonl_when_in_gt_zero_nested_in_zero(
+    tmp_path: Path,
+) -> None:
+    """Regression: parse must not treat nested_in=0 as top-level in=0."""
+    path = tmp_path / "05-subagents-v2.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 4,
+                    "input_tokens": 51744,
+                    "output_tokens": 100,
+                    "tool_calls": 4,
+                    "nested_rounds": 0,
+                    "nested_input_tokens": 0,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_prune_quota_failed_output "{tmp_path}" "05-subagents-v2.jsonl" "{ROOT}"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert path.is_file()
+    assert "quota-failed" not in proc.stderr
 
 
 def test_prune_row5_stale_removes_spawn_429_no_nested(tmp_path: Path) -> None:
