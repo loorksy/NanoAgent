@@ -45,6 +45,7 @@ Close:
   bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
 
 Docs: docs/mokli-agent-upgrade-operator-handoff.md
+      docs/section11-post-reset-runbook.md (English checklist after quota)
 EOF
 
 EVENTS="$ROOT/section11-events"
