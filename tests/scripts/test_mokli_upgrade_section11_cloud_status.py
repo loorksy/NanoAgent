@@ -33,6 +33,7 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
         assert re.search(r"closure_errors=[1-9]\d*", combined)
         assert "seconds_until_reset=" in combined
         assert "wake_after_buffer_utc=" in combined
+        assert "live_rerun_rows=" in combined
     if "git_rev=" in combined:
         assert "agent_api_health=" in combined
     assert proc.returncode == 1

@@ -5,6 +5,11 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/section11_quota_hints.sh
 source "$ROOT/scripts/section11_quota_hints.sh"
+EVENTS="$ROOT/section11-events"
+PYTHON="${ROOT}/.venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+  PYTHON=python3
+fi
 REQUIRE=13
 
 while [[ $# -gt 0 ]]; do
@@ -55,6 +60,12 @@ else
 fi
 
 echo ""
+echo "== live rerun rows (after quota) =="
+RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+  --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
+echo "live_rerun_rows=${RERUN_ROWS:-none}"
+
+echo ""
 echo "== Local §11 artifacts (--skip-vps) =="
 BLOCK_OK=0
 CLOSURE_ERRORS=""
@@ -92,7 +103,7 @@ fi
 echo ""
 WAKE_UTC_FIELD="wake_after_buffer_utc=unknown"
 [[ -n "${WAKE_UTC:-}" ]] && WAKE_UTC_FIELD="wake_after_buffer_utc=$WAKE_UTC"
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
 if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
