@@ -63,6 +63,11 @@ else
 fi
 
 echo ""
+echo "== sync JSONL after row 11/12 (VPS → Cloud) =="
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps \
+  "$SECTION11_EVENTS" "$SECTION11_RESULTS" 13
+
+echo ""
 echo "== operator unblock check =="
 if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe; then
   echo "READY for remaining_rows (11–13) then: mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"

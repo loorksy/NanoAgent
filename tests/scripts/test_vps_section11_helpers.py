@@ -632,7 +632,7 @@ def test_timer_wake_wires_completion_status_after_reset_and_close() -> None:
     assert "set -e" in text
     assert "--dry-run" in text
     assert "remaining_rows.sh prints the row 11" in text
-    assert "mokli_upgrade_section11_try_row11_paper.sh" in text
+    assert "mokli_upgrade_section11_try_row11_paper.sh" not in text
 
 
 def test_completion_status_cached_quota_no_live_gate_by_default() -> None:
@@ -668,6 +668,8 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     assert "vps_section11_row12_desktop.sh" in text
     assert "mokli_upgrade_section11_try_row11_paper.sh" in text
     assert "mokli_upgrade_section11_try_row12_pipe.sh" in text
+    assert "sync JSONL after row 11/12" in text
+    assert "sync_from_vps.sh" in text
     assert "section11-results-partial.json" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "blockers remain" in text

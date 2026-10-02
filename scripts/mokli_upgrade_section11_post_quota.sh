@@ -56,6 +56,10 @@ if [[ "$SKIP_RERUN" -eq 0 ]]; then
     echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
   fi
   echo ""
+  echo "== sync JSONL after row 11/12 =="
+  bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps \
+    "$SECTION11_EVENTS" "$SECTION11_RESULTS" 13
+  echo ""
   echo "== §11 blockers snapshot (--skip-vps @13) =="
   bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
     "$SECTION11_EVENTS" "$SECTION11_RESULTS" 2>&1 || true

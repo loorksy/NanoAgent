@@ -34,7 +34,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   wait_note=""
   [[ "$WAIT_QUOTA" -eq 1 ]] && wait_note=" (with --wait-quota: sleep until reset+buffer if probe blocked, then same chain)"
   cat <<NOTE
-DRY-RUN: would next run${wait_note}: sync-vps-rev → after_reset_wake (probe, rerun_partials, try_row11/12) → remaining_rows (runbook) → try_row11/12 → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
+DRY-RUN: would next run${wait_note}: sync-vps-rev → after_reset_wake (probe, reruns, try_row11/12, sync) → remaining_rows (runbook) → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
 NOTE
   echo "TIMER_WAKE_EXIT=0 (dry-run)"
   exit 0
@@ -78,18 +78,6 @@ bash "$ROOT/scripts/mokli_upgrade_section11_remaining_rows.sh"
 echo ""
 echo "NOTE: remaining_rows.sh prints the row 11–13 runbook only (no LLM/UI)." >&2
 echo "NOTE: row 13 needs mobile/SDK chat then vps_section11_row13_export_session.sh — see operator-handoff." >&2
-
-if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
-  :
-else
-  echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
-fi
-
-if bash "$ROOT/scripts/mokli_upgrade_section11_try_row12_pipe.sh"; then
-  :
-else
-  echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
-fi
 
 echo ""
 echo "== sync + production unblock =="
