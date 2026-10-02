@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -582,7 +583,12 @@ def test_compaction_summary_layers_follow_turn_not_empty_tail() -> None:
 
 def test_registered_tools_have_display_copy() -> None:
     registry = ToolRegistry()
-    ToolLoader().load(ToolContext(config=ToolsConfig(), workspace="/tmp"), registry)
+    ctx = ToolContext(
+        config=ToolsConfig(),
+        workspace="/tmp",
+        subagent_manager=MagicMock(),
+    )
+    ToolLoader().load(ctx, registry)
     missing = [name for name in registry.tool_names if name not in DISPLAY]
     assert missing == []
     assert phrase_for("get_gold_quote", "started") == "يفحص سعر الذهب الحالي…"
