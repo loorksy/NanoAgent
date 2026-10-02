@@ -7,7 +7,7 @@
 | فرع مستقل + commits صغيرة | PR **#62** — `cursor/section11-vps-rows-d9e1` (يتقدّم على **`main`**؛ merge بعد إغلاق §11) | منجز (فرع)؛ **merge** بعد §11 |
 | Phase 0 — تدقيق من الكود | `docs/mokli-agent-upgrade-audit.md` | منجز |
 | P0 — تقليل توكن/تأخير/حلقات أدوات بلا `max_tokens` قسري ولا حذف عشوائي للسجل | §2 + عقود مضغوطة + تأجيل مخططات التداول على الدور الخفيف؛ `test_turn_efficiency`؛ تقدير `final≈5159` للتحية (محلي، `p0_turn_estimate --compare`) | منجز (وحدة/تقدير) |
-| P0 — أرقام before/after على **مزود حي** | تقرير §2.1 + §11؛ إعادة قياس after credits/OANDA | **جزئي** (baseline VPS) |
+| P0 — أرقام before/after على **مزود حي** | تقرير §2.1 + §11؛ row 1 **`in=4061`** after-P0 (`Δin≈−6873` vs 10934)؛ صفوف 2/4/10 قبل P0 كاملة | **جزئي** (row 1 measured؛ باقي المسارات بعد credits/OANDA) |
 | Agent API ينشر `diagnostic` في SSE | `tests/agent_api/test_sessions_routes.py::test_sse_diagnostic_matches_section11_extract` | منجز (CI، ليس §11 حي) |
 | P1 — نشاط UI من أحداث وقت التشغيل فقط | `tests/deploy/test_mokli_pipe.py`؛ `mokli-sdk`؛ `mokli_upgrade_section11_row13_ci.sh` (Cloud Agent 2026-10-01) | منجز (CI/proxy)؛ **§11 صفوف 12–13 JSONL حية** |
 | P1 — طبقات سياق حسب المهمة | `mokli/agent/context_layers.py`؛ اختبارات الطبقات | منجز |
@@ -22,9 +22,9 @@
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers` (`blockers_summary`)؛ `close.sh` (`close_summary`)؛ `production_gate`؛ sync @13؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` / `section11_status` (`seconds_until_reset` + `partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `check_wake.sh` (tmux+log+`wake_after_buffer_utc`)؛ `operator_smoke` | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (`closure_errors=5` @13: **5** JSONL، **10** OANDA، **11–13** فارغة، PARTIAL «النتيجة» **5,10** حتى `close --apply`) |
-| VPS checkout (Hostinger) | PR #62؛ **`git_rev=260d113b`** (VPS aligned؛ `oanda_configured=no`؛ quota **BLOCKED**؛ **`wake_after_buffer_utc=2026-10-03T00:01:59Z`**)؛ tmux **`section11-timer-wake-wait`**؛ `print-live-rerun-rows` → **`5 10`**؛ prune skips **quota-probe** JSONL | منجز (rev)؛ **quota/OANDA/11–13** محجوز |
-| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2466** green (2026-10-01) | **infra** — fix GitHub billing then re-run workflow |
-| §11 حي على VPS | **1–2** PASS؛ **3** PARTIAL؛ **4–6** PASS؛ **5** PARTIAL؛ **7** PASS؛ **8** PASS (retry `cleared`؛ **`in=0` في JSONL** — أعد `row8_fallback` بعد quota)؛ **9** PARTIAL؛ **10** PARTIAL (OANDA off)؛ **11–13** فارغة؛ **صف 12** pre-check (VPS + Cloud `local_section11_row12_smoke`): `ui_http=200` + `pipe_show_diagnostics` (2026-10-01) | **جزئي** |
+| VPS checkout (Hostinger) | PR #62؛ **`git_rev=2df72d72`** (VPS aligned؛ `oanda_configured=no`؛ quota **BLOCKED**؛ **`wake_after_buffer_utc=2026-10-03T00:01:59Z`**)؛ tmux **`section11-timer-wake-wait`**؛ `precheck_ui.sh` (12–13 بلا LLM)؛ `print-live-rerun-rows` → **`5 10`**؛ prune skips **quota-probe** JSONL | منجز (rev)؛ **quota/OANDA/11–13** محجوز |
+| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2518** green | **infra** — fix GitHub billing then re-run workflow |
+| §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **2–4,6–8,9** JSONL؛ **3/9** v2/v3؛ **5** `nested=0` (أعد `row5` بعد quota)؛ **10** OANDA off؛ **11–13** فارغة؛ **12–13** precheck OK (Cloud 2026-10-02؛ JSONL حي مطلوب) | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
 
