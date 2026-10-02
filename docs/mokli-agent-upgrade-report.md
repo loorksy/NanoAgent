@@ -414,7 +414,10 @@
 | `docs/mokli-agent-upgrade-operator-handoff.md` | قائمة إغلاق §11 للمشغّل (9 خطوات) |
 | `scripts/mokli_upgrade_section11_validate.py` | validate @13، `pick_row`، `live_rerun_rows`، جودة JSONL |
 | `scripts/mokli_upgrade_section11_*.sh` | سلسلة المشغّل: `blockers`/`close`/`sync` (`sync_summary`)، `timer_wake`، `cloud_status`/`completion_status` (`vps_rev`) |
-| `scripts/mokli_upgrade_diagnostic_extract.py` | استخراج `diagnostic` وP0 baseline/delta من JSONL |
+| `scripts/mokli_upgrade_section11_patch_report.py` | `close --apply`: §11 + §2.1 (baseline وafter-P0)؛ no-op exit 0 عند تطابق artifacts |
+| `scripts/mokli_upgrade_section11_check_wake.sh` | tmux `timer_wake --wait-quota` + log؛ hints scoped لآخر `Started timer_wake` |
+| `scripts/mokli_upgrade_diagnostic_extract.py` | استخراج `diagnostic`؛ `section11_row1_numbers`؛ `p0_baseline_markdown` (baseline + after-P0) |
+| `docs/section11-results.example.json` | قالب «النتيجة» (صفوف 1/5/10 جزئية؛ لا يمرّ validate @13) |
 | `tests/scripts/test_mokli_upgrade_*` | أسلاك §11، بوابة التقرير، operator smoke |
 | `mokli/trading/turn_session.py` | طلبان متزامنان للشموع أو التقويم أو السعر الحي يشاركان التحميل الجاري. السعر بعد انتهاء التحميل يُطلب من جديد. تذكرة تصنيف الخطة الحية ليست ذاكرة ذلك السعر. فشل التحليل في الدورة يُحفظ ولا يُعاد تشغيله |
 | `mokli/trading/market_context.py` | شموع الدورة تُجلب مرة حتى لو بدأ طلبان معاً. السعر المتزامن يُشارك، والقراءة التالية تطلب من جديد. من لا يحتاج السعر لا يحمّله. الشموع والسعر يبدآن معاً: 400 مللي ثانية ثم 200 في اختبار النوم |
