@@ -300,7 +300,8 @@ def main() -> int:
     )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
-    _prune_row5_stale_spawn429(directory)
+    if args.require_through >= 13 and not args.allow_partial:
+        _prune_row5_stale_spawn429(directory)
     if args.print_live_rerun_rows:
         if not directory.is_dir():
             print("ERROR missing events dir", file=sys.stderr)

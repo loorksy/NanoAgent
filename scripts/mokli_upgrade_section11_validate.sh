@@ -17,6 +17,4 @@ while [[ $idx -lt ${#ARGS[@]} ]]; do
   fi
   idx=$((idx + 1))
 done
-section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-
 exec "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" "${ARGS[@]}"

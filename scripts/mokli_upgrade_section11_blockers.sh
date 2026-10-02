@@ -32,7 +32,7 @@ if [[ $# -gt 2 ]]; then
   usage
 fi
 
-if [[ -d "$EVENTS" ]]; then
+if [[ -d "$EVENTS" && "$REQUIRE" -ge 13 ]]; then
   section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
 fi
 

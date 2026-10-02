@@ -67,9 +67,11 @@ section11_prune_quota_failed_output() {
     line=$("$py" "$extract" --file "$path" 2>/dev/null || true)
     in_val=$(section11_parse_probe_in "$line")
   fi
-  if section11_jsonl_indicates_quota_block "$path" \
-    || { [[ -n "$in_val" ]] && [[ "$in_val" -eq 0 ]]; }; then
-    echo "WARN: removing quota-failed ${out_name} before live turn" >&2
+  if [[ -z "$in_val" ]]; then
+    return 0
+  fi
+  if [[ "$in_val" -eq 0 ]]; then
+    echo "WARN: removing quota-failed ${out_name} before live turn (in=0)" >&2
     rm -f "$path"
   fi
 }

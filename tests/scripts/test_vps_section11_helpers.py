@@ -154,6 +154,39 @@ def test_prune_quota_failed_output_removes_in_zero_jsonl(tmp_path: Path) -> None
     assert "quota-failed" in proc.stderr
 
 
+def test_prune_quota_failed_keeps_row_jsonl_with_rate_limit_when_in_gt_zero(
+    tmp_path: Path,
+) -> None:
+    """Row 7-style JSONL may mention rate_limit while diagnostic in>0."""
+    path = tmp_path / "07-retry.jsonl"
+    path.write_text(
+        '{"kind":"status","data":{"summary":"Rate limit exceeded, waiting"}}\n'
+        + json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 10931, "tool_calls": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_prune_quota_failed_output "{tmp_path}" "07-retry.jsonl" "{ROOT}"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert path.is_file()
+    assert "quota-failed" not in proc.stderr
+
+
 def test_prune_quota_failed_keeps_row5_jsonl_when_in_gt_zero_nested_in_zero(
     tmp_path: Path,
 ) -> None:
@@ -203,7 +236,25 @@ def test_validate_wrapper_prunes_row5_before_python(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     results = tmp_path / "results.json"
-    results.write_text('{"1":"x","2":"x","3":"x","4":"x","5":"x"}', encoding="utf-8")
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 14)}), encoding="utf-8")
+    for row_id in range(1, 14):
+        if row_id == 5:
+            continue
+        (tmp_path / f"{row_id:02d}-stub.jsonl").write_text(
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 1, "input_tokens": 100, "tool_calls": 2},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}})
+        + "\n",
+        encoding="utf-8",
+    )
     validate_sh = ROOT / "scripts" / "mokli_upgrade_section11_validate.sh"
     proc = subprocess.run(
         [
@@ -214,8 +265,7 @@ def test_validate_wrapper_prunes_row5_before_python(tmp_path: Path) -> None:
             "--results",
             str(results),
             "--require-through",
-            "5",
-            "--allow-partial",
+            "13",
         ],
         cwd=str(ROOT),
         capture_output=True,
