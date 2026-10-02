@@ -58,3 +58,5 @@ def test_cloud_status_exits_zero_for_artifacts_through_10_when_partial_pack() ->
     assert "cloud_status:" in combined
     assert proc.returncode == 0, combined[-800:]
     assert "not production closure" in combined
+    assert "partial10_ok=1" in combined
+    assert "partial10_gate=1" in combined

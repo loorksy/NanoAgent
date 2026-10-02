@@ -96,16 +96,24 @@ fi
 
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
-if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
+_run_partial10_gate() {
+  echo ""
+  echo "== production gate @10 (skip quota/OANDA/pull) =="
+  bash "$ROOT/scripts/mokli_upgrade_section11_production_gate.sh" \
+    --skip-quota --skip-oanda --skip-pull --require-through 10
+}
+if [[ "$REQUIRE" -eq 10 && "$BLOCK_OK" -eq 1 ]]; then
+  PARTIAL10_OK=1
+  if _run_partial10_gate; then
+    PARTIAL10_GATE=1
+  fi
+elif [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
   echo ""
   echo "== Local §11 partial pack (require-through 10) =="
   if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
     --skip-vps --require-through 10; then
     PARTIAL10_OK=1
-    echo ""
-    echo "== production gate @10 (skip quota/OANDA/pull) =="
-    if bash "$ROOT/scripts/mokli_upgrade_section11_production_gate.sh" \
-      --skip-quota --skip-oanda --skip-pull --require-through 10; then
+    if _run_partial10_gate; then
       PARTIAL10_GATE=1
     fi
   fi
