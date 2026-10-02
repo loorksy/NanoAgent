@@ -130,6 +130,18 @@ def diagnostic_from_text(text: str) -> dict[str, Any] | None:
     return _scan_lines(text.splitlines())
 
 
+def jsonl_spawn_failed_upstream_quota(text: str) -> bool:
+    """True when JSONL shows spawn tool failed with upstream 429 / rate-limit."""
+    lowered = text.lower()
+    if "spawn" not in lowered:
+        return False
+    if "429" not in lowered and "rate-limited" not in lowered and "rate limit" not in lowered:
+        return False
+    if '"event": "failed"' in text or '"event":"failed"' in text:
+        return True
+    return "tool" in lowered and "failed" in lowered and "429" in lowered
+
+
 def one_line_summary(diag: dict[str, Any]) -> str:
     """Format one §11 numbers column from a diagnostic dict."""
     return _one_line_summary(diag)

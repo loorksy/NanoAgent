@@ -23,6 +23,32 @@ section11_jsonl_indicates_quota_block() {
 }
 
 # Drop prior quota-failed row output so pick_row_diagnostic does not keep stale in=0 v2 files.
+# Drop legacy 05-subagents.jsonl when spawn hit upstream 429 but parent turn kept in>0 (nested=0).
+section11_prune_row5_stale_no_nested() {
+  local event_dir="$1"
+  local install="${2:-}"
+  local stale="$event_dir/05-subagents.jsonl"
+  [[ -f "$stale" ]] || return 0
+  if ! grep -qE '429|rate-limited upstream|Rate limit exceeded' "$stale" 2>/dev/null; then
+    return 0
+  fi
+  if ! grep -q spawn "$stale" 2>/dev/null; then
+    return 0
+  fi
+  local py="${install}/.venv/bin/python"
+  [[ -x "$py" ]] || py=python3
+  local extract="${install}/scripts/mokli_upgrade_diagnostic_extract.py"
+  [[ -f "$extract" ]] || return 0
+  local line nested_val
+  line=$("$py" "$extract" --file "$stale" 2>/dev/null || true)
+  nested_val=$(echo "$line" | sed -n 's/.* nested_rounds=\([0-9][0-9]*\).*/\1/p' | head -1)
+  nested_val=${nested_val:-0}
+  if [[ "$nested_val" -eq 0 ]]; then
+    echo "WARN: removing stale 05-subagents.jsonl (spawn upstream 429, nested_rounds=0)" >&2
+    rm -f "$stale"
+  fi
+}
+
 section11_prune_quota_failed_output() {
   local event_dir="$1"
   local out_name="$2"

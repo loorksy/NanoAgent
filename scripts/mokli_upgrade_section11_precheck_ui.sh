@@ -17,4 +17,7 @@ echo "== row 13 CI proxy (not production 13-mobile.jsonl) =="
 bash "$ROOT/scripts/vps_section11_row13_mobile.sh"
 
 echo ""
+echo "Close (after live 12-desktop-ui.jsonl + 13-mobile.jsonl):"
+echo "  bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
+echo ""
 echo "OK §11 UI prechecks — live JSONL still required: 12-desktop-ui.jsonl, 13-mobile.jsonl"

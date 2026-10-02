@@ -27,6 +27,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 from mokli_upgrade_diagnostic_extract import (  # noqa: E402
     all_diagnostics_from_text,
     diagnostic_from_text,
+    jsonl_spawn_failed_upstream_quota,
     pick_row_diagnostic,
     session_summary_line,
 )
@@ -152,7 +153,14 @@ def _quality_hints(directory: Path, require_through: int) -> None:
             nested = int(diag.get("nested_rounds") or 0)
             if nested < 1:
                 body = (directory / name).read_text(encoding="utf-8")
-                if "spawn" in body and ("429" in body or "rate-limit" in body.lower()):
+                if jsonl_spawn_failed_upstream_quota(body):
+                    print(
+                        f"HINT row 5 ({name}): spawn failed upstream 429 — nested_rounds=0 — "
+                        "rerun bash scripts/vps_section11_row5_subagents.sh after quota "
+                        "(writes 05-subagents-v2.jsonl; prunes stale 05-subagents.jsonl)",
+                        file=sys.stderr,
+                    )
+                elif "spawn" in body and ("429" in body or "rate-limit" in body.lower()):
                     print(
                         f"HINT row 5 ({name}): spawn nested_rounds=0 (quota?) — "
                         "rerun bash scripts/vps_section11_row5_subagents.sh "
@@ -368,9 +376,16 @@ def main() -> int:
             name5, diag5 = picked5
             nested5 = int(diag5.get("nested_rounds") or 0)
             if nested5 < 1 or _input_tokens(diag5) == 0:
+                body5 = (directory / name5).read_text(encoding="utf-8")
+                spawn429 = jsonl_spawn_failed_upstream_quota(body5)
+                extra = (
+                    " (spawn upstream 429 — not a nested-path bug)"
+                    if spawn429 and nested5 < 1
+                    else ""
+                )
                 errors.append(
-                    f"Row 5 diagnostic needs nested_rounds≥1 and in>0 ({name5}; nested={nested5}) — "
-                    "rerun bash scripts/vps_section11_row5_subagents.sh before closure"
+                    f"Row 5 diagnostic needs nested_rounds≥1 and in>0 ({name5}; nested={nested5})"
+                    f"{extra} — rerun bash scripts/vps_section11_row5_subagents.sh before closure"
                 )
         picked8 = pick_row_diagnostic(directory, 8)
         if picked8 is not None:
