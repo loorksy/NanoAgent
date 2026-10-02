@@ -85,6 +85,8 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     assert "seconds_until_reset=" in combined
     if (ROOT / "section11-events").is_dir() and (ROOT / "section11-results-partial.json").is_file():
         assert "live_rerun_rows=" in combined
+        assert "allow_partial=0" in combined
+        assert "markdown preview only" in combined
 
 
 def test_section11_close_script_promotes_partial_on_apply_at_13() -> None:

@@ -66,8 +66,12 @@ if [[ "$VALID_EC" -ne 0 ]]; then
   CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
   RERUN_ROWS=$("$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
     --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
-  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC apply=$APPLY" >&2
+  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC apply=$APPLY allow_partial=$ALLOW_PARTIAL" >&2
   echo "HINT: bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through ${REQUIRE}" >&2
+  if [[ "$ALLOW_PARTIAL" -eq 0 && -f "$RESULTS" ]] && grep -q PARTIAL "$RESULTS" 2>/dev/null \
+    && [[ "${CLOSURE_ERRORS:-}" =~ ^[0-9]+$ ]] && [[ "${CLOSURE_ERRORS}" -gt 2 ]]; then
+    echo "HINT: markdown preview only — re-run with --allow-partial (never combine --allow-partial with --apply)" >&2
+  fi
   if [[ -n "${RERUN_ROWS// /}" ]]; then
     echo "HINT: after quota — bash scripts/mokli_upgrade_section11_rerun_partials.sh (rows: $RERUN_ROWS)" >&2
   fi
