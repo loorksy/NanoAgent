@@ -82,6 +82,7 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     assert "section11_emit_wake_after_buffer" in text
     assert "section11_parse_probe_in" in text
     assert "section11_allow_partial_closure_errors" in text
+    assert "section11_wake_log_current_run" in text
     assert "section11_prune_quota_failed_output" in text
     assert "section11_prune_row5_stale_no_nested" in text
 
@@ -575,7 +576,7 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "WAIT_HEARTBEAT" in text
     assert "section11-monitor-loop" in text
     assert "section11_print_cloud_vps_rev" in text
-    assert "_wake_log_current_run" in text
+    assert "section11_wake_log_current_run" in text
     assert "Started timer_wake" in text
     assert "--sync-vps-rev" in text
     assert "vps_pull_main.sh" in text

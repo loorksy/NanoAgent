@@ -22,17 +22,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-_wake_log_current_run() {
-  local log="$1"
-  local start_line
-  start_line=$(grep -n '^Started timer_wake' "$log" 2>/dev/null | tail -1 | cut -d: -f1)
-  if [[ -z "$start_line" ]]; then
-    cat "$log"
-  else
-    tail -n +"$start_line" "$log"
-  fi
-}
-
 echo "== branch =="
 if [[ "$SYNC_VPS_REV" -eq 1 ]]; then
   cloud_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
@@ -82,7 +71,7 @@ if [[ -f "$LOG" ]]; then
     tail -8 "$LOG"
   fi
   if tmux -f /exec-daemon/tmux.portal.conf has-session -t "$SESSION" 2>/dev/null; then
-    current_wake=$(_wake_log_current_run "$LOG")
+    current_wake=$(section11_wake_log_current_run "$LOG")
     if grep -qE 'Sleeping [0-9]{5,}s until reset' <<< "$current_wake" \
       && ! grep -q 'WAIT_HEARTBEAT' <<< "$current_wake"; then
       echo "HINT: monolithic quota sleep (no WAIT_HEARTBEAT in log) — monitor: tmux section11-monitor-loop or monitor_log.sh; after wake use timer_wake without --wait-quota if chain did not finish" >&2

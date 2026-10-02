@@ -127,6 +127,18 @@ section11_print_cloud_vps_rev() {
   fi
 }
 
+# Timer wake log: lines from the latest "Started timer_wake" (ignore prior runs).
+section11_wake_log_current_run() {
+  local log="${1:?}"
+  local start_line
+  start_line=$(grep -n '^Started timer_wake' "$log" 2>/dev/null | tail -1 | cut -d: -f1)
+  if [[ -z "$start_line" ]]; then
+    cat "$log"
+  else
+    tail -n +"$start_line" "$log"
+  fi
+}
+
 # Markdown preview gate: validate --allow-partial closure_errors (validate exits non-zero).
 # Args: python validate_py events_dir results_json require_through
 section11_allow_partial_closure_errors() {
