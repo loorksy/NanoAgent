@@ -55,11 +55,14 @@ if ! vps_ssh_ready; then
   exit 1
 fi
 
-vps_ssh env MOKLI_SECTION11_MODEL="${MOKLI_SECTION11_MODEL:-}" bash -s -- "$INSTALL_DIR" "$OUT" "$SESSION_ID" <<'EOS'
+vps_ssh env \
+  MOKLI_SECTION11_MODEL="${MOKLI_SECTION11_MODEL:-}" \
+  SECTION11_EXPORT_SESSION_ID="${SESSION_ID}" \
+  bash -s -- "$INSTALL_DIR" "$OUT" <<'EOS'
 set -euo pipefail
 INSTALL="$1"
 OUT_NAME="$2"
-SID="$3"
+SID="${SECTION11_EXPORT_SESSION_ID:-}"
 # shellcheck source=scripts/section11_export_session_jsonl.sh
 source "$INSTALL/scripts/section11_export_session_jsonl.sh"
 TOKEN=$(cat "$INSTALL/.mokli/workspace/agent_api/admin_token")

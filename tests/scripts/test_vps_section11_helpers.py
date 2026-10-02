@@ -702,7 +702,9 @@ def test_row13_export_session_script_exists() -> None:
     assert export_sh.is_file()
     assert core_sh.is_file()
     assert "section11_row13_jsonl_ok" in core_sh.read_text(encoding="utf-8")
-    assert "13-mobile.jsonl" in export_sh.read_text(encoding="utf-8")
+    text = export_sh.read_text(encoding="utf-8")
+    assert "13-mobile.jsonl" in text
+    assert "SECTION11_EXPORT_SESSION_ID" in text
 
 
 def test_section11_row13_jsonl_ok_helper() -> None:

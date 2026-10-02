@@ -77,7 +77,7 @@ echo ""
 bash "$ROOT/scripts/mokli_upgrade_section11_remaining_rows.sh"
 echo ""
 echo "NOTE: remaining_rows.sh prints the row 11–13 runbook only (no LLM/UI)." >&2
-echo "NOTE: row 12 needs Mokli UI pipe JSONL; row 13 needs device/SDK JSONL — see operator-handoff." >&2
+echo "NOTE: row 13 needs mobile/SDK chat then vps_section11_row13_export_session.sh — see operator-handoff." >&2
 
 if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
   :
