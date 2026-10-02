@@ -290,4 +290,5 @@ def test_close_apply_on_canonical_report_aborts_before_patch(tmp_path: Path) -> 
 def test_close_uses_validate_shell_wrapper() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "mokli_upgrade_section11_validate.sh" in text
-    assert "mokli_upgrade_section11_validate.py" not in text
+    assert "print-live-rerun-rows" in text
+    assert text.count("mokli_upgrade_section11_validate.py") == 1
