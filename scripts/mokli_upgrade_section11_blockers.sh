@@ -126,6 +126,10 @@ if [[ "$VAL_OK" -eq 0 ]]; then
     fi
   fi
   echo "NEXT §11 live rows: ${RERUN_ROWS:-none} — bash scripts/mokli_upgrade_section11_rerun_partials.sh; then remaining_rows.sh (11–13)" >&2
+  if [[ -f "$RESULTS" ]] && grep -q PARTIAL "$RESULTS" 2>/dev/null \
+    && [[ "${CLOSURE_ERRORS:-}" =~ ^[0-9]+$ ]] && [[ "${CLOSURE_ERRORS}" -gt 2 ]]; then
+    echo "HINT: strict closure_errors includes PARTIAL «النتيجة» + row 5/10 JSONL quality; markdown preview only: mokli_upgrade_section11_close.sh --allow-partial --require-through ${REQUIRE} (never with --apply)" >&2
+  fi
 fi
 echo "Quick reruns when quota returns (live_rerun_rows=${RERUN_ROWS:-none}): bash scripts/mokli_upgrade_section11_rerun_partials.sh" >&2
 echo "HINT: after reset — bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2

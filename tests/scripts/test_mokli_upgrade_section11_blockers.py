@@ -117,6 +117,8 @@ def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
     assert "oanda_env_file" in text
     assert "NEXT quota:" in text
     assert "section11_parse_probe_in" in text
+    assert "allow-partial" in text
+    assert "strict closure_errors" in text
 
 
 def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
