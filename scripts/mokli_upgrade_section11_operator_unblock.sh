@@ -4,9 +4,16 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+EVENTS="$ROOT/section11-events"
+PYTHON="${ROOT}/.venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+  PYTHON=python3
+fi
 SKIP_PROBE=0
 DO_PULL=0
 BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+  --dir "$EVENTS" --require-through 13 --print-live-rerun-rows 2>/dev/null || true)
 
 usage() {
   echo "Usage: $0 [--skip-probe] [--pull-vps]" >&2
@@ -25,9 +32,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$DO_PULL" -eq 1 ]]; then
+  bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
   echo "== VPS pull ($BRANCH) =="
   bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 fi
+
+echo "live_rerun_rows=${RERUN_ROWS:-none}"
 
 RESET_SEC="unknown"
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
@@ -84,7 +94,7 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" \
     PARTIAL10_GATE=1
   fi
 fi
-echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC"
+echo "operator_unblock: partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC"
 
 echo ""
 echo "Runbook: docs/mokli-agent-upgrade-operator-handoff.md (9 steps)"

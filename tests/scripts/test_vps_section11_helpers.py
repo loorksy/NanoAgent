@@ -319,6 +319,9 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "partial10_ok=" in text
     assert "mokli_upgrade_section11_production_gate.sh" in text
     assert "--require-through 10" in text
+    assert "live_rerun_rows=" in text
+    assert "print-live-rerun-rows" in text
+    assert "sync_cloud_branch.sh" in text
 
 
 def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> None:
@@ -340,6 +343,7 @@ def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> No
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
     assert "seconds_until_reset=" in combined
+    assert "live_rerun_rows=" in combined
     assert proc.returncode == 1
 
 
