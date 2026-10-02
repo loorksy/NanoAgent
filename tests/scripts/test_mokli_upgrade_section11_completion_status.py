@@ -68,3 +68,5 @@ def test_completion_status_script_wires_blockers_and_quota_snapshot() -> None:
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "wait_quota_reset.sh" in text
     assert "quota_status.sh" in text and "--local-dir" in text
+    assert "print-live-rerun-rows" in text
+    assert "live_rerun_rows=" in text
