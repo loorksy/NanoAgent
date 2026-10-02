@@ -34,7 +34,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   wait_note=""
   [[ "$WAIT_QUOTA" -eq 1 ]] && wait_note=" (with --wait-quota: sleep until reset+buffer if probe blocked, then same chain)"
   cat <<NOTE
-DRY-RUN: would next run${wait_note}: sync-vps-rev → after_reset_wake (probe, rerun_partials, try_row11) → remaining_rows (runbook) → try_row11 → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
+DRY-RUN: would next run${wait_note}: sync-vps-rev → after_reset_wake (probe, rerun_partials, try_row11/12) → remaining_rows (runbook) → try_row11/12 → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
 NOTE
   echo "TIMER_WAKE_EXIT=0 (dry-run)"
   exit 0
@@ -83,6 +83,12 @@ if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
   :
 else
   echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
+fi
+
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row12_pipe.sh"; then
+  :
+else
+  echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
 fi
 
 echo ""

@@ -665,9 +665,42 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     assert "require-oanda" in text
     assert "vps_section11_row12_desktop.sh" in text
     assert "mokli_upgrade_section11_try_row11_paper.sh" in text
+    assert "mokli_upgrade_section11_try_row12_pipe.sh" in text
     assert "section11-results-partial.json" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
     assert "blockers remain" in text
+
+
+def test_row12_pipe_turn_scripts_exist_and_reference_core() -> None:
+    for name in (
+        "section11_pipe_turn_core.py",
+        "section11_pipe_turn_core.sh",
+        "vps_section11_pipe_turn.sh",
+        "vps_section11_row12_pipe_turn.sh",
+        "mokli_upgrade_section11_try_row12_pipe.sh",
+    ):
+        path = ROOT / "scripts" / name
+        assert path.is_file(), name
+    core = (ROOT / "scripts" / "section11_pipe_turn_core.py").read_text(encoding="utf-8")
+    assert "SHOW_DIAGNOSTICS" in core
+    assert "_LoggingPipe" in core
+    row12 = (ROOT / "scripts" / "vps_section11_row12_pipe_turn.sh").read_text(encoding="utf-8")
+    assert "vps_section11_pipe_turn.sh" in row12
+    assert "12-desktop-ui.jsonl" in row12
+
+
+def test_try_row12_pipe_skips_without_quota() -> None:
+    script = ROOT / "scripts" / "mokli_upgrade_section11_try_row12_pipe.sh"
+    proc = subprocess.run(
+        ["bash", str(script)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert proc.returncode == 0
+    assert "SKIP §11 row 12" in proc.stderr or "SKIP §11 row 12" in proc.stdout
 
 
 def test_try_row11_paper_skips_without_quota_or_oanda() -> None:

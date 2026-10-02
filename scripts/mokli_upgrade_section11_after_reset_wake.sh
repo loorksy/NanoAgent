@@ -56,6 +56,12 @@ else
   echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
 fi
 
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row12_pipe.sh"; then
+  :
+else
+  echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
+fi
+
 echo ""
 echo "== operator unblock check =="
 if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe; then

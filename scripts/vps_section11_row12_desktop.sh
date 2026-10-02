@@ -27,10 +27,13 @@ EOS
 
 cat <<'NOTE'
 
-§11 row 12 (desktop) — operator steps (after quota probe passes):
+§11 row 12 (desktop) — after quota probe passes:
+  Automated (headless Mokli pipe, gateway JSONL):
+    bash scripts/vps_section11_row12_pipe_turn.sh
+  Manual UI (optional screenshot for report):
   1. Mokli UI → Admin → Functions → Mokli pipe → enable SHOW_DIAGNOSTICS (and SHOW_TIMELINE if desired).
   2. Chat in Mokli UI (Arabic gold question or «حلل الذهب») through the pipe, not raw Agent API.
-  3. Save pipe/gateway JSONL (diagnostic + tool + structured/decision events) as section11-events/12-desktop-ui.jsonl.
+  3. Save pipe/gateway JSONL as section11-events/12-desktop-ui.jsonl.
   4. Screenshot: activity line wrap + Arabic decision card.
   5. Pull artifacts: bash scripts/vps_section11_pull_events.sh
 

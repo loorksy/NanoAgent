@@ -32,7 +32,8 @@ Row 11 (paper, Agent API + OANDA candles):
 Row 12 (desktop UI + Mokli pipe, not raw Agent API):
   bash scripts/local_section11_row12_smoke.sh     # dev pre-check
   bash scripts/vps_section11_row12_desktop.sh     # VPS UI/API/pipe check
-  Chat via Mokli UI pipe with SHOW_DIAGNOSTICS; save JSONL as 12-desktop-ui.jsonl
+  bash scripts/vps_section11_row12_pipe_turn.sh   # headless pipe → 12-desktop-ui.jsonl (after quota)
+  # Or chat via Mokli UI pipe with SHOW_DIAGNOSTICS; save JSONL as 12-desktop-ui.jsonl
   → must include structured/decision events + diagnostic in>0 (validate @13)
 
 Row 13 (mobile / SDK — production needs device JSONL):
