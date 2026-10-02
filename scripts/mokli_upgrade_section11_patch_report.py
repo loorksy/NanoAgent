@@ -113,6 +113,9 @@ def patch_p0_baseline_table(text: str, events_dir: Path) -> tuple[str, int]:
     if end is None:
         end = len(lines)
     new_block = p0_baseline_markdown(events_dir).splitlines()
+    if end < len(lines) and lines[end].startswith("**"):
+        if new_block and new_block[-1].strip():
+            new_block.append("")
     if lines[start:end] == new_block:
         return text, 0
     updated_lines = lines[:start] + new_block + lines[end:]

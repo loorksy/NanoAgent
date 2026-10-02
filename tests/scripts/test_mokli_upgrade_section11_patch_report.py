@@ -55,6 +55,24 @@ def test_patch_p0_baseline_table_updates_section_21() -> None:
     assert "**معلق:** text" in updated
 
 
+def test_patch_p0_baseline_keeps_blank_line_before_next_paragraph() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_baseline_table
+
+    events = ROOT / "section11-events"
+    if not (events / "01-no-tools.jsonl").is_file():
+        return
+    report = (
+        "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| 1 stale | 1 | 0 | 0 | 0 | x |\n\n"
+        "**Next:** keep\n"
+    )
+    updated, _ = patch_p0_baseline_table(report, events)
+    assert "| 1 stale |" not in updated
+    assert "\n\n**Next:** keep" in updated
+
+
 def test_patch_table_line_updates_result_and_numbers() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_report_text
