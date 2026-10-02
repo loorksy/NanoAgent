@@ -26,6 +26,12 @@ def _diag(in_t: int, *, provider_tools: int = 3) -> str:
     )
 
 
+def test_after_pull_script_continues_p0_when_status_incomplete() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "continuing P0 table/delta" in text
+    assert "STATUS_EC" in text
+
+
 def test_after_pull_runs_p0_delta_when_after_file_exists(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()

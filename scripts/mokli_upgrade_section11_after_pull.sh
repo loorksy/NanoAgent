@@ -10,8 +10,14 @@ EVENTS="${1:-$ROOT/section11-events}"
 RESULTS="${2:-$ROOT/section11-results-partial.json}"
 REQUIRE="${3:-10}"
 
+set +e
 bash "${ROOT}/scripts/mokli_upgrade_section11_status.sh" \
   --skip-quota --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"
+STATUS_EC=$?
+set -e
+if [[ "$STATUS_EC" -ne 0 ]]; then
+  echo "WARN: §11 status incomplete (require-through=$REQUIRE) — continuing P0 table/delta" >&2
+fi
 
 echo ""
 echo "== P0 baseline (§2.1) from JSONL =="
