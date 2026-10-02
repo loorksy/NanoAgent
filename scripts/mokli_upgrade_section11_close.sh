@@ -64,8 +64,13 @@ set -e
 printf '%s\n' "$VALID_OUT"
 if [[ "$VALID_EC" -ne 0 ]]; then
   CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
-  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} seconds_until_reset=$RESET_SEC apply=$APPLY" >&2
+  RERUN_ROWS=$("$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+    --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
+  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC apply=$APPLY" >&2
   echo "HINT: bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through ${REQUIRE}" >&2
+  if [[ -n "${RERUN_ROWS// /}" ]]; then
+    echo "HINT: after quota — bash scripts/mokli_upgrade_section11_rerun_partials.sh (rows: $RERUN_ROWS)" >&2
+  fi
   exit "$VALID_EC"
 fi
 

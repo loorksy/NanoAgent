@@ -83,6 +83,8 @@ def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
     assert re.search(r"closure_errors=[1-9]\d*", combined)
     assert "close_summary:" in combined
     assert "seconds_until_reset=" in combined
+    if (ROOT / "section11-events").is_dir() and (ROOT / "section11-results-partial.json").is_file():
+        assert "live_rerun_rows=" in combined
 
 
 def test_section11_close_script_promotes_partial_on_apply_at_13() -> None:

@@ -9,8 +9,8 @@ mkdir -p "$(dirname "$LOG")"
 {
   date -u +%Y-%m-%dT%H:%M:%SZ
   bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" 2>&1 \
-    | grep -E 'wake_after_buffer_utc|WAKE_TMUX|closure_errors|seconds_until_reset=' \
-    | head -6
+    | grep -E 'cloud_agent_rev=|wake_after_buffer_utc|WAKE_TMUX|blockers_summary:' \
+    | head -8
   echo "---"
 } >>"$LOG"
 

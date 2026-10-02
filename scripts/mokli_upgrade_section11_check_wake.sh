@@ -9,7 +9,8 @@ LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log
 SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
 
 echo "== Cloud Agent branch =="
-git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+CLOUD_REV=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+echo "cloud_agent_rev=$CLOUD_REV"
 
 echo ""
 echo "== OpenRouter reset =="
@@ -52,4 +53,4 @@ fi
 
 echo ""
 bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 2>&1 \
-  | grep -E 'blockers_summary:|closure_errors=' | tail -2 || true
+  | grep -E 'blockers_summary:|closure_errors=|live_rerun_rows=' | tail -3 || true

@@ -107,6 +107,7 @@ echo "  bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 
 echo "INFO VPS closure chain (after quota + OANDA): bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota"
 echo "INFO VPS readiness gate: bash scripts/mokli_upgrade_section11_operator_unblock.sh --pull-vps"
 echo "INFO while quota blocked (no LLM): bash scripts/mokli_upgrade_section11_cloud_status.sh"
+echo "INFO while quota blocked (no LLM): bash scripts/mokli_upgrade_section11_completion_status.sh  # live_rerun_rows"
 echo "INFO while quota blocked (no LLM): bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe"
 
 exit "$fail"
