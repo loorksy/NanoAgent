@@ -18,7 +18,7 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2549** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02 run @827a2c4f1) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2549** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02 @b78850650) | منجز |
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers`؛ `close.sh` (يحافظ على baseline+after-P0 في §2.1 عند `@10 --apply`؛ no-op exit 0)؛ `production_gate`؛ sync؛ `cloud_status` (`--require-through 10` → `partial10_ok=1` عند نجاح الحزمة)؛ `completion_status` / `operator_unblock`؛ `timer_wake` / `check_wake`؛ `operator_smoke`؛ row-5 **لا** prune على القرص من سكربتات الحالة | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (strict @13 typ. **`closure_errors=5`**؛ **`partial10`** **`closure_errors=0`**؛ `allow_partial_closure_errors=2` — **11–13** + reruns **5/10** حتى `close --apply`) |

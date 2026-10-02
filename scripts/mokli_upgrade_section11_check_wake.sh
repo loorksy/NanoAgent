@@ -46,6 +46,12 @@ if [[ -f "$LOG" ]]; then
       && ! grep -q 'WAIT_HEARTBEAT' "$LOG" 2>/dev/null; then
       echo "HINT: monolithic quota sleep (no WAIT_HEARTBEAT in log) — monitor: tmux section11-monitor-loop or monitor_log.sh; after wake use timer_wake without --wait-quota if chain did not finish" >&2
     fi
+    log_age_sec=$(( $(date +%s) - $(stat -c %Y "$LOG" 2>/dev/null || echo 0) ))
+    if [[ "$log_age_sec" -gt 2400 ]] \
+      && grep -q 'WAIT_HEARTBEAT' "$LOG" 2>/dev/null \
+      && ! grep -qE '^(after_reset_wake|TIMER_WAKE_FINAL_EXIT=0)' "$LOG" 2>/dev/null; then
+      echo "HINT: wake log quiet ${log_age_sec}s (expect WAIT_HEARTBEAT ~every 1800s) — tmux attach -t $SESSION" >&2
+    fi
   fi
 else
   echo "WAKE_LOG=missing"
