@@ -37,6 +37,11 @@ SECTION11_TURN_AS_USER
   BASE=http://127.0.0.1:8766/api/v2
   EVENT_DIR="$INSTALL/section11-events"
   mkdir -p "$EVENT_DIR"
+  if [[ -f "$INSTALL/scripts/section11_quota_hints.sh" ]]; then
+    # shellcheck source=scripts/section11_quota_hints.sh
+    source "$INSTALL/scripts/section11_quota_hints.sh"
+    section11_prune_quota_failed_output "$EVENT_DIR" "$OUT_NAME" "$INSTALL"
+  fi
   SID=""
   for _try in 1 2 3; do
     _sess_body=$(curl -sf -X POST "$BASE/sessions" -H "Authorization: Bearer $TOKEN" \

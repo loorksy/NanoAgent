@@ -43,6 +43,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_p0_turn_estimate.py",
         "mokli_upgrade_p0_live_delta.sh",
         "vps_section11_row13_mobile.sh",
+        "vps_section11_scp_branch_scripts.sh",
         "vps_section11_env_check.sh",
         "vps_section11_row1_after_p0.sh",
         "vps_section11_row1_greeting.sh",
@@ -74,6 +75,30 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     text = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
     assert "section11_emit_wake_after_buffer" in text
     assert "section11_parse_probe_in" in text
+    assert "section11_prune_quota_failed_output" in text
+
+
+def test_prune_quota_failed_output_removes_in_zero_jsonl(tmp_path: Path) -> None:
+    stale = tmp_path / "05-subagents-v2.jsonl"
+    stale.write_text(
+        '{"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 0}}\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_prune_quota_failed_output "{tmp_path}" "05-subagents-v2.jsonl" "{ROOT}"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert not stale.is_file()
+    assert "quota-failed" in proc.stderr
 
 
 def test_parse_probe_in_ignores_nested_in_zero() -> None:

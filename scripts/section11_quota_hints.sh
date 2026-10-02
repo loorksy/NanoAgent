@@ -22,6 +22,29 @@ section11_jsonl_indicates_quota_block() {
     "$file" 2>/dev/null
 }
 
+# Drop prior quota-failed row output so pick_row_diagnostic does not keep stale in=0 v2 files.
+section11_prune_quota_failed_output() {
+  local event_dir="$1"
+  local out_name="$2"
+  local install="${3:-}"
+  local path="$event_dir/$out_name"
+  [[ -f "$path" ]] || return 0
+  local py="${install}/.venv/bin/python"
+  [[ -x "$py" ]] || py=python3
+  local extract="${install}/scripts/mokli_upgrade_diagnostic_extract.py"
+  [[ -f "$extract" ]] || extract=""
+  local line="" in_val=""
+  if [[ -n "$extract" ]]; then
+    line=$("$py" "$extract" --file "$path" 2>/dev/null || true)
+    in_val=$(section11_parse_probe_in "$line")
+  fi
+  if section11_jsonl_indicates_quota_block "$path" \
+    || { [[ -n "$in_val" ]] && [[ "$in_val" -eq 0 ]]; }; then
+    echo "WARN: removing quota-failed ${out_name} before live turn" >&2
+    rm -f "$path"
+  fi
+}
+
 section11_print_quota_unblock_hints() {
   echo "HINT: OpenRouter credits or export MOKLI_SECTION11_MODEL=… on this shell (forwarded over SSH; docs/section11-vps-env.example)" >&2
   echo "HINT: free-models-per-day / 429 — pause §11 rows 9–13 until quota returns; rerun vps_section11_quota_probe.sh" >&2
