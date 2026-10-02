@@ -14,6 +14,9 @@ FILES=(
   scripts/mokli_upgrade_section11_validate.py
   scripts/mokli_upgrade_diagnostic_extract.py
   scripts/mokli_upgrade_section11_rerun_partials.sh
+  scripts/mokli_upgrade_section11_blockers.sh
+  scripts/mokli_upgrade_section11_close.sh
+  scripts/mokli_upgrade_section11_sync_cloud_branch.sh
   scripts/section11_quota_hints.sh
   scripts/section11_agent_api_turn_core.sh
   scripts/vps_section11_row5_subagents.sh
