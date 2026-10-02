@@ -119,7 +119,7 @@ def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
     assert "section11_parse_probe_in" in text
     assert "allow-partial" in text
     assert "strict closure_errors" in text
-    assert "section11_prune_row5_stale_no_nested" in text
+    assert "--print-live-rerun-rows" in text
     assert "allow_partial_closure_errors=" in text
 
 

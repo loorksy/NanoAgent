@@ -70,9 +70,6 @@ echo ""
 echo "== VPS env =="
 bash "$ROOT/scripts/vps_section11_env_check.sh" || true
 
-if [[ -d "$EVENTS" ]]; then
-  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-fi
 RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
   --dir "$EVENTS" --require-through 13 --print-live-rerun-rows 2>/dev/null || true)
 echo "live_rerun_rows=${RERUN_ROWS:-none}"

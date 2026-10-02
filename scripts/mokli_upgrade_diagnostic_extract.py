@@ -214,7 +214,14 @@ def pick_row_diagnostic(
             diag = diagnostic_from_text(text)
             if diag is None:
                 continue
-            rank = _row_pick_rank(row, diag)
+            if row == 5 and jsonl_spawn_failed_upstream_quota(text):
+                nested5 = int(diag.get("nested_rounds") or 0)
+                if nested5 < 1:
+                    rank = (0, 0, 0, 0)
+                else:
+                    rank = _row_pick_rank(row, diag)
+            else:
+                rank = _row_pick_rank(row, diag)
         if rank > best_rank:
             best_rank = rank
             best_diag = diag

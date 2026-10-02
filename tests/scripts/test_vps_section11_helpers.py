@@ -226,7 +226,7 @@ def test_prune_quota_failed_keeps_row5_jsonl_when_in_gt_zero_nested_in_zero(
     assert "quota-failed" not in proc.stderr
 
 
-def test_validate_wrapper_prunes_row5_before_python(tmp_path: Path) -> None:
+def test_validate_at_13_does_not_delete_stale_row5_jsonl(tmp_path: Path) -> None:
     stale = tmp_path / "05-subagents.jsonl"
     stale.write_text(
         '{"kind":"tool","data":{"name":"spawn","event":"failed",'
@@ -273,8 +273,9 @@ def test_validate_wrapper_prunes_row5_before_python(tmp_path: Path) -> None:
         check=False,
         timeout=30,
     )
-    assert not stale.is_file(), proc.stderr
-    assert "stale 05-subagents.jsonl" in proc.stderr or proc.returncode in (0, 1)
+    assert stale.is_file(), proc.stderr
+    assert proc.returncode == 1
+    assert "Row 5 diagnostic needs nested_rounds" in proc.stderr
 
 
 def test_prune_row5_stale_removes_spawn_429_no_nested(tmp_path: Path) -> None:

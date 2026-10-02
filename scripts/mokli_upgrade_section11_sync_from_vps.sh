@@ -40,9 +40,6 @@ bash "$ROOT/scripts/vps_section11_pull_events.sh" "$EVENTS"
 
 # Legacy status.sh wrote quota-status-*.jsonl into events; drop on sync (not §11 rows).
 rm -f "$EVENTS"/quota-status-*.jsonl 2>/dev/null || true
-if [[ "$REQUIRE" -ge 13 ]]; then
-  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-fi
 
 echo ""
 bash "$ROOT/scripts/mokli_upgrade_section11_after_pull.sh" "$EVENTS" "$RESULTS" "$REQUIRE"

@@ -452,6 +452,37 @@ def test_pick_row_5_prefers_nested_over_parent_only_high_in(tmp_path: Path) -> N
     assert picked[0] == "05-subagents.jsonl"
 
 
+def test_pick_row_5_prefers_v2_over_stale_spawn429_v1(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "05-subagents.jsonl").write_text(
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"429 rate-limited upstream"}}\n'
+        + json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 4, "input_tokens": 51744, "tool_calls": 4, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 5)
+    assert picked is not None
+    assert picked[0] == "05-subagents-v2.jsonl"
+
+
 def test_pick_row_3_prefers_v2_two_tools_over_v1_quota_fail(tmp_path: Path) -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_diagnostic_extract import pick_row_diagnostic

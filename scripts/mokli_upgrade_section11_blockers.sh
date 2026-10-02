@@ -32,10 +32,6 @@ if [[ $# -gt 2 ]]; then
   usage
 fi
 
-if [[ -d "$EVENTS" && "$REQUIRE" -ge 13 ]]; then
-  section11_prune_row5_stale_no_nested "$EVENTS" "$ROOT"
-fi
-
 RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
   --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
 

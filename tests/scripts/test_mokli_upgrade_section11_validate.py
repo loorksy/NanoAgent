@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "mokli_upgrade_section11_validate.py"
 
 
-def test_validate_prunes_stale_row5_spawn429(tmp_path: Path) -> None:
+def test_live_rerun_rows_includes_row5_when_spawn429_v2_in_zero(tmp_path: Path) -> None:
     stale = tmp_path / "05-subagents.jsonl"
     stale.write_text(
         '{"kind":"tool","data":{"name":"spawn","event":"failed",'
@@ -47,7 +47,7 @@ def test_validate_prunes_stale_row5_spawn429(tmp_path: Path) -> None:
         check=False,
     )
     assert proc.returncode == 0
-    assert not stale.is_file()
+    assert stale.is_file()
     assert "5" in proc.stdout
 
 
@@ -232,7 +232,6 @@ def test_validate_hints_row5_quota_failed_v2_on_disk(tmp_path: Path) -> None:
         check=False,
     )
     assert proc.returncode == 0
-    assert "stale 05-subagents.jsonl" in proc.stderr
     assert "05-subagents-v2.jsonl" in proc.stderr
     assert "quota-failed rerun" in proc.stderr
 

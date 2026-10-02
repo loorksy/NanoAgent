@@ -104,7 +104,9 @@ def live_quality_gap_rows(directory: Path, require_through: int) -> list[int]:
                 gaps.append(3)
     if require_through >= 5:
         picked5 = pick_row_diagnostic(directory, 5)
-        if picked5 is not None:
+        if picked5 is None:
+            gaps.append(5)
+        else:
             _name5, diag5 = picked5
             nested5 = int(diag5.get("nested_rounds") or 0)
             if nested5 < 1 or _input_tokens(diag5) == 0:
@@ -300,8 +302,6 @@ def main() -> int:
     )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
-    if args.require_through >= 13 and not args.allow_partial:
-        _prune_row5_stale_spawn429(directory)
     if args.print_live_rerun_rows:
         if not directory.is_dir():
             print("ERROR missing events dir", file=sys.stderr)

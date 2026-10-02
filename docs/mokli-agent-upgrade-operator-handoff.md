@@ -1,6 +1,6 @@
 # تسليم ترقية Mokli — للمشغّل (بعد Cloud Agent)
 
-**أثناء حجب OpenRouter:** `bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10` قد يخرج **0** (حزمة JSONL 1–10 سليمة) بينما **`closure_errors=5`** عند `@13` (typical: rows **5**, **10**, **11–13**) — متوقع حتى quota `in>0` وOANDA وصفوف **11–13** حية. معاينة الصفوف التالية: `bash scripts/mokli_upgrade_section11_completion_status.sh` → **`live_rerun_rows=5 10`**.
+**أثناء حجب OpenRouter:** `bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10` قد يخرج **0** (حزمة JSONL 1–10 سليمة) بينما **`closure_errors=4`** typ. عند `@13` (rows **5/10** reruns + **11–13**) — متوقع حتى quota `in>0` وOANDA وصفوف **11–13** حية. **`operator_unblock --skip-probe`** يفحص **`partial10_ok`** قبل `@13` دون حذف JSONL صف 5 من القرص. معاينة: **`live_rerun_rows=5 10`**.
 
 ## قائمة إغلاق الإنتاج (§11)
 
