@@ -650,6 +650,12 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert 'REQUIRE="${POSITIONAL[2]:-13}"' in text
     assert "sync_summary:" in text
     assert "INCOMPLETE sync from VPS" in text
+    assert "not @13" in text
+
+
+def test_gitignore_excludes_mistaken_at13_events_dir() -> None:
+    text = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "/@13/" in text
 
 
 def test_wait_quota_reset_long_sleep_emits_heartbeats() -> None:
