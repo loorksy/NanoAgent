@@ -22,14 +22,14 @@
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers` (`blockers_summary`)؛ `close.sh` (`close_summary`)؛ `production_gate`؛ sync @13 (`sync_summary`)؛ `section11_print_cloud_vps_rev`؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` / `section11_status` (`seconds_until_reset` + `partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `check_wake.sh` (tmux+log+`wake_after_buffer_utc`)؛ `operator_smoke` | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (strict @13 typ. **`closure_errors=5`**؛ **`partial10`** **`closure_errors=0`**؛ `allow_partial_closure_errors=2` — **11–13** + reruns **5/10** حتى `close --apply`) |
-| VPS checkout (Hostinger) | PR #62؛ **`git_rev=249e65b28`** (pick row 5 + no JSONL prune in status scripts)؛ Cloud+VPS aligned (`check_wake`)؛ quota **BLOCKED**؛ **OANDA** keys missing؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`**؛ tmux **`section11-timer-wake-wait`** → **`wake_after_buffer_utc≈2026-10-03T00:02Z`** | منجز (rev)؛ **11–13** محجوز |
+| VPS checkout (Hostinger) | PR #62؛ **`git_rev=7ec8ad5c9`** (row-5 pick + no status-script JSONL prune)؛ Cloud+VPS aligned (`check_wake`)؛ quota **BLOCKED**؛ **OANDA** keys missing؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`**؛ tmux **`section11-timer-wake-wait`** → **`wake_after_buffer_utc≈2026-10-03T00:02Z`** | منجز (rev)؛ **11–13** محجوز |
 | GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2533** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
 | §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** stale spawn-429 v1 (rerun after credits)؛ **10** market feed؛ **11–13** فارغة؛ strict **`closure_errors=5`**؛ **`partial10`** @10 **`closure_errors=0`**؛ preview **`allow_partial_closure_errors=2`**؛ **`cloud_status`/`completion_status`** لا يحذفان JSONL على القرص | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
 
 ```bash
-bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init smoke + tests/scripts (no LLM; exit 0 @ 2026-10-02)
+bash scripts/mokli_upgrade_operator_smoke.sh   # preflight + §11 dry-run + init smoke + tests/scripts 178 passed (no LLM; exit 0 @ 2026-10-02)
 bash scripts/mokli_upgrade_section11_cloud_status.sh   # cached quota + blockers --skip-vps (Cloud Agent)
 bash scripts/mokli_upgrade_section11_completion_status.sh   # branch + reset + cached quota + artifacts @13 (+ partial10 gate when blocked)
 bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota   # after reset: Cloud Agent timer chain
