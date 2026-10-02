@@ -18,12 +18,12 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2532** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2533** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02) | منجز |
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers` (`blockers_summary`)؛ `close.sh` (`close_summary`)؛ `production_gate`؛ sync @13 (`sync_summary`)؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` / `section11_status` (`seconds_until_reset` + `partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `check_wake.sh` (tmux+log+`wake_after_buffer_utc`)؛ `operator_smoke` | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (`closure_errors=5` strict؛ `allow_partial_closure_errors=2` — rows **5/10** + **11–13** حتى `close --apply`) |
 | VPS checkout (Hostinger) | PR #62؛ **`git_rev=3abcf5868`** Cloud+VPS aligned (`cloud_status` **`vps_rev`**)؛ quota **BLOCKED** (`in=0` probe)؛ **OANDA** `.env` present keys missing؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`**؛ tmux **`section11-timer-wake-wait`** → reset **≈2026-10-03T00:02Z** | منجز (rev)؛ **11–13** محجوز |
-| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2532** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
+| GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2533** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
 | §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** `05-subagents-v2.jsonl` **`in=0`** (quota rerun)؛ **10** market feed؛ **11–13** فارغة؛ strict **`closure_errors=5`**؛ preview **`allow_partial_closure_errors=2`** (rows 11–13)؛ تقرير §11 محدّث 2026-10-02 | **جزئي** |
 
 ## أوامر تحقق سريعة (محلي)
