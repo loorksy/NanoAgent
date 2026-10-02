@@ -126,13 +126,14 @@ bash scripts/mokli_upgrade_section11_close.sh  # dry-run; --apply --require-thro
 # Preview §11 table with partial VPS pack: close.sh --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
 bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # default validate 1–10; pass EVENTS RESULTS 13 for full pack
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
-bash scripts/mokli_upgrade_section11_rerun_partials.sh  # rows 1/3/5/8/9/10 when quota (+ OANDA for 10)
+bash scripts/mokli_upgrade_section11_rerun_partials.sh  # selective gaps from validate --print-live-rerun-rows (+ OANDA for 10)
+bash scripts/mokli_upgrade_section11_precheck_ui.sh  # rows 12–13 UI prechecks (no LLM; VPS SSH for :8080)
 bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable
 bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # artifact pack while quota blocked
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2466 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+Aggregate pytest target: 2518 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
 
 While OpenRouter quota is blocked (`vps_section11_quota_probe.sh` → `in=0`): prefer `check_wake.sh`, `monitor_log.sh`, or `completion_status.sh` monitoring only—avoid audit `git_rev`-only commits and repeated operator-smoke unless the branch changed. If `git push` fails, sync §11 script fixes to VPS with `bash scripts/vps_section11_scp_branch_scripts.sh` until the branch tip is on origin. Optional tmux `section11-monitor-loop` runs `bash scripts/mokli_upgrade_section11_monitor_loop.sh` (30m default). `timer_wake` (non dry-run) holds `flock` on `/tmp/mokli_section11_timer_wake.lock` and logs `TIMER_WAKE_FINAL_EXIT` on exit; a second concurrent run exits 2. MCP one-shot timers (e.g. `mokli-section11-at-reset-buffer`, `mokli-section11-after-openrouter-reset-backup`) can wake the agent after `wake_after_buffer_utc` if tmux dies. After `wake_after_buffer_utc`: `timer_wake` (or `after_reset_wake` if probe already OK), then operator `vps_section11_set_oanda_env.sh` and `remaining_rows.sh` for 11–13 before `close.sh --apply @13`.
 - Tests mirror the `mokli/` package structure.
