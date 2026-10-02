@@ -566,6 +566,8 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "WAIT_HEARTBEAT" in text
     assert "section11-monitor-loop" in text
     assert "section11_print_cloud_vps_rev" in text
+    assert "_wake_log_current_run" in text
+    assert "Started timer_wake" in text
 
 
 def test_check_wake_prints_wake_eta_when_reset_known() -> None:
