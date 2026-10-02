@@ -555,6 +555,13 @@ def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> No
     assert proc.returncode == 1
 
 
+def test_monitor_log_syncs_vps_rev_via_check_wake() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_monitor_log.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "--sync-vps-rev" in text
+
+
 def test_check_wake_script_reports_tmux_and_log() -> None:
     script = ROOT / "scripts" / "mokli_upgrade_section11_check_wake.sh"
     assert script.is_file() and script.stat().st_mode & 0o111

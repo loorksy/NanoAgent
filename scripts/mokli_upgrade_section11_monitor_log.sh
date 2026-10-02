@@ -8,7 +8,7 @@ mkdir -p "$(dirname "$LOG")"
 
 {
   date -u +%Y-%m-%dT%H:%M:%SZ
-  bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" 2>&1 \
+  bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" --sync-vps-rev 2>&1 \
     | grep -E 'cloud_agent_rev=|vps_rev=|HINT: VPS rev|wake_after_buffer_utc|WAKE_TMUX|blockers_summary:' \
     | head -10
   echo "---"

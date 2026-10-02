@@ -119,7 +119,7 @@ bash scripts/mokli_upgrade_section11_sync_cloud_branch.sh  # git pull §11 branc
 # Background on Cloud Agent VM (sleep until reset, then VPS reruns): tmux session section11-timer-wake-wait → log /opt/cursor/artifacts/timer_wake_wait_quota.log
 bash scripts/mokli_upgrade_section11_check_wake.sh  # tmux + log tail + blockers_summary (no LLM)
 bash scripts/mokli_upgrade_section11_check_wake.sh --sync-vps-rev  # align VPS git with Cloud after push
-bash scripts/mokli_upgrade_section11_monitor_log.sh  # append check_wake snapshot to section11_monitor.log
+bash scripts/mokli_upgrade_section11_monitor_log.sh  # check_wake --sync-vps-rev + snapshot → section11_monitor.log
 # Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
 bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
 bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)

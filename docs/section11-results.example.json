@@ -9,8 +9,8 @@
   "8": "",
   "9": "",
   "10": "PARTIAL — fast_backtest finished; market_feed_unconfigured until OANDA",
-  "11": "",
-  "12": "",
-  "13": "",
+  "11": "PASS — paper run_state (vps_section11_row11_paper.sh; needs OANDA + quota)",
+  "12": "PASS — Mokli UI pipe: structured/decision in 12-desktop-ui.jsonl",
+  "13": "PASS — device/SDK: tool/status/structured in 13-mobile.jsonl",
   "14": ""
 }
