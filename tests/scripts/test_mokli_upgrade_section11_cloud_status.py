@@ -32,6 +32,7 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
         assert after_p0.is_file() or "01-no-tools-after-p0.jsonl" in combined
         assert "PARTIAL" in combined
         assert re.search(r"closure_errors=[1-9]\d*", combined)
+        assert "allow_partial_closure_errors=2" in combined
         assert "seconds_until_reset=" in combined
         assert "wake_after_buffer_utc=" in combined
         assert "live_rerun_rows=" in combined

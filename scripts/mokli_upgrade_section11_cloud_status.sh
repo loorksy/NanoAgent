@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/section11_quota_hints.sh
 source "$ROOT/scripts/section11_quota_hints.sh"
 EVENTS="$ROOT/section11-events"
+RESULTS="$ROOT/section11-results-partial.json"
 PYTHON="${ROOT}/.venv/bin/python"
 if [[ ! -x "$PYTHON" ]]; then
   PYTHON=python3
@@ -83,6 +84,17 @@ else
   CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 fi
 
+ALLOW_PARTIAL_CE=""
+if [[ "$REQUIRE" -ge 13 && -d "$EVENTS" && -f "$RESULTS" ]]; then
+  set +e
+  ALLOW_PARTIAL_CE=$(
+    "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+      --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" --allow-partial 2>&1 \
+      | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+  )
+  set -e
+fi
+
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
 if [[ "$REQUIRE" -gt 10 && "$BLOCK_OK" -eq 0 ]]; then
@@ -103,7 +115,7 @@ fi
 echo ""
 WAKE_UTC_FIELD="wake_after_buffer_utc=unknown"
 [[ -n "${WAKE_UTC:-}" ]] && WAKE_UTC_FIELD="wake_after_buffer_utc=$WAKE_UTC"
-echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
+echo "cloud_status: quota_ok=$QUOTA_OK blockers_ok=$BLOCK_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE require_through=$REQUIRE closure_errors=${CLOSURE_ERRORS:-0} allow_partial_closure_errors=${ALLOW_PARTIAL_CE:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
 if [[ "$PARTIAL10_OK" -eq 1 && "$REQUIRE" -gt 10 ]]; then
   echo "HINT: artifact pack 1–10 OK — bash $0 --require-through 10" >&2
 fi
