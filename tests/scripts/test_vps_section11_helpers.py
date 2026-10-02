@@ -38,6 +38,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "vps_section11_row8_fallback_provider.sh",
         "vps_section11_row12_desktop.sh",
         "local_section11_row12_smoke.sh",
+        "mokli_upgrade_section11_precheck_ui.sh",
         "mokli_upgrade_section11_row13_ci.sh",
         "mokli_upgrade_section11_after_pull.sh",
         "mokli_upgrade_p0_turn_estimate.py",
@@ -474,6 +475,7 @@ def test_runbook_close_apply_at_13_documents_partial_results() -> None:
         "mokli_upgrade_section11_cloud_status.sh",
         "mokli_upgrade_section11_timer_wake.sh",
         "local_section11_row12_smoke.sh",
+        "mokli_upgrade_section11_precheck_ui.sh",
         "mokli_upgrade_preflight.sh",
         "mokli_upgrade_section11_sync_from_vps.sh",
     ]

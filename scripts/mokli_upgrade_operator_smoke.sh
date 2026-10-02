@@ -38,6 +38,9 @@ echo "== pytest scripts/ (excluding this smoke harness) =="
 echo "== §11 row 13 CI proxy (pipe + mokli-sdk; not production closure) =="
 bash scripts/mokli_upgrade_section11_row13_ci.sh
 
+echo "== §11 UI prechecks (optional; needs VPS SSH for row 12 VPS) =="
+echo "HINT: bash scripts/mokli_upgrade_section11_precheck_ui.sh" >&2
+
 echo "== §11 blockers (local artifacts, --skip-vps; expect BLOCKED until row 13 live) =="
 if bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps; then
   echo "NOTE blockers clear — production §11 may be closable" >&2
