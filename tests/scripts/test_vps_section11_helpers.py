@@ -472,6 +472,8 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "print-live-rerun-rows" in text
     assert "sync_cloud_branch.sh" in text
     assert "allow_partial_closure_errors=" in text
+    assert "wake_after_buffer_utc=" in text
+    assert "section11_prune_row5_stale_no_nested" in text
 
 
 def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> None:
@@ -492,6 +494,7 @@ def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> No
     assert "OPERATOR_UNBLOCK_EXIT=1" in combined
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
+    assert "wake_after_buffer_utc=" in combined
     assert "seconds_until_reset=" in combined
     assert "live_rerun_rows=" in combined
     assert "allow_partial_closure_errors=2" in combined
