@@ -13,6 +13,10 @@ bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
 echo "== VPS pull ($BRANCH) =="
 bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 
+echo "== VPS git vs Cloud (post-pull) =="
+bash "$ROOT/scripts/vps_section11_env_check.sh" 2>&1 \
+  | grep -E '^git_rev=|^git_branch=|HINT: VPS git_rev|HINT: VPS on branch' || true
+
 echo "== live quota probe =="
 probe_ok=0
 for attempt in 1 2 3 4 5; do
