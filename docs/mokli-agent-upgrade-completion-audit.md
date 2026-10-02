@@ -45,4 +45,4 @@ bash scripts/mokli_upgrade_aggregate_pytest.sh
 
 ## بعد VPS (المشغّل)
 
-اتبع **قائمة الإغلاق (9 خطوات)** في `docs/mokli-agent-upgrade-operator-handoff.md`: credits + OANDA → **`timer_wake --wait-quota`** (أو خطوة بخطوة) → `blockers` exit 0 → `section11_close.sh --apply --require-through 13 --results section11-results-partial.json` → gate pytest.
+اتبع **`docs/section11-post-reset-runbook.md`** (English) أو **قائمة الإغلاق (9 خطوات)** في `docs/mokli-agent-upgrade-operator-handoff.md`: credits + OANDA → **`timer_wake --wait-quota`** (أو خطوة بخطوة) → `blockers` exit 0 → `section11_close.sh --apply --require-through 13 --results section11-results-partial.json` → gate pytest.

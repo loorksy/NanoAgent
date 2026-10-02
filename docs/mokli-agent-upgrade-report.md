@@ -412,6 +412,7 @@
 | `docs/mokli-settings-audit.md` | جرد الإعدادات بلا حذف |
 | `docs/mokli-agent-upgrade-completion-audit.md` | بوابة إغلاق: ما ثبت في CI مقابل §11 الحي |
 | `docs/mokli-agent-upgrade-operator-handoff.md` | قائمة إغلاق §11 للمشغّل (9 خطوات) |
+| `docs/section11-post-reset-runbook.md` | English checklist after OpenRouter quota (`close @13`) |
 | `scripts/mokli_upgrade_section11_validate.py` | validate @13، `pick_row`، `live_rerun_rows`، جودة JSONL |
 | `scripts/mokli_upgrade_section11_*.sh` | سلسلة المشغّل: `blockers`/`close`/`sync` (`sync_summary`)، `timer_wake`، `cloud_status`/`completion_status` (`vps_rev`) |
 | `scripts/mokli_upgrade_section11_patch_report.py` | `close --apply`: §11 + §2.1 (baseline وafter-P0)؛ no-op exit 0 عند تطابق artifacts |
