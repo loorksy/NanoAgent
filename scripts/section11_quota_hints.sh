@@ -100,3 +100,19 @@ section11_emit_wake_after_buffer() {
   fi
 }
 
+# Markdown preview gate: validate --allow-partial closure_errors (validate exits non-zero).
+# Args: python validate_py events_dir results_json require_through
+section11_allow_partial_closure_errors() {
+  local py="${1:?}" validate_py="${2:?}" events="${3:?}" results="${4:?}"
+  local require="${5:-13}"
+  if [[ "$require" -lt 13 ]]; then
+    return 0
+  fi
+  [[ -d "$events" && -f "$results" ]] || return 0
+  set +e
+  "$py" "$validate_py" \
+    --dir "$events" --results "$results" --require-through "$require" --allow-partial 2>&1 \
+    | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+  set -e
+}
+

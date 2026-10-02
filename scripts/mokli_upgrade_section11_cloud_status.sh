@@ -86,13 +86,11 @@ fi
 
 ALLOW_PARTIAL_CE=""
 if [[ "$REQUIRE" -ge 13 && -d "$EVENTS" && -f "$RESULTS" ]]; then
-  set +e
   ALLOW_PARTIAL_CE=$(
-    "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
-      --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" --allow-partial 2>&1 \
-      | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+    section11_allow_partial_closure_errors \
+      "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+      "$EVENTS" "$RESULTS" "$REQUIRE"
   )
-  set -e
 fi
 
 PARTIAL10_OK=0

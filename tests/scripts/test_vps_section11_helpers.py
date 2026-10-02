@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -78,6 +81,7 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     text = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
     assert "section11_emit_wake_after_buffer" in text
     assert "section11_parse_probe_in" in text
+    assert "section11_allow_partial_closure_errors" in text
     assert "section11_prune_quota_failed_output" in text
     assert "section11_prune_row5_stale_no_nested" in text
 
@@ -225,6 +229,52 @@ def test_parse_probe_in_ignores_nested_in_zero() -> None:
         check=False,
     )
     assert proc.stdout.strip() == "4058"
+
+
+def test_allow_partial_closure_errors_matches_validate() -> None:
+    events = ROOT / "section11-events"
+    results = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not results.is_file():
+        pytest.skip("section11-events pack not present")
+    py = ROOT / ".venv/bin/python"
+    if not py.is_file():
+        py = Path("python3")
+    validate = ROOT / "scripts/mokli_upgrade_section11_validate.py"
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_allow_partial_closure_errors "{py}" "{validate}" '
+            f'"{events}" "{results}" 13',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    helper_val = proc.stdout.strip()
+    direct = subprocess.run(
+        [
+            str(py),
+            str(validate),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+            "--allow-partial",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    m = re.search(r"^closure_errors=(\d+)", direct.stderr, re.MULTILINE)
+    assert m, direct.stderr
+    assert helper_val == m.group(1)
 
 
 def test_parse_probe_in_ignores_nested_in_on_multi_round_row() -> None:

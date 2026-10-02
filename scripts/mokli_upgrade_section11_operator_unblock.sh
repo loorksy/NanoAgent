@@ -3,6 +3,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 cd "$ROOT"
 EVENTS="$ROOT/section11-events"
 RESULTS="$ROOT/section11-results-partial.json"
@@ -83,13 +85,11 @@ CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([
 
 ALLOW_PARTIAL_CE=""
 if [[ -d "$EVENTS" && -f "$RESULTS" ]]; then
-  set +e
   ALLOW_PARTIAL_CE=$(
-    "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
-      --dir "$EVENTS" --results "$RESULTS" --require-through 13 --allow-partial 2>&1 \
-      | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+    section11_allow_partial_closure_errors \
+      "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+      "$EVENTS" "$RESULTS" 13
   )
-  set -e
 fi
 
 PARTIAL10_OK=0
