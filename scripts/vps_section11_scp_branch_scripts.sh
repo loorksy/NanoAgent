@@ -27,6 +27,8 @@ FILES=(
   scripts/vps_section11_pipe_turn.sh
   scripts/vps_section11_row12_pipe_turn.sh
   scripts/mokli_upgrade_section11_try_row12_pipe.sh
+  scripts/section11_export_session_jsonl.sh
+  scripts/vps_section11_row13_export_session.sh
   scripts/vps_section11_row5_subagents.sh
   scripts/vps_section11_env_check.sh
 )

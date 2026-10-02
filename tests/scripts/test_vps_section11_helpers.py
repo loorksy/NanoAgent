@@ -691,6 +691,35 @@ def test_row12_pipe_turn_scripts_exist_and_reference_core() -> None:
     assert "12-desktop-ui.jsonl" in row12
 
 
+def test_post_quota_includes_try_row12_pipe() -> None:
+    text = (ROOT / "scripts" / "mokli_upgrade_section11_post_quota.sh").read_text(encoding="utf-8")
+    assert "mokli_upgrade_section11_try_row12_pipe.sh" in text
+
+
+def test_row13_export_session_script_exists() -> None:
+    export_sh = ROOT / "scripts" / "vps_section11_row13_export_session.sh"
+    core_sh = ROOT / "scripts" / "section11_export_session_jsonl.sh"
+    assert export_sh.is_file()
+    assert core_sh.is_file()
+    assert "section11_row13_jsonl_ok" in core_sh.read_text(encoding="utf-8")
+    assert "13-mobile.jsonl" in export_sh.read_text(encoding="utf-8")
+
+
+def test_section11_row13_jsonl_ok_helper() -> None:
+    core = ROOT / "scripts" / "section11_export_session_jsonl.sh"
+    proc = subprocess.run(
+        ["bash", "-c", f'source "{core}"; tmp=$(mktemp); '
+         'echo \'{"kind":"diagnostic"}\' > "$tmp"; section11_row13_jsonl_ok "$tmp"; ec1=$?; '
+         'echo \'{"kind":"tool"}\' > "$tmp"; section11_row13_jsonl_ok "$tmp"; ec2=$?; '
+         'rm -f "$tmp"; exit $(( ec1 == 1 && ec2 == 0 ? 0 : 1 ))'],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+
+
 def test_try_row12_pipe_skips_without_quota() -> None:
     script = ROOT / "scripts" / "mokli_upgrade_section11_try_row12_pipe.sh"
     proc = subprocess.run(

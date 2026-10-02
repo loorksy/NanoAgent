@@ -50,6 +50,11 @@ if [[ "$SKIP_RERUN" -eq 0 ]]; then
   else
     echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
   fi
+  if bash "$ROOT/scripts/mokli_upgrade_section11_try_row12_pipe.sh"; then
+    :
+  else
+    echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
+  fi
   echo ""
   echo "== §11 blockers snapshot (--skip-vps @13) =="
   bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \

@@ -17,7 +17,8 @@ Run on branch `cursor/section11-vps-rows-d9e1` after OpenRouter quota probe show
 5. `bash scripts/mokli_upgrade_section11_remaining_rows.sh`  
    - Row **11:** `vps_section11_row11_paper.sh` (if not done by `timer_wake`).  
    - Row **12:** `bash scripts/vps_section11_row12_pipe_turn.sh` (headless pipe; same gateway path as UI), or Mokli UI pipe + `SHOW_DIAGNOSTICS` → `12-desktop-ui.jsonl`.  
-   - Row **13:** device/SDK session → `section11-events/13-mobile.jsonl`.
+   - Row **13:** mobile/SDK chat on production gateway, then  
+     `bash scripts/vps_section11_row13_export_session.sh 13-mobile.jsonl [session-id]`.
 
 6. `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps`  
    Fill `section11-results-partial.json` rows **11–13** (`docs/section11-results.example.json`).

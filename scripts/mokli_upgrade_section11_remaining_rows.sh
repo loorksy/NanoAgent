@@ -39,7 +39,7 @@ Row 12 (desktop UI + Mokli pipe, not raw Agent API):
 Row 13 (mobile / SDK — production needs device JSONL):
   bash scripts/mokli_upgrade_section11_row13_ci.sh  # CI proxy only (does NOT satisfy validate @13)
   bash scripts/vps_section11_row13_mobile.sh
-  Device session → section11-events/13-mobile.jsonl (tool/status/structured events, not diagnostic-only)
+  After mobile/SDK chat: bash scripts/vps_section11_row13_export_session.sh 13-mobile.jsonl [session-id]
 
 Close:
   bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps
