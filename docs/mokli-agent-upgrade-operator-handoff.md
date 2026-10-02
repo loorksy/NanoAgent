@@ -62,7 +62,7 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 | سطر | سكربت |
 | --- | --- |
 | `blockers_summary:` | `blockers.sh` — `env_ok`, `validate_ok`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset` |
-| `cloud_agent_rev` / `vps_rev` | `check_wake.sh` — when they differ, run `vps_pull_main.sh` on VPS before live §11 rows |
+| `cloud_agent_rev` / `vps_rev` | `check_wake.sh` — when they differ: `bash scripts/mokli_upgrade_section11_check_wake.sh --sync-vps-rev` (or `vps_pull_main.sh`) before live §11 rows |
 | `close_summary:` | `close.sh` — `closure_errors`, `allow_partial_closure_errors` (preview count when strict fail), `live_rerun_rows`, `allow_partial` |
 | `completion_status:` | `completion_status.sh` — `cloud_agent_rev` / `vps_rev`, `artifact_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
 | `cloud_status:` | `cloud_status.sh` — `cloud_agent_rev` / `vps_rev`, `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |

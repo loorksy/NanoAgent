@@ -8,6 +8,19 @@ source "$ROOT/scripts/section11_quota_hints.sh"
 LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log}"
 SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
 VPS_BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+SYNC_VPS_REV=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sync-vps-rev) SYNC_VPS_REV=1; shift ;;
+    -h | --help)
+      echo "Usage: $0 [--sync-vps-rev]" >&2
+      echo "  --sync-vps-rev  vps_pull_main when cloud_agent_rev != vps_rev (SSH)" >&2
+      exit 0
+      ;;
+    *) echo "Unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
 
 _wake_log_current_run() {
   local log="$1"
@@ -21,6 +34,22 @@ _wake_log_current_run() {
 }
 
 echo "== branch =="
+if [[ "$SYNC_VPS_REV" -eq 1 ]]; then
+  cloud_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+  # shellcheck source=scripts/vps_ssh.sh
+  source "$ROOT/scripts/vps_ssh.sh"
+  if vps_ssh_ready; then
+    install="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+    user="${MOKLI_SERVICE_USER:-nanoagent}"
+    vps_rev=$(
+      vps_ssh "sudo -u ${user} git -C ${install} rev-parse --short=7 HEAD" 2>/dev/null || true
+    )
+    if [[ -n "${vps_rev:-}" && "$vps_rev" != "$cloud_rev" ]]; then
+      echo "== sync VPS to origin/$VPS_BRANCH =="
+      bash "$ROOT/scripts/vps_pull_main.sh" "$VPS_BRANCH" || true
+    fi
+  fi
+fi
 section11_print_cloud_vps_rev "$ROOT" "$VPS_BRANCH"
 
 echo ""
