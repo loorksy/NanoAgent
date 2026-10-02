@@ -24,25 +24,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-CLOUD_REV=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
-echo "cloud_agent_rev=$CLOUD_REV"
-# shellcheck source=scripts/vps_ssh.sh
-source "$ROOT/scripts/vps_ssh.sh"
-VPS_INSTALL="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
-VPS_USER="${MOKLI_SERVICE_USER:-nanoagent}"
 VPS_BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
-if vps_ssh_ready; then
-  VPS_REV=$(
-    vps_ssh "sudo -u ${VPS_USER} git -C ${VPS_INSTALL} rev-parse --short=7 HEAD" 2>/dev/null || true
-  )
-  VPS_REV=${VPS_REV:-unknown}
-  echo "vps_rev=$VPS_REV"
-  if [[ "$VPS_REV" != unknown && "$CLOUD_REV" != unknown && "$VPS_REV" != "$CLOUD_REV" ]]; then
-    echo "HINT: VPS rev != Cloud Agent — bash scripts/vps_pull_main.sh ${VPS_BRANCH}" >&2
-  fi
-else
-  echo "vps_rev=skipped (no SSH)"
-fi
+section11_print_cloud_vps_rev "$ROOT" "$VPS_BRANCH"
 echo ""
 echo "== OpenRouter reset =="
 RESET_SEC="unknown"

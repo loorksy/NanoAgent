@@ -73,6 +73,4 @@ def test_completion_status_script_wires_blockers_and_quota_snapshot() -> None:
     assert "live_rerun_rows=" in text
     assert "allow_partial_closure_errors=" in text
     assert "section11_prune_row5_stale_no_nested" in text
-    assert "cloud_agent_rev=" in text
-    assert "vps_rev=" in text
-    assert "vps_pull_main.sh" in text
+    assert "section11_print_cloud_vps_rev" in text

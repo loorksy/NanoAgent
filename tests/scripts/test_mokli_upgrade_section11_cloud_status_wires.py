@@ -12,9 +12,7 @@ def test_cloud_status_script_wires_prune_and_scan_fields() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "section11_quota_hints.sh" in text
     assert "section11_prune_row5_stale_no_nested" in text
-    assert "cloud_agent_rev=" in text
-    assert "vps_rev=" in text
-    assert "vps_pull_main.sh" in text
+    assert "section11_print_cloud_vps_rev" in text
     assert "allow_partial_closure_errors=" in text
     assert "wake_after_buffer_utc" in text
     assert "print-live-rerun-rows" in text

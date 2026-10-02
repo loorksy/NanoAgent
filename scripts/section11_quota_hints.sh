@@ -100,6 +100,31 @@ section11_emit_wake_after_buffer() {
   fi
 }
 
+# Cloud Agent vs VPS git tip (SSH optional). Args: repo_root [vps_branch]
+section11_print_cloud_vps_rev() {
+  local root="${1:?}"
+  local branch="${2:-cursor/section11-vps-rows-d9e1}"
+  local cloud_rev vps_rev
+  local install="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+  local user="${MOKLI_SERVICE_USER:-nanoagent}"
+  cloud_rev=$(git -C "$root" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+  echo "cloud_agent_rev=$cloud_rev"
+  # shellcheck source=scripts/vps_ssh.sh
+  source "$root/scripts/vps_ssh.sh"
+  if vps_ssh_ready; then
+    vps_rev=$(
+      vps_ssh "sudo -u ${user} git -C ${install} rev-parse --short=7 HEAD" 2>/dev/null || true
+    )
+    vps_rev=${vps_rev:-unknown}
+    echo "vps_rev=$vps_rev"
+    if [[ "$vps_rev" != unknown && "$cloud_rev" != unknown && "$vps_rev" != "$cloud_rev" ]]; then
+      echo "HINT: VPS rev != Cloud Agent — bash scripts/vps_pull_main.sh ${branch}" >&2
+    fi
+  else
+    echo "vps_rev=skipped (no SSH)"
+  fi
+}
+
 # Markdown preview gate: validate --allow-partial closure_errors (validate exits non-zero).
 # Args: python validate_py events_dir results_json require_through
 section11_allow_partial_closure_errors() {

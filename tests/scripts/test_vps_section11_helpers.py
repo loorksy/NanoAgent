@@ -386,6 +386,7 @@ def test_quota_probe_sources_unblock_hints() -> None:
     assert "MOKLI_SECTION11_MODEL" in hints
     assert "free-models-per-day" in hints
     assert "vps_section11_quota_status.sh" in hints
+    assert "section11_print_cloud_vps_rev" in hints
 
 
 def test_agent_api_turn_forwards_section11_model_over_ssh() -> None:
@@ -475,8 +476,7 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "allow_partial_closure_errors=" in text
     assert "wake_after_buffer_utc=" in text
     assert "section11_prune_row5_stale_no_nested" in text
-    assert "cloud_agent_rev=" in text
-    assert "vps_rev=" in text
+    assert "section11_print_cloud_vps_rev" in text
 
 
 def test_operator_unblock_skip_probe_reports_partial10_when_pack_present() -> None:
@@ -514,9 +514,7 @@ def test_check_wake_script_reports_tmux_and_log() -> None:
     assert "section11_emit_wake_after_buffer" in text
     assert "WAIT_HEARTBEAT" in text
     assert "section11-monitor-loop" in text
-    assert "cloud_agent_rev=" in text
-    assert "vps_rev=" in text
-    assert "vps_pull_main.sh" in text
+    assert "section11_print_cloud_vps_rev" in text
 
 
 def test_check_wake_prints_wake_eta_when_reset_known() -> None:
