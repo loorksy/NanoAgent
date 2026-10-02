@@ -275,6 +275,54 @@ def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
     assert "1 تحية" in out or "| 1 " in out
 
 
+def test_p0_baseline_includes_after_p0_row_when_present(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 10934,
+                    "request_output_tokens": 117,
+                    "tool_calls": 0,
+                    "provider_tool_count": 3,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (events / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 4061,
+                    "request_output_tokens": 93,
+                    "tool_calls": 0,
+                    "provider_tool_count": 7,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import p0_baseline_markdown, section11_row1_numbers
+
+    md = p0_baseline_markdown(events)
+    assert "10934" in md
+    assert "4061" in md
+    assert "after P0" in md
+    assert "baseline" in md
+    nums = section11_row1_numbers(events)
+    assert nums is not None
+    assert "Δin≈-6873" in nums or "Δin≈−6873" in nums
+
+
 def test_session_summary_flags_quota_when_all_input_zero() -> None:
     lines = [
         json.dumps(

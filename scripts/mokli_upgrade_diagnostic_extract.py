@@ -253,6 +253,56 @@ def resolve_row_jsonl(
     return directory / picked[0]
 
 
+def _p0_table_row(row_id: int, label: str, name: str, diag: dict[str, Any]) -> str:
+    note = f"`{name}`"
+    if _input_tokens(diag) == 0:
+        note += "; quota_blocked?"
+    provider_tools = diag.get("provider_tool_count")
+    if provider_tools is not None and int(provider_tools or 0) > 0:
+        note += f"; provider_tools={int(provider_tools)}"
+    comp = diag.get("components") or {}
+    final = comp.get("final")
+    if isinstance(final, int) and final > 0:
+        note += f"; comp_final={final}"
+    return "| {label} | {in_t} | {out_t} | {tools} | {rounds} | {note} |".format(
+        label=f"{row_id} {label}",
+        in_t=_input_tokens(diag),
+        out_t=int(diag.get("request_output_tokens") or diag.get("output_tokens") or 0),
+        tools=int(diag.get("tool_calls") or 0),
+        rounds=int(diag.get("rounds") or 0),
+        note=note,
+    )
+
+
+def section11_row1_numbers(directory: Path) -> str | None:
+    """§11 row 1 «الأرقام» with baseline + after-P0 when both exist."""
+    picked = pick_row_diagnostic(directory, 1, exclude_stem_substrings=("after-p0",))
+    if picked is None:
+        return None
+    _, base_diag = picked
+    base_in = _input_tokens(base_diag)
+    base_out = int(base_diag.get("request_output_tokens") or base_diag.get("output_tokens") or 0)
+    after_path = directory / "01-no-tools-after-p0.jsonl"
+    if not after_path.is_file():
+        return one_line_summary(base_diag)
+    after_diag = diagnostic_from_text(after_path.read_text(encoding="utf-8"))
+    if after_diag is None or _input_tokens(after_diag) <= 0:
+        return one_line_summary(base_diag)
+    after_in = _input_tokens(after_diag)
+    after_out = int(after_diag.get("request_output_tokens") or after_diag.get("output_tokens") or 0)
+    delta = after_in - base_in
+    base_pt = base_diag.get("provider_tool_count")
+    base_pt_s = (
+        f" provider_tools={int(base_pt)}" if base_pt is not None and int(base_pt or 0) > 0 else ""
+    )
+    pt = after_diag.get("provider_tool_count")
+    pt_s = f" provider_tools={int(pt)}" if pt is not None and int(pt or 0) > 0 else ""
+    return (
+        f"baseline: in={base_in} out={base_out}{base_pt_s}; "
+        f"after P0: in={after_in} out={after_out}{pt_s} (**Δin≈{delta:+d}**)"
+    )
+
+
 def p0_baseline_markdown(directory: Path) -> str:
     """Markdown table rows for report §2.1 from on-disk §11 JSONL."""
     lines = [
@@ -260,31 +310,24 @@ def p0_baseline_markdown(directory: Path) -> str:
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for row_id, label in sorted(_P0_BASELINE_ROWS.items()):
-        picked = pick_row_diagnostic(directory, row_id)
+        if row_id == 1:
+            picked = pick_row_diagnostic(directory, 1, exclude_stem_substrings=("after-p0",))
+        else:
+            picked = pick_row_diagnostic(directory, row_id)
         if picked is None:
             lines.append(f"| {row_id} {label} | — | — | — | — | no JSONL/diagnostic |")
             continue
         name, diag = picked
-        note = f"`{name}`"
-        if _input_tokens(diag) == 0:
-            note += "; quota_blocked?"
-        provider_tools = diag.get("provider_tool_count")
-        if provider_tools is not None and int(provider_tools or 0) > 0:
-            note += f"; provider_tools={int(provider_tools)}"
-        comp = diag.get("components") or {}
-        final = comp.get("final")
-        if isinstance(final, int) and final > 0:
-            note += f"; comp_final={final}"
-        lines.append(
-            "| {label} | {in_t} | {out_t} | {tools} | {rounds} | {note} |".format(
-                label=f"{row_id} {label}",
-                in_t=_input_tokens(diag),
-                out_t=int(diag.get("request_output_tokens") or diag.get("output_tokens") or 0),
-                tools=int(diag.get("tool_calls") or 0),
-                rounds=int(diag.get("rounds") or 0),
-                note=note,
-            )
-        )
+        row_label = f"{label} (baseline)" if row_id == 1 else label
+        lines.append(_p0_table_row(row_id, row_label, name, diag))
+        if row_id == 1:
+            after_path = directory / "01-no-tools-after-p0.jsonl"
+            if after_path.is_file():
+                after_diag = diagnostic_from_text(after_path.read_text(encoding="utf-8"))
+                if after_diag is not None and _input_tokens(after_diag) > 0:
+                    lines.append(
+                        _p0_table_row(row_id, "تحية (after P0)", after_path.name, after_diag)
+                    )
     return "\n".join(lines)
 
 

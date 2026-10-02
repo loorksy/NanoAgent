@@ -110,12 +110,11 @@
 
 | مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |
 | --- | --- | --- | --- | --- | --- |
-| 1 تحية (baseline) | 10934 | 117 | 0 | 1 | سؤال قصير؛ قبل whitelist + عقود مضغوطة |
-| 1 تحية (after P0) | 4061 | 93 | 0 | 1 | `01-no-tools-after-p0.jsonl`؛ **`Δin≈−6873`** vs baseline |
-| 2 أداة واحدة | 25037 | 670 | 1 | 2 | `get_gold_quote` (OANDA off) |
-| 3 أدوات متعددة (v2) | 41641 | 2195 | 2 | 3 | `03-multi-tool-v2.jsonl`؛ `retry_ms≈7006` |
-| 4 تحليل/قرار | 24924 | 437 | 2 | 3 | بطاقة `decision` + `retry_ms≈7010` |
-| 10 backtest | 24864 | 480 | 1 | 2 | `fast_backtest`؛ تغذية off |
+| 1 تحية (baseline) | 10934 | 117 | 0 | 1 | `01-no-tools.jsonl`; comp_final=10271 |
+| 1 تحية (after P0) | 4061 | 93 | 0 | 1 | `01-no-tools-after-p0.jsonl`; provider_tools=7; comp_final=3612 |
+| 2 أداة واحدة | 25037 | 670 | 1 | 2 | `02-single-tool-v2.jsonl`; comp_final=12036 |
+| 4 تحليل/قرار | 24924 | 437 | 2 | 3 | `04-gold-analysis.jsonl`; comp_final=3247 |
+| 10 backtest | 24864 | 480 | 1 | 2 | `10-backtest.jsonl`; comp_final=11836 |
 
 **معلق لإغلاق P0 live:** إعادة نفس الصفوف بعد credits + OANDA؛ صف 9 `--session-summary` (`in_last_over_first`); مقارنة صريحة before/after على نفس الـ preset.
 
@@ -123,7 +122,7 @@
 
 **P0 تقدير طلب كامل (محلي — `scripts/mokli_upgrade_p0_turn_estimate.py`، 27 أداة مسجّلة، 2026-10-02):** على الدور الخفيف: chat + أدوات الجلسة عند التسجيل، مع العقود المضغوطة: «مرحبا» `final≈5672` (`system≈4887`, `tool_defs≈776`, `provider_tools=3`) مقابل «حلل الذهب» `final≈12620` (`system≈6957`, `tool_defs≈5652`, `provider_tools=27`)؛ `delta_final≈6948`. خط أساس VPS §11 row 1 كان `in≈10934` (قبل whitelist + compact)؛ after-P0 حي **`in=4061`** (**`delta_in=-6873`**). أعد `01-no-tools-after-p0.jsonl` بعد credits؛ `after_pull` / `sync_from_vps` يطبعان `delta_in` و `--compare` المحلي تلقائياً.
 
-**P0 مكونات (VPS — quota-probe بعد whitelist + session tools، `in=0` لكن `components` صالحة):** مقابل baseline row 1: `comp_final` 10271 → ~3603 (`delta_comp_final≈-6668`)، `tool_defs` 6791 → ~1287، **`provider_tools=7`** على Agent API (3 chat + 4 session). `bash scripts/mokli_upgrade_section11_sync_from_vps.sh` (أو `after_pull`) يطبع هذا التفاوت حتى قبل `01-no-tools-after-p0.jsonl`. استخدم `bash scripts/vps_section11_row1_after_p0.sh` بعد credits لـ `delta_in` حي.
+**P0 live delta (VPS row 1 — `01-no-tools-after-p0.jsonl`):** baseline `in=10934` → after `in=4061` (`delta_in=-6873`; `delta_comp_final=-6659`).
 
 نداء أرشفة الجلسة الخاملة كان يعيد فهرس المهارات والذاكرة في رسالة النظام لأن `current_message=None` يُفسَّر كطلب غير قصير. الأرشفة تطبّق الآن طبقات آخر رسالة مستخدم في المقطع (`layers_for_archived_history`). تقدير tiktoken لرسالة النظام وحدها، جلسة موحّدة ومساحة مشروع وسؤال مستخدم قصير: 4192 ثم 3181. إعادة بناء ملخص ضغط المزود (`_summary_transcript`) كانت تفرّغ التاريخ وتفقد الطبقات؛ `prompt_layers` على `TranscriptInput` يحفظ طبقات الدورة الأصلية.
 
@@ -470,15 +469,15 @@
 
 | # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام (توكن/جولات/أدوات/مراحل) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | سؤال بلا أدوات | «ما اسمك؟» أو تحية قصيرة | لا صف أداة في النشاط؛ رد واحد؛ `diagnostic` بجولة واحدة | PASS baseline؛ **P0 after** `01-no-tools-after-p0.jsonl` (2026-10-02) | baseline: in=10934 out=117 provider_tools=3؛ **after P0:** in=4061 out=93 provider_tools=7 (**Δin≈−6873**) |
+| 1 | سؤال بلا أدوات | «ما اسمك؟» أو تحية قصيرة | لا صف أداة في النشاط؛ رد واحد؛ `diagnostic` بجولة واحدة | PASS baseline؛ **P0 after** `01-no-tools-after-p0.jsonl` (2026-10-02) | baseline: in=10934 out=117; after P0: in=4061 out=93 provider_tools=7 (**Δin≈-6873**) |
 | 2 | أداة واحدة | «ما سعر الذهب الآن؟» | صف واحد يبدأ وينتهي؛ عبارة بشرية لا اسم خام | PASS — get_gold_quote started/failed (OANDA unconfigured) | rounds=2 in=25037 out=670 tools=1 ctx_ms=144 model_ms=11464 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
-| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | PASS — `03-multi-tool-v2.jsonl` (list_dir + get_gold_quote) | rounds=3 in=41641 out=2195 tools=2 ctx_ms=7 model_ms=54687 tool_ms=23 retry_ms=7006 nested_in=0 fold_chars=3632 static_resends=2 provider_tools=35 |
+| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | PASS — 03-multi-tool-v2.jsonl: tool_calls=2 in=41641 (list_dir + get_gold_quote) | rounds=3 in=41641 out=2195 tools=2 ctx_ms=7 model_ms=54687 tool_ms=23 retry_ms=7006 nested_in=0 fold_chars=3632 static_resends=2 provider_tools=35 |
 | 4 | تحليل كامل | «حلل الذهب» أو «هل أشتري؟» | أدوار الفريق ثم بطاقة قرار `structured`/`decision` بمعرّف `res_` | PASS — kernel+decision card res_* verdict wait (OANDA not configured) | rounds=3 in=24924 out=437 tools=2 ctx_ms=207 model_ms=10658 tool_ms=33 retry_ms=7010 nested_in=0 fold_chars=922 static_resends=1 |
-| 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ **`nested_rounds≥1`** | PARTIAL — spawn **upstream 429**; `validate`/`pick_row` يفضّل **`05-subagents-v2.jsonl`** (لا حذف JSONL من سكربتات الحالة)؛ أعد **`vps_section11_row5_subagents.sh`** بعد credits (يُنشئ v2 ويُزيل v1 stale على القرص) | v1 (spawn 429): nested=0؛ **v2:** أعد التشغيل بعد credits (`nested≥1`, `in>0`) |
+| 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ **`nested_rounds≥1`** | PARTIAL — spawn upstream 429; `pick_row` prefers v2 (status scripts do not delete JSONL); rerun `vps_section11_row5_subagents.sh` after credits | rounds=4 in=51744 out=1218 tools=4 ctx_ms=161 model_ms=32085 tool_ms=15413 retry_ms=0 nested_in=0 fold_chars=2200 static_resends=3 |
 | 6 | فشل أداة | قطع شبكة مؤقت أو رمز غير صالح | صف `failed` بلا علامة نجاح؛ خطأ في التفاصيل | PASS — get_gold_quote failed row; no false success marker | rounds=2 in=24730 out=936 tools=1 ctx_ms=3 model_ms=15434 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
 | 7 | إعادة محاولة | مزود يعيد 429/5xx ثم ينجح | صف إعادة محاولة مجمّع بمعرّف المحاولة | PASS — rate_limit waiting then recovered (retry events in JSONL) | rounds=1 in=10931 out=543 tools=0 ctx_ms=1 model_ms=10148 tool_ms=0 retry_ms=7014 nested_in=0 |
-| 8 | مزود بديل | تعطيل المزود الأول في الإعداد | يظهر فقط عند حالة `cleared` في حدث retry | PASS — `08-fallback-provider-v2.jsonl` in>0 | rounds=1 in=4058 out=31 tools=0 ctx_ms=1 model_ms=3906 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=7 |
-| 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | PASS — `09-long-session-v3.jsonl` (`--session-summary`) | diagnostics=15 in_first=13201 in_last=13201 in_peak=13201 below_linear_15x=yes tools_total=0 |
+| 8 | مزود بديل | تعطيل المزود الأول في الإعداد | يظهر فقط عند حالة `cleared` في حدث retry | PASS — retry state cleared after claude-opus-5 billing fail; fallback chain configured | rounds=1 in=4058 out=31 tools=0 ctx_ms=1 model_ms=3906 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=7 |
+| 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | PASS — 09-long-session-v3.jsonl: 15 diagnostics in_first=13201 in_last=13201 tools_total=0 | rounds=1 in=13201 out=525 tools=0 ctx_ms=4 model_ms=15483 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=35 diagnostics=15 in_first=13201 in_last=13201 in_peak=13201 tools_total=0 in_last_over_first=1.00 in_peak_over_first=1.00 below_linear_15x=yes |
 | 10 | اختبار تاريخي على الشموع | `fast_backtest` أو مختبر الاستراتيجية بشموع OANDA | بطاقة نتائج؛ لا لصق آلاف الشموع في الطلب | PARTIAL — fast_backtest finished; market_feed_unconfigured (no candle paste in prompt) | rounds=2 in=24864 out=480 tools=1 ctx_ms=4 model_ms=15779 tool_ms=7 retry_ms=0 nested_in=0 static_resends=1 |
 | 11 | تداول ورقي | اعتماد بعد `replay` + سطر دفتر ورق | لا أمر حي؛ `run_state` paper مسجّل | | |
 | 12 | واجهة سطح المكتب | Mokli UI + Pipe | سطر نشاط يلتف؛ بطاقة قرار بالعربية | | |

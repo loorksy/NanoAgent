@@ -25,6 +25,7 @@ from mokli_upgrade_diagnostic_extract import (  # noqa: E402
     all_diagnostics_from_text,
     one_line_summary,
     pick_row_diagnostic,
+    section11_row1_numbers,
     session_summary_line,
 )
 
@@ -77,6 +78,10 @@ def gather_section11_rows(
         else:
             name, diag = picked
             numbers = one_line_summary(diag)
+            if idx == 1:
+                row1 = section11_row1_numbers(directory)
+                if row1:
+                    numbers = row1
             if idx == 9:
                 path = directory / name
                 diags = all_diagnostics_from_text(path.read_text(encoding="utf-8"))
