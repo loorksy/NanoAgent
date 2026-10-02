@@ -115,6 +115,7 @@ bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 
 bash scripts/mokli_upgrade_section11_cloud_status.sh # quota snapshot + blockers @13 (+ partial10_ok/gate)
 bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + production_gate @10 on partial pack
 bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; after reset: --wait-quota then full chain @13
+bash scripts/mokli_upgrade_section11_sync_cloud_branch.sh  # git pull §11 branch before wake (also inside timer_wake / after_reset_wake)
 # Background on Cloud Agent VM (sleep until reset, then VPS reruns): tmux session section11-timer-wake-wait → log /opt/cursor/artifacts/timer_wake_wait_quota.log
 bash scripts/mokli_upgrade_section11_check_wake.sh  # tmux + log tail + blockers_summary (no LLM)
 bash scripts/mokli_upgrade_section11_monitor_log.sh  # append check_wake snapshot to section11_monitor.log

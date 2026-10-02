@@ -8,6 +8,10 @@ source "$ROOT/scripts/section11_quota_hints.sh"
 LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log}"
 SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
 
+echo "== Cloud Agent branch =="
+git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+
+echo ""
 echo "== OpenRouter reset =="
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
 printf '%s\n' "$RESET_OUT"
@@ -28,7 +32,7 @@ if [[ -f "$LOG" ]]; then
   echo "WAKE_LOG_BYTES=$(wc -c < "$LOG")"
   markers=$(
     grep -E \
-      '^(Started timer_wake|TIMER_WAKE_LOCK=|Sleeping |WAIT_HEARTBEAT |PULL_OK |QUOTA:|STILL_BLOCKED|after_reset_wake|TIMER_WAKE_EXIT|TIMER_WAKE_FINAL_EXIT|close_summary:)' \
+      '^(Started timer_wake|TIMER_WAKE_LOCK=|Sleeping |WAIT_HEARTBEAT |CLOUD_PULL_OK |PULL_OK |QUOTA:|STILL_BLOCKED|after_reset_wake|TIMER_WAKE_EXIT|TIMER_WAKE_FINAL_EXIT|close_summary:)' \
       "$LOG" 2>/dev/null | tail -20
   )
   if [[ -n "$markers" ]]; then
