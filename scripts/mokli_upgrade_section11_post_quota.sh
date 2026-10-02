@@ -14,7 +14,7 @@ SKIP_RERUN=0
 usage() {
   echo "Usage: $0 [--wait] [--pull-vps] [--skip-rerun]" >&2
   echo "  --wait       sleep until X-RateLimit-Reset+buffer, then live probe" >&2
-  echo "  --pull-vps   vps_pull_main.sh on \$MOKLI_SECTION11_VPS_BRANCH before probe" >&2
+  echo "  --pull-vps   sync Cloud branch + check_wake --sync-vps-rev before probe" >&2
   echo "  --skip-rerun skip mokli_upgrade_section11_rerun_partials.sh (probe only)" >&2
   exit 2
 }
@@ -31,8 +31,8 @@ done
 
 if [[ "$DO_PULL" -eq 1 ]]; then
   bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
-  echo "== VPS pull ($BRANCH) =="
-  bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
+  echo "== VPS git (pull if behind Cloud) =="
+  bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" --sync-vps-rev || true
 fi
 
 echo "== LLM quota =="

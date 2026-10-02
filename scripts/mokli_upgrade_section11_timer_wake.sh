@@ -34,7 +34,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   wait_note=""
   [[ "$WAIT_QUOTA" -eq 1 ]] && wait_note=" (with --wait-quota: sleep until reset+buffer if probe blocked, then same chain)"
   cat <<NOTE
-DRY-RUN: would next run${wait_note}: after_reset_wake (probe, rerun_partials, try_row11) → remaining_rows (runbook) → try_row11 → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
+DRY-RUN: would next run${wait_note}: sync-vps-rev → after_reset_wake (probe, rerun_partials, try_row11) → remaining_rows (runbook) → try_row11 → sync --pull-vps → operator_unblock --pull-vps → close --apply @13 (report gate inside close)
 NOTE
   echo "TIMER_WAKE_EXIT=0 (dry-run)"
   exit 0

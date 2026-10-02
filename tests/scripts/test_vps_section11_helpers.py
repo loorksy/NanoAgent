@@ -516,7 +516,7 @@ def test_operator_unblock_script_wires_probe_and_blockers() -> None:
     assert "timer_wake.sh --wait-quota" in text
     assert "vps_section11_set_oanda_env.sh" in text
     assert "--pull-vps" in text
-    assert "vps_pull_main.sh" in text
+    assert "--sync-vps-rev" in text
     assert "operator-handoff.md" in text
     assert "partial10_ok=" in text
     assert "mokli_upgrade_section11_production_gate.sh" in text
@@ -608,7 +608,7 @@ def test_post_quota_wires_wait_probe_and_reruns() -> None:
     assert "vps_section11_quota_probe.sh" in text
     assert "rerun_partials.sh" in text
     assert "mokli_upgrade_section11_try_row11_paper.sh" in text
-    assert "vps_pull_main.sh" in text
+    assert "--sync-vps-rev" in text
     assert "timer_wake.sh" in text
     assert "mokli_upgrade_section11_blockers.sh" in text
 

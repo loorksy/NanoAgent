@@ -20,7 +20,7 @@ RERUN_ROWS=""
 usage() {
   echo "Usage: $0 [--skip-probe] [--pull-vps]" >&2
   echo "  --skip-probe  use cached quota-probe JSONL (no live LLM call)" >&2
-  echo "  --pull-vps    vps_pull_main.sh on \$MOKLI_SECTION11_VPS_BRANCH before probe/env" >&2
+  echo "  --pull-vps    sync Cloud branch + check_wake --sync-vps-rev (pull VPS only if rev differs)" >&2
   exit 2
 }
 
@@ -35,8 +35,8 @@ done
 
 if [[ "$DO_PULL" -eq 1 ]]; then
   bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
-  echo "== VPS pull ($BRANCH) =="
-  bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
+  echo "== VPS git (pull if behind Cloud) =="
+  bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" --sync-vps-rev || true
 fi
 
 echo "== branch =="
