@@ -72,6 +72,23 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
 def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     text = (ROOT / "scripts" / "section11_quota_hints.sh").read_text(encoding="utf-8")
     assert "section11_emit_wake_after_buffer" in text
+    assert "section11_parse_probe_in" in text
+
+
+def test_parse_probe_in_ignores_nested_in_zero() -> None:
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source scripts/section11_quota_hints.sh; section11_parse_probe_in '
+            '"rounds=1 in=4058 out=31 nested_in=0"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.stdout.strip() == "4058"
 
 
 def test_env_check_mentions_section11_model_when_quota_hinted() -> None:

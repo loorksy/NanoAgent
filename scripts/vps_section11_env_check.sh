@@ -191,6 +191,10 @@ if [[ "$REQUIRE_QUOTA" -eq 1 ]]; then
     echo "llm_quota=OK (live probe)"
   else
     echo "llm_quota=BLOCKED (live probe)"
+    if quota_line=$(bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$ROOT/section11-events" 2>&1); then
+      quota_ok=1
+      echo "llm_quota=OK (cached probe; upstream 429 between turns)"
+    fi
   fi
 else
   if quota_line=$(bash "$ROOT/scripts/vps_section11_quota_status.sh" 2>&1); then

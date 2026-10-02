@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # Shared stderr hints when §11 LLM quota probe fails (sourced, not executed).
 
+# Parse mokli_upgrade_diagnostic_extract.py one-line summary (avoid matching nested_in=0).
+section11_parse_probe_in() {
+  local summary="${1:-}"
+  local val
+  val=$(echo "$summary" | sed -n 's/.* rounds=1 in=\([0-9][0-9]*\).*/\1/p' | head -1)
+  if [[ -n "$val" ]]; then
+    echo "$val"
+    return 0
+  fi
+  val=$(echo "$summary" | sed -n 's/.* in=\([0-9][0-9]*\).*/\1/p' | head -1)
+  [[ -n "$val" ]] && echo "$val"
+}
+
 section11_jsonl_indicates_quota_block() {
   local file="${1:-}"
   [[ -n "$file" && -f "$file" ]] || return 1

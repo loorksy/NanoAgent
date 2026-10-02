@@ -69,15 +69,21 @@ if [[ "$secs" -gt 0 ]]; then
     exit 1
   fi
   echo "Sleeping ${sleep_for}s until reset+buffer…" >&2
-  remaining=$sleep_for
   chunk_sec=1800
-  while [[ "$remaining" -gt 0 ]]; do
+  while true; do
+    secs_now=$("$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" --seconds "$best_path")
+    if [[ "$secs_now" == "-1" ]]; then
+      secs_now=$secs
+    fi
+    remaining=$(( secs_now + BUFFER_SEC ))
+    if [[ "$remaining" -le 0 ]]; then
+      echo "WAIT_HEARTBEAT sleep_remaining_sec=0 chunk_sec=0"
+      break
+    fi
     chunk=$remaining
     [[ "$chunk" -gt "$chunk_sec" ]] && chunk=$chunk_sec
-    # stdout so timer_wake `2>&1 | tee` captures progress during long waits
     echo "WAIT_HEARTBEAT sleep_remaining_sec=${remaining} chunk_sec=${chunk}"
     sleep "$chunk"
-    remaining=$(( remaining - chunk ))
   done
 fi
 

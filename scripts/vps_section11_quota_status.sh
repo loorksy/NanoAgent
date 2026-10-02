@@ -53,8 +53,14 @@ _status_events_dir() {
     echo "STALE probe=$(basename "$probe") age_min=$age_min max=$MAX_AGE_MIN"
     return 4
   fi
-  local line
+  local line in_val
   line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$probe" 2>/dev/null || true)
+  in_val=$(section11_parse_probe_in "$line")
+  if [[ -n "${in_val:-}" && "$in_val" != "0" ]]; then
+    echo "probe=$(basename "$probe") age_min=$age_min $line"
+    echo "QUOTA_OK cached"
+    return 0
+  fi
   if section11_jsonl_indicates_quota_block "$probe"; then
     if [[ -n "${line:-}" ]]; then
       echo "probe=$(basename "$probe") age_min=$age_min $line"
@@ -70,13 +76,9 @@ _status_events_dir() {
     return 5
   fi
   echo "probe=$(basename "$probe") age_min=$age_min $line"
-  if echo "$line" | grep -qE '(^| )in=0([^0-9]|$)'; then
-    echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
-    "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$probe" >&2 || true
-    return 1
-  fi
-  echo "QUOTA_OK cached"
-  return 0
+  echo "QUOTA_BLOCKED: cached (run vps_section11_quota_probe.sh after credits)"
+  "$PYTHON" "$ROOT/scripts/section11_quota_reset_hint.py" "$probe" >&2 || true
+  return 1
 }
 
 if [[ -n "$LOCAL_EVENTS" ]]; then

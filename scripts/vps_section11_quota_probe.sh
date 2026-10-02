@@ -56,8 +56,30 @@ section11_pull_probe_to_workspace() {
   rm -f "$bak"
 }
 
+section11_probe_input_tokens() {
+  local path="$1"
+  [[ -f "$path" ]] || return 1
+  local line in_val
+  line=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_diagnostic_extract.py" --file "$path" 2>/dev/null || true)
+  in_val=$(section11_parse_probe_in "$line")
+  if [[ -n "${in_val:-}" && "$in_val" != "0" ]]; then
+    printf '%s\n' "$line"
+    echo "$in_val"
+    return 0
+  fi
+  return 1
+}
+
 run_probe_checks() {
   local jsonl="$1"
+  local local_jsonl="${ROOT}/section11-events/${OUT}"
+  local cached_in probe_out
+  if probe_out=$(section11_probe_input_tokens "$local_jsonl"); then
+    cached_in=$(echo "$probe_out" | tail -1)
+    echo "$probe_out" | sed '$d'
+    echo "QUOTA_OK in=$cached_in file=$OUT"
+    return 0
+  fi
   if section11_jsonl_indicates_quota_block "$jsonl"; then
     echo "QUOTA_BLOCKED: OpenRouter free daily limit or 429 in $OUT" >&2
     section11_print_quota_unblock_hints
@@ -74,7 +96,7 @@ run_probe_checks() {
   line=$(bash -lc "$extract_cmd" 2>/dev/null || true)
   echo "$line"
   local in_val
-  in_val=$(echo "$line" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
+  in_val=$(section11_parse_probe_in "$line")
   if [[ -z "${in_val:-}" || "$in_val" == "0" ]]; then
     if ! grep -q '"kind": "diagnostic"' "$jsonl" 2>/dev/null; then
       echo "QUOTA_BLOCKED: no diagnostic in $OUT (incomplete turn; rate limit likely)" >&2
@@ -98,6 +120,15 @@ export MOKLI_SSH_HOST="$HOST"
 MOKLI_SSH_HOST="$HOST" bash "$ROOT/scripts/vps_section11_agent_api_turn.sh" "$OUT" 'Reply with exactly: OK'
 section11_pull_probe_to_workspace "$OUT"
 
+local_jsonl="${ROOT}/section11-events/${OUT}"
+probe_out=""
+if probe_out=$(section11_probe_input_tokens "$local_jsonl"); then
+  cached_in=$(echo "$probe_out" | tail -1)
+  echo "$probe_out" | sed '$d'
+  echo "QUOTA_OK in=$cached_in file=$OUT"
+  exit 0
+fi
+
 if ssh -o BatchMode=yes "$HOST" \
   "grep -qE 'Rate limit exceeded|free-models-per-day|\"error_kind\"[[:space:]]*:[[:space:]]*\"rate_limit\"' \
     ${INSTALL_DIR}/section11-events/$OUT 2>/dev/null"; then
@@ -112,7 +143,7 @@ fi
 extract_out=$(ssh -o BatchMode=yes "$HOST" \
   "sudo -u ${MOKLI_SERVICE_USER:-nanoagent} bash -lc 'cd ${INSTALL_DIR} && source .venv/bin/activate && \
     python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/$OUT'" 2>&1) || true
-IN=$(echo "$extract_out" | sed -n 's/.*in=\([0-9]*\).*/\1/p' | head -1)
+IN=$(section11_parse_probe_in "$extract_out")
 
 if [[ -z "${IN:-}" || "$IN" == "0" ]]; then
   if echo "$extract_out" | grep -qi 'no diagnostic'; then

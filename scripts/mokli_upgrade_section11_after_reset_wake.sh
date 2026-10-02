@@ -12,8 +12,24 @@ echo "== VPS pull ($BRANCH) =="
 bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 
 echo "== live quota probe =="
-if ! bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
-  bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true
+probe_ok=0
+for attempt in 1 2 3 4 5; do
+  if bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
+    probe_ok=1
+    break
+  fi
+  reset_line=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+  reset_sec=$(printf '%s\n' "$reset_line" | sed -n 's/^seconds_until_reset=\([0-9]*\).*/\1/p' | head -1)
+  if [[ -n "${reset_sec:-}" && "$reset_sec" -gt 0 ]]; then
+    printf '%s\n' "$reset_line"
+    break
+  fi
+  if [[ "$attempt" -lt 5 ]]; then
+    echo "HINT: probe failed after daily reset (upstream 429?) — retry $attempt/5 in 120s" >&2
+    sleep 120
+  fi
+done
+if [[ "$probe_ok" -ne 1 ]]; then
   echo "STILL_BLOCKED: add OpenRouter credits or export MOKLI_SECTION11_MODEL before §11 live rows" >&2
   echo "HINT: OANDA — bash scripts/vps_section11_set_oanda_env.sh" >&2
   exit 1
