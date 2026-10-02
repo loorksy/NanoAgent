@@ -186,7 +186,7 @@ def _quality_hints(directory: Path, require_through: int) -> None:
                         file=sys.stderr,
                     )
                 v2_path = directory / "05-subagents-v2.jsonl"
-                if v2_path.is_file() and name != v2_path.name:
+                if v2_path.is_file():
                     v2_diag = diagnostic_from_text(v2_path.read_text(encoding="utf-8"))
                     if v2_diag is not None and _input_tokens(v2_diag) == 0:
                         print(

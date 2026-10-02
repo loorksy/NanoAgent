@@ -18,7 +18,7 @@
 | P3 — تصنيف إرث Open WebUI؛ حذف المثبت غير الموصول فقط | تقرير §8؛ حذف `stage_checkpoint` / `trace_events` | منجز |
 | تقرير نهائي (مشاكل، توكن، سرعة، أدوات، وكلاء، استراتيجية، إعدادات، إرث، اختبارات، ملفات) | `docs/mokli-agent-upgrade-report.md` §1–10 | منجز |
 | لا أنظمة AgentRunner/ToolRegistry/Memory/TradingKernel موازية | مراجعة الفرع — توسيع الموجود | منجز |
-| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2523** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02) | منجز |
+| pytest مجمّع | `tests/agent` + `tests/trading` + `tests/agent_api` + `test_mokli_pipe.py` + `tests/scripts/` → **2530** passed (1 skipped؛ `bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02) | منجز |
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers` (`blockers_summary`)؛ `close.sh` (`close_summary`)؛ `production_gate`؛ sync @13؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` / `section11_status` (`seconds_until_reset` + `partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `check_wake.sh` (tmux+log+`wake_after_buffer_utc`)؛ `operator_smoke` | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (`closure_errors=5` strict؛ `allow_partial_closure_errors=2` — rows **5/10** + **11–13** حتى `close --apply`) |

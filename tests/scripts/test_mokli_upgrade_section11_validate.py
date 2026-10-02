@@ -155,6 +155,7 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
         }
     )
     (tmp_path / "05-subagents.jsonl").write_text(spawn_line + diag + "\n", encoding="utf-8")
+    (tmp_path / "05-subagents-v2.jsonl").write_text(spawn_line + diag + "\n", encoding="utf-8")
     for row_id in (1, 2, 3, 4):
         (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
             json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "tool_calls": 2}}) + "\n",
@@ -178,6 +179,7 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
         check=False,
     )
     assert proc.returncode == 0
+    assert "stale 05-subagents.jsonl" in proc.stderr
     assert "HINT row 5" in proc.stderr
     assert "upstream 429" in proc.stderr
     assert "vps_section11_row5_subagents" in proc.stderr
@@ -230,6 +232,7 @@ def test_validate_hints_row5_quota_failed_v2_on_disk(tmp_path: Path) -> None:
         check=False,
     )
     assert proc.returncode == 0
+    assert "stale 05-subagents.jsonl" in proc.stderr
     assert "05-subagents-v2.jsonl" in proc.stderr
     assert "quota-failed rerun" in proc.stderr
 
