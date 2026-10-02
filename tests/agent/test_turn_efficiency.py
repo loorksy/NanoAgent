@@ -594,6 +594,7 @@ def test_registered_tools_have_display_copy() -> None:
     assert phrase_for("get_gold_quote", "started") == "يفحص سعر الذهب الحالي…"
     assert phrase_for("get_gate_report", "finished") == "اكتمل فحص شروط القرار"
     assert phrase_for("run_trading_kernel", "started") == "يشغّل محرك التحليل"
+    assert phrase_for("grep", "started") == "يبحث في ملفات المهارات…"
     assert "get_gold_quote" not in phrase_for("get_gold_quote", "started")
 
 
