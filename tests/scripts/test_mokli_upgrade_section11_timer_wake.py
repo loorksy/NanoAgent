@@ -37,6 +37,11 @@ def test_timer_wake_close_failure_reruns_blockers_and_remaining_rows_hint() -> N
     assert "remaining_rows.sh" in text
 
 
+def test_timer_wake_syncs_vps_rev_before_after_reset_wake() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "check_wake.sh" in text and "--sync-vps-rev" in text
+
+
 def test_timer_wake_supports_wait_quota_flag() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "--wait-quota" in text

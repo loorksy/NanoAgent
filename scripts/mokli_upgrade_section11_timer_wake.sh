@@ -64,6 +64,9 @@ fi
 echo ""
 bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
 echo ""
+echo "== VPS git (match Cloud tip before live §11) =="
+bash "$ROOT/scripts/mokli_upgrade_section11_check_wake.sh" --sync-vps-rev || true
+echo ""
 echo "== after OpenRouter reset (live probe + partial reruns) =="
 if ! bash "$ROOT/scripts/mokli_upgrade_section11_after_reset_wake.sh"; then
   echo "TIMER_WAKE_EXIT=1 (after_reset_wake failed — quota/OANDA/LLM)" >&2
