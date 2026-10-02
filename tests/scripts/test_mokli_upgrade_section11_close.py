@@ -296,3 +296,8 @@ def test_close_uses_validate_shell_wrapper() -> None:
     assert "print-live-rerun-rows" in text
     assert text.count("mokli_upgrade_section11_validate.py") == 2  # allow_partial + live_rerun_rows
     assert "section11_allow_partial_closure_errors" in text
+
+
+def test_close_does_not_prune_row5_jsonl_on_disk() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "section11_prune_row5_stale_no_nested" not in text
