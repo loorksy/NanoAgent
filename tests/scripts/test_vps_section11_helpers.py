@@ -190,6 +190,40 @@ def test_prune_quota_failed_keeps_row5_jsonl_when_in_gt_zero_nested_in_zero(
     assert "quota-failed" not in proc.stderr
 
 
+def test_validate_wrapper_prunes_row5_before_python(tmp_path: Path) -> None:
+    stale = tmp_path / "05-subagents.jsonl"
+    stale.write_text(
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"code": 429, rate-limited upstream"}}\n'
+        '{"kind":"diagnostic","data":{"rounds":4,"input_tokens":51744,'
+        '"tool_calls":4,"nested_rounds":0}}\n',
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text('{"1":"x","2":"x","3":"x","4":"x","5":"x"}', encoding="utf-8")
+    validate_sh = ROOT / "scripts" / "mokli_upgrade_section11_validate.sh"
+    proc = subprocess.run(
+        [
+            "bash",
+            str(validate_sh),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "5",
+            "--allow-partial",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert not stale.is_file(), proc.stderr
+    assert "stale 05-subagents.jsonl" in proc.stderr or proc.returncode in (0, 1)
+
+
 def test_prune_row5_stale_removes_spawn_429_no_nested(tmp_path: Path) -> None:
     stale = tmp_path / "05-subagents.jsonl"
     stale.write_text(

@@ -60,7 +60,7 @@ bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بل
 
 | سطر | سكربت |
 | --- | --- |
-| `blockers_summary:` | `blockers.sh` — `env_ok`, `validate_ok`, `closure_errors`, `seconds_until_reset` |
+| `blockers_summary:` | `blockers.sh` — `env_ok`, `validate_ok`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset` |
 | `completion_status:` | `completion_status.sh` — `artifact_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors` (markdown preview gate), `seconds_until_reset`, `wake_after_buffer_utc` |
 | `cloud_status:` | `cloud_status.sh` — `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
 | `operator_unblock:` | `operator_unblock.sh` — `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset` |
