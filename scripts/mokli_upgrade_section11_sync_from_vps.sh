@@ -11,6 +11,7 @@ POSITIONAL=()
 usage() {
   echo "Usage: $0 [--pull-vps] [EVENTS_DIR] [RESULTS_JSON] [REQUIRE_THROUGH]" >&2
   echo "  --pull-vps  fast-forward VPS checkout (§11 branch) before scp" >&2
+  echo "  REQUIRE_THROUGH is numeric (13), not @13; default events dir is section11-events/" >&2
   exit 2
 }
 
