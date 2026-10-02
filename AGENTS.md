@@ -130,6 +130,8 @@ bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # pull JSONL +
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
 bash scripts/mokli_upgrade_section11_rerun_partials.sh  # selective gaps from validate --print-live-rerun-rows (+ OANDA for 10)
 bash scripts/mokli_upgrade_section11_precheck_ui.sh  # rows 12–13 UI prechecks (no LLM; VPS SSH for :8080)
+bash scripts/vps_section11_row12_pipe_turn.sh  # after quota: headless mokli_pipe → 12-desktop-ui.jsonl (try_row12 in after_reset_wake)
+bash scripts/vps_section11_row13_export_session.sh  # after mobile/SDK chat on gateway: session SSE → 13-mobile.jsonl
 bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable
 bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # artifact pack while quota blocked
 # Post-reset §11 closure (quota OK): docs/section11-post-reset-runbook.md
