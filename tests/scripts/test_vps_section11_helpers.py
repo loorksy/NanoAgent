@@ -560,6 +560,8 @@ def test_monitor_log_syncs_vps_rev_via_check_wake() -> None:
         encoding="utf-8"
     )
     assert "--sync-vps-rev" in text
+    assert "timer_wake_wait_quota.log" in text
+    assert "WAIT_HEARTBEAT" in text
 
 
 def test_check_wake_script_reports_tmux_and_log() -> None:
