@@ -380,6 +380,7 @@ def test_rerun_partials_syncs_with_pull_vps() -> None:
     assert "--pull-vps" in text
     assert 'section11-results-partial.json" 13' in text or "partial.json\" 13" in text
     assert "vps_section11_row8_fallback_provider.sh" in text
+    assert "print-live-rerun-rows" in text
 
 
 def test_sync_from_vps_supports_pull_vps_flag() -> None:

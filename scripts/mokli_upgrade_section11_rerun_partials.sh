@@ -27,17 +27,27 @@ else
   bash "$ROOT/scripts/vps_section11_row1_after_p0.sh"
 fi
 
-echo "== partial rows 3, 5, 9 (writes 03-multi-tool-v2, 05-subagents-v2, 09-long-session-v3 on VPS) =="
-bash "$ROOT/scripts/vps_section11_row3_multi_tool.sh"
-bash "$ROOT/scripts/vps_section11_row5_subagents.sh"
-bash "$ROOT/scripts/vps_section11_row8_fallback_provider.sh"
-bash "$ROOT/scripts/vps_section11_row9_long_session.sh"
-
-if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-oanda 2>/dev/null; then
-  echo "== row 10 backtest (OANDA ok) =="
-  bash "$ROOT/scripts/vps_section11_row10_backtest.sh"
-else
-  echo "SKIP row 10: OANDA not configured" >&2
+RERUN_ROWS=$("$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+  --dir "$ROOT/section11-events" --require-through 13 --print-live-rerun-rows 2>/dev/null || true)
+echo "== partial rows (live quality gaps: ${RERUN_ROWS:-none}) =="
+for row_id in $RERUN_ROWS; do
+  case "$row_id" in
+    3) bash "$ROOT/scripts/vps_section11_row3_multi_tool.sh" ;;
+    5) bash "$ROOT/scripts/vps_section11_row5_subagents.sh" ;;
+    8) bash "$ROOT/scripts/vps_section11_row8_fallback_provider.sh" ;;
+    9) bash "$ROOT/scripts/vps_section11_row9_long_session.sh" ;;
+    10)
+      if bash "$ROOT/scripts/vps_section11_env_check.sh" --require-oanda 2>/dev/null; then
+        bash "$ROOT/scripts/vps_section11_row10_backtest.sh"
+      else
+        echo "SKIP row 10: OANDA not configured" >&2
+      fi
+      ;;
+    *) echo "WARN: no rerun script mapped for row $row_id" >&2 ;;
+  esac
+done
+if [[ -z "${RERUN_ROWS// /}" ]]; then
+  echo "SKIP partial row scripts — JSONL quality OK for rows 3,5,8,9,10"
 fi
 
 echo "== sync JSONL from VPS + P0 table =="

@@ -937,3 +937,39 @@ def test_validate_row9_hint_when_only_quota_blocked_file(tmp_path: Path) -> None
     assert proc.returncode == 0
     assert "HINT row 9 (09-long-session-v2.jsonl)" in proc.stderr
     assert "in_last=0" in proc.stderr
+
+
+def test_print_live_rerun_rows_lists_quality_gaps(tmp_path: Path) -> None:
+    (tmp_path / "03-multi-tool.jsonl").write_text(
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 2, "input_tokens": 100, "tool_calls": 2}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 100, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--require-through",
+            "13",
+            "--print-live-rerun-rows",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert proc.stdout.strip() == "5"

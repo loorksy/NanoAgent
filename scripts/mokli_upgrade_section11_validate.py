@@ -73,6 +73,54 @@ def _input_tokens(diag: dict) -> int:
     return 0
 
 
+def live_quality_gap_rows(directory: Path, require_through: int) -> list[int]:
+    """§11 row ids (3, 5, 8, 9, 10) whose picked JSONL fails live closure quality."""
+    gaps: list[int] = []
+    if require_through >= 3:
+        picked3 = pick_row_diagnostic(directory, 3)
+        if picked3 is not None:
+            _name3, diag3 = picked3
+            tools3 = int(diag3.get("tool_calls") or 0)
+            if tools3 < 2 or _input_tokens(diag3) == 0:
+                gaps.append(3)
+    if require_through >= 5:
+        picked5 = pick_row_diagnostic(directory, 5)
+        if picked5 is not None:
+            _name5, diag5 = picked5
+            nested5 = int(diag5.get("nested_rounds") or 0)
+            if nested5 < 1 or _input_tokens(diag5) == 0:
+                gaps.append(5)
+    if require_through >= 8:
+        picked8 = pick_row_diagnostic(directory, 8)
+        if picked8 is not None:
+            _name8, diag8 = picked8
+            if _input_tokens(diag8) == 0:
+                gaps.append(8)
+    if require_through >= 9:
+        picked9 = pick_row_diagnostic(directory, 9)
+        if picked9 is not None:
+            name9, _diag9 = picked9
+            path9 = directory / name9
+            diags9 = all_diagnostics_from_text(path9.read_text(encoding="utf-8"))
+            summary9 = session_summary_line(diags9)
+            if len(diags9) < 15:
+                gaps.append(9)
+            elif "quota_blocked_likely=yes" in summary9 or (
+                "in_last=0" in summary9 and len(diags9) > 1
+            ):
+                gaps.append(9)
+    if require_through >= 10:
+        picked10 = pick_row_diagnostic(directory, 10)
+        if picked10 is not None:
+            name10, diag10 = picked10
+            body10 = (directory / name10).read_text(encoding="utf-8")
+            if "market_feed_unconfigured" in body10 or "OANDA not configured" in body10:
+                gaps.append(10)
+            elif _input_tokens(diag10) == 0:
+                gaps.append(10)
+    return gaps
+
+
 def _quality_hints(directory: Path, require_through: int) -> None:
     if require_through >= 1 and not (directory / "01-no-tools-after-p0.jsonl").is_file():
         picked = pick_row_diagnostic(directory, 1)
@@ -193,7 +241,12 @@ def _print_row_progress(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dir", type=Path, required=True, help="Directory of JSONL logs")
-    parser.add_argument("--results", type=Path, required=True, help="Operator results JSON")
+    parser.add_argument(
+        "--results",
+        type=Path,
+        default=None,
+        help="Operator results JSON (omit with --print-live-rerun-rows)",
+    )
     parser.add_argument(
         "--require-through",
         type=int,
@@ -205,8 +258,24 @@ def main() -> int:
         action="store_true",
         help="Allow PARTIAL in «النتيجة» (default: reject when --require-through >= 13)",
     )
+    parser.add_argument(
+        "--print-live-rerun-rows",
+        action="store_true",
+        help="Print row ids needing VPS live rerun (3,5,8,9,10); no results file required",
+    )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
+    if args.print_live_rerun_rows:
+        if not directory.is_dir():
+            print("ERROR missing events dir", file=sys.stderr)
+            return 1
+        rows = live_quality_gap_rows(directory, args.require_through)
+        print(" ".join(str(r) for r in rows))
+        return 0
+
+    if args.results is None:
+        print("ERROR --results required unless --print-live-rerun-rows", file=sys.stderr)
+        return 2
     results_path = args.results.expanduser().resolve()
     required = set(range(1, args.require_through + 1))
 
