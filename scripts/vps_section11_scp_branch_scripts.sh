@@ -16,6 +16,7 @@ FILES=(
   scripts/mokli_upgrade_diagnostic_extract.py
   scripts/mokli_upgrade_section11_rerun_partials.sh
   scripts/mokli_upgrade_section11_blockers.sh
+  scripts/mokli_upgrade_section11_operator_unblock.sh
   scripts/mokli_upgrade_section11_close.sh
   scripts/mokli_upgrade_section11_after_reset_wake.sh
   scripts/mokli_upgrade_section11_sync_cloud_branch.sh
