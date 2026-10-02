@@ -196,6 +196,9 @@ def test_env_check_mentions_section11_model_when_quota_hinted() -> None:
     assert "git_branch=" in text
     assert "MOKLI_SECTION11_VPS_BRANCH" in text
     assert "VPS git_rev=" in text and "local_rev" in text
+    assert "rev-parse --short=7" in text
+    assert "oanda_env_file=" in text
+    assert "vps_section11_set_oanda_env.sh" in text
     assert "_read_gateway_model_preset" in text
     assert "sudo -u" in text
 

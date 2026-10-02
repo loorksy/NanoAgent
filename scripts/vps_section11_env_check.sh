@@ -81,16 +81,20 @@ _snapshot_body() {
     pipe_diag=present
   fi
   oanda=no
-  if [[ -f "$install/.env" ]] \
-    && grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
-    && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
-    oanda=yes
+  oanda_env_file=missing
+  if [[ -f "$install/.env" ]]; then
+    oanda_env_file=present
+    if grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
+      && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
+      oanda=yes
+    fi
   fi
   model_preset=$(_read_gateway_model_preset "$SERVICE_USER")
   echo "REV=$rev"
   echo "BRANCH=$branch"
   echo "API_HEALTH=$health"
   echo "OANDA=$oanda"
+  echo "OANDA_ENV_FILE=$oanda_env_file"
   echo "UI_HTTP=$ui_http"
   echo "PIPE_DIAG=$pipe_diag"
   echo "MODEL_PRESET=$model_preset"
@@ -117,10 +121,13 @@ if [[ -f "$install/deploy/mokliui/functions/mokli_pipe.py" ]] \
   pipe_diag=present
 fi
 oanda=no
-if [[ -f "$install/.env" ]] \
-  && grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
-  && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
-  oanda=yes
+oanda_env_file=missing
+if [[ -f "$install/.env" ]]; then
+  oanda_env_file=present
+  if grep -qE '^OANDA_API_TOKEN=.+' "$install/.env" 2>/dev/null \
+    && grep -qE '^OANDA_ACCOUNT_ID=.+' "$install/.env" 2>/dev/null; then
+    oanda=yes
+  fi
 fi
 model_preset=unknown
 model_preset=$(python3 - <<'PY' 2>/dev/null || echo unknown
@@ -141,6 +148,7 @@ echo "REV=$rev"
 echo "BRANCH=$branch"
 echo "API_HEALTH=$health"
 echo "OANDA=$oanda"
+echo "OANDA_ENV_FILE=$oanda_env_file"
 echo "UI_HTTP=$ui_http"
 echo "PIPE_DIAG=$pipe_diag"
 echo "MODEL_PRESET=$model_preset"
@@ -156,6 +164,7 @@ rev=$(echo "$lines" | sed -n 's/^REV=//p')
 branch=$(echo "$lines" | sed -n 's/^BRANCH=//p')
 health=$(echo "$lines" | sed -n 's/^API_HEALTH=//p')
 oanda=$(echo "$lines" | sed -n 's/^OANDA=//p')
+oanda_env_file=$(echo "$lines" | sed -n 's/^OANDA_ENV_FILE=//p')
 ui_http=$(echo "$lines" | sed -n 's/^UI_HTTP=//p')
 pipe_diag=$(echo "$lines" | sed -n 's/^PIPE_DIAG=//p')
 model_preset=$(echo "$lines" | sed -n 's/^MODEL_PRESET=//p')
@@ -164,6 +173,7 @@ echo "git_rev=${rev:-?}"
 echo "git_branch=${branch:-?}"
 echo "agent_api_health=${health:-?}"
 echo "oanda_configured=${oanda:-?}"
+echo "oanda_env_file=${oanda_env_file:-?}"
 echo "mokli_ui_http=${ui_http:-?}"
 echo "mokli_pipe_show_diagnostics=${pipe_diag:-?}"
 echo "gateway_model_preset=${model_preset:-?}"
@@ -178,9 +188,13 @@ if [[ -n "${branch:-}" && "$branch" != "$expected_branch" ]]; then
   echo "HINT: VPS on branch=${branch} — §11 tooling expects ${expected_branch} until PR merge" >&2
   echo "HINT: bash scripts/vps_pull_main.sh ${expected_branch}" >&2
 fi
-local_rev=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
-if [[ -n "${rev:-}" && "$rev" != unknown && "$local_rev" != unknown && "$rev" != "$local_rev" ]]; then
+local_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+rev_cmp=$(echo "${rev:-}" | cut -c1-7)
+if [[ -n "${rev_cmp:-}" && "$rev_cmp" != unknown && "$local_rev" != unknown && "$rev_cmp" != "$local_rev" ]]; then
   echo "HINT: VPS git_rev=${rev} != local ${local_rev} — bash scripts/vps_pull_main.sh ${expected_branch}" >&2
+fi
+if [[ "${oanda:-}" == no && "${oanda_env_file:-}" == present ]]; then
+  echo "HINT: ${INSTALL_DIR}/.env exists but OANDA_* missing — OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh" >&2
 fi
 
 quota_ok=0

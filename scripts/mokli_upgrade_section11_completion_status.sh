@@ -64,7 +64,7 @@ bash "$ROOT/scripts/vps_section11_quota_status.sh" --local-dir "$EVENTS" || true
 echo ""
 echo "== VPS env (SSH) =="
 bash "$ROOT/scripts/vps_section11_env_check.sh" 2>&1 \
-  | grep -E '^(git_rev|git_branch|oanda_configured|llm_quota|gateway_model_preset|section11_model_override|agent_api_health|mokli_ui_http|mokli_pipe_show_diagnostics)=' \
+  | grep -E '^(git_rev|git_branch|oanda_configured|oanda_env_file|llm_quota|gateway_model_preset|section11_model_override|agent_api_health|mokli_ui_http|mokli_pipe_show_diagnostics)=' \
   || bash "$ROOT/scripts/vps_section11_env_check.sh" || true
 
 echo ""
