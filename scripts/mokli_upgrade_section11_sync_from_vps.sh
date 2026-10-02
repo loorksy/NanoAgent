@@ -26,7 +26,7 @@ done
 
 EVENTS="${POSITIONAL[0]:-$ROOT/section11-events}"
 RESULTS="${POSITIONAL[1]:-$ROOT/section11-results-partial.json}"
-REQUIRE="${POSITIONAL[2]:-10}"
+REQUIRE="${POSITIONAL[2]:-13}"
 
 if [[ "$PULL_VPS" -eq 1 ]]; then
   branch="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"

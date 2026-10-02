@@ -647,6 +647,7 @@ def test_sync_from_vps_supports_pull_vps_flag() -> None:
     assert "MOKLI_SECTION11_VPS_BRANCH" in text
     assert "vps_pull_main.sh" in text
     assert "section11_prune_row5_stale_no_nested" in text
+    assert 'REQUIRE="${POSITIONAL[2]:-13}"' in text
 
 
 def test_wait_quota_reset_long_sleep_emits_heartbeats() -> None:
