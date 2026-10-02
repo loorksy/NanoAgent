@@ -60,3 +60,7 @@ def test_cloud_status_exits_zero_for_artifacts_through_10_when_partial_pack() ->
     assert "not production closure" in combined
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
+    assert "allow_partial_closure_errors=0" in combined
+    assert "allow_partial_closure_errors=unknown" not in combined
+    assert "allow_partial_closure_errors=0" in combined
+    assert "allow_partial_closure_errors=unknown" not in combined

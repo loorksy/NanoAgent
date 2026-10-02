@@ -93,6 +93,13 @@ if [[ "$REQUIRE" -ge 13 && -d "$EVENTS" && -f "$RESULTS" ]]; then
       "$EVENTS" "$RESULTS" "$REQUIRE"
   )
 fi
+if [[ -z "$ALLOW_PARTIAL_CE" ]]; then
+  ALLOW_PARTIAL_CE=$(
+    printf '%s\n' "$BLOCK_COMBINED" \
+      | sed -n 's/^blockers_summary:.*allow_partial_closure_errors=\([0-9]*\).*/\1/p' \
+      | tail -1
+  )
+fi
 
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
