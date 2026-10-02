@@ -121,6 +121,7 @@ def test_blockers_script_hints_after_p0_in_gt_zero() -> None:
     assert "strict closure_errors" in text
     assert "--print-live-rerun-rows" in text
     assert "allow_partial_closure_errors=" in text
+    assert "section11_prune_row5_stale_no_nested" not in text
 
 
 def test_blockers_closure_errors_matches_validate_on_partial_at_13() -> None:
