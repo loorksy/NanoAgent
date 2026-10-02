@@ -125,7 +125,7 @@ bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/re
 bash scripts/mokli_upgrade_section11_close.sh  # dry-run; --apply --require-through 13 --results section11-results-partial.json after live artifacts
 # Partial pack preview: --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
 # Preview §11 table with partial VPS pack: close.sh --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
-bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # default validate 1–10; pass EVENTS RESULTS 13 for full pack
+bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # pull JSONL + after_pull (P0 delta even when validate @13 fails); pass EVENTS RESULTS 13
 bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
 bash scripts/mokli_upgrade_section11_rerun_partials.sh  # selective gaps from validate --print-live-rerun-rows (+ OANDA for 10)
 bash scripts/mokli_upgrade_section11_precheck_ui.sh  # rows 12–13 UI prechecks (no LLM; VPS SSH for :8080)
