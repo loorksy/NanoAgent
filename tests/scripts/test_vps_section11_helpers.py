@@ -589,6 +589,7 @@ def test_after_reset_wake_probe_without_long_wait() -> None:
     )
     assert "wait_quota_reset.sh --wait" not in text
     assert "vps_section11_quota_probe.sh" in text
+    assert "VPS git vs Cloud (post-pull)" in text
     assert "rerun_partials.sh" in text
     assert "remaining_rows.sh" in text
     assert "require-oanda" in text
