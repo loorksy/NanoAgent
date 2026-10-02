@@ -19,6 +19,7 @@ def test_cloud_status_reports_blockers_and_exits_nonzero_until_row_13() -> None:
         check=False,
     )
     combined = proc.stdout + proc.stderr
+    assert "cloud_agent_rev=" in combined
     assert "cloud_status:" in combined
     assert "quota_ok=" in combined
     assert "blockers_ok=" in combined

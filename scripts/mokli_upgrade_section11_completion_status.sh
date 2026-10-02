@@ -36,7 +36,7 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 
 echo "== branch =="
-git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+echo "cloud_agent_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
 
 echo ""
 echo "== live rerun rows (validate --print-live-rerun-rows) =="

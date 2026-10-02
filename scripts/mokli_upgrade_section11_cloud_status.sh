@@ -24,6 +24,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "cloud_agent_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
+echo ""
 echo "== OpenRouter reset =="
 RESET_SEC="unknown"
 RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
