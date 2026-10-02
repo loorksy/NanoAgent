@@ -22,7 +22,7 @@
 | أدوات المشغّل §11 | `validate.sh`؛ `blockers` (`blockers_summary`)؛ `close.sh` (`close_summary`)؛ `production_gate`؛ sync @13؛ `p0_live_delta`؛ `quota_probe` + `section11_probe_cache_preserve.py`؛ `completion_status` / `cloud_status` / `operator_unblock` / `section11_status` (`seconds_until_reset` + `partial10_*`)؛ `try_row11_paper.sh` في `after_reset_wake`/`timer_wake`؛ `remaining_rows.sh` (دليل 12–13)؛ `timer_wake`؛ `check_wake.sh` (tmux+log+`wake_after_buffer_utc`)؛ `operator_smoke` | منجز |
 | §11 بوابة تقرير (CI) | `validate` @13: after-p0 **`in>0`**؛ صفوف **3–13** (جودة + 11 paper + 12 structured + 13 activity)؛ `pick_row` **`v2`/`in>0`**؛ `close --apply` → §2.1 | منجز |
 | **إغلاق الترقية للإنتاج** | §11: عمود «النتيجة» و«الأرقام» لصفوف 1–13 (+14 اختياري) | **غير منجز** (`closure_errors=5` strict؛ `allow_partial_closure_errors=2` — rows **5/10** + **11–13** حتى `close --apply`) |
-| VPS checkout (Hostinger) | PR #62؛ **`git_rev=b7ecad1d8`** Cloud+VPS aligned (`check_wake`)؛ quota **BLOCKED**؛ **`sync_from_vps --pull-vps @13`** OK؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`** | منجز (rev)؛ **OANDA/11–13** محجوز |
+| VPS checkout (Hostinger) | PR #62؛ **`git_rev=86b915f2a`** Cloud+VPS aligned؛ quota **BLOCKED**؛ **OANDA** `.env` present keys missing؛ **`delta_in=-6873`**؛ **`live_rerun_rows=5 10`** | منجز (rev)؛ **11–13** محجوز |
 | GitHub Actions (PR #62) | Jobs fail in ~2s: **account locked (billing)** — no runner logs؛ local aggregate pytest **2531** green (2026-10-02) | **infra** — fix GitHub billing then re-run workflow |
 | §11 حي على VPS | **1** after-P0 **`in=4061`**؛ **3,8,9** PASS (v2/v3)؛ **5** spawn upstream 429؛ **10** OANDA؛ **11–13** فارغة؛ تقرير §11 محدّث 2026-10-02؛ **`sync_cloud_branch`** قبل wake | **جزئي** |
 
