@@ -411,6 +411,12 @@
 | `mobile/src/components/chat.tsx` | التوسيع يقرأ ذلك الصف، والسطر الظاهر يبقى العبارة البشرية |
 | `docs/mokli-agent-upgrade-audit.md` | مسار الطلب من الكود |
 | `docs/mokli-settings-audit.md` | جرد الإعدادات بلا حذف |
+| `docs/mokli-agent-upgrade-completion-audit.md` | بوابة إغلاق: ما ثبت في CI مقابل §11 الحي |
+| `docs/mokli-agent-upgrade-operator-handoff.md` | قائمة إغلاق §11 للمشغّل (9 خطوات) |
+| `scripts/mokli_upgrade_section11_validate.py` | validate @13، `pick_row`، `live_rerun_rows`، جودة JSONL |
+| `scripts/mokli_upgrade_section11_*.sh` | سلسلة المشغّل: `blockers`/`close`/`sync` (`sync_summary`)، `timer_wake`، `cloud_status`/`completion_status` (`vps_rev`) |
+| `scripts/mokli_upgrade_diagnostic_extract.py` | استخراج `diagnostic` وP0 baseline/delta من JSONL |
+| `tests/scripts/test_mokli_upgrade_*` | أسلاك §11، بوابة التقرير، operator smoke |
 | `mokli/trading/turn_session.py` | طلبان متزامنان للشموع أو التقويم أو السعر الحي يشاركان التحميل الجاري. السعر بعد انتهاء التحميل يُطلب من جديد. تذكرة تصنيف الخطة الحية ليست ذاكرة ذلك السعر. فشل التحليل في الدورة يُحفظ ولا يُعاد تشغيله |
 | `mokli/trading/market_context.py` | شموع الدورة تُجلب مرة حتى لو بدأ طلبان معاً. السعر المتزامن يُشارك، والقراءة التالية تطلب من جديد. من لا يحتاج السعر لا يحمّله. الشموع والسعر يبدآن معاً: 400 مللي ثانية ثم 200 في اختبار النوم |
 | `mokli/trading/news/forex_factory.py` | تقويم الأسبوع يُحمَّل مرة داخل الدورة حتى مع تداخل الطلب، والفشل لا يُحفظ |
