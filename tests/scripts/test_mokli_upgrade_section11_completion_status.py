@@ -59,6 +59,7 @@ def test_completion_status_require_13_exits_nonzero_without_closure() -> None:
     assert "partial10_ok=1" in combined
     assert "partial10_gate=1" in combined
     assert re.search(r"closure_errors=[1-9]\d*", combined)
+    assert "allow_partial_closure_errors=2" in combined
     assert "seconds_until_reset=" in combined
     assert proc.returncode == 1
 
@@ -70,3 +71,4 @@ def test_completion_status_script_wires_blockers_and_quota_snapshot() -> None:
     assert "quota_status.sh" in text and "--local-dir" in text
     assert "print-live-rerun-rows" in text
     assert "live_rerun_rows=" in text
+    assert "allow_partial_closure_errors=" in text

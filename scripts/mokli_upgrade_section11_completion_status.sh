@@ -85,6 +85,17 @@ else
   CLOSURE_ERRORS=$(printf '%s\n' "$BLOCK_COMBINED" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
 fi
 
+ALLOW_PARTIAL_CE=""
+if [[ "$REQUIRE" -ge 13 && -d "$EVENTS" && -f "$RESULTS" ]]; then
+  set +e
+  ALLOW_PARTIAL_CE=$(
+    "$PYTHON" "$ROOT/scripts/mokli_upgrade_section11_validate.py" \
+      --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE" --allow-partial 2>&1 \
+      | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1
+  )
+  set -e
+fi
+
 PARTIAL10_OK=0
 PARTIAL10_GATE=0
 if [[ "$REQUIRE" -gt 10 ]]; then
@@ -118,7 +129,7 @@ fi
 echo ""
 WAKE_UTC_FIELD="wake_after_buffer_utc=unknown"
 [[ -n "${WAKE_UTC:-}" ]] && WAKE_UTC_FIELD="wake_after_buffer_utc=$WAKE_UTC"
-echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
+echo "completion_status: artifact_ok=$ARTIFACT_OK partial10_ok=$PARTIAL10_OK partial10_gate=$PARTIAL10_GATE production_ok=$PROD_OK require=$REQUIRE live_gate=$LIVE_GATE closure_errors=${CLOSURE_ERRORS:-0} allow_partial_closure_errors=${ALLOW_PARTIAL_CE:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC $WAKE_UTC_FIELD"
 if [[ "$PROD_OK" -eq 1 ]]; then
   echo "SECTION11_COMPLETION_EXIT=0"
   exit 0
