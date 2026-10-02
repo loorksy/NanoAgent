@@ -100,7 +100,8 @@ def test_validate_hints_row3_when_tool_calls_below_two(tmp_path: Path) -> None:
 
 def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
     spawn_line = (
-        '{"kind":"tool","data":{"name":"spawn","summary":"429 rate-limit"}}\n'
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"429 rate-limited upstream"}}\n'
     )
     diag = json.dumps(
         {
@@ -138,6 +139,7 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0
     assert "HINT row 5" in proc.stderr
+    assert "upstream 429" in proc.stderr
     assert "vps_section11_row5_subagents" in proc.stderr
 
 

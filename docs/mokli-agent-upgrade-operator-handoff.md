@@ -151,7 +151,7 @@ python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no
 | 2 | `02-single-tool.jsonl` | سعر الذهب — `bash scripts/vps_section11_row2_single_tool.sh` |
 | 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
 | 4 | `04-gold-analysis.jsonl` | تحليل / شراء — `bash scripts/vps_section11_row4_gold_analysis.sh` |
-| 5 | `05-subagents.jsonl` | spawn / سرب — `bash scripts/vps_section11_row5_subagents.sh` |
+| 5 | `05-subagents-v2.jsonl` | spawn `wait=true` — `bash scripts/vps_section11_row5_subagents.sh` (يحذف `05-subagents.jsonl` القديم إن spawn أصاب 429 و`nested_rounds=0`) |
 | 6 | `06-tool-failure.jsonl` | فشل أداة — `bash scripts/vps_section11_row6_tool_failure.sh` |
 | 7 | `07-retry.jsonl` | إعادة محاولة — `bash scripts/vps_section11_row7_retry.sh` |
 | 8 | `08-fallback-provider.jsonl` | مزود بديل — `bash scripts/vps_section11_row8_fallback_provider.sh` (+ `modelPreset` على VPS) |

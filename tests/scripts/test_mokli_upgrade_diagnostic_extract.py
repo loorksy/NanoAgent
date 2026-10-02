@@ -382,6 +382,18 @@ def test_pick_row_9_prefers_more_diagnostics_with_nonzero_input(tmp_path: Path) 
     assert picked[0] == "09-long-session-v3.jsonl"
 
 
+def test_jsonl_spawn_failed_upstream_quota_detects_spawn_429() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import jsonl_spawn_failed_upstream_quota
+
+    body = (
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"code": 429, rate-limited upstream"}}\n'
+    )
+    assert jsonl_spawn_failed_upstream_quota(body) is True
+    assert jsonl_spawn_failed_upstream_quota('{"kind":"diagnostic","data":{}}\n') is False
+
+
 def test_pick_row_5_prefers_nested_rounds(tmp_path: Path) -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_diagnostic_extract import pick_row_diagnostic

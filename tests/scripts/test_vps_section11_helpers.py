@@ -124,6 +124,31 @@ def test_prune_quota_failed_output_removes_in_zero_jsonl(tmp_path: Path) -> None
     assert "quota-failed" in proc.stderr
 
 
+def test_prune_row5_stale_removes_spawn_429_no_nested(tmp_path: Path) -> None:
+    stale = tmp_path / "05-subagents.jsonl"
+    stale.write_text(
+        '{"kind":"tool","data":{"name":"spawn","event":"failed","summary":"429 upstream"}}\n'
+        + '{"kind": "diagnostic", "data": {"rounds": 4, "input_tokens": 50000, '
+        '"nested_rounds": 0}}\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ROOT}/scripts/section11_quota_hints.sh" && '
+            f'section11_prune_row5_stale_no_nested "{tmp_path}" "{ROOT}"',
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert not stale.is_file()
+    assert "stale 05-subagents.jsonl" in proc.stderr
+
+
 def test_parse_probe_in_ignores_nested_in_zero() -> None:
     proc = subprocess.run(
         [
