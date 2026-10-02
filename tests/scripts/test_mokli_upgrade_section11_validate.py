@@ -143,6 +143,57 @@ def test_validate_hints_row5_when_spawn_hit_quota(tmp_path: Path) -> None:
     assert "vps_section11_row5_subagents" in proc.stderr
 
 
+def test_validate_hints_row5_quota_failed_v2_on_disk(tmp_path: Path) -> None:
+    spawn_line = (
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"429 rate-limited upstream"}}\n'
+    )
+    v1_diag = json.dumps(
+        {
+            "kind": "diagnostic",
+            "data": {
+                "rounds": 4,
+                "input_tokens": 100,
+                "tool_calls": 4,
+                "nested_rounds": 0,
+            },
+        }
+    )
+    v2_diag = json.dumps(
+        {
+            "kind": "diagnostic",
+            "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0, "nested_rounds": 0},
+        }
+    )
+    (tmp_path / "05-subagents.jsonl").write_text(spawn_line + v1_diag + "\n", encoding="utf-8")
+    (tmp_path / "05-subagents-v2.jsonl").write_text(v2_diag + "\n", encoding="utf-8")
+    for row_id in (1, 2, 3, 4):
+        (tmp_path / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "tool_calls": 2}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({str(i): "PASS" for i in range(1, 6)}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--dir",
+            str(tmp_path),
+            "--results",
+            str(results),
+            "--require-through",
+            "5",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert "05-subagents-v2.jsonl" in proc.stderr
+    assert "quota-failed rerun" in proc.stderr
+
+
 def test_validate_hints_row8_when_input_tokens_zero(tmp_path: Path) -> None:
     for row_id in range(1, 9):
         in_tok = 0 if row_id == 8 else 100
