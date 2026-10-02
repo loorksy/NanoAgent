@@ -8,6 +8,8 @@ BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
 SECTION11_EVENTS="$ROOT/section11-events"
 SECTION11_RESULTS="$ROOT/section11-results-partial.json"
 
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
+
 echo "== VPS pull ($BRANCH) =="
 bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
 

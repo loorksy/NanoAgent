@@ -51,6 +51,8 @@ fi
 echo "TIMER_WAKE_LOCK=$LOCK_FILE"
 trap 'echo "TIMER_WAKE_FINAL_EXIT=$?"' EXIT
 
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
+
 if [[ "$WAIT_QUOTA" -eq 1 ]]; then
   echo ""
   echo "== optional wait for OpenRouter reset =="
@@ -59,6 +61,8 @@ if [[ "$WAIT_QUOTA" -eq 1 ]]; then
   fi
 fi
 
+echo ""
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
 echo ""
 echo "== after OpenRouter reset (live probe + partial reruns) =="
 if ! bash "$ROOT/scripts/mokli_upgrade_section11_after_reset_wake.sh"; then

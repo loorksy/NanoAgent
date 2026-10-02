@@ -65,6 +65,7 @@ def test_vps_section11_helper_scripts_exist_and_executable() -> None:
         "mokli_upgrade_section11_check_wake.sh",
         "mokli_upgrade_section11_monitor_log.sh",
         "mokli_upgrade_section11_monitor_loop.sh",
+        "mokli_upgrade_section11_sync_cloud_branch.sh",
     ]
     for name in names:
         path = ROOT / "scripts" / name
@@ -78,6 +79,14 @@ def test_quota_hints_exports_wake_after_buffer_helper() -> None:
     assert "section11_parse_probe_in" in text
     assert "section11_prune_quota_failed_output" in text
     assert "section11_prune_row5_stale_no_nested" in text
+
+
+def test_sync_cloud_branch_script_ff_only() -> None:
+    text = (
+        ROOT / "scripts" / "mokli_upgrade_section11_sync_cloud_branch.sh"
+    ).read_text(encoding="utf-8")
+    assert "CLOUD_PULL_OK" in text
+    assert "pull --ff-only" in text
 
 
 def test_scp_branch_scripts_includes_row5_and_diagnostic_extract() -> None:
