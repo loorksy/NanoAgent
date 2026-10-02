@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "mokli_upgrade_aggregate_pytest.sh"
 
-# Keep in sync with AGENTS.md «Aggregate pytest target» (2549 passed + 1 skipped).
+# Keep in sync with AGENTS.md «Aggregate pytest target» (2551 passed + 1 skipped).
 MIN_COLLECTED = 2540
 
 
