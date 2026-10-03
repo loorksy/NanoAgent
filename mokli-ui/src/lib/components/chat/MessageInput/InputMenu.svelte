@@ -27,6 +27,7 @@
 	import Knowledge from './InputMenu/Knowledge.svelte';
 	import AttachWebpageModal from './AttachWebpageModal.svelte';
 	import GlobeAlt from '$lib/components/icons/GlobeAlt.svelte';
+	import { MOKLI_FORK } from '$lib/mokli/mode';
 
 	const i18n: any = getContext('i18n');
 
@@ -298,7 +299,7 @@
 						</button>
 					</Tooltip>
 
-					{#if $config?.features?.enable_notes ?? false}
+					{#if !MOKLI_FORK && ($config?.features?.enable_notes ?? false)}
 						<Tooltip
 							content={fileUploadCapableModels.length !== selectedModels.length
 								? $i18n.t('Model(s) do not support file upload')
@@ -330,6 +331,7 @@
 						</Tooltip>
 					{/if}
 
+					{#if !MOKLI_FORK}
 					<Tooltip
 						content={fileUploadCapableModels.length !== selectedModels.length
 							? $i18n.t('Model(s) do not support file upload')
@@ -540,6 +542,7 @@
 								</div>
 							</button>
 						{/if}
+					{/if}
 					{/if}
 				</div>
 			{:else if tab === 'tool_permissions'}

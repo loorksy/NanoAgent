@@ -21,6 +21,8 @@ class TradingConfig:
     metaapi_token: str | None = field(default=None, repr=False)
     metaapi_account_id: str | None = None
     metaapi_region: str = "new-york"
+    metaapi_login: str | None = None
+    metaapi_server: str | None = None
     mt5_host: str = "localhost"
     mt5_port: int = 8001
     mt5_login: str | None = None
@@ -50,6 +52,17 @@ class TradingConfig:
             return "https://api-fxtrade.oanda.com"
         return "https://api-fxpractice.oanda.com"
 
+    def public_metaapi(self) -> dict[str, str | bool]:
+        """Operator-safe MetaAPI snapshot — never includes the token."""
+        return {
+            "configured": self.metaapi_configured,
+            "account_id": self.metaapi_account_id or "",
+            "region": self.metaapi_region or "",
+            "login": self.metaapi_login or "",
+            "server": self.metaapi_server or "",
+            "token_set": bool(self.metaapi_token),
+        }
+
     def public_mt5(self) -> dict[str, str | int | bool]:
         """Operator-safe MT5 snapshot — never includes the password."""
         return {
@@ -78,6 +91,8 @@ class _StoredCredentials:
     metaapi_token: str | None = None
     metaapi_account: str | None = None
     metaapi_region: str | None = None
+    metaapi_login: str | None = None
+    metaapi_server: str | None = None
 
 
 def _stored_credentials() -> _StoredCredentials:
@@ -105,6 +120,8 @@ def _stored_credentials() -> _StoredCredentials:
         metaapi_token=_strip(metaapi.effective_token()),
         metaapi_account=_strip(metaapi.account_id),
         metaapi_region=_strip(metaapi.region),
+        metaapi_login=_strip(metaapi.login),
+        metaapi_server=_strip(metaapi.server),
     )
 
 
@@ -150,6 +167,8 @@ def load_trading_config() -> TradingConfig:
         metaapi_region=(
             _strip(os.environ.get("METAAPI_REGION")) or stored.metaapi_region or "new-york"
         ),
+        metaapi_login=stored.metaapi_login,
+        metaapi_server=stored.metaapi_server,
         mt5_host=_strip(os.environ.get("MT5_HOST")) or stored.mt5_host or "localhost",
         mt5_port=_env_port(stored.mt5_port),
         mt5_login=_strip(os.environ.get("MT5_LOGIN")) or stored.mt5_login,

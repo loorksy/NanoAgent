@@ -79,10 +79,12 @@
 <div class="flex h-full flex-col gap-3 overflow-auto">
 	<h2 class="text-sm font-medium">{mokliText($i18n?.language, tab)}</h2>
 	{#if tab === 'risk'}
+		<p class="text-sm text-gray-500">{mokliText($i18n?.language, 'risk_hint')}</p>
 		<RiskPanel mode="primary" />
-		<DeskRulesForm />
 	{:else if tab === 'advanced'}
+		<p class="text-sm text-gray-500">{mokliText($i18n?.language, 'advanced_hint')}</p>
 		<RiskPanel mode="advanced" />
+		<DeskRulesForm />
 	{:else if tab === 'models'}
 		<p class="text-sm text-gray-500">{mokliText($i18n?.language, 'models_hint')}</p>
 		<MokliProviders />

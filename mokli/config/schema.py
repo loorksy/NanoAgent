@@ -364,6 +364,8 @@ class TradingMetaApiConfig(Base):
     token: str = Field(default="", repr=False)
     account_id: str = Field(default="", validation_alias=AliasChoices("accountId", "account_id"))
     region: str = "new-york"
+    login: str = ""
+    server: str = ""
 
     def public_view(self) -> dict[str, str | bool]:
         """Operator-safe snapshot — never includes the token."""
@@ -371,6 +373,8 @@ class TradingMetaApiConfig(Base):
         return {
             "account_id": self.account_id,
             "region": self.region,
+            "login": self.login,
+            "server": self.server,
             "token_set": bool(token),
             "configured": bool(token and self.account_id),
         }
