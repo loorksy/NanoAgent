@@ -55,6 +55,7 @@ async def test_whatsapp_qr_is_a_data_url(client: TestClient, monkeypatch) -> Non
                 "status": "pending",
                 "qr_url": "mokli-whatsapp-pairing",
                 "interval_ms": 2000,
+                "message": "Waiting for the WhatsApp scan.",
             }
 
     monkeypatch.setattr(
@@ -71,4 +72,5 @@ async def test_whatsapp_qr_is_a_data_url(client: TestClient, monkeypatch) -> Non
     assert body["session_id"] == "sess-1"
     assert body["status"] == "pending"
     assert body["qr_data_url"].startswith("data:image/png;base64,")
+    assert body["message"] == "Waiting for the WhatsApp scan."
     assert "mokli-whatsapp-pairing" not in json.dumps(body)

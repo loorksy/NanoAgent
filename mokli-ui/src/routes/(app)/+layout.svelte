@@ -214,7 +214,6 @@
 		'/briefing',
 		'/performance',
 		'/recommendations',
-		'/tasks',
 		'/log',
 		'/home',
 		'/folders'

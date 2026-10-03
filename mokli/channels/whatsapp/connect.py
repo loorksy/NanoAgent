@@ -107,7 +107,7 @@ class WhatsAppConnectStore:
         try:
             await asyncio.wait(
                 {qr_wait, connect_task},
-                timeout=3,
+                timeout=8,
                 return_when=asyncio.FIRST_COMPLETED,
             )
         finally:

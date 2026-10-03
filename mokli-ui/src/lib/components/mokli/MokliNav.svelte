@@ -10,7 +10,8 @@
 
 	const links = [
 		{ href: '/connect', key: 'connect' },
-		{ href: '/usage', key: 'usage' }
+		{ href: '/usage', key: 'usage' },
+		{ href: '/tasks', key: 'tasks' }
 	];
 
 	$: pathname = $page.url.pathname;

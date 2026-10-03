@@ -202,7 +202,21 @@
 		}));
 
 	$: allSettings = MOKLI_FORK
-		? mokliTabs()
+		? [
+				...mokliTabs(),
+				{
+					id: 'interface',
+					titleKey: 'settings.personal.interface.title',
+					title: mokliText($i18n?.language, 'appearance'),
+					searchPrefixes: ['settings.personal.interface.']
+				},
+				{
+					id: 'account',
+					titleKey: 'settings.personal.account.title',
+					title: $i18n.t('settings.personal.account.title'),
+					searchPrefixes: ['settings.personal.account.']
+				}
+			]
 		: [
 		{
 			id: 'general',

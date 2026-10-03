@@ -42,7 +42,7 @@ UNIT="$3"
 BRANCH="$4"
 sudo -u "$USER" git -C "$INSTALL" fetch origin "$BRANCH"
 sudo -u "$USER" git -C "$INSTALL" checkout -B "$BRANCH" "origin/$BRANCH"
-sudo -u "$USER" bash -lc "cd '$INSTALL' && source .venv/bin/activate && pip install -U pip wheel -q && pip install -e '.[trading-mt5]' -q"
+sudo -u "$USER" bash -lc "cd '$INSTALL' && source .venv/bin/activate && pip install -U pip wheel -q && pip install -q -e '.[trading-mt5]' 'python-telegram-bot[socks,webhooks]>=22.6,<23.0' 'socksio>=1.0.0,<2.0.0' 'python-socks[asyncio]>=2.8.0,<3.0.0' 'neonize>=0.4.3.post0,<0.5.0' 'segno>=1.6.1,<2.0.0'"
 if [[ -d "$INSTALL/section11-events" ]]; then
   chown -R "$USER:$USER" "$INSTALL/section11-events"
 fi

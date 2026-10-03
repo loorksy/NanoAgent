@@ -22,6 +22,7 @@
 	let telegramNote = '';
 	let savingTelegram = false;
 	let whatsappStatus = '';
+	let whatsappNote = '';
 	let whatsappQr = '';
 	let whatsappSession = '';
 	let whatsappTimer: ReturnType<typeof setInterval> | undefined;
@@ -96,8 +97,8 @@
 			if (saved.requires_restart) {
 				telegramNote = `${telegramNote}. ${mokliText($i18n?.language, 'restart_required')}`;
 			}
-		} catch {
-			telegramNote = mokliText($i18n?.language, 'error');
+		} catch (err) {
+			telegramNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 		} finally {
 			savingTelegram = false;
 		}
@@ -118,9 +119,11 @@
 			interval_ms?: number;
 			requires_restart?: boolean;
 			channel?: ChannelRow;
+			message?: string;
 		};
 		whatsappSession = body.session_id ?? '';
 		whatsappStatus = body.status ?? '';
+		whatsappNote = body.message ?? '';
 		if (body.qr_data_url) whatsappQr = body.qr_data_url;
 		if (body.channel) whatsapp = body.channel;
 		if (body.status === 'succeeded' || body.status === 'expired' || body.status === 'cancelled' || body.status === 'failed') {
@@ -141,13 +144,15 @@
 		try {
 			const interval = await whatsappAction('start', force);
 			whatsappTimer = setInterval(() => {
-				void whatsappAction('poll').catch(() => {
+				void whatsappAction('poll').catch((err) => {
 					whatsappStatus = 'failed';
+					whatsappNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 					stopWhatsappPoll();
 				});
 			}, Math.max(interval, 1500));
-		} catch {
+		} catch (err) {
 			whatsappStatus = 'failed';
+			whatsappNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 		}
 	}
 
@@ -505,9 +510,11 @@
 				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_scan')}</p>
 			{/if}
 			{#if whatsappStatus === 'pending'}
-				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_waiting')}</p>
+				<p class="mt-2 text-gray-500">{whatsappNote || mokliText($i18n?.language, 'whatsapp_waiting')}</p>
 			{:else if whatsappStatus === 'succeeded'}
 				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_connected')}</p>
+			{:else if whatsappNote}
+				<p class="mt-2 text-red-500">{whatsappNote}</p>
 			{/if}
 			<button class="mt-3 rounded-lg border px-3 py-1.5" on:click={() => startWhatsapp(Boolean(whatsappQr))}>
 				{mokliText($i18n?.language, whatsappQr ? 'whatsapp_again' : 'whatsapp_start')}
