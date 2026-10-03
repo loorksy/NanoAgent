@@ -121,6 +121,9 @@ def public_connect_payload(payload: dict[str, Any]) -> JsonObject:
         "status": str(payload.get("status") or "pending"),
         "interval_ms": int(payload.get("interval_ms") or 2000),
     }
+    message = payload.get("message")
+    if isinstance(message, str) and message.strip():
+        public["message"] = message.strip()[:300]
     qr_url = payload.get("qr_url")
     if isinstance(qr_url, str) and qr_url:
         image = qr_data_url(qr_url)

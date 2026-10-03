@@ -272,6 +272,49 @@ async def get_control(request: web.Request) -> web.Response:
     return ok({"runtime_state": await asyncio.to_thread(_runtime_state)})
 
 
+def _normalize_pairing_code(raw: str) -> str:
+    compact = "".join(raw.split()).upper().replace("-", "")
+    if len(compact) == 8 and compact.isalnum():
+        return f"{compact[:4]}-{compact[4:]}"
+    return raw.strip().upper()
+
+
+async def get_pairing(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    import time
+
+    from mokli.pairing.store import list_pending
+
+    now = time.time()
+    pending = await asyncio.to_thread(list_pending)
+    rows = [
+        {
+            "code": str(item.get("code") or ""),
+            "channel": str(item.get("channel") or ""),
+            "expires_in": max(0, int(float(item.get("expires_at") or 0) - now)),
+        }
+        for item in pending
+        if item.get("code")
+    ]
+    return ok({"pending": rows})
+
+
+async def post_pairing(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.pairing.store import approve_code
+
+    body = await json_body(request)
+    code = _normalize_pairing_code(require_str(body, "code"))
+    locale = str(body.get("locale") or "")
+    result = await asyncio.to_thread(approve_code, code)
+    if result is None:
+        arabic = locale.lower().startswith("ar")
+        message = "الرمز غير صحيح أو انتهت صلاحيته" if arabic else "That code is invalid or expired"
+        raise ApiError(404, "pairing_code_invalid", details={"message": message})
+    channel, _sender_id = result
+    return ok({"ok": True, "channel": channel, "code": code})
+
+
 async def get_channels(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from mokli.agent_api.messaging import channel_rows
@@ -493,6 +536,8 @@ async def post_mt5_disconnect(request: web.Request) -> web.Response:
 
 
 def register(router: web.UrlDispatcher, prefix: str) -> None:
+    router.add_get(f"{prefix}/connect/pairing", get_pairing)
+    router.add_post(f"{prefix}/connect/pairing", post_pairing)
     router.add_get(f"{prefix}/connect/channels", get_channels)
     router.add_post(f"{prefix}/connect/channels/telegram", post_telegram)
     router.add_post(f"{prefix}/connect/channels/whatsapp", post_whatsapp)

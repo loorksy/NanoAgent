@@ -22,9 +22,15 @@
 	let telegramNote = '';
 	let savingTelegram = false;
 	let whatsappStatus = '';
+	let whatsappNote = '';
 	let whatsappQr = '';
 	let whatsappSession = '';
 	let whatsappTimer: ReturnType<typeof setInterval> | undefined;
+	let pairingCode = '';
+	let pairingNote = '';
+	let pairingOk = false;
+	let pairingBusy = false;
+	let pendingCodes: { code: string; channel: string }[] = [];
 
 	type Mt5Status = {
 		configured?: boolean;
@@ -72,6 +78,45 @@
 		whatsapp = rows.find((row) => row.name === 'whatsapp') ?? {};
 	}
 
+	async function loadPairing() {
+		const body = (await gateway('connect/pairing')) as {
+			pending?: { code?: string; channel?: string }[];
+		};
+		pendingCodes = (body.pending ?? [])
+			.filter((row) => row.code)
+			.map((row) => ({ code: row.code ?? '', channel: row.channel ?? '' }));
+	}
+
+	async function approvePairing(code = pairingCode) {
+		const value = code.trim();
+		pairingNote = '';
+		pairingOk = false;
+		if (!value) {
+			pairingNote = mokliText($i18n?.language, 'pairing_invalid');
+			return;
+		}
+		pairingBusy = true;
+		try {
+			const saved = (await gateway('connect/pairing', {
+				method: 'POST',
+				body: JSON.stringify({ code: value, locale: localeCode() })
+			})) as { channel?: string };
+			pairingCode = '';
+			pairingOk = true;
+			const channel = saved.channel || '';
+			pairingNote = mokliText($i18n?.language, 'pairing_approved').replace('{channel}', channel);
+			await loadPairing();
+		} catch (err) {
+			pairingOk = false;
+			pairingNote =
+				err instanceof Error && err.message && !err.message.startsWith('gateway ')
+					? err.message
+					: mokliText($i18n?.language, 'pairing_invalid');
+		} finally {
+			pairingBusy = false;
+		}
+	}
+
 	async function loadChannels() {
 		const body = (await gateway('connect/channels')) as { channels?: ChannelRow[] };
 		applyChannels(body.channels ?? []);
@@ -96,8 +141,8 @@
 			if (saved.requires_restart) {
 				telegramNote = `${telegramNote}. ${mokliText($i18n?.language, 'restart_required')}`;
 			}
-		} catch {
-			telegramNote = mokliText($i18n?.language, 'error');
+		} catch (err) {
+			telegramNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 		} finally {
 			savingTelegram = false;
 		}
@@ -118,9 +163,11 @@
 			interval_ms?: number;
 			requires_restart?: boolean;
 			channel?: ChannelRow;
+			message?: string;
 		};
 		whatsappSession = body.session_id ?? '';
 		whatsappStatus = body.status ?? '';
+		whatsappNote = body.message ?? '';
 		if (body.qr_data_url) whatsappQr = body.qr_data_url;
 		if (body.channel) whatsapp = body.channel;
 		if (body.status === 'succeeded' || body.status === 'expired' || body.status === 'cancelled' || body.status === 'failed') {
@@ -141,13 +188,15 @@
 		try {
 			const interval = await whatsappAction('start', force);
 			whatsappTimer = setInterval(() => {
-				void whatsappAction('poll').catch(() => {
+				void whatsappAction('poll').catch((err) => {
 					whatsappStatus = 'failed';
+					whatsappNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 					stopWhatsappPoll();
 				});
 			}, Math.max(interval, 1500));
-		} catch {
+		} catch (err) {
 			whatsappStatus = 'failed';
+			whatsappNote = err instanceof Error && err.message ? err.message : mokliText($i18n?.language, 'error');
 		}
 	}
 
@@ -181,6 +230,11 @@
 				mt5.connected = false;
 			}
 			await loadChannels();
+			try {
+				await loadPairing();
+			} catch {
+				pendingCodes = [];
+			}
 		} catch {
 			failed = true;
 		}
@@ -465,6 +519,46 @@
 		{/if}
 	</section>
 
+	<section class="rounded-xl border border-gray-200 p-4 text-sm dark:border-gray-800">
+		<h2 class="font-medium">{mokliText($i18n?.language, 'pairing_title')}</h2>
+		<p class="mt-1 text-gray-500">{mokliText($i18n?.language, 'pairing_hint')}</p>
+		{#if pendingCodes.length}
+			<div class="mt-3 flex flex-wrap gap-2">
+				{#each pendingCodes as item (item.code)}
+					<button
+						class="rounded-lg border px-3 py-1.5"
+						type="button"
+						disabled={pairingBusy}
+						on:click={() => approvePairing(item.code)}
+					>
+						{item.code}{item.channel ? ` · ${item.channel}` : ''}
+					</button>
+				{/each}
+			</div>
+		{/if}
+		<form
+			class="mt-3 flex flex-col gap-2 sm:flex-row"
+			on:submit|preventDefault={() => approvePairing()}
+		>
+			<input
+				class="h-12 w-full rounded-xl border border-gray-300 bg-transparent px-4 text-base tracking-widest dark:border-gray-700"
+				autocomplete="one-time-code"
+				placeholder={mokliText($i18n?.language, 'pairing_placeholder')}
+				bind:value={pairingCode}
+			/>
+			<button
+				class="h-12 shrink-0 rounded-xl bg-blue-600 px-4 text-white disabled:opacity-60"
+				type="submit"
+				disabled={pairingBusy}
+			>
+				{mokliText($i18n?.language, pairingBusy ? 'saving' : 'pairing_approve')}
+			</button>
+		</form>
+		{#if pairingNote}
+			<p class="mt-2 {pairingOk ? 'text-green-600' : 'text-red-500'}">{pairingNote}</p>
+		{/if}
+	</section>
+
 	<div class="grid gap-4 lg:grid-cols-2">
 		<section class="rounded-xl border border-gray-200 p-4 text-sm dark:border-gray-800">
 			<h2 class="font-medium">{mokliText($i18n?.language, 'telegram')}</h2>
@@ -505,9 +599,11 @@
 				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_scan')}</p>
 			{/if}
 			{#if whatsappStatus === 'pending'}
-				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_waiting')}</p>
+				<p class="mt-2 text-gray-500">{whatsappNote || mokliText($i18n?.language, 'whatsapp_waiting')}</p>
 			{:else if whatsappStatus === 'succeeded'}
 				<p class="mt-2 text-gray-500">{mokliText($i18n?.language, 'whatsapp_connected')}</p>
+			{:else if whatsappNote}
+				<p class="mt-2 text-red-500">{whatsappNote}</p>
 			{/if}
 			<button class="mt-3 rounded-lg border px-3 py-1.5" on:click={() => startWhatsapp(Boolean(whatsappQr))}>
 				{mokliText($i18n?.language, whatsappQr ? 'whatsapp_again' : 'whatsapp_start')}
