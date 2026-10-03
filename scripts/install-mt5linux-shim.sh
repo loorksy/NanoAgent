@@ -6,13 +6,22 @@
 set -euo pipefail
 
 CONTAINER="${MT5_CONTAINER:-metatrader-5-ie74-mt5-1}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${ROOT}/scripts/mt5linux/__main__.py"
 DEST="/config/.local/lib/python3.11/site-packages/mt5linux/__main__.py"
 
 if ! docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null | grep -qx true; then
   echo "mt5linux shim: container ${CONTAINER} is not running" >&2
   exit 1
+fi
+
+discovered="$(
+  docker exec -u abc -e HOME=/config "$CONTAINER" python3 -c \
+    'import mt5linux, pathlib; print(pathlib.Path(mt5linux.__file__).resolve().parent / "__main__.py")' \
+    2>/dev/null || true
+)"
+if [[ -n "$discovered" ]]; then
+  DEST="$discovered"
 fi
 
 if docker exec "$CONTAINER" python3 -c "from pathlib import Path; raise SystemExit(0 if 'wine bridge shim' in Path('${DEST}').read_text(encoding='utf-8', errors='replace') else 1)"; then
