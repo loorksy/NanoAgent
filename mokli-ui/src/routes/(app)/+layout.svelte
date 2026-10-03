@@ -14,6 +14,7 @@
 	import { setAppFontFamily, setTextScale } from '$lib/utils/text-scale';
 
 	import { MOKLI_VERSION, MOKLI_API_BASE_URL } from '$lib/constants';
+	import { MOKLI_FORK } from '$lib/mokli/mode';
 	import MokliStatus from '$lib/components/mokli/MokliStatus.svelte';
 	import MokliChartSheet from '$lib/components/mokli/MokliChartSheet.svelte';
 	import TradingDeskBoard from '$lib/components/mokli/TradingDeskBoard.svelte';
@@ -201,6 +202,30 @@
 		const currentUrl = `${$page.url.pathname}${$page.url.search}`;
 		await goto(`/auth?redirect=${encodeURIComponent(currentUrl)}`);
 	};
+
+	const hiddenSections = [
+		'/workspace',
+		'/notes',
+		'/playground',
+		'/channels',
+		'/calendar',
+		'/automations',
+		'/admin',
+		'/briefing',
+		'/performance',
+		'/recommendations',
+		'/tasks',
+		'/log',
+		'/home',
+		'/folders'
+	];
+
+	$: if (MOKLI_FORK) {
+		const path = $page.url.pathname;
+		if (hiddenSections.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+			void goto('/', { replaceState: true });
+		}
+	}
 
 	const navigateChat = async (direction: -1 | 1) => {
 		if (!$chats?.length) return;

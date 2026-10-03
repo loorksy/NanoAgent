@@ -37,6 +37,7 @@
 	} from '$lib/stores/chatList';
 	import { onMount, getContext, tick, onDestroy } from 'svelte';
 	import MokliNav from '$lib/components/mokli/MokliNav.svelte';
+	import { MOKLI_FORK } from '$lib/mokli/mode';
 	import { mokliText } from '$lib/mokli/text';
 	const i18n: any = getContext('i18n');
 
@@ -156,6 +157,7 @@
 	$: pinnedItems = $settings?.pinnedMenuItems ?? DEFAULT_PINNED_ITEMS;
 
 	const isMenuItemVisible = (id) => {
+		if (MOKLI_FORK) return false;
 		switch (id) {
 			case 'notes':
 				return (
@@ -1078,7 +1080,10 @@
 				<div>
 					<div class=" flex justify-center items-center">
 						{#if $user !== undefined && $user !== null}
-							<UserMenu role={$user?.role} profile={$config?.features?.enable_user_status ?? true}>
+							<UserMenu
+								role={$user?.role}
+								profile={!MOKLI_FORK && ($config?.features?.enable_user_status ?? true)}
+							>
 								<button
 									type="button"
 									class=" cursor-pointer flex size-8.5 items-center justify-center transition group"
@@ -1310,7 +1315,7 @@
 						</div>
 					</div>
 
-					{#if $visiblePinnedModels.length > 0}
+					{#if !MOKLI_FORK && $visiblePinnedModels.length > 0}
 						<SidebarSection
 							id="sidebar-models"
 							bind:open={showPinnedModels}
@@ -1321,7 +1326,7 @@
 						</SidebarSection>
 					{/if}
 
-					{#if ($config?.features?.enable_notes ?? false) && ($user?.role === 'admin' || ($user?.permissions?.features?.notes ?? true)) && $pinnedNotes.length > 0}
+					{#if !MOKLI_FORK && ($config?.features?.enable_notes ?? false) && ($user?.role === 'admin' || ($user?.permissions?.features?.notes ?? true)) && $pinnedNotes.length > 0}
 						<SidebarSection
 							id="sidebar-pinned-notes"
 							bind:open={showPinnedNotes}
@@ -1339,7 +1344,7 @@
 						</SidebarSection>
 					{/if}
 
-					{#if $config?.features?.enable_channels && ($user?.role === 'admin' || ($user?.permissions?.features?.channels ?? true))}
+					{#if !MOKLI_FORK && $config?.features?.enable_channels && ($user?.role === 'admin' || ($user?.permissions?.features?.channels ?? true))}
 						<SidebarSection
 							id="sidebar-channels"
 							bind:open={showChannels}
@@ -1372,7 +1377,7 @@
 						</SidebarSection>
 					{/if}
 
-					{#if $config?.features?.enable_folders && ($user?.role === 'admin' || ($user?.permissions?.features?.folders ?? true))}
+					{#if !MOKLI_FORK && $config?.features?.enable_folders && ($user?.role === 'admin' || ($user?.permissions?.features?.folders ?? true))}
 						<SidebarSection
 							id="sidebar-folders"
 							bind:open={showFolders}
@@ -1721,7 +1726,7 @@
 						{#if $user !== undefined && $user !== null}
 							<UserMenu
 								role={$user?.role}
-								profile={$config?.features?.enable_user_status ?? true}
+								profile={!MOKLI_FORK && ($config?.features?.enable_user_status ?? true)}
 								className="w-[calc(var(--sidebar-width)-1rem)]"
 							>
 								<button

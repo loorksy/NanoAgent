@@ -2,8 +2,6 @@
 	import { onDestroy, onMount, getContext } from 'svelte';
 	import { gateway } from '$lib/mokli/client';
 	import { mokliText } from '$lib/mokli/text';
-	import RiskPanel from '$lib/components/mokli/RiskPanel.svelte';
-
 	const i18n = getContext<{ language?: string }>('i18n');
 
 	type ChannelRow = {
@@ -16,13 +14,8 @@
 	};
 
 	let failed = false;
-	let confirming = false;
 	let oanda = '';
 	let broker = '';
-	let level = '';
-	let levels: { name: string; label: string }[] = [];
-	let savingLevel = false;
-	let levelNote = '';
 	let telegram: ChannelRow = {};
 	let whatsapp: ChannelRow = {};
 	let telegramToken = '';
@@ -163,15 +156,11 @@
 			const body = (await gateway('connect')) as {
 				brokers?: {
 					oanda?: { configured?: boolean; env?: string };
-					mt5?: { configured?: boolean; login?: string; server?: string };
-				};
-				mt5_permissions?: {
-					permissions?: { level?: string };
-					levels?: { name: string; label: string }[];
+					metaapi?: { configured?: boolean; login?: string; server?: string };
 				};
 			};
 			const feed = body.brokers?.oanda;
-			const linked = body.brokers?.mt5;
+			const linked = body.brokers?.metaapi;
 			oanda = `${flag(Boolean(feed?.configured))} ${feed?.env ?? ''}`.trim();
 			broker = `${flag(Boolean(linked?.configured))} ${linked?.login ?? ''}`.trim();
 			mt5Login = linked?.login ?? '';
@@ -182,8 +171,15 @@
 				server: linked?.server,
 				connected: false
 			};
-			level = body.mt5_permissions?.permissions?.level ?? '';
-			levels = body.mt5_permissions?.levels ?? [];
+			try {
+				const status = (await gateway('connect/metaapi/status')) as Mt5Status;
+				mt5 = { ...mt5, ...status };
+				if (status.login) mt5Login = status.login;
+				if (status.server) mt5Server = status.server;
+				broker = `${flag(Boolean(status.configured ?? linked?.configured))} ${status.login || linked?.login || ''}`.trim();
+			} catch {
+				mt5.connected = false;
+			}
 			await loadChannels();
 		} catch {
 			failed = true;
@@ -228,7 +224,7 @@
 		companyBusy = true;
 		try {
 			const body = (await gateway(
-				`connect/mt5/brokers?q=${encodeURIComponent(query)}&locale=${localeCode()}`
+				`connect/metaapi/brokers?q=${encodeURIComponent(query)}&locale=${localeCode()}`
 			)) as { companies?: BrokerCompany[] };
 			if (ticket !== searchTicket) return;
 			companies = (body.companies ?? []).filter((company) => company.name && company.servers?.length);
@@ -278,7 +274,7 @@
 		}
 		mt5Saving = true;
 		try {
-			const next = (await gateway('connect/mt5', {
+			const next = (await gateway('connect/metaapi', {
 				method: 'POST',
 				body: JSON.stringify({ login, password, server, company, locale: localeCode() })
 			})) as Mt5Status;
@@ -302,7 +298,7 @@
 		mt5Saving = true;
 		mt5Note = '';
 		try {
-			mt5 = (await gateway('connect/mt5/disconnect', { method: 'POST', body: '{}' })) as Mt5Status;
+			mt5 = (await gateway('connect/metaapi/disconnect', { method: 'POST', body: '{}' })) as Mt5Status;
 			mt5Password = '';
 			mt5Step = 'company';
 			picked = null;
@@ -317,27 +313,6 @@
 		}
 	}
 
-	async function saveLevel() {
-		savingLevel = true;
-		levelNote = '';
-		try {
-			const saved = (await gateway('connect/mt5/permissions', {
-				method: 'PUT',
-				body: JSON.stringify({ permissions: { level } })
-			})) as { permissions?: { level?: string } };
-			level = saved.permissions?.level ?? level;
-			levelNote = mokliText($i18n?.language, 'permission_saved');
-		} catch {
-			levelNote = mokliText($i18n?.language, 'error');
-		} finally {
-			savingLevel = false;
-		}
-	}
-
-	async function control(path: string, enabled: boolean) {
-		await gateway(path, { method: 'POST', body: JSON.stringify({ enabled }) });
-		confirming = false;
-	}
 </script>
 
 <section class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
@@ -346,7 +321,7 @@
 		<p class="text-sm text-red-500">{mokliText($i18n?.language, 'error')}</p>
 	{/if}
 
-	<div class="grid gap-3 sm:grid-cols-3">
+	<div class="grid gap-3 sm:grid-cols-2">
 		<div class="rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-800">
 			<div class="text-gray-500">{mokliText($i18n?.language, 'price_feed')}</div>
 			<div>{oanda}</div>
@@ -354,26 +329,6 @@
 		<div class="rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-800">
 			<div class="text-gray-500">{mokliText($i18n?.language, 'broker')}</div>
 			<div>{broker}</div>
-		</div>
-		<div class="rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-800">
-			<div class="text-gray-500">{mokliText($i18n?.language, 'permissions')}</div>
-			{#if levels.length}
-				<select
-					class="mt-1 w-full rounded-lg border border-gray-300 bg-transparent px-2 py-1 dark:border-gray-700"
-					bind:value={level}
-					on:change={saveLevel}
-					disabled={savingLevel}
-				>
-					{#each levels as option (option.name)}
-						<option value={option.name}>{option.label}</option>
-					{/each}
-				</select>
-			{:else}
-				<div>{level}</div>
-			{/if}
-			{#if levelNote}
-				<p class="mt-1 text-xs text-gray-500">{levelNote}</p>
-			{/if}
 		</div>
 	</div>
 
@@ -510,27 +465,6 @@
 		{/if}
 	</section>
 
-	<div class="flex flex-wrap gap-2">
-		{#if confirming}
-			<button
-				class="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white"
-				on:click={() => control('control/kill', true)}
-			>
-				{mokliText($i18n?.language, 'kill_confirm')}
-			</button>
-		{:else}
-			<button class="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white" on:click={() => (confirming = true)}>
-				{mokliText($i18n?.language, 'kill')}
-			</button>
-		{/if}
-		<button class="rounded-lg border px-3 py-1.5 text-sm" on:click={() => control('control/pause', true)}>
-			{mokliText($i18n?.language, 'pause')}
-		</button>
-		<button class="rounded-lg border px-3 py-1.5 text-sm" on:click={() => control('control/resume', false)}>
-			{mokliText($i18n?.language, 'resume')}
-		</button>
-	</div>
-
 	<div class="grid gap-4 lg:grid-cols-2">
 		<section class="rounded-xl border border-gray-200 p-4 text-sm dark:border-gray-800">
 			<h2 class="font-medium">{mokliText($i18n?.language, 'telegram')}</h2>
@@ -580,6 +514,4 @@
 			</button>
 		</section>
 	</div>
-
-	<RiskPanel mode="primary" />
 </section>

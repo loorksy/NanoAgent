@@ -9,13 +9,7 @@
 	const i18n: { language?: string } = getContext('i18n');
 
 	const links = [
-		{ href: '/', key: 'agent' },
-		{ href: '/briefing', key: 'briefing' },
-		{ href: '/performance', key: 'performance' },
-		{ href: '/recommendations', key: 'recommendations' },
-		{ href: '/tasks', key: 'tasks' },
 		{ href: '/connect', key: 'connect' },
-		{ href: '/log', key: 'log' },
 		{ href: '/usage', key: 'usage' }
 	];
 

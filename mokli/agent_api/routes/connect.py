@@ -84,6 +84,7 @@ def _brokers() -> JsonObject:
             "account_id": cfg.oanda_account_id or "",
         },
         "mt5": cast(JsonObject, cfg.public_mt5()),
+        "metaapi": cast(JsonObject, cfg.public_metaapi()),
     }
 
 
@@ -337,6 +338,86 @@ async def post_whatsapp(request: web.Request) -> web.Response:
     return ok(public)
 
 
+def _metaapi_error(exc: BaseException) -> ApiError:
+    status = getattr(exc, "status", 400)
+    message = getattr(exc, "message", str(exc))
+    return ApiError(
+        status if isinstance(status, int) else 400,
+        "metaapi_connect_error",
+        details={"message": str(message)},
+    )
+
+
+async def get_metaapi_brokers(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from mokli.trading.metaapi_accounts import MetaApiLinkError, search_brokers
+
+    try:
+        companies = await asyncio.to_thread(
+            search_brokers,
+            request.query.get("q", ""),
+            locale=request.query.get("locale"),
+        )
+    except MetaApiLinkError as exc:
+        raise _metaapi_error(exc) from exc
+    return ok({"companies": companies})
+
+
+async def get_metaapi_status(request: web.Request) -> web.Response:
+    require_scope(request, "read")
+    from mokli.trading.metaapi_accounts import MetaApiLinkError, account_status
+
+    path = services(request).config_path
+    try:
+        payload = await asyncio.to_thread(
+            account_status,
+            config_path=path,
+            locale=request.query.get("locale"),
+        )
+    except MetaApiLinkError as exc:
+        raise _metaapi_error(exc) from exc
+    return ok(payload)
+
+
+async def post_metaapi(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.trading.metaapi_accounts import MetaApiLinkError, link_account
+
+    path = services(request).config_path
+    body = await json_body(request)
+    try:
+        payload = await asyncio.to_thread(
+            link_account,
+            login=str(body.get("login") or ""),
+            password=str(body.get("password") or ""),
+            server=str(body.get("server") or ""),
+            company=str(body.get("company") or ""),
+            locale=str(body.get("locale") or "") or None,
+            config_path=path,
+        )
+    except MetaApiLinkError as exc:
+        raise _metaapi_error(exc) from exc
+    return ok(payload)
+
+
+async def post_metaapi_disconnect(request: web.Request) -> web.Response:
+    require_scope(request, "control")
+    from mokli.trading.metaapi_accounts import MetaApiLinkError, unlink_account
+
+    path = services(request).config_path
+    body = await json_body(request, optional=True)
+    locale = body.get("locale")
+    try:
+        payload = await asyncio.to_thread(
+            unlink_account,
+            config_path=path,
+            locale=locale if isinstance(locale, str) else None,
+        )
+    except MetaApiLinkError as exc:
+        raise _metaapi_error(exc) from exc
+    return ok(payload)
+
+
 async def get_mt5_brokers(request: web.Request) -> web.Response:
     require_scope(request, "read")
     from mokli.trading.i18n import tr
@@ -420,6 +501,10 @@ def register(router: web.UrlDispatcher, prefix: str) -> None:
     router.add_put(f"{prefix}/connect/risk", put_risk)
     router.add_put(f"{prefix}/connect/risk-profile", put_risk_profile)
     router.add_put(f"{prefix}/connect/risk/{{field}}", put_risk_field)
+    router.add_get(f"{prefix}/connect/metaapi/brokers", get_metaapi_brokers)
+    router.add_get(f"{prefix}/connect/metaapi/status", get_metaapi_status)
+    router.add_post(f"{prefix}/connect/metaapi", post_metaapi)
+    router.add_post(f"{prefix}/connect/metaapi/disconnect", post_metaapi_disconnect)
     router.add_get(f"{prefix}/connect/mt5/brokers", get_mt5_brokers)
     router.add_get(f"{prefix}/connect/mt5/status", get_mt5_status)
     router.add_post(f"{prefix}/connect/mt5", post_mt5)

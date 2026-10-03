@@ -194,23 +194,16 @@
 
 	let allSettings: SettingsTab[];
 	const mokliTabs = (): SettingsTab[] =>
-		[
-			'overview',
-			'models',
-			'channels',
-			'capabilities',
-			'system',
-			'advanced',
-			'risk'
-		].map((id) => ({
+		['risk', 'models', 'advanced'].map((id) => ({
 			id: `mokli:${id}`,
 			titleKey: id,
 			title: mokliText($i18n?.language, id),
 			searchPrefixes: []
 		}));
 
-	$: allSettings = [
-		...(MOKLI_FORK ? mokliTabs() : []),
+	$: allSettings = MOKLI_FORK
+		? mokliTabs()
+		: [
 		{
 			id: 'general',
 			titleKey: 'settings.personal.general.title',
@@ -378,7 +371,9 @@
 		});
 
 		return (
-			$user?.role === 'admin' ? [...personalSettings, ...administratorTabs] : personalSettings
+			!MOKLI_FORK && $user?.role === 'admin'
+				? [...personalSettings, ...administratorTabs]
+				: personalSettings
 		).filter(
 			(tab) => tab.id !== 'admin:analytics' || ($config?.features?.enable_admin_analytics ?? true)
 		);
@@ -457,7 +452,7 @@
 	};
 
 	$: if ($user?.role !== 'admin' && isAdminTab(selectedTab)) {
-		selectedTab = 'general';
+		selectedTab = MOKLI_FORK ? 'mokli:risk' : 'general';
 	}
 
 	$: if (
@@ -466,7 +461,7 @@
 		availableSettings.length &&
 		!availableSettings.some((tab) => tab.id === selectedTab)
 	) {
-		selectedTab = 'general';
+		selectedTab = availableSettings[0].id;
 	}
 
 	$: if (modalShow && selectedTab) {
@@ -719,6 +714,7 @@
 							<span>{$i18n.t('settings.personal.about.title')}</span>
 						</button>
 					{:else if tabId.startsWith('mokli:')}
+						{@const mokliKey = tabId.slice('mokli:'.length)}
 						<button
 							role="tab"
 							aria-controls="tab-{tabId}"
@@ -728,7 +724,44 @@
 								selectTab(tabId);
 							}}
 						>
-							<span>{mokliText($i18n?.language, tabId.slice('mokli:'.length))}</span>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								class="size-3.5 shrink-0"
+								aria-hidden="true"
+							>
+								{#if mokliKey === 'risk'}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M12 3 5 6v6c0 4.5 3 6.8 7 8 4-1.2 7-3.5 7-8V6l-7-3Z"
+									/>
+								{:else if mokliKey === 'models'}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M12 3 4 7.5 12 12l8-4.5L12 3Z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M4 12.5 12 17l8-4.5"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M4 16.5 12 21l8-4.5"
+									/>
+								{:else}
+									<path stroke-linecap="round" d="M4 8h16M4 16h16" />
+									<circle cx="9" cy="8" r="2" fill="currentColor" stroke="none" />
+									<circle cx="15" cy="16" r="2" fill="currentColor" stroke="none" />
+								{/if}
+							</svg>
+							<span>{mokliText($i18n?.language, mokliKey)}</span>
 						</button>
 					{/if}
 				{/each}

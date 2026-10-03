@@ -102,6 +102,7 @@
 	import Voice from '../icons/Voice.svelte';
 	import Terminal from '../icons/Terminal.svelte';
 	import IntegrationsMenu from './MessageInput/IntegrationsMenu.svelte';
+	import { MOKLI_FORK } from '$lib/mokli/mode';
 	import TerminalMenu from './MessageInput/TerminalMenu.svelte';
 	import Component from '../icons/Component.svelte';
 	import PlusAlt from '../icons/PlusAlt.svelte';
@@ -2286,14 +2287,14 @@
 										</svg>
 									</button>
 
-									{#if showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton || showToolsButton || showSkillsButton || (toggleFilters && toggleFilters.length > 0)}
+									{#if !MOKLI_FORK && (showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton || showToolsButton || showSkillsButton || (toggleFilters && toggleFilters.length > 0))}
 										<div
 											class="flex self-center w-[0.0625rem] h-4 mx-1 bg-gray-200/50 dark:bg-gray-800/50 shrink-0"
 										/>
 									{/if}
 
 									<div class="flex flex-1 items-center min-w-0 overflow-x-auto scrollbar-none">
-										{#if showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton || showToolsButton || showSkillsButton || (toggleFilters && toggleFilters.length > 0)}
+										{#if !MOKLI_FORK && (showWebSearchButton || showImageGenerationButton || showCodeInterpreterButton || showToolsButton || showSkillsButton || (toggleFilters && toggleFilters.length > 0))}
 											<IntegrationsMenu
 												selectedModels={selectedModelIds}
 												{toggleFilters}
