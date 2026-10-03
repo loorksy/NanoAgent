@@ -11,6 +11,86 @@ ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "scripts" / "mokli_upgrade_section11_patch_report.py"
 
 
+def test_patch_p0_live_delta_replaces_interim_paragraph(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_live_delta_paragraph
+
+    events = tmp_path / "events"
+    events.mkdir()
+    diag_base = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 10000}}
+    diag_after = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 5000}}
+    (events / "01-no-tools.jsonl").write_text(json.dumps(diag_base) + "\n", encoding="utf-8")
+    (events / "01-no-tools-after-p0.jsonl").write_text(json.dumps(diag_after) + "\n", encoding="utf-8")
+    report = (
+        "**P0 مكونات (VPS — quota-probe):** interim stale text.\n"
+        "**Other:** keep\n"
+    )
+    updated, changed = patch_p0_live_delta_paragraph(report, events)
+    assert changed == 1
+    assert "interim stale" not in updated
+    assert "delta_in=-5000" in updated
+    assert "in=5000" in updated
+    assert "**Other:** keep" in updated
+
+
+def test_patch_p0_live_delta_is_idempotent_on_second_apply(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_live_delta_paragraph
+
+    events = tmp_path / "events"
+    events.mkdir()
+    diag_base = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 10934}}
+    diag_after = {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 4061}}
+    (events / "01-no-tools.jsonl").write_text(json.dumps(diag_base) + "\n", encoding="utf-8")
+    (events / "01-no-tools-after-p0.jsonl").write_text(json.dumps(diag_after) + "\n", encoding="utf-8")
+    report = "**P0 مكونات (VPS — interim):** stale.\n"
+    first, changed1 = patch_p0_live_delta_paragraph(report, events)
+    assert changed1 == 1
+    second, changed2 = patch_p0_live_delta_paragraph(first, events)
+    assert changed2 == 0
+    assert second == first
+
+
+def test_patch_p0_baseline_table_updates_section_21() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_baseline_table
+
+    events = ROOT / "section11-events"
+    if not (events / "01-no-tools.jsonl").is_file():
+        return
+    report = (
+        "### 2.1 خط أساس حي\n\n"
+        "نص.\n\n"
+        "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| 1 تحية | 99999 | 0 | 0 | 0 | stale |\n\n"
+        "**معلق:** text\n"
+    )
+    updated, changed = patch_p0_baseline_table(report, events)
+    assert changed == 1
+    assert "99999" not in updated
+    assert "1 تحية" in updated
+    assert "**معلق:** text" in updated
+
+
+def test_patch_p0_baseline_keeps_blank_line_before_next_paragraph() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_patch_report import patch_p0_baseline_table
+
+    events = ROOT / "section11-events"
+    if not (events / "01-no-tools.jsonl").is_file():
+        return
+    report = (
+        "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| 1 stale | 1 | 0 | 0 | 0 | x |\n\n"
+        "**Next:** keep\n"
+    )
+    updated, _ = patch_p0_baseline_table(report, events)
+    assert "| 1 stale |" not in updated
+    assert "\n\n**Next:** keep" in updated
+
+
 def test_patch_table_line_updates_result_and_numbers() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import patch_report_text
@@ -67,6 +147,53 @@ def test_patch_script_dry_run_after_validate(tmp_path: Path) -> None:
     assert "PASS — greeting" not in report.read_text(encoding="utf-8")
 
 
+def test_patch_dry_run_succeeds_when_report_already_matches(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "request_input_tokens": 50, "request_output_tokens": 5},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS — greeting"}), encoding="utf-8")
+    report = tmp_path / "report.md"
+    report.write_text(
+        "| # | a | b | c | d | e | f |\n"
+        "| 1 | p | q | r | | |\n",
+        encoding="utf-8",
+    )
+    base = [
+        sys.executable,
+        str(PATCH),
+        "--dir",
+        str(events),
+        "--results",
+        str(results),
+        "--report",
+        str(report),
+        "--require-through",
+        "1",
+        "--skip-validate",
+    ]
+    first = subprocess.run([*base], capture_output=True, text=True, check=False, cwd=str(ROOT))
+    assert first.returncode == 0, first.stderr
+    second = subprocess.run(
+        [*base, "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(ROOT),
+    )
+    assert second.returncode == 0, second.stderr
+    assert "no changes needed" in second.stdout
+
+
 def test_patch_script_writes_report_matching_section11_shape(tmp_path: Path) -> None:
     events = tmp_path / "events"
     events.mkdir()
@@ -118,12 +245,8 @@ def test_header_update_on_real_report_pending_unicode() -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from mokli_upgrade_section11_patch_report import apply_section11_patch
 
-    report_path = ROOT / "docs" / "mokli-agent-upgrade-report.md"
-    header_line = next(
-        line for line in report_path.read_text(encoding="utf-8").splitlines() if line.startswith("## 11.")
-    )
     text = (
-        f"{header_line}\n"
+        "## 11. مسارات حية (لم تُنفَّذ في Cloud Agent)\n"
         "| # | a | b | c | d | e | f |\n"
         "| 1 | p | q | r | | |\n"
     )
@@ -187,6 +310,9 @@ def test_patch_preserves_real_report_section11_rows_1_through_14() -> None:
 
     header = "| # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام |\n"
     for row_id, row_line in sorted(row_lines.items()):
+        parts = row_line.rstrip().split("|")
+        if len(parts) >= 7 and parts[5].strip() and parts[6].strip():
+            continue
         assert row_line.rstrip().endswith("| | |"), row_id
         payloads = {row_id: (f"PASS row {row_id}", f"rounds={row_id} in=100 out=1 tools=0")}
         updated, changed = patch_report_text(header + row_line + "\n", payloads)
@@ -195,3 +321,21 @@ def test_patch_preserves_real_report_section11_rows_1_through_14() -> None:
         assert f"rounds={row_id} in=100" in updated
         path_cell = row_line.split("|", 3)[2].strip()
         assert path_cell in updated
+
+
+def test_patch_row9_numbers_include_session_summary_via_gather(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_section11_batch import gather_section11_rows
+
+    events = tmp_path / "events"
+    events.mkdir()
+    line = json.dumps(
+        {"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 2000, "tool_calls": 1}}
+    )
+    (events / "09-long-session-v3.jsonl").write_text((line + "\n") * 4, encoding="utf-8")
+    results = tmp_path / "section11-results.json"
+    results.write_text(json.dumps({"9": "PASS — long session"}), encoding="utf-8")
+    row_map, _missing = gather_section11_rows(events, results)
+    _result, numbers = row_map[9]
+    assert "diagnostics=4" in numbers
+    assert "in_last_over_first" in numbers

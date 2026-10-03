@@ -16,6 +16,7 @@ def test_operator_smoke_script() -> None:
         capture_output=True,
         text=True,
         check=False,
+        timeout=600,
     )
     assert "OK §11 dry-run" in proc.stdout
     assert "§11 scaffold" in proc.stdout
@@ -24,3 +25,25 @@ def test_operator_smoke_script() -> None:
     assert proc.returncode in (0, 1)
     if proc.returncode == 1:
         assert "WARN operator smoke" in proc.stderr or "FAIL" in proc.stdout
+    combined = proc.stdout + proc.stderr
+    assert (
+        "operator_unblock" in combined
+        or "cloud_status" in combined
+        or "completion_status" in combined
+        or "timer_wake" in combined
+    )
+    partial = ROOT / "section11-results-partial.json"
+    events = ROOT / "section11-events"
+    if partial.is_file() and events.is_dir():
+        combined = proc.stdout + proc.stderr
+        assert "blockers_summary:" in combined
+        if proc.returncode == 0:
+            assert "partial pack rows 1–10" in combined or "require-through 10" in combined
+            assert "production gate @10" in combined or "production_gate @10" in combined
+        assert "allow_partial_closure_errors=" in combined or "closure_errors=" in combined
+
+
+def test_operator_smoke_does_not_abort_on_pytest_failure() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "if !" in text and "scripts pytest failed" in text
+    assert "continuing §11 blockers" in text

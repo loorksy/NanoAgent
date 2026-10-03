@@ -105,7 +105,7 @@ operator work around them.
 | `run_trading_kernel` | the operator wants a new or re-evaluated recommendation | structured decision, quality checks, and artifacts | run while a plan is live without the operator confirming a replacement |
 | `get_live_recommendation` | follow-up on the live plan (status, progress toward stop or targets) | plan with graded outcome and live price | start a new analysis |
 | `capture_gold_chart` | the operator asks for a chart image | TradingView chart image artifact | read levels from pixels |
-| `run_trading_team` | the operator explicitly asks for a committee, debate, news war room, or multi-timeframe panel; always pass an explicit preset | specialist briefs | let a brief choose direction |
+| `run_trading_team` | the operator explicitly asks for a committee, debate, news war room, or multi-timeframe panel; always pass an explicit preset | specialist briefs | let a brief choose direction; the desk distributes reading and proposals, confirmation stays with the operator, and idle research writes only in the news room |
 | `mt5_propose_order` | the operator wants to place a trade based on a published plan | a proposal record and the permission mode applied | call before a structured decision exists for this plan |
 | `mt5_confirm_order` | the operator explicitly confirms or cancels a pending proposal in this turn | broker result or cancellation | confirm without the operator's explicit approval in this turn |
 | `emit_result` | you have a structured result to show (market, analysis, scenarios, risk, decision, approval, plan_status, scorecard) | a rendered result card for the current channel | paste the same payload as raw JSON in the text |

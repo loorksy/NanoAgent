@@ -65,6 +65,8 @@ def test_validate_then_batch_markdown(tmp_path: Path) -> None:
             "--results",
             str(results),
             "--markdown",
+            "--require-through",
+            "2",
         ],
         capture_output=True,
         text=True,
@@ -126,3 +128,39 @@ def test_validate_then_batch_markdown(tmp_path: Path) -> None:
     body = report.read_text(encoding="utf-8")
     assert "PASS row 1" in body and "PASS row 2" in body
     assert "rounds=1" in body and "rounds=2" in body
+
+
+def test_close_dry_run_skips_high_result_keys(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-scenario.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 42}})
+        + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({"1": "PASS", "11": "", "12": ""}), encoding="utf-8")
+    report = tmp_path / "report.md"
+    report.write_text("| # | a | b | c | d | e | f |\n| 1 | p | q | r | | |\n", encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(CLOSE),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--report",
+            str(report),
+            "--require-through",
+            "1",
+            "--allow-partial",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert "patch report (dry-run)" in proc.stdout
+    assert "| 11 |" not in proc.stdout

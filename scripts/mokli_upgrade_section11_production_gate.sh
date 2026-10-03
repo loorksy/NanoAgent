@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Operator gate before §11 close --apply: VPS readiness + local artifacts through row N.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EVENTS="${ROOT}/section11-events"
+RESULTS="${ROOT}/section11-results-partial.json"
+REQUIRE=13
+SKIP_OANDA=0
+SKIP_QUOTA=0
+SKIP_PULL=0
+PULL_VPS=0
+
+usage() {
+  echo "Usage: $0 [--require-through N] [--results PATH] [--skip-oanda] [--skip-quota] [--skip-pull] [--pull-vps]" >&2
+  echo "  --skip-quota  cached quota only (no live probe); for artifact check while OpenRouter blocked" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --require-through) REQUIRE="$2"; shift 2 ;;
+    --results) RESULTS="$2"; shift 2 ;;
+    --skip-oanda) SKIP_OANDA=1; shift ;;
+    --skip-quota) SKIP_QUOTA=1; shift ;;
+    --skip-pull) SKIP_PULL=1; shift ;;
+    --pull-vps) PULL_VPS=1; shift ;;
+    -h | --help) usage ;;
+    *) echo "Unknown arg: $1" >&2; usage ;;
+  esac
+done
+
+ENV_ARGS=()
+if [[ "$SKIP_QUOTA" -eq 0 ]]; then
+  ENV_ARGS+=(--require-quota)
+fi
+if [[ "$SKIP_OANDA" -eq 0 ]]; then
+  ENV_ARGS+=(--require-oanda)
+fi
+
+echo "== VPS env =="
+bash "${ROOT}/scripts/vps_section11_env_check.sh" "${ENV_ARGS[@]}"
+
+if [[ "$SKIP_PULL" -eq 0 ]]; then
+  sync_args=()
+  [[ "$PULL_VPS" -eq 1 ]] && sync_args+=(--pull-vps)
+  bash "${ROOT}/scripts/mokli_upgrade_section11_sync_from_vps.sh" \
+    "${sync_args[@]}" "$EVENTS" "$RESULTS" "$REQUIRE"
+fi
+
+echo "== §11 blockers (artifacts only; env checked above) =="
+if ! bash "${ROOT}/scripts/mokli_upgrade_section11_blockers.sh" \
+  --skip-vps --require-through "$REQUIRE" "$EVENTS" "$RESULTS"; then
+  echo "PRODUCTION_GATE_EXIT=1" >&2
+  exit 1
+fi
+
+echo "OK production gate passed — run section11_close.sh --apply --require-through $REQUIRE --results $RESULTS"
+echo "PRODUCTION_GATE_EXIT=0"

@@ -22,9 +22,9 @@ def test_preflight_script_runs() -> None:
     assert proc.returncode in (0, 1)
     assert "Agent API" in proc.stdout or "FAIL" in proc.stdout
     assert "mokli_upgrade_diagnostic_extract" in proc.stdout
-    assert "section11_batch" in proc.stdout
-    assert "section11_validate" in proc.stdout
-    assert "section11_init" in proc.stdout
-    assert "section11_dry_run" in proc.stdout
-    assert "section11_patch_report" in proc.stdout
-    assert "section11_close" in proc.stdout
+    assert "mokli_upgrade_section11_init" in proc.stdout
+    assert "mokli_upgrade_section11_dry_run" in proc.stdout
+    assert "mokli_upgrade_section11_close" in proc.stdout
+    assert "mokli_upgrade_section11_timer_wake" in proc.stdout
+    assert "mokli_upgrade_section11_operator_unblock" in proc.stdout
+    assert "mokli_upgrade_section11_cloud_status" in proc.stdout

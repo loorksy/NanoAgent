@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -46,6 +47,115 @@ def test_section11_close_dry_run(tmp_path: Path) -> None:
     assert "| PASS |" in proc.stdout
     assert "would update" in proc.stdout
     assert "PASS" not in report.read_text(encoding="utf-8")
+
+
+def test_section11_close_aborts_when_validate_fails_on_repo_partial() -> None:
+    events = ROOT / "section11-events"
+    partial = ROOT / "section11-results-partial.json"
+    if not events.is_dir() or not partial.is_file():
+        return
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(partial),
+            "--require-through",
+            "13",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert proc.returncode != 0, proc.stdout
+    combined = proc.stdout + proc.stderr
+    assert "validate rows 1..13" in combined
+    assert "ERROR" in combined
+    assert (
+        "Row 5 diagnostic" in combined
+        or "Missing JSONL" in combined
+        or "Missing 01-no-tools-after-p0" in combined
+    )
+    assert re.search(r"closure_errors=[1-9]\d*", combined)
+    assert "close_summary:" in combined
+    assert "allow_partial_closure_errors=" in combined
+    assert "seconds_until_reset=" in combined
+    if (ROOT / "section11-events").is_dir() and (ROOT / "section11-results-partial.json").is_file():
+        assert "live_rerun_rows=" in combined
+        assert "allow_partial=0" in combined
+        assert "markdown preview only" in combined
+
+
+def test_section11_close_script_promotes_partial_on_apply_at_13() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "section11-results-partial.json" in text
+    assert "OK promoted partial results" in text
+
+
+def test_section11_close_rejects_apply_with_allow_partial(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-greeting.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+        encoding="utf-8",
+    )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({1: "PARTIAL — x"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "13",
+            "--allow-partial",
+            "--apply",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "allow-partial" in proc.stderr.lower() or "allow-partial" in proc.stdout.lower()
+
+
+def test_section11_close_dry_run_allows_partial_when_flag_set(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    for row_id in (1, 2):
+        (events / f"{row_id:02d}-x.jsonl").write_text(
+            json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 1}}) + "\n",
+            encoding="utf-8",
+        )
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({1: "PASS", 2: "PARTIAL — y"}), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--dir",
+            str(events),
+            "--results",
+            str(results),
+            "--require-through",
+            "2",
+            "--allow-partial",
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "batch markdown" in proc.stdout.lower() or "|" in proc.stdout
 
 
 def test_section11_close_apply_writes_report(tmp_path: Path) -> None:
@@ -94,7 +204,7 @@ def test_section11_close_apply_updates_real_report_unicode_header(tmp_path: Path
     """Regression: close --apply must flip §11 title on docs/mokli-agent-upgrade-report.md shape."""
     report_src = ROOT / "docs" / "mokli-agent-upgrade-report.md"
     source = report_src.read_text(encoding="utf-8")
-    header = next(line for line in source.splitlines() if line.startswith("## 11."))
+    header = "## 11. مسارات حية (لم تُنفَّذ في Cloud Agent)"
     row1 = next(line for line in source.splitlines() if line.startswith("| 1 |"))
     events = tmp_path / "events"
     events.mkdir()
@@ -178,3 +288,16 @@ def test_close_apply_on_canonical_report_aborts_before_patch(tmp_path: Path) -> 
     assert canonical.read_text(encoding="utf-8") == before
     assert "report gate" not in proc.stdout.lower()
     assert "OK §11 close" not in proc.stdout
+
+
+def test_close_uses_validate_shell_wrapper() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "mokli_upgrade_section11_validate.sh" in text
+    assert "print-live-rerun-rows" in text
+    assert text.count("mokli_upgrade_section11_validate.py") == 2  # allow_partial + live_rerun_rows
+    assert "section11_allow_partial_closure_errors" in text
+
+
+def test_close_does_not_prune_row5_jsonl_on_disk() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "section11_prune_row5_stale_no_nested" not in text

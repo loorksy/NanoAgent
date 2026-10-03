@@ -95,18 +95,50 @@ VPS deploy from Cloud Agent: set environment secrets **`VPS`** (host or `user@ho
 cd /workspace/mokli-ui && bun run dev --host 127.0.0.1 --port 5173
 curl -s http://127.0.0.1:5173/api/v2/health
 bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + init smoke + tests/scripts (no LLM)
+bash scripts/mokli_upgrade_section11_cloud_status.sh  # quota cache + VPS env + blockers @13 (exit 1 until closure)
+bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10  # exit 0 when local JSONL 1–10 OK (quota may still block)
+bash scripts/mokli_upgrade_section11_operator_unblock.sh  # live probe + env + blockers @13
+bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe  # cached quota only (quota already blocked)
+# Paid §11 model from workstation: export MOKLI_SECTION11_MODEL=… before vps_section11_* (forwarded over SSH)
+bash scripts/vps_section11_quota_status.sh  # read last quota-probe JSONL (no LLM call; prints OpenRouter reset hint)
+bash scripts/mokli_upgrade_section11_wait_quota_reset.sh  # seconds until reset; --wait sleeps then quota_probe
 bash scripts/mokli_upgrade_section11_init.sh  # VPS: scaffold events/ + results + progress (no LLM)
 bash scripts/mokli_upgrade_preflight.sh  # API health + config warn; no LLM call
-/workspace/.venv/bin/pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q
+bash scripts/mokli_upgrade_aggregate_pytest.sh
 python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl  # after live turn with SHOW_DIAGNOSTICS
 # Operator §11 pack (after VPS live runs): docs/section11-results.example.json → section11-results.json
 bash scripts/mokli_upgrade_section11_dry_run.sh  # fixture row 1 only; not production closure
-python scripts/mokli_upgrade_section11_validate.py --dir ./section11-events --results section11-results.json
-python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events --results section11-results.json --markdown
-python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --dry-run
-bash scripts/mokli_upgrade_section11_close.sh --apply  # after live §11 artifacts; runs report gate on canonical report when require-through 13
+bash scripts/mokli_upgrade_section11_validate.sh --dir ./section11-events --results section11-results.json
+bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps # before/at reset: wait + probe + partial reruns
+bash scripts/mokli_upgrade_section11_after_reset_wake.sh # after reset: probe + partial reruns (no long sleep)
+bash scripts/mokli_upgrade_section11_completion_status.sh # cached quota + §11 @13 (+ partial10 gate when blocked)
+bash scripts/mokli_upgrade_section11_cloud_status.sh # quota snapshot + blockers @13 (+ partial10_ok/gate)
+bash scripts/mokli_upgrade_operator_smoke.sh  # preflight + §11 dry-run + production_gate @10 on partial pack
+bash scripts/mokli_upgrade_section11_timer_wake.sh --dry-run # cached status; after reset: --wait-quota then full chain @13
+bash scripts/mokli_upgrade_section11_sync_cloud_branch.sh  # git pull §11 branch before wake (also inside timer_wake / after_reset_wake)
+# Background on Cloud Agent VM (sleep until reset, then VPS reruns): tmux session section11-timer-wake-wait → log /opt/cursor/artifacts/timer_wake_wait_quota.log
+bash scripts/mokli_upgrade_section11_check_wake.sh  # tmux + log tail + blockers_summary (no LLM)
+bash scripts/mokli_upgrade_section11_check_wake.sh --sync-vps-rev  # align VPS git with Cloud after push
+bash scripts/mokli_upgrade_section11_monitor_log.sh  # check_wake --sync-vps-rev + snapshot → section11_monitor.log
+# Production validate @13: rejects PARTIAL in results; requires section11-events/01-no-tools-after-p0.jsonl (--allow-partial for preview only)
+bash scripts/mokli_upgrade_section11_status.sh  # exit 0 when artifacts + VPS quota probe OK (set MOKLI_SSH_HOST)
+bash scripts/mokli_upgrade_section11_status.sh --skip-quota  # validate JSONL/results only (no LLM call)
+bash scripts/mokli_upgrade_section11_close.sh  # dry-run; --apply --require-through 13 --results section11-results-partial.json after live artifacts
+# Partial pack preview: --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
+# Preview §11 table with partial VPS pack: close.sh --results section11-results-partial.json --require-through 10 --allow-partial (no --apply)
+bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps  # pull JSONL + after_pull (P0 delta even when validate @13 fails); pass EVENTS RESULTS 13
+bash scripts/vps_section11_row1_after_p0.sh  # after VPS quota probe OK
+bash scripts/mokli_upgrade_section11_rerun_partials.sh  # selective gaps from validate --print-live-rerun-rows (+ OANDA for 10)
+bash scripts/mokli_upgrade_section11_precheck_ui.sh  # rows 12–13 UI prechecks (no LLM; VPS SSH for :8080)
+bash scripts/vps_section11_row12_pipe_turn.sh  # after quota: headless mokli_pipe → 12-desktop-ui.jsonl (try_row12 in after_reset_wake)
+bash scripts/vps_section11_row13_export_session.sh  # after mobile/SDK chat on gateway: session SSE → 13-mobile.jsonl
+bash scripts/mokli_upgrade_section11_blockers.sh  # env + validate 13; exit 0 only when closable
+bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # artifact pack while quota blocked
+# Post-reset §11 closure (quota OK): docs/section11-post-reset-runbook.md
 # Completion gate matrix: docs/mokli-agent-upgrade-completion-audit.md
 ```
 
-Aggregate pytest target: 2335 passed. Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete.
+Aggregate pytest target: 2551 passed (1 skipped). Live chat paths (no-tools turn, gold analysis, paper trading, phone/desktop UI) require operator keys and deploy; fill `docs/mokli-agent-upgrade-report.md` §11 before marking the upgrade complete. Rows 11–13 runbook: `bash scripts/mokli_upgrade_section11_remaining_rows.sh`.
+
+While OpenRouter quota is blocked (`vps_section11_quota_probe.sh` → `in=0`): prefer `check_wake.sh`, `monitor_log.sh`, or `completion_status.sh` monitoring only—avoid audit `git_rev`-only commits and repeated operator-smoke unless the branch changed. If `git push` fails, sync §11 script fixes to VPS with `bash scripts/vps_section11_scp_branch_scripts.sh` until the branch tip is on origin. Optional tmux `section11-monitor-loop` runs `bash scripts/mokli_upgrade_section11_monitor_loop.sh` (30m default). `timer_wake` (non dry-run) holds `flock` on `/tmp/mokli_section11_timer_wake.lock` and logs `TIMER_WAKE_FINAL_EXIT` on exit; a second concurrent run exits 2. MCP one-shot timers (e.g. `mokli-section11-at-reset-buffer`, `mokli-section11-after-openrouter-reset-backup`) can wake the agent after `wake_after_buffer_utc` if tmux dies. After `wake_after_buffer_utc`: `timer_wake` (or `after_reset_wake` if probe already OK), then operator `vps_section11_set_oanda_env.sh` and `remaining_rows.sh` for 11–13 before `close.sh --apply @13`.
 - Tests mirror the `mokli/` package structure.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,6 +20,7 @@ from mokli.agent.context_layers import (
     layers_for_archived_history,
     layers_for_task,
     layers_for_transcript_boundary,
+    provider_tool_names_for_layers,
 )
 from mokli.agent.hook import AgentHook
 from mokli.agent.tools.base import Tool
@@ -478,6 +480,79 @@ def test_short_question_skips_memory_and_skills() -> None:
     assert trading.include_skills is True
 
 
+def test_light_turn_defers_trading_tool_schemas() -> None:
+    registered = [
+        "message",
+        "web_search",
+        "web_fetch",
+        "read_file",
+        "list_dir",
+        "get_gold_quote",
+        "run_trading_kernel",
+    ]
+    light = provider_tool_names_for_layers(registered, layers_for_task("مرحبا"))
+    assert light == ["message", "web_search", "web_fetch"]
+    with_session = provider_tool_names_for_layers(
+        registered + ["read_session", "list_sessions"],
+        layers_for_task("مرحبا"),
+    )
+    assert "read_session" in with_session
+    assert "get_gold_quote" not in with_session
+    full = provider_tool_names_for_layers(registered, layers_for_task("حلل الذهب"))
+    assert full == registered
+
+
+def test_registry_definitions_for_names_subset() -> None:
+    class _NamedTool(Tool):
+        def __init__(self, tool_name: str) -> None:
+            self._name = tool_name
+
+        @property
+        def name(self) -> str:
+            return self._name
+
+        @property
+        def description(self) -> str:
+            return "x"
+
+        @property
+        def parameters(self) -> dict[str, Any]:
+            return {"type": "object", "properties": {}}
+
+        async def execute(self, **kwargs: Any) -> str:
+            return "ok"
+
+    registry = ToolRegistry()
+    registry.register(_NamedTool("alpha"))
+    registry.register(_NamedTool("beta"))
+    names = registry.get_definitions_for_names(["beta"])
+    assert len(names) == 1
+    assert names[0]["function"]["name"] == "beta"
+
+
+def test_short_turn_system_prompt_uses_compact_tool_contracts(tmp_path) -> None:
+    from mokli.agent.context import ContextBuilder, TranscriptInput
+
+    tool_names = ["get_gold_quote", "message", "run_trading_kernel"]
+    builder = ContextBuilder(tmp_path)
+    full_messages = builder.build_transcript(
+        TranscriptInput(history=[], current_message="حلل الذهب"),
+        tool_names=tool_names,
+    )
+    short_messages = builder.build_transcript(
+        TranscriptInput(history=[], current_message="مرحبا"),
+        tool_names=tool_names,
+    )
+    full_sys = full_messages[0]["content"]
+    short_sys = short_messages[0]["content"]
+    assert "Teams and debate" in full_sys
+    assert "Teams and debate" not in short_sys
+    assert "Execution permission levels" in short_sys
+    full_tok = estimate_prompt_tokens(full_messages, None)
+    short_tok = estimate_prompt_tokens(short_messages, None)
+    assert short_tok < full_tok - 150
+
+
 def test_archive_layers_follow_last_user_turn() -> None:
     history = [
         {"role": "user", "content": "مرحبا"},
@@ -508,12 +583,18 @@ def test_compaction_summary_layers_follow_turn_not_empty_tail() -> None:
 
 def test_registered_tools_have_display_copy() -> None:
     registry = ToolRegistry()
-    ToolLoader().load(ToolContext(config=ToolsConfig(), workspace="/tmp"), registry)
+    ctx = ToolContext(
+        config=ToolsConfig(),
+        workspace="/tmp",
+        subagent_manager=MagicMock(),
+    )
+    ToolLoader().load(ctx, registry)
     missing = [name for name in registry.tool_names if name not in DISPLAY]
     assert missing == []
     assert phrase_for("get_gold_quote", "started") == "يفحص سعر الذهب الحالي…"
     assert phrase_for("get_gate_report", "finished") == "اكتمل فحص شروط القرار"
     assert phrase_for("run_trading_kernel", "started") == "يشغّل محرك التحليل"
+    assert phrase_for("grep", "started") == "يبحث في ملفات المهارات…"
     assert "get_gold_quote" not in phrase_for("get_gold_quote", "started")
 
 
@@ -795,6 +876,19 @@ def test_context_timing_keeps_memory_measured_during_prompt_build(tmp_path) -> N
         + payload["components"]["other"]
         + payload["components"]["tool_definitions"]
     )
+    assert payload["provider_tool_count"] == 0
+
+
+def test_note_prepared_records_provider_tool_count() -> None:
+    from mokli.agent.turn_diagnostics import TurnDiagnostics
+
+    diag = TurnDiagnostics(model="test", provider="Test")
+    diag.note_prepared(
+        [{"role": "system", "content": "x"}, {"role": "user", "content": "hi"}],
+        [{"type": "function", "function": {"name": "a", "description": "d", "parameters": {}}}],
+    )
+    assert diag.provider_tool_count == 1
+    assert diag.to_dict()["provider_tool_count"] == 1
 
 
 def test_component_tokens_count_subagent_results_apart_from_tools() -> None:

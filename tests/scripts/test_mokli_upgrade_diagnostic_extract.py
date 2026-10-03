@@ -169,6 +169,427 @@ def test_one_liner_includes_p0_fold_metrics_when_nonzero() -> None:
     assert "nested_rounds=4" in out
 
 
+def test_each_and_session_summary_for_long_session() -> None:
+    lines = [
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "request_input_tokens": 10000, "tool_calls": 1},
+            }
+        ),
+        json.dumps({"kind": "section11_round_marker", "data": {"round": 1}}),
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 2,
+                    "request_input_tokens": 12000,
+                    "tool_calls": 1,
+                    "referenced_chars_saved": 5000,
+                },
+            }
+        ),
+    ]
+    text = "\n".join(lines)
+    each = subprocess.run(
+        [sys.executable, str(SCRIPT), "--each"],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "turn=1" in each.stdout
+    assert "turn=2" in each.stdout
+    assert "in=10000" in each.stdout
+    assert "in=12000" in each.stdout
+    summary = subprocess.run(
+        [sys.executable, str(SCRIPT), "--session-summary"],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = summary.stdout.strip()
+    assert "diagnostics=2" in out
+    assert "in_first=10000" in out
+    assert "in_last=12000" in out
+    assert "in_last_over_first=1.20" in out
+    assert "below_linear_2x=yes" in out
+
+
+def test_one_liner_includes_provider_tool_count_when_present() -> None:
+    line = json.dumps(
+        {
+            "kind": "diagnostic",
+            "data": {"rounds": 1, "request_input_tokens": 100, "provider_tool_count": 3},
+        }
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--each"],
+        input=line,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "provider_tools=3" in proc.stdout
+
+
+def test_p0_baseline_table_from_events_dir(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 10934,
+                    "request_output_tokens": 117,
+                    "tool_calls": 0,
+                    "provider_tool_count": 11,
+                    "components": {"final": 10271},
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (events / "01-probe.jsonl").write_text(
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 0, "tool_calls": 0}}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--p0-baseline", str(events)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout
+    assert "10934" in out
+    assert "01-no-tools.jsonl" in out
+    assert "provider_tools=11" in out
+    assert "comp_final=10271" in out
+    assert "1 تحية" in out or "| 1 " in out
+
+
+def test_p0_baseline_includes_after_p0_row_when_present(tmp_path: Path) -> None:
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "01-no-tools.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 10934,
+                    "request_output_tokens": 117,
+                    "tool_calls": 0,
+                    "provider_tool_count": 3,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (events / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {
+                    "rounds": 1,
+                    "request_input_tokens": 4061,
+                    "request_output_tokens": 93,
+                    "tool_calls": 0,
+                    "provider_tool_count": 7,
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import p0_baseline_markdown, section11_row1_numbers
+
+    md = p0_baseline_markdown(events)
+    assert "10934" in md
+    assert "4061" in md
+    assert "after P0" in md
+    assert "baseline" in md
+    nums = section11_row1_numbers(events)
+    assert nums is not None
+    assert "Δin≈-6873" in nums or "Δin≈−6873" in nums
+
+
+def test_session_summary_flags_quota_when_all_input_zero() -> None:
+    lines = [
+        json.dumps(
+            {"kind": "diagnostic", "data": {"rounds": 1, "request_input_tokens": 0, "tool_calls": 0}}
+        )
+        for _ in range(5)
+    ]
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--session-summary"],
+        input="\n".join(lines),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = proc.stdout.strip()
+    assert "diagnostics=5" in out
+    assert "quota_blocked_likely=yes" in out
+
+
+def test_resolve_row_prefers_highest_in_and_excludes_stem(tmp_path: Path) -> None:
+    (tmp_path / "01-low.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 100}}) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "01-high.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 9000}}) + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "01-no-tools-after-p0.jsonl").write_text(
+        json.dumps({"kind": "diagnostic", "data": {"rounds": 1, "input_tokens": 5000}}) + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--resolve-row",
+            "1",
+            "--dir",
+            str(tmp_path),
+            "--exclude-stem",
+            "after-p0",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert proc.stdout.strip().endswith("01-high.jsonl")
+
+
+def test_pick_row_3_prefers_two_tools_over_higher_input_one_tool(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "03-multi-tool.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "input_tokens": 30000, "tool_calls": 1},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "03-multi-tool-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 28000, "tool_calls": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 3)
+    assert picked is not None
+    assert picked[0] == "03-multi-tool-v2.jsonl"
+
+
+def test_pick_row_9_prefers_more_diagnostics_with_nonzero_input(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    def diag_line(in_t: int) -> str:
+        return (
+            json.dumps(
+                {
+                    "kind": "diagnostic",
+                    "data": {"rounds": 1, "input_tokens": in_t, "tool_calls": 1},
+                }
+            )
+            + "\n"
+        )
+
+    (tmp_path / "09-long-session-v2.jsonl").write_text(
+        diag_line(5000) * 14 + diag_line(0),
+        encoding="utf-8",
+    )
+    (tmp_path / "09-long-session-v3.jsonl").write_text(
+        diag_line(4000) * 15,
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 9)
+    assert picked is not None
+    assert picked[0] == "09-long-session-v3.jsonl"
+
+
+def test_jsonl_spawn_failed_upstream_quota_detects_spawn_429() -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import jsonl_spawn_failed_upstream_quota
+
+    body = (
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"code": 429, rate-limited upstream"}}\n'
+    )
+    assert jsonl_spawn_failed_upstream_quota(body) is True
+    assert jsonl_spawn_failed_upstream_quota('{"kind":"diagnostic","data":{}}\n') is False
+
+
+def test_pick_row_5_prefers_nested_rounds(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "05-subagents.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 4, "input_tokens": 50000, "tool_calls": 4, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 40000, "tool_calls": 3, "nested_rounds": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 5)
+    assert picked is not None
+    assert picked[0] == "05-subagents-v2.jsonl"
+
+
+def test_pick_row_5_prefers_nested_over_parent_only_high_in(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "05-subagents.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 4, "input_tokens": 51744, "tool_calls": 4, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 5)
+    assert picked is not None
+    assert picked[0] == "05-subagents.jsonl"
+
+
+def test_pick_row_5_prefers_v2_over_stale_spawn429_v1(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "05-subagents.jsonl").write_text(
+        '{"kind":"tool","data":{"name":"spawn","event":"failed",'
+        '"summary":"429 rate-limited upstream"}}\n'
+        + json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 4, "input_tokens": 51744, "tool_calls": 4, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "05-subagents-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0, "nested_rounds": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 5)
+    assert picked is not None
+    assert picked[0] == "05-subagents-v2.jsonl"
+
+
+def test_pick_row_3_prefers_v2_two_tools_over_v1_quota_fail(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "03-multi-tool.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 2, "input_tokens": 0, "tool_calls": 1},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "03-multi-tool-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 3, "input_tokens": 26000, "tool_calls": 2},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 3)
+    assert picked is not None
+    assert picked[0] == "03-multi-tool-v2.jsonl"
+
+
+def test_pick_row_8_prefers_nonzero_input_over_quota_fail(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from mokli_upgrade_diagnostic_extract import pick_row_diagnostic
+
+    (tmp_path / "08-fallback-provider.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 0, "tool_calls": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "08-fallback-provider-v2.jsonl").write_text(
+        json.dumps(
+            {
+                "kind": "diagnostic",
+                "data": {"rounds": 1, "input_tokens": 9000, "tool_calls": 0},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    picked = pick_row_diagnostic(tmp_path, 8)
+    assert picked is not None
+    assert picked[0] == "08-fallback-provider-v2.jsonl"
+    assert picked[1]["input_tokens"] == 9000
+
+
 def test_sample_fixture_jsonl_for_operator() -> None:
     fixture = ROOT / "tests/fixtures" / "section11_turn_diagnostics_sample.jsonl"
     proc = subprocess.run(

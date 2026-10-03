@@ -22,8 +22,15 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from mokli_upgrade_section11_batch import gather_section11_rows  # noqa: E402
+from mokli_upgrade_diagnostic_extract import (  # noqa: E402
+    pick_row_diagnostic,
+    p0_baseline_markdown,
+)
 
 _ROW_LINE = re.compile(r"^\|\s*(\d+)\s*\|")
+_P0_TABLE_HEADER = "| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |"
+_P0_INTERIM_LINE = re.compile(r"^\*\*P0 مكونات \(VPS.*$", re.MULTILINE)
+_P0_LIVE_DELTA_LINE = re.compile(r"^\*\*P0 live delta \(VPS.*$", re.MULTILINE)
 _PENDING_HEADER = "(لم تُنفَّذ في Cloud Agent)"
 _FILLED_HEADER = "(تم التعبئة من تشغيل VPS — راجع الأرقام واللقطات)"
 # Report markdown may use a different combining-mark order for «نُفِّذ»; match by section title.
@@ -89,16 +96,118 @@ def _maybe_update_section_header(
     return text, False
 
 
+def patch_p0_baseline_table(text: str, events_dir: Path) -> tuple[str, int]:
+    """Replace report §2.1 snapshot table from section11-events diagnostics."""
+    lines = text.splitlines()
+    start: int | None = None
+    end: int | None = None
+    for idx, line in enumerate(lines):
+        if line.strip() == _P0_TABLE_HEADER:
+            start = idx
+            continue
+        if start is not None and line.startswith("**"):
+            end = idx
+            break
+    if start is None:
+        return text, 0
+    if end is None:
+        end = len(lines)
+    new_block = p0_baseline_markdown(events_dir).splitlines()
+    if end < len(lines) and lines[end].startswith("**"):
+        if new_block and new_block[-1].strip():
+            new_block.append("")
+    if lines[start:end] == new_block:
+        return text, 0
+    updated_lines = lines[:start] + new_block + lines[end:]
+    updated = "\n".join(updated_lines)
+    if text.endswith("\n"):
+        updated += "\n"
+    return updated, 1
+
+
+def _parse_p0_live_delta_stdout(stdout: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for line in stdout.splitlines():
+        if line.startswith("delta_in="):
+            parsed["delta_in"] = line.partition("=")[2]
+        elif line.startswith("delta_comp_final="):
+            parsed["delta_comp_final"] = line.partition("=")[2]
+        elif line.startswith("baseline="):
+            for token in line.split():
+                if token.startswith("in="):
+                    parsed["base_in"] = token[3:]
+        elif line.startswith("new="):
+            for token in line.split():
+                if token.startswith("in="):
+                    parsed["new_in"] = token[3:]
+    return parsed
+
+
+def patch_p0_live_delta_paragraph(text: str, events_dir: Path) -> tuple[str, int]:
+    """When after-p0 JSONL has in>0, replace interim §2.1 P0 components bullet."""
+    after = events_dir / "01-no-tools-after-p0.jsonl"
+    if not after.is_file():
+        return text, 0
+    baseline = events_dir / "01-no-tools.jsonl"
+    if not baseline.is_file():
+        picked = pick_row_diagnostic(events_dir, 1, exclude_stem_substrings=["after-p0"])
+        if picked is None:
+            return text, 0
+        baseline = events_dir / picked[0]
+    script = _SCRIPT_DIR / "mokli_upgrade_p0_live_delta.sh"
+    proc = subprocess.run(
+        ["bash", str(script), str(baseline), str(after)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=_SCRIPT_DIR.parent,
+    )
+    if proc.returncode != 0:
+        return text, 0
+    metrics = _parse_p0_live_delta_stdout(proc.stdout)
+    new_in = metrics.get("new_in")
+    if not new_in or not new_in.isdigit() or int(new_in) <= 0:
+        return text, 0
+    base_in = metrics.get("base_in", "?")
+    delta_in = metrics.get("delta_in", "?")
+    comp_note = ""
+    if metrics.get("delta_comp_final"):
+        comp_note = f"; `delta_comp_final={metrics['delta_comp_final']}`"
+    new_line = (
+        "**P0 live delta (VPS row 1 — `01-no-tools-after-p0.jsonl`):** "
+        f"baseline `in={base_in}` → after `in={new_in}` (`delta_in={delta_in}`{comp_note})."
+    )
+    if _P0_LIVE_DELTA_LINE.search(text):
+        updated, count = _P0_LIVE_DELTA_LINE.subn(new_line, text, count=1)
+        if updated == text:
+            return text, 0
+        return updated, count
+    if _P0_INTERIM_LINE.search(text):
+        updated, count = _P0_INTERIM_LINE.subn(new_line, text, count=1)
+        if updated == text:
+            return text, 0
+        return updated, count
+    return text, 0
+
+
 def apply_section11_patch(
     text: str,
     payloads: dict[int, tuple[str, str]],
     *,
     require_through: int = 13,
+    events_dir: Path | None = None,
 ) -> tuple[str, int]:
     updated, changed = patch_report_text(text, payloads)
     updated, header_changed = _maybe_update_section_header(updated, payloads, require_through)
     if header_changed:
         changed += 1
+    if events_dir is not None:
+        updated, p0_changed = patch_p0_baseline_table(updated, events_dir)
+        changed += p0_changed
+        updated, live_changed = patch_p0_live_delta_paragraph(updated, events_dir)
+        changed += live_changed
+    if updated == text:
+        return text, 0
     return updated, changed
 
 
@@ -156,7 +265,9 @@ def main() -> int:
             return proc.returncode
 
     try:
-        payloads, missing = gather_section11_rows(events_dir, results_path)
+        payloads, missing = gather_section11_rows(
+            events_dir, results_path, require_through=args.require_through
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"ERROR {exc}", file=sys.stderr)
         return 1
@@ -168,15 +279,25 @@ def main() -> int:
     try:
         original = report_path.read_text(encoding="utf-8")
         updated, changed = apply_section11_patch(
-            original, payloads, require_through=args.require_through
+            original,
+            payloads,
+            require_through=args.require_through,
+            events_dir=events_dir,
         )
     except ValueError as exc:
         print(f"ERROR {exc}", file=sys.stderr)
         return 1
 
     if changed == 0:
-        print("WARN no §11 table rows updated (check row ids 1–14)", file=sys.stderr)
-        return 1
+        msg = (
+            f"OK no changes needed in {report_path} "
+            "(§11 / §2.1 already match artifacts)"
+        )
+        if args.dry_run:
+            print(f"OK dry-run: {msg.removeprefix('OK ')}")
+            return 0
+        print(msg)
+        return 0
 
     if args.dry_run:
         print(f"OK dry-run: would update {changed} row(s) in {report_path}")

@@ -21,7 +21,13 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from mokli_upgrade_diagnostic_extract import diagnostic_from_text, one_line_summary  # noqa: E402
+from mokli_upgrade_diagnostic_extract import (  # noqa: E402
+    all_diagnostics_from_text,
+    one_line_summary,
+    pick_row_diagnostic,
+    section11_row1_numbers,
+    session_summary_line,
+)
 
 
 def _row_index(name: str) -> int | None:
@@ -36,27 +42,51 @@ def _collect_jsonl(directory: Path) -> list[Path]:
     return sorted(files, key=lambda p: (_row_index(p.stem) is None, _row_index(p.stem) or 0, p.name))
 
 
+def _scenario_jsonl(directory: Path) -> list[Path]:
+    """§11 scenario logs only (``01-….jsonl`` … ``13-….jsonl``), not quota probes."""
+    return [p for p in _collect_jsonl(directory) if _row_index(p.stem) is not None]
+
+
 def gather_section11_rows(
     directory: Path,
     results_path: Path | None = None,
+    require_through: int | None = None,
 ) -> tuple[dict[int, tuple[str, str]], int]:
     """Build ``{row_id: (result_text, numbers_line)}`` from JSONL + optional results JSON."""
-    files = _collect_jsonl(directory)
     results_map: dict[int, str] = {}
     if results_path is not None:
         results_map = _load_results(results_path)
+        if require_through is not None:
+            results_map = {
+                row_id: text
+                for row_id, text in results_map.items()
+                if row_id <= require_through
+            }
+    row_ids: set[int] = set()
+    for path in _scenario_jsonl(directory):
+        idx = _row_index(path.stem)
+        if idx is not None and (require_through is None or idx <= require_through):
+            row_ids.add(idx)
+    row_ids |= set(results_map.keys())
     out: dict[int, tuple[str, str]] = {}
     missing = 0
-    for path in files:
-        idx = _row_index(path.stem)
-        if idx is None:
-            continue
-        diag = diagnostic_from_text(path.read_text(encoding="utf-8"))
-        if diag is None:
+    for idx in sorted(row_ids):
+        picked = pick_row_diagnostic(directory, idx)
+        if picked is None:
             numbers = "(no diagnostic)"
             missing += 1
         else:
+            name, diag = picked
             numbers = one_line_summary(diag)
+            if idx == 1:
+                row1 = section11_row1_numbers(directory)
+                if row1:
+                    numbers = row1
+            if idx == 9:
+                path = directory / name
+                diags = all_diagnostics_from_text(path.read_text(encoding="utf-8"))
+                if len(diags) > 1:
+                    numbers = f"{numbers} {session_summary_line(diags)}"
         result_text = results_map.get(idx, "")
         out[idx] = (result_text, numbers)
     return out, missing
@@ -97,15 +127,24 @@ def main() -> int:
         type=Path,
         help="JSON file: row id → «النتيجة» string (see docs/section11-results.example.json)",
     )
+    parser.add_argument(
+        "--require-through",
+        type=int,
+        default=None,
+        help="Only rows 1..N (ignore higher keys in results JSON)",
+    )
     args = parser.parse_args()
     directory = args.dir.expanduser().resolve()
     if not directory.is_dir():
         print(f"Not a directory: {directory}", file=sys.stderr)
         return 1
 
-    files = _collect_jsonl(directory)
-    if not files:
-        print(f"No *.jsonl in {directory}", file=sys.stderr)
+    scenario_files = _scenario_jsonl(directory)
+    if not scenario_files:
+        print(
+            f"No §11 scenario *.jsonl (NN-prefix) in {directory}",
+            file=sys.stderr,
+        )
         return 1
 
     results_path: Path | None = None
@@ -116,27 +155,33 @@ def main() -> int:
             return 1
 
     try:
-        row_map, missing = gather_section11_rows(directory, results_path)
+        row_map, missing = gather_section11_rows(
+            directory, results_path, require_through=args.require_through
+        )
     except (json.JSONDecodeError, ValueError) as exc:
         print(f"Invalid results file: {exc}", file=sys.stderr)
         return 1
 
     rows: list[tuple[int | str, str, str, str]] = []
-    for path in files:
+    for path in scenario_files:
         idx = _row_index(path.stem)
-        label = str(idx) if idx is not None else path.stem
-        if idx is not None and idx in row_map:
+        assert idx is not None
+        label = str(idx)
+        if idx in row_map:
             result_text, numbers = row_map[idx]
         else:
-            result_text, numbers = "", "(no diagnostic)" if idx is not None else ""
+            result_text, numbers = "", "(no diagnostic)"
         rows.append((label, path.name, numbers, result_text))
 
     if args.markdown:
         if args.results:
             print("| # | النتيجة | أرقام | ملف JSONL |")
             print("| --- | --- | --- | --- |")
-            for label, fname, numbers, result_text in rows:
-                print(f"| {label} | {result_text} | {numbers} | `{fname}` |")
+            for idx in sorted(row_map.keys()):
+                result_text, numbers = row_map[idx]
+                picked = pick_row_diagnostic(directory, idx)
+                fname = picked[0] if picked is not None else "?"
+                print(f"| {idx} | {result_text} | {numbers} | `{fname}` |")
         else:
             print("| # | ملف JSONL | أرقام (paste into §11) |")
             print("| --- | --- | --- |")

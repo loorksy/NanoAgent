@@ -1,6 +1,6 @@
 # تقرير ترقية وكيل Mokli
 
-الأرقام أدناه من تقدير محلي بـ tiktoken ومن اختبارات الوحدة على هذا الفرع. لا يوجد هنا قياس على مزود حي، ولا اختبار تاريخي على شموع الوسيط، ولا مرور على واجهة الهاتف أو سطح المكتب في المتصفح.
+الأرقام في §2–§10 من تقدير محلي بـ tiktoken واختبارات الوحدة. **§11** يحمل قياساً **جزئياً** على VPS (مزود حي، بدون OANDA كامل؛ صفوف 11–13 غير مغلقة). إغلاق الإنتاج = §11 صفوف 1–13 + بوابة التقرير.
 
 تدقيق المسار من الكود في `docs/mokli-agent-upgrade-audit.md`. جرد الإعدادات في `docs/mokli-settings-audit.md`.
 
@@ -103,6 +103,26 @@
 لقطة أدلة معتادة نحو 7994 حرفاً، تحت حد 18000. وثيقة فيها ملخص فريق طويل بلغت 21433 حرفاً، والقص عند 18000 كان يقطع JSON داخل سلسلة. الملخص يُقصَّر حتى تبقى الوثيقة صالحة، وأسطر الموقف وكتلة الماكرو تبقى. اللقطة التي يقرأها تطبيق القرار لا تتغير. أدلة أربعين شمعة لدور الفريق نحو 2993 حرفاً وتُرسل كاملة. أربعمائة شمعة بلغت 29724 حرفاً وكان القص عند 12000 يُفسدها. تُحذف أقدم الشموع ويبقى 160 شمعة في 11964 حرفاً من JSON صالح.
 
 لم يُوضع سقف `max_tokens` على حلقة الوكيل الرئيسية، ولم يُحذف تاريخ المحادثة عشوائياً. حد 1024 على مخرجات دور الفريق فقط.
+
+### 2.1 خط أساس حي (VPS §11 جزئي — qwen3-8-27b-free، 2026-10-01)
+
+هذه الأرقام من `diagnostic` على Agent API بعد التصحيحات في `main`؛ **ليست** after/after كاملة لكل مسار (حصة OpenRouter اليومية أوقفت صف 9 و11–13). تُستخدم كـ P0 live snapshot حتى إعادة القياس:
+
+| مسار §11 | `in` | `out` | `tools` | `rounds` | ملاحظة |
+| --- | --- | --- | --- | --- | --- |
+| 1 تحية (baseline) | 10934 | 117 | 0 | 1 | `01-no-tools.jsonl`; comp_final=10271 |
+| 1 تحية (after P0) | 4061 | 93 | 0 | 1 | `01-no-tools-after-p0.jsonl`; provider_tools=7; comp_final=3612 |
+| 2 أداة واحدة | 25037 | 670 | 1 | 2 | `02-single-tool-v2.jsonl`; comp_final=12036 |
+| 4 تحليل/قرار | 24924 | 437 | 2 | 3 | `04-gold-analysis.jsonl`; comp_final=3247 |
+| 10 backtest | 24864 | 480 | 1 | 2 | `10-backtest.jsonl`; comp_final=11836 |
+
+**معلق لإغلاق P0 live:** إعادة نفس الصفوف بعد credits + OANDA؛ صف 9 `--session-summary` (`in_last_over_first`); مقارنة صريحة before/after على نفس الـ preset.
+
+**P0 بعد (محلي — طبقة عقود أدوات مضغوطة):** للرسائل القصيرة بلا مهمة تداول/ذاكرة (`context_layers`)، طبقة `40_tool_contracts_compact.md` تستبدل جدول العائلات و«Teams and debate»… بينما تبقى مستويات الصلاحية. تقدير tiktoken لنص النظام فقط (ثلاث أدوات مسجّلة): «مرحبا» ≈1826 مقابل «حلل الذهب» ≈3085 (−1259). **يحتاج** إعادة صف §11 1 على VPS بعد credits لمقارنة `in` الكامل (يشمل مخططات الأدوات).
+
+**P0 تقدير طلب كامل (محلي — `scripts/mokli_upgrade_p0_turn_estimate.py`، 27 أداة مسجّلة، 2026-10-02):** على الدور الخفيف: chat + أدوات الجلسة عند التسجيل، مع العقود المضغوطة: «مرحبا» `final≈5672` (`system≈4887`, `tool_defs≈776`, `provider_tools=3`) مقابل «حلل الذهب» `final≈12620` (`system≈6957`, `tool_defs≈5652`, `provider_tools=27`)؛ `delta_final≈6948`. خط أساس VPS §11 row 1 كان `in≈10934` (قبل whitelist + compact)؛ after-P0 حي **`in=4061`** (**`delta_in=-6873`**). أعد `01-no-tools-after-p0.jsonl` بعد credits؛ `after_pull` / `sync_from_vps` يطبعان `delta_in` و `--compare` المحلي تلقائياً.
+
+**P0 live delta (VPS row 1 — `01-no-tools-after-p0.jsonl`):** baseline `in=10934` → after `in=4061` (`delta_in=-6873`; `delta_comp_final=-6659`).
 
 نداء أرشفة الجلسة الخاملة كان يعيد فهرس المهارات والذاكرة في رسالة النظام لأن `current_message=None` يُفسَّر كطلب غير قصير. الأرشفة تطبّق الآن طبقات آخر رسالة مستخدم في المقطع (`layers_for_archived_history`). تقدير tiktoken لرسالة النظام وحدها، جلسة موحّدة ومساحة مشروع وسؤال مستخدم قصير: 4192 ثم 3181. إعادة بناء ملخص ضغط المزود (`_summary_transcript`) كانت تفرّغ التاريخ وتفقد الطبقات؛ `prompt_layers` على `TranscriptInput` يحفظ طبقات الدورة الأصلية.
 
@@ -390,6 +410,17 @@
 | `mobile/src/components/chat.tsx` | التوسيع يقرأ ذلك الصف، والسطر الظاهر يبقى العبارة البشرية |
 | `docs/mokli-agent-upgrade-audit.md` | مسار الطلب من الكود |
 | `docs/mokli-settings-audit.md` | جرد الإعدادات بلا حذف |
+| `docs/mokli-agent-upgrade-completion-audit.md` | بوابة إغلاق: ما ثبت في CI مقابل §11 الحي |
+| `docs/mokli-agent-upgrade-operator-handoff.md` | قائمة إغلاق §11 للمشغّل (9 خطوات) |
+| `docs/section11-post-reset-runbook.md` | English checklist after OpenRouter quota (`close @13`) |
+| `scripts/mokli_upgrade_section11_validate.py` | validate @13، `pick_row`، `live_rerun_rows`، جودة JSONL |
+| `scripts/mokli_upgrade_section11_*.sh` | سلسلة المشغّل: `blockers`/`close`/`sync` (`sync_summary`)، `timer_wake`، `cloud_status`/`completion_status` (`vps_rev`) |
+| `scripts/mokli_upgrade_section11_patch_report.py` | `close --apply`: §11 + §2.1 (baseline وafter-P0)؛ no-op exit 0 عند تطابق artifacts |
+| `scripts/mokli_upgrade_section11_check_wake.sh` | tmux/log؛ `--sync-vps-rev`؛ hints scoped لآخر `Started timer_wake` |
+| `scripts/mokli_upgrade_section11_monitor_log.sh` | snapshot → `section11_monitor.log`؛ يستدعي `check_wake --sync-vps-rev` |
+| `scripts/mokli_upgrade_diagnostic_extract.py` | استخراج `diagnostic`؛ `section11_row1_numbers`؛ `p0_baseline_markdown` (baseline + after-P0) |
+| `docs/section11-results.example.json` | قالب «النتيجة» (1/5/10 جزئية؛ 11–13 placeholders؛ لا يمرّ validate @13) |
+| `tests/scripts/test_mokli_upgrade_*` | أسلاك §11، بوابة التقرير، operator smoke |
 | `mokli/trading/turn_session.py` | طلبان متزامنان للشموع أو التقويم أو السعر الحي يشاركان التحميل الجاري. السعر بعد انتهاء التحميل يُطلب من جديد. تذكرة تصنيف الخطة الحية ليست ذاكرة ذلك السعر. فشل التحليل في الدورة يُحفظ ولا يُعاد تشغيله |
 | `mokli/trading/market_context.py` | شموع الدورة تُجلب مرة حتى لو بدأ طلبان معاً. السعر المتزامن يُشارك، والقراءة التالية تطلب من جديد. من لا يحتاج السعر لا يحمّله. الشموع والسعر يبدآن معاً: 400 مللي ثانية ثم 200 في اختبار النوم |
 | `mokli/trading/news/forex_factory.py` | تقويم الأسبوع يُحمَّل مرة داخل الدورة حتى مع تداخل الطلب، والفشل لا يُحفظ |
@@ -435,32 +466,32 @@
 | `mokli/agent_api/sessions.py` | استدعاء `spawn` لا يضيف وكيلاً ثانياً بنص المهمة. مدة الأداة تُقاس حتى الإتمام أو الفشل، لا عند حدث البدء |
 | `mokli/agent/tools/execution.py` | رفض السياسة أو إلغاء الاستدعاء بعد إعلان البدء ينشر حدث فشل بالسبب والمدة، ولا يترك الصف على «يعمل». فشل تحليل مخزّن في الدورة لا ينشر حدث بدء ثانٍ |
 
-## 11. مسارات حية (تعبئة جزئية من VPS — صفوف 1–7؛ 8–13 مطلوبة للإغلاق)
+## 11. مسارات حية (تعبئة جزئية من VPS — **PARTIAL 5,10**؛ صفوف **3,8,9** v2/v3 PASS في JSONL؛ **11–13** فارغة قبل الإغلاق)
 
-هذا القسم قائمة تحقق للمشغّل بعد نشر **`main`** وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
+هذا القسم قائمة تحقق للمشغّل بعد نشر فرع **`cursor/section11-vps-rows-d9e1`** (PR **#62** — ليس **`main`** قبل merge) وتهيئة المفاتيح. لا يُعتبر التقرير نهائياً للإنتاج حتى تُملأ الأعمدة «النتيجة» و«الأرقام» من تشغيل حقيقي. خطوات التسليم: `docs/mokli-agent-upgrade-operator-handoff.md`. مصفوفة الإغلاق: `docs/mokli-agent-upgrade-completion-audit.md`.
 
 **متطلبات:** مزود LLM في `~/.mokli/config.json`، OANDA للشموع، MetaAPI أو OANDA للسعر حسب الإعداد، رمز جلسة Mokli UI أو Agent API، حساب ورقي/MT5 حسب السينario، `SHOW_DIAGNOSTICS=true` في أنبوب الدردشة (صمام bool في `mokli_pipe`) عند قياس التوكن والزمن.
 
 | # | المسار | ماذا تفعل | ماذا تثبت | النتيجة | أرقام (توكن/جولات/أدوات/مراحل) |
 | --- | --- | --- | --- | --- | --- |
-| 1 | سؤال بلا أدوات | «ما اسمك؟» أو تحية قصيرة | لا صف أداة في النشاط؛ رد واحد؛ `diagnostic` بجولة واحدة | PASS — VPS Agent API 2026-10-01 qwen3-8-27b-free: no tools | rounds=1 in=10934 out=117 tools=0 ctx_ms=1 model_ms=4211 tool_ms=0 retry_ms=0 nested_in=0 |
+| 1 | سؤال بلا أدوات | «ما اسمك؟» أو تحية قصيرة | لا صف أداة في النشاط؛ رد واحد؛ `diagnostic` بجولة واحدة | PASS baseline؛ **P0 after** `01-no-tools-after-p0.jsonl` (2026-10-02) | baseline: in=10934 out=117; after P0: in=4061 out=93 provider_tools=7 (**Δin≈-6873**) |
 | 2 | أداة واحدة | «ما سعر الذهب الآن؟» | صف واحد يبدأ وينتهي؛ عبارة بشرية لا اسم خام | PASS — get_gold_quote started/failed (OANDA unconfigured) | rounds=2 in=25037 out=670 tools=1 ctx_ms=144 model_ms=11464 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
-| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | PARTIAL — one tool only (get_gold_quote); list_dir not called | rounds=2 in=25175 out=1698 tools=1 ctx_ms=4 model_ms=28431 tool_ms=10 retry_ms=0 nested_in=0 static_resends=1 |
+| 3 | عدة أدوات | سؤال يحتاج سعراً ثم رسم أو أدلة | عدة صفوف متتالية؛ مدة حتى `finished`/`failed` | PASS — 03-multi-tool-v2.jsonl: tool_calls=2 in=41641 (list_dir + get_gold_quote) | rounds=3 in=41641 out=2195 tools=2 ctx_ms=7 model_ms=54687 tool_ms=23 retry_ms=7006 nested_in=0 fold_chars=3632 static_resends=2 provider_tools=35 |
 | 4 | تحليل كامل | «حلل الذهب» أو «هل أشتري؟» | أدوار الفريق ثم بطاقة قرار `structured`/`decision` بمعرّف `res_` | PASS — kernel+decision card res_* verdict wait (OANDA not configured) | rounds=3 in=24924 out=437 tools=2 ctx_ms=207 model_ms=10658 tool_ms=33 retry_ms=7010 nested_in=0 fold_chars=922 static_resends=1 |
-| 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ لا مرحلة وهمية | PARTIAL — spawn started/failed (quota); fetch_evidence finished | rounds=4 in=51744 out=1218 tools=4 ctx_ms=161 model_ms=32085 tool_ms=15413 retry_ms=0 nested_in=0 fold_chars=2200 static_resends=3 |
+| 5 | وكلاء فرعيون | مهمة `spawn` أو سرب مُسمّى | صف وكيل/دور ببدء وإتمام؛ **`nested_rounds≥1`** | PARTIAL — spawn upstream 429; `pick_row` prefers v2 (status scripts do not delete JSONL); rerun `vps_section11_row5_subagents.sh` after credits | rounds=4 in=51744 out=1218 tools=4 ctx_ms=161 model_ms=32085 tool_ms=15413 retry_ms=0 nested_in=0 fold_chars=2200 static_resends=3 |
 | 6 | فشل أداة | قطع شبكة مؤقت أو رمز غير صالح | صف `failed` بلا علامة نجاح؛ خطأ في التفاصيل | PASS — get_gold_quote failed row; no false success marker | rounds=2 in=24730 out=936 tools=1 ctx_ms=3 model_ms=15434 tool_ms=6 retry_ms=0 nested_in=0 static_resends=1 |
 | 7 | إعادة محاولة | مزود يعيد 429/5xx ثم ينجح | صف إعادة محاولة مجمّع بمعرّف المحاولة | PASS — rate_limit waiting then recovered (retry events in JSONL) | rounds=1 in=10931 out=543 tools=0 ctx_ms=1 model_ms=10148 tool_ms=0 retry_ms=7014 nested_in=0 |
-| 8 | مزود بديل | تعطيل المزود الأول في الإعداد | يظهر فقط عند حالة `cleared` في حدث retry | | |
-| 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | | |
-| 10 | اختبار تاريخي على الشموع | `fast_backtest` أو مختبر الاستراتيجية بشموع OANDA | بطاقة نتائج؛ لا لصق آلاف الشموع في الطلب | | |
+| 8 | مزود بديل | تعطيل المزود الأول في الإعداد | يظهر فقط عند حالة `cleared` في حدث retry | PASS — retry state cleared after claude-opus-5 billing fail; fallback chain configured | rounds=1 in=4058 out=31 tools=0 ctx_ms=1 model_ms=3906 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=7 |
+| 9 | جلسة طويلة | 15+ دورة أدوات في محادثة واحدة | `input_tokens` في `diagnostic` لا يتضاعف خطياً مع كل دورة؛ طي النتائج | PASS — 09-long-session-v3.jsonl: 15 diagnostics in_first=13201 in_last=13201 tools_total=0 | rounds=1 in=13201 out=525 tools=0 ctx_ms=4 model_ms=15483 tool_ms=0 retry_ms=0 nested_in=0 provider_tools=35 diagnostics=15 in_first=13201 in_last=13201 in_peak=13201 tools_total=0 in_last_over_first=1.00 in_peak_over_first=1.00 below_linear_15x=yes |
+| 10 | اختبار تاريخي على الشموع | `fast_backtest` أو مختبر الاستراتيجية بشموع OANDA | بطاقة نتائج؛ لا لصق آلاف الشموع في الطلب | PARTIAL — fast_backtest finished; market_feed_unconfigured (no candle paste in prompt) | rounds=2 in=24864 out=480 tools=1 ctx_ms=4 model_ms=15779 tool_ms=7 retry_ms=0 nested_in=0 static_resends=1 |
 | 11 | تداول ورقي | اعتماد بعد `replay` + سطر دفتر ورق | لا أمر حي؛ `run_state` paper مسجّل | | |
-| 12 | واجهة سطح المكتب | Mokli UI + Pipe | سطر نشاط يلتف؛ بطاقة قرار بالعربية | | |
+| 12 | واجهة سطح المكتب | Mokli UI + Pipe، أو `bash scripts/vps_section11_row12_pipe_turn.sh` (headless pipe → `12-desktop-ui.jsonl`) | سطر نشاط يلتف؛ بطاقة قرار بالعربية | | |
 | 13 | واجهة الهاتف | تطبيق mobile/SDK | نفس الأحداث؛ توسيع الصف يظهر مدخلات/نتيجة | | |
 | 14 | (اختياري) MT5 حي | فقط بعد ورق وسياسة | تأكيد صريح؛ لا تجاوز `policy_guard` | | |
 
-**أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_section11_init.sh` (VPS: مجلد الأحداث + results + progress)؛ `bash scripts/mokli_upgrade_operator_smoke.sh` (preflight + dry-run + init smoke + `pytest tests/scripts/`)؛ بعد التشغيل الحي: `bash scripts/mokli_upgrade_section11_close.sh --apply` (validate+batch+patch؛ gate على التقرير الرسمي عند require-through 13)؛ `bash scripts/mokli_upgrade_section11_dry_run.sh` (صف 1 من fixture فقط)؛ `bash scripts/mokli_upgrade_preflight.sh`؛ `mokli gateway --background --port 18791`؛ `cd mokli-ui && bun run dev --host 127.0.0.1 --port 5173`؛ `curl http://127.0.0.1:5173/api/v2/health`. pytest مجمّع: `pytest tests/agent tests/trading tests/agent_api tests/deploy/test_mokli_pipe.py tests/scripts/ -q`.
+**أوامر تدخين محلي (لا تغني عن الحي):** `bash scripts/mokli_upgrade_section11_init.sh`؛ `bash scripts/mokli_upgrade_operator_smoke.sh`؛ `bash scripts/mokli_upgrade_section11_remaining_rows.sh` (صفوف 11–13)؛ بعد الحي: `mokli_upgrade_section11_production_gate.sh --pull-vps` + `section11_close.sh --apply --require-through 13 --results section11-results-partial.json`؛ `mokli_upgrade_preflight.sh`؛ gateway/UI كما أعلاه. pytest مجمّع: **2551** passed, 1 skipped (`bash scripts/mokli_upgrade_aggregate_pytest.sh`).
 
-**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). عند وجود طي/مراجع غير صفرية يُلحق `ref_saved`, `fold_chars`, `static_resends`, `reused_tools`, `nested_rounds` (مفيد لصف 9). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`. مع `docs/section11-results.example.json` → `--results section11-results.json --markdown` يدمج عمود «النتيجة» و«الأرقام». بعد `validate`: `python scripts/mokli_upgrade_section11_patch_report.py --dir ./section11-events --results section11-results.json --report docs/mokli-agent-upgrade-report.md` (استخدم `--dry-run` أولاً).
+**لتعبئة عمود «الأرقام» بعد محادثة حية:** فعّل `SHOW_DIAGNOSTICS` على أنبوب Mokli، احفظ تيار الأحداث JSONL (سطر JSON لكل حدث)، ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` يطبع سطراً واحداً (`rounds`, `in`, `out`, `tools`, `ctx_ms`, `model_ms`, …). عند وجود طي/مراجع غير صفرية يُلحق `ref_saved`, `fold_chars`, `static_resends`, `reused_tools`, `nested_rounds` (مفيد لصف 9). `--each` يطبع سطراً لكل `diagnostic`؛ `--session-summary` يجمع نمو `input_tokens` لصف 9 (`in_last_over_first`, `below_linear_Nx`). `--json` يطبع الحمولة كاملة. لعدة مسارات: مجلد بملفات `01-….jsonl` … و`python scripts/mokli_upgrade_section11_batch.py --dir DIR --markdown`. مع `docs/section11-results.example.json` → `--results section11-results.json --markdown` يدمج عمود «النتيجة» و«الأرقام». بعد `validate`: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json` (يفضّل على `patch_report` وحده — يحدّث §11 + جدول §2.1 وفقرة **P0 live delta** عند `01-no-tools-after-p0.jsonl` مع `in>0`)، أو `patch_report.py … --dry-run` للمعاينة.
 
 ### 11.1 دليل اختبار وحدة (لا يملأ عمود «النتيجة»)
 

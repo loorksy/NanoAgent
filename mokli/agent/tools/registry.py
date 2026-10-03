@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 from mokli.agent.tools.base import Tool, ToolResult
@@ -82,6 +83,10 @@ class ToolRegistry:
                 return name
         name = schema.get("name")
         return name if isinstance(name, str) else ""
+
+    def get_definitions_for_names(self, names: Sequence[str]) -> list[dict[str, Any]]:
+        """Subset of tool schemas for the provider (stable order)."""
+        return filter_tool_definitions(self.get_definitions(), names)
 
     def get_definitions(self) -> list[dict[str, Any]]:
         """Get tool definitions with stable ordering for cache-friendly prompts.
@@ -210,3 +215,12 @@ class ToolRegistry:
 
     def __contains__(self, name: str) -> bool:
         return self.has(name)
+
+
+def filter_tool_definitions(
+    definitions: Sequence[dict[str, Any]],
+    names: Sequence[str],
+) -> list[dict[str, Any]]:
+    """Keep schemas whose normalized name is in *names* (preserves order)."""
+    allowed = set(names)
+    return [schema for schema in definitions if ToolRegistry._schema_name(schema) in allowed]

@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
 PYTHON="${ROOT}/.venv/bin/python"
 if [[ ! -x "$PYTHON" ]]; then
   PYTHON=python3
@@ -14,9 +16,10 @@ RESULTS="./section11-results.json"
 REPORT="${ROOT}/docs/mokli-agent-upgrade-report.md"
 REQUIRE=13
 APPLY=0
+ALLOW_PARTIAL=0
 
 usage() {
-  echo "Usage: $0 [--dir EVENTS] [--results JSON] [--report PATH] [--require-through N] [--apply]" >&2
+  echo "Usage: $0 [--dir EVENTS] [--results JSON] [--report PATH] [--require-through N] [--allow-partial] [--apply]" >&2
   exit 2
 }
 
@@ -26,19 +29,79 @@ while [[ $# -gt 0 ]]; do
     --results) RESULTS="$2"; shift 2 ;;
     --report) REPORT="$2"; shift 2 ;;
     --require-through) REQUIRE="$2"; shift 2 ;;
+    --allow-partial) ALLOW_PARTIAL=1; shift ;;
     --apply) APPLY=1; shift ;;
     -h | --help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
 
+if [[ ! -f "$RESULTS" && -f "${ROOT}/section11-results-partial.json" ]]; then
+  echo "INFO: results file missing; using ${ROOT}/section11-results-partial.json" >&2
+  RESULTS="${ROOT}/section11-results-partial.json"
+fi
+if [[ "$EVENTS" != /* ]]; then
+  EVENTS="$ROOT/$EVENTS"
+fi
+if [[ "$RESULTS" != /* ]]; then
+  RESULTS="$ROOT/$RESULTS"
+fi
+
+if [[ "$APPLY" -eq 1 && "$ALLOW_PARTIAL" -eq 1 ]]; then
+  echo "ERROR: --apply cannot be used with --allow-partial (fix PARTIAL rows first)" >&2
+  exit 1
+fi
+
+RESET_SEC="unknown"
+RESET_OUT=$(bash "${ROOT}/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+parsed=$(printf '%s\n' "$RESET_OUT" | sed -n 's/^seconds_until_reset=\([^ ]*\).*/\1/p' | tail -1)
+[[ -n "$parsed" ]] && RESET_SEC="$parsed"
+
+VALIDATE_ARGS=(--dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE")
+if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
+  VALIDATE_ARGS+=(--allow-partial)
+fi
+
 echo "== validate rows 1..${REQUIRE} =="
-"$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
-  --dir "$EVENTS" --results "$RESULTS" --require-through "$REQUIRE"
+set +e
+VALID_OUT=$(
+  bash "${ROOT}/scripts/mokli_upgrade_section11_validate.sh" "${VALIDATE_ARGS[@]}" 2>&1
+)
+VALID_EC=$?
+set -e
+printf '%s\n' "$VALID_OUT"
+if [[ "$VALID_EC" -ne 0 ]]; then
+  CLOSURE_ERRORS=$(printf '%s\n' "$VALID_OUT" | sed -n 's/^closure_errors=\([0-9]*\).*/\1/p' | tail -1)
+  ALLOW_PARTIAL_CE=""
+  if [[ "$ALLOW_PARTIAL" -eq 1 ]]; then
+    ALLOW_PARTIAL_CE="${CLOSURE_ERRORS:-unknown}"
+  elif [[ "$REQUIRE" -ge 13 && -d "$EVENTS" && -f "$RESULTS" ]]; then
+    ALLOW_PARTIAL_CE=$(
+      section11_allow_partial_closure_errors \
+        "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+        "$EVENTS" "$RESULTS" "$REQUIRE"
+    )
+  fi
+  RERUN_ROWS=$("$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_validate.py" \
+    --dir "$EVENTS" --require-through "$REQUIRE" --print-live-rerun-rows 2>/dev/null || true)
+  echo "close_summary: validate_ok=0 require=$REQUIRE closure_errors=${CLOSURE_ERRORS:-unknown} allow_partial_closure_errors=${ALLOW_PARTIAL_CE:-unknown} live_rerun_rows=${RERUN_ROWS:-none} seconds_until_reset=$RESET_SEC apply=$APPLY allow_partial=$ALLOW_PARTIAL" >&2
+  echo "HINT: bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through ${REQUIRE}" >&2
+  if [[ "$ALLOW_PARTIAL" -eq 0 && -f "$RESULTS" ]] && grep -q PARTIAL "$RESULTS" 2>/dev/null \
+    && [[ "${CLOSURE_ERRORS:-}" =~ ^[0-9]+$ ]] && [[ "${CLOSURE_ERRORS}" -gt 2 ]]; then
+    echo "HINT: markdown preview only — re-run with --allow-partial (never combine --allow-partial with --apply)" >&2
+  fi
+  if [[ "$ALLOW_PARTIAL" -eq 1 && "${CLOSURE_ERRORS:-}" =~ ^[0-9]+$ ]] && [[ "$CLOSURE_ERRORS" -gt 0 ]]; then
+    echo "HINT: preview gate only — fix rows 11–13 (remaining_rows.sh) before close --apply @13" >&2
+  fi
+  if [[ -n "${RERUN_ROWS// /}" ]]; then
+    echo "HINT: after quota — bash scripts/mokli_upgrade_section11_rerun_partials.sh (rows: $RERUN_ROWS)" >&2
+  fi
+  exit "$VALID_EC"
+fi
 
 echo "== batch markdown =="
 "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_batch.py" \
-  --dir "$EVENTS" --results "$RESULTS" --markdown
+  --dir "$EVENTS" --results "$RESULTS" --markdown --require-through "$REQUIRE"
 
 PATCH_ARGS=(
   "$PYTHON" "${ROOT}/scripts/mokli_upgrade_section11_patch_report.py"
@@ -64,6 +127,15 @@ if [[ "$APPLY" -eq 1 ]]; then
     echo "== §11 report gate (canonical report) =="
     "$PYTEST" "${ROOT}/tests/scripts/test_mokli_upgrade_report_section11_gate.py" -q
     echo "OK §11 report gate"
+  fi
+  if [[ "$REQUIRE" -ge 13 ]]; then
+    CANONICAL_RESULTS="${ROOT}/section11-results.json"
+    RESULTS_ABS="$(readlink -f "$RESULTS" 2>/dev/null || true)"
+    PARTIAL_ABS="$(readlink -f "${ROOT}/section11-results-partial.json" 2>/dev/null || true)"
+    if [[ -n "$RESULTS_ABS" && -n "$PARTIAL_ABS" && "$RESULTS_ABS" == "$PARTIAL_ABS" ]]; then
+      cp "$RESULTS_ABS" "$CANONICAL_RESULTS"
+      echo "OK promoted partial results → $CANONICAL_RESULTS"
+    fi
   fi
 else
   echo "== patch report (dry-run) =="

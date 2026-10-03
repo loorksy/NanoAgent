@@ -190,6 +190,7 @@ class PromptContext:
     skills_index: str = ""
     archived_summary: str = ""
     extra_sections: Sequence[str] = ()
+    compact_tool_contracts: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -552,15 +553,25 @@ def has_tool(tool_names: Sequence[str] | None, name: str) -> bool:
     return tool_names is None or name in set(tool_names)
 
 
+_COMPACT_TOOL_CONTRACTS_NOTE = (
+    "Per-tool call guidance loads when the operator asks for trading, live prices, or analysis."
+)
+
+
 def static_layer_values(ctx: PromptContext) -> dict[str, str]:
     """Placeholder values for layers 10–60."""
     settings = ctx.settings
+    tool_contracts = (
+        _COMPACT_TOOL_CONTRACTS_NOTE
+        if ctx.compact_tool_contracts
+        else render_tool_contracts(ctx.tool_names)
+    )
     return {
         "product_name": settings.product_name,
         "language_policy": language_policy(settings.reply_language),
         "tone_policy": tone_policy(settings.tone_profile),
         "channel_hint": channel_hint(ctx.channel),
-        "tool_contracts": render_tool_contracts(ctx.tool_names),
+        "tool_contracts": tool_contracts,
         "structured_output_policy": (
             _STRUCTURED_OUTPUT_WITH_TOOL
             if has_tool(ctx.tool_names, "emit_result")
@@ -578,7 +589,13 @@ def render_layer(name: str, values: Mapping[str, str]) -> str:
 
 def compose_static_layers(ctx: PromptContext) -> list[str]:
     values = static_layer_values(ctx)
-    return [render_layer(name, values) for name in STATIC_LAYERS]
+    layer_files = STATIC_LAYERS
+    if ctx.compact_tool_contracts:
+        layer_files = tuple(
+            "40_tool_contracts_compact.md" if name == "40_tool_contracts.md" else name
+            for name in STATIC_LAYERS
+        )
+    return [render_layer(name, values) for name in layer_files]
 
 
 def render_facts(facts: Mapping[str, str]) -> str:

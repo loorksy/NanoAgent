@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Report Cloud Agent background timer_wake --wait-quota (tmux + log). No LLM.
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/section11_quota_hints.sh
+source "$ROOT/scripts/section11_quota_hints.sh"
+LOG="${MOKLI_SECTION11_WAKE_LOG:-/opt/cursor/artifacts/timer_wake_wait_quota.log}"
+SESSION="${MOKLI_SECTION11_WAKE_TMUX:-section11-timer-wake-wait}"
+VPS_BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+SYNC_VPS_REV=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sync-vps-rev) SYNC_VPS_REV=1; shift ;;
+    -h | --help)
+      echo "Usage: $0 [--sync-vps-rev]" >&2
+      echo "  --sync-vps-rev  vps_pull_main when cloud_agent_rev != vps_rev (SSH)" >&2
+      exit 0
+      ;;
+    *) echo "Unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+echo "== branch =="
+if [[ "$SYNC_VPS_REV" -eq 1 ]]; then
+  cloud_rev=$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
+  # shellcheck source=scripts/vps_ssh.sh
+  source "$ROOT/scripts/vps_ssh.sh"
+  if vps_ssh_ready; then
+    install="${MOKLI_INSTALL_DIR:-/opt/nanoagent}"
+    user="${MOKLI_SERVICE_USER:-nanoagent}"
+    vps_rev=$(
+      vps_ssh "sudo -u ${user} git -C ${install} rev-parse --short=7 HEAD" 2>/dev/null || true
+    )
+    if [[ -n "${vps_rev:-}" && "$vps_rev" != "$cloud_rev" ]]; then
+      echo "== sync VPS to origin/$VPS_BRANCH =="
+      bash "$ROOT/scripts/vps_pull_main.sh" "$VPS_BRANCH" || true
+    fi
+  fi
+fi
+section11_print_cloud_vps_rev "$ROOT" "$VPS_BRANCH"
+
+echo ""
+echo "== OpenRouter reset =="
+RESET_OUT=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+printf '%s\n' "$RESET_OUT"
+section11_emit_wake_after_buffer "$RESET_OUT"
+
+echo ""
+echo "== tmux session: $SESSION =="
+if tmux -f /exec-daemon/tmux.portal.conf has-session -t "$SESSION" 2>/dev/null; then
+  echo "WAKE_TMUX=running"
+else
+  echo "WAKE_TMUX=missing"
+  echo "HINT: bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota" >&2
+fi
+
+echo ""
+echo "== wake log: $LOG =="
+if [[ -f "$LOG" ]]; then
+  echo "WAKE_LOG_BYTES=$(wc -c < "$LOG")"
+  markers=$(
+    grep -E \
+      '^(Started timer_wake|TIMER_WAKE_LOCK=|Sleeping |WAIT_HEARTBEAT |CLOUD_PULL_OK |PULL_OK |QUOTA:|STILL_BLOCKED|after_reset_wake|TIMER_WAKE_EXIT|TIMER_WAKE_FINAL_EXIT|close_summary:)' \
+      "$LOG" 2>/dev/null | tail -20
+  )
+  if [[ -n "$markers" ]]; then
+    printf '%s\n' "$markers"
+  else
+    tail -8 "$LOG"
+  fi
+  if tmux -f /exec-daemon/tmux.portal.conf has-session -t "$SESSION" 2>/dev/null; then
+    current_wake=$(section11_wake_log_current_run "$LOG")
+    if grep -qE 'Sleeping [0-9]{5,}s until reset' <<< "$current_wake" \
+      && ! grep -q 'WAIT_HEARTBEAT' <<< "$current_wake"; then
+      echo "HINT: monolithic quota sleep (no WAIT_HEARTBEAT in log) — monitor: tmux section11-monitor-loop or monitor_log.sh; after wake use timer_wake without --wait-quota if chain did not finish" >&2
+    fi
+    log_age_sec=$(( $(date +%s) - $(stat -c %Y "$LOG" 2>/dev/null || echo 0) ))
+    if [[ "$log_age_sec" -gt 2400 ]] \
+      && grep -q 'WAIT_HEARTBEAT' <<< "$current_wake" \
+      && ! grep -qE '^after_reset_wake' <<< "$current_wake" \
+      && ! grep -qE '^TIMER_WAKE_FINAL_EXIT=0' <<< "$current_wake"; then
+      echo "HINT: wake log quiet ${log_age_sec}s (expect WAIT_HEARTBEAT ~every 1800s) — tmux attach -t $SESSION" >&2
+    fi
+  fi
+else
+  echo "WAKE_LOG=missing"
+fi
+
+echo ""
+bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 2>&1 \
+  | grep -E 'blockers_summary:|closure_errors=|live_rerun_rows=' | tail -3 || true
