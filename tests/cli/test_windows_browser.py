@@ -14,8 +14,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nanobot.cli import desktop_target, webui_support
-from nanobot.cli import windows_browser as browser
+from mokli.cli import desktop_target, mokli_support
+from mokli.cli import windows_browser as browser
 
 
 class RecordingInput(io.BytesIO):
@@ -37,7 +37,7 @@ def launcher(monkeypatch):
     monkeypatch.setattr(browser.sys, "platform", "win32")
     monkeypatch.setenv("BROWSER", "unsafe-browser %s")
     monkeypatch.setattr(
-        webui_support.webbrowser, "open", lambda *_a, **_kw: pytest.fail("raw URL fallback"),
+        mokli_support.webbrowser, "open", lambda *_a, **_kw: pytest.fail("raw URL fallback"),
     )
     return process, spawn
 
@@ -51,7 +51,7 @@ def launcher(monkeypatch):
 ])
 def test_windows_uses_pipe_not_argv_or_browser_override(launcher, capsys, url):
     process, spawn = launcher
-    assert webui_support._launch_browser(url) is True
+    assert mokli_support._launch_browser(url) is True
     args, options = spawn.call_args
     assert args[0] == [
         browser.sys.executable, "-I", "-S", str(Path(browser.__file__).resolve()), "--serve",
@@ -122,15 +122,15 @@ def test_windows_desktop_handoff_retains_revalidation_and_no_fallback(launcher, 
         def request(self, operation):
             calls.append(operation)
             return desktop_target.DesktopReply(
-                "ready", frozenset({"webui"}),
+                "ready", frozenset({"mokli"}),
                 "http://localhost:8765/#/?bootstrapSecret=synthetic-only",
             )
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _: "desktop")
-    assert desktop_target.dispatch_bare_desktop_target(["webui"]) == status
-    assert calls == ["status", "webui"]
+    assert desktop_target.dispatch_bare_desktop_target(["mokli"]) == status
+    assert calls == ["status", "mokli"]
     output = capsys.readouterr()
     assert "synthetic-only" not in output.out + output.err
     assert "Using current Python" not in output.out
@@ -484,6 +484,6 @@ def test_native_private_file_permissions_sharing_and_cleanup(tmp_path, monkeypat
 def test_linux_browser_behavior_is_unchanged(monkeypatch):
     monkeypatch.setattr(browser.sys, "platform", "linux")
     opened = MagicMock(return_value=True)
-    monkeypatch.setattr(webui_support.webbrowser, "open", opened)
-    assert webui_support._launch_browser("http://localhost/")
+    monkeypatch.setattr(mokli_support.webbrowser, "open", opened)
+    assert mokli_support._launch_browser("http://localhost/")
     opened.assert_called_once_with("http://localhost/", new=2, autoraise=True)

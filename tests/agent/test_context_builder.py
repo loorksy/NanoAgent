@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.context import ContextBuilder, TranscriptInput
-from nanobot.runtime_context import RuntimeContextBlock
+from mokli.agent.context import ContextBuilder, TranscriptInput
+from mokli.runtime_context import RuntimeContextBlock
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -154,7 +154,7 @@ class TestLoadBootstrapFiles:
         assert "default workspace rules" not in result
 
     def test_unmodified_agents_and_user_templates_are_skipped(self, tmp_path):
-        from nanobot.utils.helpers import sync_workspace_templates
+        from mokli.utils.helpers import sync_workspace_templates
 
         sync_workspace_templates(tmp_path, silent=True)
 
@@ -165,7 +165,7 @@ class TestLoadBootstrapFiles:
         assert "## SOUL.md" in result
 
     def test_customized_user_template_is_loaded(self, tmp_path):
-        from nanobot.utils.helpers import sync_workspace_templates
+        from mokli.utils.helpers import sync_workspace_templates
 
         sync_workspace_templates(tmp_path, silent=True)
         (tmp_path / "USER.md").write_text("User prefers Chinese.", encoding="utf-8")
@@ -187,7 +187,7 @@ class TestIsTemplateContent:
 
     def test_content_matching_template(self):
         from importlib.resources import files as pkg_files
-        tpl = pkg_files("nanobot") / "templates" / "memory" / "MEMORY.md"
+        tpl = pkg_files("mokli") / "templates" / "memory" / "MEMORY.md"
         if not tpl.is_file():
             pytest.skip("MEMORY.md template not bundled")
         original = tpl.read_text(encoding="utf-8")
@@ -195,7 +195,7 @@ class TestIsTemplateContent:
 
     def test_modified_content_returns_false(self):
         from importlib.resources import files as pkg_files
-        tpl = pkg_files("nanobot") / "templates" / "memory" / "MEMORY.md"
+        tpl = pkg_files("mokli") / "templates" / "memory" / "MEMORY.md"
         if not tpl.is_file():
             pytest.skip("MEMORY.md template not bundled")
         assert ContextBuilder._is_template_content("totally different", "memory/MEMORY.md") is False
@@ -207,33 +207,36 @@ class TestIsTemplateContent:
 
 
 class TestBundledToolContract:
-    def test_tool_contract_balances_general_and_coding_workflows(self):
-        from importlib.resources import files as pkg_files
+    def test_tool_contract_layer_covers_every_tool_family(self):
+        from mokli.agent.prompt.composer import load_layer
 
-        tpl = pkg_files("nanobot") / "templates" / "agent" / "tool_contract.md"
-        content = tpl.read_text(encoding="utf-8")
+        content = load_layer("40_tool_contracts.md")
 
-        assert "## General Tool Contract" in content
-        assert "Use the narrowest structured tool" in content
-        assert "Do not use `exec` as a universal workaround" in content
-        assert "## File and Coding Workflows" in content
-        assert "`grep` returns matches with five context lines by default" in content
-        assert "apply_patch" in content
-        assert "acceptance criteria into concrete checks" in content
-        assert "visual evidence reaches the model" in content
-        assert "clear user request as authorization" in content
-        assert "Never invent missing records or measurements" in content
-        assert "## Web and External Information" in content
-        assert "## Messaging and Media" in content
-        assert "## Scheduling and Background Work" in content
+        assert "## General contract" in content
+        assert "Use the narrowest tool" in content
+        assert "clear operator request as authorization" in content
+        assert "## Execution permission levels" in content
+        assert "## Teams and debate" in content
+        assert "## Scheduling and goals" in content
+        assert "## Memory" in content
+        assert "## Messaging" in content
 
     def test_tool_contract_is_injected_without_workspace_file(self, tmp_path):
         builder = _builder(tmp_path)
         prompt = builder.build_system_prompt()
 
-        assert "# Tool Usage Notes" in prompt
-        assert "## General Tool Contract" in prompt
-        assert "Do not use `exec` as a universal workaround" in prompt
+        assert "# Tool contracts" in prompt
+        assert "## General contract" in prompt
+        assert "| `get_gold_quote` |" in prompt
+
+    def test_tool_contract_table_follows_registered_tools(self, tmp_path):
+        builder = _builder(tmp_path)
+        prompt = builder.build_system_prompt(tool_names=["get_gold_quote", "message"])
+
+        assert "| `get_gold_quote` |" in prompt
+        assert "| `message` |" in prompt
+        assert "`mt5_propose_order`" not in prompt
+        assert "`run_trading_team`" not in prompt
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +311,32 @@ class TestBuildSystemPrompt:
         assert str(tmp_path.resolve()) not in result
         assert "Agent profile: SOUL.md and USER.md" in result
         assert "History log: memory/history.jsonl" in result
+        assert "prefer built-in `grep` for search" in result
         assert "Custom skills: skills/{skill-name}/SKILL.md" in result
+        assert "Tools like read_file and web_fetch can return native image content." in result
+
+    def test_registered_tools_drop_missing_file_tool_invitations(self, tmp_path):
+        registered = ["web_search", "web_fetch", "run_trading_kernel"]
+        unknown = ContextBuilder(tmp_path)._get_identity()
+        result = ContextBuilder(tmp_path)._get_identity(tool_names=registered)
+        import tiktoken
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        print(
+            f"IDENTITY before={len(enc.encode(unknown))} after={len(enc.encode(result))}"
+        )
+
+        assert "History log: memory/history.jsonl (append-only JSONL)." in result
+        assert "grep" not in result
+        assert "read_file" not in result
+        assert "Custom skills:" not in result
+        assert "SKILL.md" not in result
+        assert "Tools like web_fetch can return native image content." in result
+
+        prompt = ContextBuilder(tmp_path).build_system_prompt(tool_names=registered)
+        assert "join them when using `read_file`" not in prompt
+        assert "The following skill descriptions are the full guidance for this turn." in prompt
+        assert "risk-guardrails" in prompt
 
     def test_selected_project_identity_keeps_agent_data_in_agent_workspace(self, tmp_path):
         agent_home = tmp_path / "agent-home"
@@ -381,7 +409,7 @@ class TestBuildMessages:
         assert "hello" in str(messages[1]["content"])
 
     def test_public_builder_preserves_assistant_role_compatibility(self, tmp_path):
-        from nanobot.agent import ContextBuilder as PublicContextBuilder
+        from mokli.agent import ContextBuilder as PublicContextBuilder
 
         builder = PublicContextBuilder(tmp_path)
         messages = builder.build_messages(

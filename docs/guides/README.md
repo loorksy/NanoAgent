@@ -1,4 +1,4 @@
-# nanobot Task Guides
+# mokli Task Guides
 
 Start with [Install and Quick Start](../quick-start.md) and get one reply before using a guide below. Each guide targets one outcome; linked reference pages hold the complete option tables and edge cases.
 
@@ -7,14 +7,14 @@ Start with [Install and Quick Start](../quick-start.md) and get one reply before
 | Goal | Guide |
 |---|---|
 | Build a personal AI agent | [Build a personal AI agent](./build-a-personal-ai-agent.md) |
-| Use the browser workbench | [AI agent WebUI](./ai-agent-webui.md) |
+| Use the browser workbench | [AI agent Mokli](./ai-agent-mokli.md) |
 | Run a self-hosted AI agent | [Self-hosted AI agent](./self-hosted-ai-agent.md) |
 | Run a sustained goal | [Long-running AI agent](./long-running-ai-agent.md) |
 | Add long-term memory | [AI agent memory](./ai-agent-memory.md) |
 
 ## Connect a Chat App
 
-Use **Settings → Channels** in the WebUI for guided setup. These guides explain the account, bot, token, permission, and test-message steps on each platform.
+Use **Settings → Channels** in the Mokli for guided setup. These guides explain the account, bot, token, permission, and test-message steps on each platform.
 
 | Goal | Guide |
 |---|---|
@@ -47,4 +47,4 @@ Use **Settings → Channels** in the WebUI for guided setup. These guides explai
 | Improve Ollama tool prompt-cache reuse | [Configure Ollama prompt caching](./configure-ollama-prompt-cache.md) |
 | Add Langfuse tracing | [Configure Langfuse observability](./configure-langfuse-observability.md) |
 | Secure local tools | [Secure a local AI agent](./secure-local-ai-agent.md) |
-| Deploy the gateway | [Deploy nanobot gateway](./deploy-nanobot-gateway.md) |
+| Deploy the gateway | [Deploy mokli gateway](./deploy-mokli-gateway.md) |

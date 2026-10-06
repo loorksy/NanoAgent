@@ -1,5 +1,7 @@
 import asyncio
 import json
+import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -7,23 +9,23 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from loguru import logger
 
-from nanobot.agent.context import ContextBuilder, TranscriptInput
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.runner import AgentRunResult
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.outbound_events import (
+from mokli.agent.context import ContextBuilder, TranscriptInput
+from mokli.agent.loop import AgentLoop
+from mokli.agent.runner import AgentRunResult
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.bus.events import InboundMessage
+from mokli.bus.outbound_events import (
     GoalStatusEvent,
     StreamDeltaEvent,
     StreamedResponseEvent,
     StreamEndEvent,
     TurnEndEvent,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.cron.session_turns import CRON_HISTORY_META, CRON_TRIGGER_META
-from nanobot.providers.base import LLMProvider, LLMResponse, LLMUsage, ProviderConversationState
-from nanobot.providers.factory import ProviderSnapshot
-from nanobot.runtime_context import (
+from mokli.bus.queue import MessageBus
+from mokli.cron.session_turns import CRON_HISTORY_META, CRON_TRIGGER_META
+from mokli.providers.base import LLMProvider, LLMResponse, LLMUsage, ProviderConversationState
+from mokli.providers.factory import ProviderSnapshot
+from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     RUNTIME_CONTEXT_MESSAGE_META,
     RUNTIME_CONTEXT_TAG,
@@ -31,14 +33,14 @@ from nanobot.runtime_context import (
     append_runtime_context,
     public_history_message,
 )
-from nanobot.session.automation_turns import AUTOMATION_HISTORY_META
-from nanobot.session.goal_state import GOAL_STATE_KEY
-from nanobot.session.keys import (
+from mokli.session.automation_turns import AUTOMATION_HISTORY_META
+from mokli.session.goal_state import GOAL_STATE_KEY
+from mokli.session.keys import (
     LAST_CHANNEL_METADATA_KEY,
     UNIFIED_SESSION_KEY,
 )
-from nanobot.session.manager import Session
-from nanobot.session.recovery import (
+from mokli.session.manager import Session
+from mokli.session.recovery import (
     PENDING_FOLLOWUP_ID_KEY,
     PENDING_FOLLOWUPS_KEY,
     PROVIDER_STATE_CHECKPOINT_VERSION,
@@ -46,25 +48,25 @@ from nanobot.session.recovery import (
     RUNTIME_CHECKPOINT_KEY,
     restore_runtime_checkpoint,
 )
-from nanobot.session.summary import (
+from mokli.session.summary import (
     SUMMARY_CONTINUATION_TEXT,
     SessionSummaryCheckpoint,
 )
-from nanobot.session.turn_continuation import (
+from mokli.session.turn_continuation import (
     INTERNAL_CONTINUATION_META,
     INTERNAL_CONTINUATION_RUN_STARTED_AT_META,
 )
-from nanobot.session.webui_turns import (
+from mokli.session.mokli_turns import (
     TITLE_GENERATION_MAX_TOKENS,
     TITLE_GENERATION_REASONING_EFFORT,
-    WEBUI_SESSION_METADATA_KEY,
-    WEBUI_TITLE_METADATA_KEY,
-    WebuiTurnCoordinator,
+    MOKLI_SESSION_METADATA_KEY,
+    MOKLI_TITLE_METADATA_KEY,
+    MokliTurnCoordinator,
     clean_generated_title,
-    maybe_generate_webui_title,
-    maybe_generate_webui_title_after_turn,
+    maybe_generate_mokli_title,
+    maybe_generate_mokli_title_after_turn,
 )
-from nanobot.triggers.local_session_turns import LOCAL_TRIGGER_META
+from mokli.triggers.local_session_turns import LOCAL_TRIGGER_META
 
 
 def _agent_run_result(
@@ -93,7 +95,7 @@ def _assembled_messages(
 
 def _mk_loop() -> AgentLoop:
     loop = AgentLoop.__new__(AgentLoop)
-    from nanobot.config.schema import AgentDefaults
+    from mokli.config.schema import AgentDefaults
 
     loop.max_tool_result_chars = AgentDefaults().max_tool_result_chars
     return loop
@@ -125,7 +127,7 @@ def _make_full_loop(tmp_path: Path) -> AgentLoop:
     provider.generation = SimpleNamespace(max_tokens=4096)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Test title"))
     loop = AgentLoop(bus=MessageBus(), provider=provider, workspace=tmp_path, model="test-model")
-    WebuiTurnCoordinator(
+    MokliTurnCoordinator(
         bus=loop.bus,
         sessions=loop.sessions,
         schedule_background=lambda coro: loop.schedule_background(coro),
@@ -276,7 +278,7 @@ async def test_new_with_bot_suffix_does_not_persist_command(tmp_path: Path) -> N
             channel="websocket",
             sender_id="user",
             chat_id="chat-1",
-            content="/new@nanobot_bot",
+            content="/new@mokli_bot",
         )
     )
 
@@ -328,23 +330,23 @@ async def test_invalid_slash_command_is_rejected_without_calling_provider(
 
 
 def test_clean_generated_title_strips_reasoning_tags() -> None:
-    assert clean_generated_title("<think>reasoning</think> WebUI polish") == "WebUI polish"
+    assert clean_generated_title("<think>reasoning</think> Mokli polish") == "Mokli polish"
     assert clean_generated_title("Title: <think> The user said hello") == ""
 
 
 @pytest.mark.asyncio
-async def test_generate_webui_title_only_for_marked_webui_sessions(tmp_path: Path) -> None:
+async def test_generate_mokli_title_only_for_marked_mokli_sessions(tmp_path: Path) -> None:
     loop = _make_full_loop(tmp_path)
     loop.provider.chat_stream_with_retry = AsyncMock(
-        return_value=LLMResponse(content='"优化 WebUI 侧边栏。"', finish_reason="stop")
+        return_value=LLMResponse(content='"优化 Mokli 侧边栏。"', finish_reason="stop")
     )
     session = loop.sessions.get_or_create("websocket:chat-title")
-    session.metadata[WEBUI_SESSION_METADATA_KEY] = True
-    session.add_message("user", "帮我优化一下 webui 的 sidebar")
+    session.metadata[MOKLI_SESSION_METADATA_KEY] = True
+    session.add_message("user", "帮我优化一下 mokli 的 sidebar")
     session.add_message("assistant", "可以，我会先调整布局和视觉层级。")
     loop.sessions.save(session)
 
-    generated = await maybe_generate_webui_title(
+    generated = await maybe_generate_mokli_title(
         sessions=loop.sessions,
         session_key="websocket:chat-title",
         provider=loop.provider,
@@ -352,7 +354,7 @@ async def test_generate_webui_title_only_for_marked_webui_sessions(tmp_path: Pat
     )
 
     assert generated is True
-    assert session.metadata[WEBUI_TITLE_METADATA_KEY] == "优化 WebUI 侧边栏"
+    assert session.metadata[MOKLI_TITLE_METADATA_KEY] == "优化 Mokli 侧边栏"
     loop.provider.chat_stream_with_retry.assert_awaited_once()
     assert loop.provider.chat_stream_with_retry.await_args.kwargs["max_tokens"] == TITLE_GENERATION_MAX_TOKENS
     assert (
@@ -362,7 +364,7 @@ async def test_generate_webui_title_only_for_marked_webui_sessions(tmp_path: Pat
 
 
 @pytest.mark.asyncio
-async def test_generate_webui_title_skips_plain_websocket_sessions(tmp_path: Path) -> None:
+async def test_generate_mokli_title_skips_plain_websocket_sessions(tmp_path: Path) -> None:
     loop = _make_full_loop(tmp_path)
     loop.provider.chat_stream_with_retry = AsyncMock(
         return_value=LLMResponse(content="Plain websocket title", finish_reason="stop")
@@ -371,7 +373,7 @@ async def test_generate_webui_title_skips_plain_websocket_sessions(tmp_path: Pat
     session.add_message("user", "hello from a custom websocket client")
     loop.sessions.save(session)
 
-    generated = await maybe_generate_webui_title(
+    generated = await maybe_generate_mokli_title(
         sessions=loop.sessions,
         session_key="websocket:custom-client",
         provider=loop.provider,
@@ -379,15 +381,15 @@ async def test_generate_webui_title_skips_plain_websocket_sessions(tmp_path: Pat
     )
 
     assert generated is False
-    assert WEBUI_TITLE_METADATA_KEY not in session.metadata
+    assert MOKLI_TITLE_METADATA_KEY not in session.metadata
     loop.provider.chat_stream_with_retry.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_generate_webui_title_ignores_command_only_sessions(tmp_path: Path) -> None:
+async def test_generate_mokli_title_ignores_command_only_sessions(tmp_path: Path) -> None:
     loop = _make_full_loop(tmp_path)
     session = loop.sessions.get_or_create("websocket:command-title")
-    session.metadata[WEBUI_SESSION_METADATA_KEY] = True
+    session.metadata[MOKLI_SESSION_METADATA_KEY] = True
     session.add_message("user", "/model deep", _command=True)
     session.add_message(
         "assistant",
@@ -396,7 +398,7 @@ async def test_generate_webui_title_ignores_command_only_sessions(tmp_path: Path
     )
     loop.sessions.save(session)
 
-    generated = await maybe_generate_webui_title(
+    generated = await maybe_generate_mokli_title(
         sessions=loop.sessions,
         session_key="websocket:command-title",
         provider=loop.provider,
@@ -404,15 +406,15 @@ async def test_generate_webui_title_ignores_command_only_sessions(tmp_path: Path
     )
 
     assert generated is False
-    assert WEBUI_TITLE_METADATA_KEY not in session.metadata
+    assert MOKLI_TITLE_METADATA_KEY not in session.metadata
     loop.provider.chat_stream_with_retry.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_generate_webui_title_ignores_cron_internal_turns(tmp_path: Path) -> None:
+async def test_generate_mokli_title_ignores_cron_internal_turns(tmp_path: Path) -> None:
     loop = _make_full_loop(tmp_path)
     session = loop.sessions.get_or_create("websocket:cron-title")
-    session.metadata[WEBUI_SESSION_METADATA_KEY] = True
+    session.metadata[MOKLI_SESSION_METADATA_KEY] = True
     session.add_message(
         "user",
         "Scheduled cron job triggered: 30s-test\n\nInternal reminder prompt",
@@ -421,7 +423,7 @@ async def test_generate_webui_title_ignores_cron_internal_turns(tmp_path: Path) 
     session.add_message("assistant", "提醒已经到期。")
     loop.sessions.save(session)
 
-    generated = await maybe_generate_webui_title(
+    generated = await maybe_generate_mokli_title(
         sessions=loop.sessions,
         session_key="websocket:cron-title",
         provider=loop.provider,
@@ -429,12 +431,12 @@ async def test_generate_webui_title_ignores_cron_internal_turns(tmp_path: Path) 
     )
 
     assert generated is False
-    assert WEBUI_TITLE_METADATA_KEY not in session.metadata
+    assert MOKLI_TITLE_METADATA_KEY not in session.metadata
     loop.provider.chat_stream_with_retry.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_generate_webui_title_projects_onto_chat_session_under_unified_routing(
+async def test_generate_mokli_title_projects_onto_chat_session_under_unified_routing(
     tmp_path: Path,
 ) -> None:
     loop = _make_full_loop(tmp_path)
@@ -442,18 +444,18 @@ async def test_generate_webui_title_projects_onto_chat_session_under_unified_rou
         return_value=LLMResponse(content='"查询临期 IP"', finish_reason="stop")
     )
     unified = loop.sessions.get_or_create(UNIFIED_SESSION_KEY)
-    unified.metadata[WEBUI_SESSION_METADATA_KEY] = True
-    unified.metadata[WEBUI_TITLE_METADATA_KEY] = "开启私聊Topic功能"
+    unified.metadata[MOKLI_SESSION_METADATA_KEY] = True
+    unified.metadata[MOKLI_TITLE_METADATA_KEY] = "开启私聊Topic功能"
     unified.add_message("user", "很早以前的问题")
     unified.add_message("assistant", "很久以前的回答。")
     unified.add_message("user", "帮我查一下临期IP有哪些")
     unified.add_message("assistant", "以下是临期 IP 列表。")
     loop.sessions.save(unified)
 
-    generated = await maybe_generate_webui_title_after_turn(
+    generated = await maybe_generate_mokli_title_after_turn(
         channel="websocket",
         chat_id="chat-projection",
-        metadata={WEBUI_SESSION_METADATA_KEY: True},
+        metadata={MOKLI_SESSION_METADATA_KEY: True},
         sessions=loop.sessions,
         session_key=UNIFIED_SESSION_KEY,
         provider=loop.provider,
@@ -462,8 +464,8 @@ async def test_generate_webui_title_projects_onto_chat_session_under_unified_rou
 
     assert generated is True
     chat = loop.sessions.get_or_create("websocket:chat-projection")
-    assert chat.metadata[WEBUI_TITLE_METADATA_KEY] == "查询临期 IP"
-    assert unified.metadata[WEBUI_TITLE_METADATA_KEY] == "开启私聊Topic功能"
+    assert chat.metadata[MOKLI_TITLE_METADATA_KEY] == "查询临期 IP"
+    assert unified.metadata[MOKLI_TITLE_METADATA_KEY] == "开启私聊Topic功能"
     prompt = loop.provider.chat_stream_with_retry.await_args.args[0][1]["content"]
     assert "帮我查一下临期IP有哪些" in prompt
     assert "很早以前的问题" not in prompt
@@ -473,17 +475,17 @@ async def test_generate_webui_title_projects_onto_chat_session_under_unified_rou
 async def test_projected_title_generation_skips_existing_chat_title(tmp_path: Path) -> None:
     loop = _make_full_loop(tmp_path)
     unified = loop.sessions.get_or_create(UNIFIED_SESSION_KEY)
-    unified.metadata[WEBUI_SESSION_METADATA_KEY] = True
+    unified.metadata[MOKLI_SESSION_METADATA_KEY] = True
     unified.add_message("user", "帮我查一下临期IP有哪些")
     unified.add_message("assistant", "以下是临期 IP 列表。")
     chat = loop.sessions.get_or_create("websocket:chat-existing")
-    chat.metadata[WEBUI_TITLE_METADATA_KEY] = "Existing title"
+    chat.metadata[MOKLI_TITLE_METADATA_KEY] = "Existing title"
     loop.sessions.save(unified)
 
-    generated = await maybe_generate_webui_title_after_turn(
+    generated = await maybe_generate_mokli_title_after_turn(
         channel="websocket",
         chat_id="chat-existing",
-        metadata={WEBUI_SESSION_METADATA_KEY: True},
+        metadata={MOKLI_SESSION_METADATA_KEY: True},
         sessions=loop.sessions,
         session_key=UNIFIED_SESSION_KEY,
         provider=loop.provider,
@@ -491,7 +493,7 @@ async def test_projected_title_generation_skips_existing_chat_title(tmp_path: Pa
     )
 
     assert generated is False
-    assert chat.metadata[WEBUI_TITLE_METADATA_KEY] == "Existing title"
+    assert chat.metadata[MOKLI_TITLE_METADATA_KEY] == "Existing title"
     loop.provider.chat_stream_with_retry.assert_not_awaited()
 
 
@@ -1318,9 +1320,9 @@ _PNG_1X1 = (
 @pytest.mark.asyncio
 async def test_process_message_persists_media_paths_on_user_turn(tmp_path: Path) -> None:
     """User turns that attach images must record the media paths alongside
-    the text so the webui can rehydrate previews on session replay.
+    the text so the mokli can rehydrate previews on session replay.
 
-    The WebUI transcript replay can use these paths to restore attachment
+    The Mokli transcript replay can use these paths to restore attachment
     previews when it backfills from canonical session history.
     """
     img_a = tmp_path / "uuid-1.png"
@@ -1586,7 +1588,7 @@ async def test_websocket_internal_continuation_keeps_single_visible_run(
         sender_id="u1",
         chat_id="c-auto",
         content="start the goal",
-        metadata={"webui": True},
+        metadata={"mokli": True},
     ))
 
     first_outbound = []
@@ -1704,7 +1706,7 @@ async def test_process_message_uses_explicit_session_for_goal_context(
 async def test_run_agent_loop_continuation_reads_latest_goal_metadata(
     tmp_path: Path,
 ) -> None:
-    from nanobot.agent.runner import AgentRunResult
+    from mokli.agent.runner import AgentRunResult
 
     loop = _make_full_loop(tmp_path)
     session = loop.sessions.get_or_create("websocket:late-goal")
@@ -1846,9 +1848,60 @@ async def test_next_turn_after_crash_closes_pending_user_turn_before_new_input(t
 
 
 @pytest.mark.asyncio
+async def test_runtime_checkpoint_write_leaves_the_event_loop_free(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tool-turn sidecar with a long result is written off the event loop."""
+    loop = _make_full_loop(tmp_path)
+    session = loop.sessions.get_or_create("cli:fat")
+    session.add_message("user", "hello")
+    loop.sessions.save(session)
+    fat = "z" * 80_000
+    session.provider_state = ProviderConversationState(
+        kind="openai_responses",
+        provider="openai:test",
+        model="test-model",
+        version=1,
+        payload={"items": []},
+        pending_messages=[{"role": "tool", "content": fat}],
+    )
+    session.metadata[AgentLoop._RUNTIME_CHECKPOINT_KEY] = {
+        "phase": "tools_completed",
+        "completed_tool_results": [{"content": fat}],
+    }
+    order: list[str] = []
+    real_save = loop.sessions.save_runtime_checkpoint
+
+    def slow(target: Session) -> None:
+        time.sleep(0.2)
+        order.append(
+            "main" if threading.current_thread() is threading.main_thread() else "worker"
+        )
+        real_save(target)
+
+    monkeypatch.setattr(loop.sessions, "save_runtime_checkpoint", slow)
+
+    async def tick() -> None:
+        await asyncio.sleep(0.05)
+        order.append("tick")
+
+    pending = asyncio.create_task(tick())
+    started = time.perf_counter()
+    await loop._write_runtime_checkpoint(session)
+    await pending
+    assert order[0] == "tick"
+    assert "main" not in order
+    assert order.count("worker") == 1
+    assert time.perf_counter() - started < 0.35
+    raw = loop.sessions._get_runtime_checkpoint_path(session.key).read_text(encoding="utf-8")
+    assert raw.count(fat) == 2
+    await loop.aclose()
+
+
+@pytest.mark.asyncio
 async def test_stop_preserves_runtime_checkpoint_for_next_turn(tmp_path: Path) -> None:
-    from nanobot.command.builtin import cmd_stop
-    from nanobot.command.router import CommandContext
+    from mokli.command.builtin import cmd_stop
+    from mokli.command.router import CommandContext
 
     loop = _make_full_loop(tmp_path)
 

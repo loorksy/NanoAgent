@@ -1,0 +1,37 @@
+import { MOKLI_BASE_URL } from '$lib/constants';
+
+// LICENSE covers this Mokli fallback logo.
+// Do not alter, remove, obscure, or replace it except as LICENSE permits:
+const PLACEHOLDER_IMAGE = '/favicon.png';
+
+/**
+ * Validates an image URL against an allowlist of safe patterns and returns
+ * the URL if trusted, or a placeholder otherwise.
+ *
+ * Allowed patterns:
+ *   - Relative paths (starting with '/')
+ *   - data:image/* URIs
+ *   - Same-origin URLs (starting with MOKLI_BASE_URL)
+ *   - Gravatar URLs (https://www.gravatar.com/avatar/)
+ *   - External HTTP(S) URLs when allowExternal is true
+ *
+ * All other URLs (including arbitrary http(s):// origins by default) are
+ * rejected to prevent client-side IP/UA/Referer leaks to attacker-controlled servers.
+ */
+export function safeImageUrl(url: string, allowExternal = false): string {
+	if (!url || url === '') {
+		return `${MOKLI_BASE_URL}${PLACEHOLDER_IMAGE}`;
+	}
+
+	if (
+		(MOKLI_BASE_URL && url.startsWith(MOKLI_BASE_URL)) ||
+		url.startsWith('https://www.gravatar.com/avatar/') ||
+		(allowExternal && /^https?:\/\//i.test(url)) ||
+		url.startsWith('data:') ||
+		url.startsWith('/')
+	) {
+		return url;
+	}
+
+	return `${MOKLI_BASE_URL}${PLACEHOLDER_IMAGE}`;
+}

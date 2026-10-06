@@ -1,0 +1,20 @@
+<div class="na-result na-{{ type }}" dir="{{ dir }}" lang="{{ locale }}" data-result-id="{{ result_id }}" data-type="{{ type }}">
+<style>
+.na-result{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.45;color:#111;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;max-width:720px}
+.na-result[dir="rtl"]{text-align:right}
+.na-result h3{margin:0 0 10px;font-size:15px;font-weight:600}
+.na-result .na-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px 16px;margin:0}
+.na-result .na-grid dt{font-size:12px;color:#6b7280}
+.na-result .na-grid dd{margin:0;font-weight:600}
+.na-result ul{margin:6px 0 0;padding-inline-start:18px}
+.na-result .na-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:#f3f4f6}
+.na-result .na-buy{background:#dcfce7;color:#166534}
+.na-result .na-sell{background:#fee2e2;color:#991b1b}
+.na-result .na-wait,.na-result .na-neutral{background:#fef3c7;color:#92400e}
+.na-result .na-muted{color:#6b7280}
+.na-result table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.na-result td,.na-result th{padding:4px 6px;border-bottom:1px solid #f3f4f6;text-align:start}
+</style>
+<h3>{{ L('label.result.' ~ type) }}</h3>
+{% block body %}{% endblock %}
+</div>

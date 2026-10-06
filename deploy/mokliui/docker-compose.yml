@@ -1,0 +1,158 @@
+# Mokli v2 - Phase 4 web client: Mokli + Caddy in front of the mokli Agent API.
+#
+#   Browser ──► caddy (:80/:443, mokli.lork.cloud)
+#                 ├── /api/v2/*, /ws/v2*, /v1/*  ──► host:8766  mokli Agent API (mokli/agent_api)
+#                 └── everything else            ──► mokli-ui:8080
+#
+#   mokli-ui ──► host:8766/v1  (OpenAI-compatible connection; the Pipe Function talks to /api/v2)
+#
+# mokli itself is NOT containerised here: it keeps running on the host (systemd / `mokli gateway`)
+# and is reached through `host.docker.internal`. On Linux Docker Engine that name only resolves
+# because of the `extra_hosts: host-gateway` entries below; Docker Desktop provides it natively.
+#
+# Copy `.env.example` to `.env` and fill in the secrets before `docker compose up -d`.
+# See docs/deploy/mokliui.md for the full procedure.
+
+name: mokli-mokli
+
+services:
+  mokli-ui:
+    build:
+      context: ../../mokli-ui
+      dockerfile: Dockerfile
+    image: mokli-mokli-ui:local
+    container_name: mokli-mokli-ui
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - mokli-ui-data:/app/backend/data
+    expose:
+      - "8080"
+    environment:
+      # ---- identity / URLs ----------------------------------------------------------------
+      MOKLI_NAME: ${MOKLI_NAME:-Mokli}
+      MOKLI_URL: ${MOKLI_URL:-https://mokli.lork.cloud}
+      MOKLI_SECRET_KEY: ${MOKLI_SECRET_KEY:?set MOKLI_SECRET_KEY in .env}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-ar-BH}
+      # Environment variables win over values saved from the Admin UI on every start, so this
+      # file stays the single source of truth for the flags below (ENABLE_PERSISTENT_CONFIG).
+      ENABLE_PERSISTENT_CONFIG: "false"
+
+      # ---- authentication -----------------------------------------------------------------
+      MOKLI_AUTH: "true"
+      # First boot: leave ENABLE_SIGNUP=true, create the operator (first user = admin), then set
+      # ENABLE_SIGNUP=false in .env and `docker compose up -d` again. Alternatively set
+      # MOKLI_ADMIN_EMAIL / MOKLI_ADMIN_PASSWORD once: the admin is created headlessly and
+      # sign-up is disabled automatically.
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+      DEFAULT_USER_ROLE: pending
+      MOKLI_ADMIN_EMAIL: ${MOKLI_ADMIN_EMAIL:-}
+      MOKLI_ADMIN_PASSWORD: ${MOKLI_ADMIN_PASSWORD:-}
+      MOKLI_SESSION_COOKIE_SECURE: "true"
+      MOKLI_AUTH_COOKIE_SECURE: "true"
+      CORS_ALLOW_ORIGIN: ${MOKLI_URL:-https://mokli.lork.cloud}
+
+      # ---- model backend: mokli Agent API, OpenAI-compatible surface ------------------------
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "true"
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-http://host.docker.internal:8766/v1}
+      OPENAI_API_KEY: ${MOKLI_API_TOKEN:?set MOKLI_API_TOKEN in .env}
+      # Browser calls /api/v1/mokli/*; the container proxies to the gateway.
+      MOKLI_GATEWAY_URL: ${MOKLI_GATEWAY_URL:-http://host.docker.internal:8766}
+      MOKLI_API_TOKEN: ${MOKLI_API_TOKEN:?set MOKLI_API_TOKEN in .env}
+      # Sends X-Mokliui-Chat-Id (and user headers) to the Agent API so that the plain
+      # OpenAI-compatible path can also map chat -> mokli session.
+      ENABLE_FORWARD_USER_INFO_HEADERS: "true"
+      ENABLE_DIRECT_CONNECTIONS: "false"
+      # The Pipe Function registers as `<function id>.<pipe id>`; when imported with id
+      # `mokli` (derived from the frontmatter title) the model id is `mokli.mokli`.
+      # The bare `mokli` id is the text-only OpenAI-connection model from /v1/models.
+      DEFAULT_MODELS: ${MOKLI_DEFAULT_MODEL:-mokli.mokli}
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
+
+      # ---- background LLM tasks (would call the agent for titles/tags; disabled) -------------
+      ENABLE_TITLE_GENERATION: "false"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+      ENABLE_SEARCH_QUERY_GENERATION: "false"
+
+      # ---- features the agent owns (memory, web, images, code) -------------------------------
+      ENABLE_MEMORIES: "false"
+      ENABLE_MEMORY_SYSTEM_CONTEXT: "false"
+      ENABLE_MEMORY_BACKGROUND_REVIEW: "false"
+      USER_PERMISSIONS_FEATURES_MEMORIES: "false"
+      ENABLE_WEB_SEARCH: "false"
+      USER_PERMISSIONS_FEATURES_WEB_SEARCH: "false"
+      ENABLE_IMAGE_GENERATION: "false"
+      USER_PERMISSIONS_FEATURES_IMAGE_GENERATION: "false"
+      ENABLE_CODE_EXECUTION: "false"
+      ENABLE_CODE_INTERPRETER: "false"
+      USER_PERMISSIONS_FEATURES_CODE_INTERPRETER: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_CHANNELS: "false"
+      ENABLE_NOTES: "false"
+      USER_PERMISSIONS_FEATURES_NOTES: "false"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+
+      # ---- chat permissions (single operator; keep the chat surface minimal) -----------------
+      USER_PERMISSIONS_CHAT_CONTROLS: "false"
+      USER_PERMISSIONS_CHAT_VALVES: "false"
+      USER_PERMISSIONS_CHAT_SYSTEM_PROMPT: "false"
+      USER_PERMISSIONS_CHAT_PARAMS: "false"
+      USER_PERMISSIONS_CHAT_FILE_UPLOAD: "true"
+      USER_PERMISSIONS_CHAT_WEB_UPLOAD: "false"
+      USER_PERMISSIONS_CHAT_DELETE: "true"
+      USER_PERMISSIONS_CHAT_EDIT: "false"
+      USER_PERMISSIONS_CHAT_SHARE: "false"  # verify: referenced in docs, no dedicated entry
+      USER_PERMISSIONS_CHAT_EXPORT: "true"
+      USER_PERMISSIONS_CHAT_IMPORT: "false"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "false"
+      USER_PERMISSIONS_CHAT_MULTIPLE_MODELS: "false"
+      USER_PERMISSIONS_CHAT_CONTINUE_RESPONSE: "false"
+      USER_PERMISSIONS_CHAT_REGENERATE_RESPONSE: "true"
+      USER_PERMISSIONS_CHAT_STT: "true"
+      USER_PERMISSIONS_CHAT_TTS: "false"
+      USER_PERMISSIONS_CHAT_CALL: "false"
+      # Workspace (Models/Knowledge/Prompts/Tools) is hidden for non-admins; the admin keeps it.
+      USER_PERMISSIONS_WORKSPACE_MODELS_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_KNOWLEDGE_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_PROMPTS_ACCESS: "false"
+      USER_PERMISSIONS_WORKSPACE_TOOLS_ACCESS: "false"
+
+      # ---- plugins: the Mokli Pipe Function needs these ----------------------------------
+      ENABLE_PLUGINS: "true"
+      # httpx + pydantic already ship with the image; nothing is pulled from PyPI at runtime.
+      ENABLE_PIP_INSTALL_FRONTMATTER_REQUIREMENTS: "false"
+      # Structured results arrive as srcdoc iframes (embeds). Restrict them to inline content;
+      # the TradingView chart artifact is an https URL embed and is not affected by this CSP.
+      IFRAME_CSP: "default-src 'self' 'unsafe-inline' data: blob:; connect-src 'none'; frame-src 'none'"
+    # The image ships its own HEALTHCHECK against /health.
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: mokli-caddy
+    restart: unless-stopped
+    depends_on:
+      - mokli-ui
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-mokli.lork.cloud}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      AGENT_API_UPSTREAM: ${AGENT_API_UPSTREAM:-host.docker.internal:8766}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  mokli-ui-data:
+  caddy-data:
+  caddy-config:

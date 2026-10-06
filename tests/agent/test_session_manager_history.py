@@ -1,11 +1,15 @@
-from nanobot.runtime_context import (
+from pathlib import Path
+
+from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     RuntimeContextBlock,
     append_runtime_context,
+    wrap_runtime_context_lines,
 )
-from nanobot.session.history_visibility import HIDDEN_HISTORY_META
-from nanobot.session.manager import Session, SessionManager
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.session.history_visibility import HIDDEN_HISTORY_META
+from mokli.session.manager import Session, SessionManager
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.utils.helpers import estimate_prompt_tokens
 
 
 def _assert_no_orphans(history: list[dict]) -> None:
@@ -463,6 +467,132 @@ def test_get_history_does_not_duplicate_persisted_cli_app_runtime_context():
     assert public_history == [{"role": "user", "content": "please use @drawio"}]
 
 
+def test_refreshed_runtime_context_is_not_replayed() -> None:
+    """A live plan and an active goal are injected again on the next turn."""
+    goal = (
+        Path(__file__).resolve().parents[2] / "mokli" / "templates" / "agent" / "goal_runtime.md"
+    ).read_text(encoding="utf-8")
+    session = Session(key="test:refreshed-runtime")
+    raw_messages: list[dict[str, str]] = []
+    for index in range(12):
+        price = 4200 + index
+        content, marker = append_runtime_context(
+            f"question {index}",
+            [
+                RuntimeContextBlock(
+                    source="gold_intent",
+                    content=wrap_runtime_context_lines([
+                        "A live BUY XAUUSD recommendation is on file for this conversation.",
+                        f"Stored plan levels (plain): entry={price}.15, stop={price - 17}.00",
+                    ]),
+                ),
+                RuntimeContextBlock(source="goal", content=goal),
+            ],
+        )
+        assert marker is not None
+        session.messages.append({
+            "role": "user",
+            "content": content,
+            RUNTIME_CONTEXT_HISTORY_META: marker,
+        })
+        session.messages.append({"role": "assistant", "content": f"answer {index}"})
+        raw_messages.append({"role": "user", "content": content})
+        raw_messages.append({"role": "assistant", "content": f"answer {index}"})
+
+    quote, quote_marker = append_runtime_context(
+        "what did I select",
+        [RuntimeContextBlock(
+            source="mokli_quote",
+            content=wrap_runtime_context_lines(["selected excerpt"]),
+        )],
+    )
+    session.messages.append({
+        "role": "user",
+        "content": quote,
+        RUNTIME_CONTEXT_HISTORY_META: quote_marker,
+    })
+    mixed, mixed_marker = append_runtime_context(
+        "mixed",
+        [
+            RuntimeContextBlock(source="gold_intent", content="stale gold block"),
+            RuntimeContextBlock(source="mokli_quote", content="keep this quote"),
+        ],
+    )
+    session.messages.append({
+        "role": "user",
+        "content": mixed,
+        RUNTIME_CONTEXT_HISTORY_META: mixed_marker,
+    })
+
+    history = session.get_history()
+    replay = "\n".join(
+        message["content"] for message in history if isinstance(message.get("content"), str)
+    )
+    assert "Stored plan levels" not in replay
+    assert "Record the sustained goal promptly" not in replay
+    assert "selected excerpt" in replay
+    assert "keep this quote" in replay
+    assert "stale gold block" in replay
+    assert session.messages[0]["content"] != "question 0"
+    assert "Stored plan levels" in session.messages[0]["content"]
+
+    before = estimate_prompt_tokens(raw_messages)
+    refreshed = [
+        message for message in history
+        if message.get("content") in {f"question {index}" for index in range(12)}
+        or (
+            isinstance(message.get("content"), str)
+            and str(message["content"]).startswith("answer ")
+        )
+    ]
+    after = estimate_prompt_tokens(refreshed)
+    print(f"TOKEN_RUNTIME_REPLAY before={before} after={after} saved_tokens={before - after}")
+
+
+def test_explicit_skill_body_is_not_replayed() -> None:
+    """The skill body belongs to the turn that named it."""
+    skill_path = (
+        Path(__file__).resolve().parents[2]
+        / "mokli"
+        / "skills"
+        / "trading-proactive"
+        / "SKILL.md"
+    )
+    skill = (
+        "[Active Skills — instructions for this user turn]\n"
+        f"{skill_path.read_text(encoding='utf-8')}\n"
+        "[/Active Skills]"
+    )
+    content, marker = append_runtime_context(
+        "$trading-proactive",
+        [RuntimeContextBlock(source="explicit_skills", content=skill)],
+    )
+    assert marker is not None
+    session = Session(key="test:explicit-skill")
+    session.messages.append({
+        "role": "user",
+        "content": content,
+        RUNTIME_CONTEXT_HISTORY_META: marker,
+    })
+    session.messages.append({"role": "assistant", "content": "تم"})
+    session.messages.append({"role": "user", "content": "وما بعد؟"})
+
+    history = session.get_history()
+    replay = "\n".join(
+        message["content"] for message in history if isinstance(message.get("content"), str)
+    )
+    assert history[0]["content"] == "$trading-proactive"
+    assert "Trading Proactive Communication" not in replay
+    assert "Trading Proactive Communication" in session.messages[0]["content"]
+    before = estimate_prompt_tokens([
+        {"role": "user", "content": content},
+        {"role": "assistant", "content": "تم"},
+        {"role": "user", "content": "وما بعد؟"},
+    ])
+    after = estimate_prompt_tokens(history)
+    print(f"TOKEN_SKILL_REPLAY before={before} after={after}")
+
+
 def test_public_history_omits_cli_app_breadcrumb():
     session = Session(key="test:legacy-capabilities")
     session.messages.append({
@@ -485,7 +615,7 @@ def test_public_history_omits_cli_app_breadcrumb():
 def test_fork_session_before_user_index_copies_only_prefix(tmp_path):
     manager = SessionManager(tmp_path)
     source = manager.get_or_create("websocket:source")
-    source.metadata["webui"] = True
+    source.metadata["mokli"] = True
     source.metadata["title"] = "Old title"
     source.metadata["goal_state"] = {"status": "active", "objective": "do not inherit"}
     source.add_message("user", "round1")
@@ -503,7 +633,7 @@ def test_fork_session_before_user_index_copies_only_prefix(tmp_path):
 
     assert forked is not None
     assert [m["content"] for m in forked.messages] == ["round1", "answer1"]
-    assert forked.metadata["webui"] is True
+    assert forked.metadata["mokli"] is True
     assert "title" not in forked.metadata
     assert "goal_state" not in forked.metadata
     saved = manager.read_session_file("websocket:fork")
@@ -655,7 +785,7 @@ def test_get_history_does_not_paste_assistant_media_paths_into_replay():
         {
             "role": "assistant",
             "content": "来了 🎨",
-            "media": ["/home/user/.nanobot/media/generated/img_abc.png"],
+            "media": ["/home/user/.mokli/media/generated/img_abc.png"],
         }
     )
 
@@ -672,7 +802,7 @@ def test_get_history_sanitizes_existing_assistant_replay_artifacts():
             "content": (
                 "[Message Time: 2026-05-09 00:33:48]\n"
                 "来了 🎨\n"
-                "[image: /home/user/.nanobot/media/generated/img_old.png]\n\n"
+                "[image: /home/user/.mokli/media/generated/img_old.png]\n\n"
                 "generate_image(\"16:9\")\n"
                 "message(\"来了 🎨\")"
             ),
@@ -699,7 +829,7 @@ def test_get_history_respects_max_tokens(monkeypatch):
 
     token_map = {"u1": 50, "a1": 50, "u2": 50, "a2": 50, "u3": 50, "a3": 50}
     monkeypatch.setattr(
-        "nanobot.session.manager.estimate_message_tokens",
+        "mokli.session.manager.estimate_message_tokens",
         lambda message: token_map.get(message.get("content"), 0),
     )
 
@@ -719,7 +849,7 @@ def test_get_history_recovers_user_when_token_slice_would_be_assistant_only(monk
     )
     token_map = {"u1": 100, "a1": 100, "u2": 100, "a2": 100}
     monkeypatch.setattr(
-        "nanobot.session.manager.estimate_message_tokens",
+        "mokli.session.manager.estimate_message_tokens",
         lambda message: token_map.get(message.get("content"), 0),
     )
 

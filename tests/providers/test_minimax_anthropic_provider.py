@@ -1,7 +1,7 @@
 """Tests for the MiniMax Anthropic provider registration."""
 
-from nanobot.config.schema import ProvidersConfig
-from nanobot.providers.registry import PROVIDERS
+from mokli.config.schema import ProvidersConfig
+from mokli.providers.registry import PROVIDERS
 
 
 def test_minimax_anthropic_config_field_exists():

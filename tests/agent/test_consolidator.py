@@ -1,33 +1,36 @@
 """Tests for Memory checkpoint consolidation and history journaling."""
 
+import asyncio
+import threading
+import time
 from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.memory import (
+from mokli.agent.memory import (
     _ARCHIVE_TOOL_RESULT,
     _HISTORY_ENTRY_HARD_CAP,
     Consolidator,
     MemoryStore,
 )
-from nanobot.events import AgentEvent, ContextCompactionEvent, EventSink
-from nanobot.providers.base import (
+from mokli.events import AgentEvent, ContextCompactionEvent, EventSink
+from mokli.providers.base import (
     GenerationSettings,
     LLMResponse,
     ProviderConversationState,
     ToolCallRequest,
 )
-from nanobot.runtime_context import (
+from mokli.runtime_context import (
     RUNTIME_CONTEXT_HISTORY_META,
     RuntimeContextBlock,
     append_runtime_context,
 )
-from nanobot.session.keys import UNIFIED_SESSION_KEY, remember_last_channel
-from nanobot.session.manager import Session
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
-from nanobot.utils.llm_runtime import LLMRuntime
-from nanobot.utils.prompt_templates import render_template
+from mokli.session.keys import UNIFIED_SESSION_KEY, remember_last_channel
+from mokli.session.manager import Session
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.utils.llm_runtime import LLMRuntime
+from mokli.utils.prompt_templates import render_template
 
 _ARCHIVE_PROMPT = render_template("agent/consolidator_archive.md", strip=True)
 
@@ -253,7 +256,7 @@ class TestTurnTranscriptSummary:
 
 class TestConsolidatorSummarize:
     def test_format_messages_keeps_media_only_user_turn(self):
-        path = "/home/user/.nanobot/media/websocket/clip.mp4"
+        path = "/home/user/.mokli/media/websocket/clip.mp4"
 
         formatted = MemoryStore._format_messages([
             {
@@ -492,7 +495,7 @@ class TestConsolidatorArchiveErrorHandling:
         runtime = replace(runtime, context_window_tokens=128_000)
         consolidator.store.raw_archive = MagicMock()
         monkeypatch.setattr(
-            "nanobot.agent.memory.render_template",
+            "mokli.agent.memory.render_template",
             MagicMock(side_effect=RuntimeError("template failed")),
         )
         session = Session(key="test:template")
@@ -562,7 +565,7 @@ class TestCompactIdleSession:
     @pytest.fixture
     def real_consolidator(self, store, mock_provider):
         """Create a Consolidator with a real SessionManager (not a mock)."""
-        from nanobot.session.manager import SessionManager
+        from mokli.session.manager import SessionManager
 
         sessions = SessionManager(store.workspace)
         return Consolidator(
@@ -1473,6 +1476,87 @@ class TestCompactIdleSession:
         system = sent_messages[0]["content"]
         assert "PROJECT_WORKSPACE_MARKER" in system
         assert "GLOBAL_WORKSPACE_MARKER" not in system
+
+    @pytest.mark.asyncio
+    async def test_compact_reload_leaves_the_event_loop_free(
+        self, real_consolidator, runtime, monkeypatch
+    ):
+        """The archive reload parses a cold transcript off the event loop."""
+        sessions = real_consolidator.sessions
+        session = sessions.get_or_create("cli:fat")
+        session.add_message("user", "x" * 80_000)
+        sessions.save(session)
+        sessions.invalidate("cli:fat")
+        order: list[str] = []
+        seen: dict[str, object] = {}
+        real_load = sessions.load_from_disk
+
+        def slow(key: str):
+            time.sleep(0.2)
+            order.append(
+                "main" if threading.current_thread() is threading.main_thread() else "worker"
+            )
+            return real_load(key)
+
+        async def archive(session, **kwargs):
+            del kwargs
+            seen["count"] = len(session.messages)
+            seen["tail"] = session.messages[-1]["content"]
+            return None
+
+        monkeypatch.setattr(sessions, "load_from_disk", slow)
+        monkeypatch.setattr(real_consolidator, "archive_session", archive)
+
+        async def tick() -> None:
+            await asyncio.sleep(0.05)
+            order.append("tick")
+
+        pending = asyncio.create_task(tick())
+        started = time.perf_counter()
+        result = await real_consolidator.compact_idle_session("cli:fat", runtime=runtime)
+        await pending
+        assert result is None
+        assert order[0] == "tick"
+        assert "main" not in order
+        assert order.count("worker") == 1
+        assert time.perf_counter() - started < 0.35
+        assert seen["count"] == 1
+        assert seen["tail"] == "x" * 80_000
+
+    @pytest.mark.asyncio
+    async def test_compact_reload_keeps_a_session_cached_during_the_read(
+        self, real_consolidator, runtime, monkeypatch
+    ):
+        """A turn that caches the session while the file is open keeps that object."""
+        sessions = real_consolidator.sessions
+        session = sessions.get_or_create("cli:fat")
+        session.add_message("user", "on-disk")
+        sessions.save(session)
+        sessions.invalidate("cli:fat")
+        seen: dict[str, str] = {}
+        real_load = sessions.load_from_disk
+
+        def slow(key: str):
+            time.sleep(0.2)
+            return real_load(key)
+
+        async def sneak() -> None:
+            await asyncio.sleep(0.05)
+            fresh = Session(key="cli:fat")
+            fresh.add_message("user", "from-turn")
+            sessions.cache_saved(fresh)
+
+        async def archive(session, **kwargs):
+            del kwargs
+            seen["text"] = session.messages[-1]["content"]
+            return None
+
+        monkeypatch.setattr(sessions, "load_from_disk", slow)
+        monkeypatch.setattr(real_consolidator, "archive_session", archive)
+        pending = asyncio.create_task(sneak())
+        await real_consolidator.compact_idle_session("cli:fat", runtime=runtime)
+        await pending
+        assert seen["text"] == "from-turn"
 
     @pytest.mark.asyncio
     async def test_acquires_consolidation_lock(

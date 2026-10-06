@@ -1,0 +1,14 @@
+{% extends "_layout.html" %}
+{% block body %}
+<dl class="na-grid">
+  <div><dt>{{ L('label.result.market.price') }}</dt><dd>{{ p.price | num }}</dd></div>
+  <div><dt>{{ L('label.result.market.spread') }}</dt><dd>{{ p.spread | num }}</dd></div>
+  <div><dt>{{ L('label.result.market.session') }}</dt><dd>{{ L('label.session.' ~ (p.session or 'unknown')) }}</dd></div>
+  <div><dt>{{ L('label.result.market.dxy') }}</dt><dd>{{ p.dxy | num }}</dd></div>
+  <div><dt>{{ L('label.result.market.yields') }}</dt><dd>{{ p.yields | num }}</dd></div>
+  <div><dt>{{ L('label.result.market.feed_status') }}</dt><dd><span class="na-badge">{{ L('label.feed_status.' ~ p.feed_status) }}</span></dd></div>
+</dl>
+{% if p.next_event %}
+<p class="na-muted">{{ L('label.result.market.next_event') }}: {{ p.next_event.time }} · {{ L('label.impact.' ~ p.next_event.impact) }}{% if p.next_event.title_key %} · {{ L(p.next_event.title_key) }}{% endif %}</p>
+{% endif %}
+{% endblock %}

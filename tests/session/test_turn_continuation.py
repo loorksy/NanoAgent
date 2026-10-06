@@ -7,13 +7,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from nanobot.bus.events import InboundMessage
-from nanobot.session.goal_state import (
+from mokli.bus.events import InboundMessage
+from mokli.session.goal_state import (
     GOAL_STATE_KEY,
     explicit_goal_requested,
     sustained_goal_turn,
 )
-from nanobot.session.turn_continuation import (
+from mokli.session.turn_continuation import (
     INTERNAL_CONTINUATION_KIND_META,
     INTERNAL_CONTINUATION_META,
     INTERNAL_CONTINUATION_PENDING_META,
@@ -53,7 +53,7 @@ async def test_maybe_continue_turn_queues_internal_message():
                 "message_id": "msg-1",
                 "origin_message_id": "msg-0",
                 "_wants_stream": True,
-                "webui": True,
+                "mokli": True,
                 "original_command": "/goal",
                 "goal_requested": True,
             },
@@ -76,7 +76,7 @@ async def test_maybe_continue_turn_queues_internal_message():
     assert queued.metadata[INTERNAL_CONTINUATION_RUN_STARTED_AT_META] == 1234.5
     assert internal_continuation_run_started_at(queued.metadata) == 1234.5
     assert internal_continuation_pending(ctx.msg.metadata)
-    assert queued.metadata["webui"] is True
+    assert queued.metadata["mokli"] is True
     assert queued.metadata["message_id"] == "msg-1"
     assert queued.metadata["origin_message_id"] == "msg-0"
     assert queued.metadata["_wants_stream"] is True

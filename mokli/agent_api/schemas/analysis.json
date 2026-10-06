@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["htf_bias", "structure"],
+  "properties": {
+    "htf_bias": {"type": "string", "enum": ["bullish", "bearish", "neutral"]},
+    "structure": {"type": "string"},
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "low", "high"],
+        "properties": {
+          "type": {"type": "string", "enum": ["supply", "demand", "order_block", "breaker"]},
+          "low": {"type": "number"},
+          "high": {"type": "number"},
+          "timeframe": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "fvg": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["low", "high", "direction"],
+        "properties": {
+          "low": {"type": "number"},
+          "high": {"type": "number"},
+          "direction": {"type": "string", "enum": ["bullish", "bearish"]}
+        }
+      }
+    },
+    "liquidity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level", "type"],
+        "properties": {
+          "level": {"type": "number"},
+          "type": {"type": "string", "enum": ["buy_side", "sell_side", "equal_highs", "equal_lows"]}
+        }
+      }
+    },
+    "momentum_score": {"type": ["number", "null"], "minimum": -100, "maximum": 100},
+    "confluence": {"type": "array", "items": {"type": "string"}}
+  }
+}

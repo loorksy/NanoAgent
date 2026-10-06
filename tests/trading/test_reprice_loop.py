@@ -1,8 +1,8 @@
 import asyncio
 
-from nanobot.trading.gates.build_gates import GateInputs, build_gates
-from nanobot.trading.gates.reprice_loop import apply_g7_reprice_loop
-from nanobot.trading.types import (
+from mokli.trading.gates.build_gates import GateInputs, build_gates
+from mokli.trading.gates.reprice_loop import apply_g7_reprice_loop
+from mokli.trading.types import (
     AgentRecommendation,
     EntryPlan,
     GateChainResult,

@@ -2,16 +2,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.runner import AgentRunner, AgentRunSpec
-from nanobot.config.schema import AgentDefaults
-from nanobot.providers.base import (
+from mokli.agent.runner import AgentRunner, AgentRunSpec
+from mokli.config.schema import AgentDefaults
+from mokli.providers.base import (
     GenerationSettings,
     LLMProvider,
     LLMResponse,
     ProviderCallContext,
     ToolCallRequest,
 )
-from nanobot.utils.llm_runtime import LLMRuntime
+from mokli.utils.llm_runtime import LLMRuntime
 
 
 @pytest.mark.asyncio
@@ -68,11 +68,11 @@ async def test_active_run_keeps_provider_captured_at_admission() -> None:
         runtime=selected_runtime,
         max_iterations=2,
         max_tool_result_chars=AgentDefaults().max_tool_result_chars,
-        session_key="webui:cache-test",
+        session_key="mokli:cache-test",
     ))
 
     assert first_calls == 2
     assert second_calls == 0
     assert request_temperatures == [0.2, 0.2]
-    assert request_session_ids == ["webui:cache-test", "webui:cache-test"]
+    assert request_session_ids == ["mokli:cache-test", "mokli:cache-test"]
     assert selected_runtime.provider is second_provider

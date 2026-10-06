@@ -7,26 +7,26 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from agent.runner_helpers import make_run_spec
-from nanobot.agent.context import TranscriptInput
-from nanobot.agent.context_governance import (
+from mokli.agent.context import TranscriptInput
+from mokli.agent.context_governance import (
     BACKFILL_CONTENT,
     ContextGovernanceConfig,
     ContextGovernor,
     ContextWindowExceededError,
     ModelRequestState,
 )
-from nanobot.agent.runner import AgentRunner, AgentRunSpec
-from nanobot.config.schema import AgentDefaults
-from nanobot.events import ContextCompactionEvent, EventSink
-from nanobot.providers.base import (
+from mokli.agent.runner import AgentRunner, AgentRunSpec
+from mokli.config.schema import AgentDefaults
+from mokli.events import ContextCompactionEvent, EventSink
+from mokli.providers.base import (
     LLMProvider,
     LLMResponse,
     LLMUsage,
     ProviderConversationState,
     ToolCallRequest,
 )
-from nanobot.providers.conversation_state import ProviderConversationStateController
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.providers.conversation_state import ProviderConversationStateController
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 _MAX_TOOL_RESULT_CHARS = AgentDefaults().max_tool_result_chars
 
@@ -61,23 +61,23 @@ def _governance_config(
 
 
 def _make_loop(tmp_path):
-    from nanobot.agent.loop import AgentLoop
-    from nanobot.bus.queue import MessageBus
+    from mokli.agent.loop import AgentLoop
+    from mokli.bus.queue import MessageBus
 
     bus = MessageBus()
     provider = MagicMock()
     provider.get_default_model.return_value = "test-model"
 
-    with patch("nanobot.agent.loop.ContextBuilder"), \
-         patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as mock_sub_mgr:
+    with patch("mokli.agent.loop.ContextBuilder"), \
+         patch("mokli.agent.loop.SessionManager"), \
+         patch("mokli.agent.loop.SubagentManager") as mock_sub_mgr:
         mock_sub_mgr.return_value.cancel_by_session = AsyncMock(return_value=0)
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path)
     return loop
 
 
 async def test_provider_can_emit_without_an_event_specific_runner_callback():
-    from nanobot.events import AgentEvent
+    from mokli.events import AgentEvent
 
     event = AgentEvent()
     received = []
@@ -103,7 +103,7 @@ async def test_provider_can_emit_without_an_event_specific_runner_callback():
 
 
 async def test_runner_propagates_context_governance_failure():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock()
     provider.chat_stream_with_retry = AsyncMock()
@@ -132,7 +132,7 @@ async def test_runner_propagates_context_governance_failure():
 
 @pytest.mark.asyncio
 async def test_runner_locally_fits_oversized_initial_transcript(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="done"))
@@ -147,7 +147,7 @@ async def test_runner_locally_fits_oversized_initial_transcript(monkeypatch):
         )
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
 
@@ -208,7 +208,7 @@ async def test_runner_summarizes_history_and_preserves_current_input(monkeypatch
     tools.get_definitions.return_value = []
     old_answer = "old answer " * 2_000
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda _provider, _model, messages, _tools: (
             (600, "test-counter")
             if any(message.get("content") == old_answer for message in messages)
@@ -267,7 +267,7 @@ async def test_runner_rejects_oversized_delta_without_summarizable_history(monke
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (600, "test-counter"),
     )
     consolidate = AsyncMock(return_value=None)
@@ -304,7 +304,7 @@ async def test_runner_governs_history_before_summarizing_it(monkeypatch):
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda _provider, _model, messages, _tools: (
             (100, "test-counter")
             if messages[0].get("content") == "fresh checkpoint"
@@ -389,7 +389,7 @@ async def test_native_compaction_uses_provider_request_boundary(
     tools.get_definitions.return_value = []
     tools.execute = AsyncMock(return_value="complete tool result")
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args: (100, "test-counter"),
     )
     consolidate = AsyncMock(return_value="portable checkpoint")
@@ -472,7 +472,7 @@ async def test_runner_keeps_current_tool_exchange_outside_summary(monkeypatch):
         return (600 if has_tool_result and has_old_system else 100, "test-counter")
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     consolidate = AsyncMock(return_value="fresh checkpoint")
@@ -536,7 +536,7 @@ async def test_repeated_pressure_advances_summary_boundary(monkeypatch):
         return 100, "test-counter"
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     consolidate = AsyncMock(side_effect=[
@@ -597,7 +597,7 @@ async def test_runner_refuses_checkpoint_that_cannot_fit_with_delta(monkeypatch)
         return 100, "test-counter"
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     consolidate = AsyncMock(return_value="small checkpoint")
@@ -627,8 +627,8 @@ async def test_runner_refuses_checkpoint_that_cannot_fit_with_delta(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_runner_governs_messages_added_by_before_iteration_hook(monkeypatch):
-    from nanobot.agent.hook import AgentHook, AgentHookContext
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.hook import AgentHook, AgentHookContext
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="unexpected"))
@@ -637,7 +637,7 @@ async def test_runner_governs_messages_added_by_before_iteration_hook(monkeypatc
     oversized = "hook-added-oversized-message"
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda _provider, _model, messages, _tools: (
             (2_000, "test-counter")
             if any(oversized in str(message.get("content")) for message in messages)
@@ -667,7 +667,7 @@ async def test_runner_governs_messages_added_by_before_iteration_hook(monkeypatc
 
 @pytest.mark.asyncio
 async def test_runner_drops_resumable_provider_state_when_request_is_fitted(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -693,7 +693,7 @@ async def test_runner_drops_resumable_provider_state_when_request_is_fitted(monk
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda _provider, _model, messages, _tools: (
             (600, "test-counter")
             if any(message.get("content") == old_content for message in messages)
@@ -701,7 +701,7 @@ async def test_runner_drops_resumable_provider_state_when_request_is_fitted(monk
         ),
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda message: 450 if message.get("content") == old_content else 50,
     )
     saved_state = ProviderConversationState(
@@ -734,7 +734,7 @@ async def test_runner_drops_resumable_provider_state_when_request_is_fitted(monk
 
 @pytest.mark.asyncio
 async def test_runner_fits_each_malformed_retry_with_its_actual_tools(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     calls: list[dict] = []
@@ -764,11 +764,11 @@ async def test_runner_fits_each_malformed_retry_with_its_actual_tools(monkeypatc
     tools = MagicMock()
     tools.get_definitions.return_value = definitions
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda _message: 300,
     )
 
@@ -802,7 +802,7 @@ async def test_runner_fits_each_malformed_retry_with_its_actual_tools(monkeypatc
 
 @pytest.mark.asyncio
 async def test_runner_fits_empty_response_finalization_before_dispatch(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     calls: list[dict] = []
@@ -829,11 +829,11 @@ async def test_runner_fits_empty_response_finalization_before_dispatch(monkeypat
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda _message: 300,
     )
 
@@ -856,7 +856,7 @@ async def test_runner_fits_empty_response_finalization_before_dispatch(monkeypat
 
 @pytest.mark.asyncio
 async def test_runner_fits_max_iteration_finalization_before_dispatch(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     calls: list[dict] = []
@@ -887,11 +887,11 @@ async def test_runner_fits_max_iteration_finalization_before_dispatch(monkeypatc
     tools.get_definitions.return_value = []
     tools.execute = AsyncMock(return_value=oversized_result)
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda message: 600 if message.get("content") == oversized_result else 50,
     )
 
@@ -939,7 +939,7 @@ async def test_matching_reported_provider_usage_avoids_local_estimate(
         max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("matching provider usage must be authoritative")
         ),
@@ -981,7 +981,7 @@ async def test_changed_messages_use_local_estimate_after_reported_usage(monkeypa
     )
     estimate = MagicMock(return_value=(600, "test-counter"))
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         estimate,
     )
 
@@ -1021,7 +1021,7 @@ def test_resumed_provider_context_avoids_full_transcript_estimate(monkeypatch):
         max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("resumed provider context must be authoritative")
         ),
@@ -1041,7 +1041,7 @@ def test_resumed_provider_context_avoids_full_transcript_estimate(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_runner_counts_resumed_provider_state_before_dispatch(monkeypatch):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.can_resume_conversation_state.return_value = True
@@ -1070,11 +1070,11 @@ async def test_runner_counts_resumed_provider_state_before_dispatch(monkeypatch)
         pending_messages=[current_message],
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (100, "test-counter"),
     )
     monkeypatch.setattr(
-        "nanobot.providers.conversation_state.estimate_prompt_tokens_chain",
+        "mokli.providers.conversation_state.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (100, "test-counter"),
     )
 
@@ -1107,14 +1107,14 @@ async def test_runner_refuses_locally_fitted_request_that_still_cannot_fit(
     context_window_tokens,
     expected_budget,
 ):
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock(spec=LLMProvider)
     provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="unexpected"))
     tools = MagicMock()
     tools.get_definitions.return_value = []
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (2_000, "test-counter"),
     )
 
@@ -1164,7 +1164,7 @@ def test_snip_history_drops_orphaned_tool_results_from_trimmed_slice(monkeypatch
     )
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_args, **_kwargs: (500, None),
     )
     token_sizes = {
@@ -1175,7 +1175,7 @@ def test_snip_history_drops_orphaned_tool_results_from_trimmed_slice(monkeypatch
         "system": 0,
     }
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda msg: token_sizes.get(str(msg.get("content")), 40),
     )
 
@@ -1221,7 +1221,7 @@ def test_snip_history_reserves_budget_for_tool_definitions(monkeypatch):
         assert estimate_tools == tools.get_definitions.return_value
         return 350, None
 
-    monkeypatch.setattr("nanobot.agent.context_governance.estimate_prompt_tokens_chain", _estimate)
+    monkeypatch.setattr("mokli.agent.context_governance.estimate_prompt_tokens_chain", _estimate)
     token_sizes = {
         "system": 50,
         "old user": 200,
@@ -1231,7 +1231,7 @@ def test_snip_history_reserves_budget_for_tool_definitions(monkeypatch):
         "recent two": 200,
     }
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda msg: token_sizes.get(str(msg.get("content")), 40),
     )
 
@@ -1323,7 +1323,7 @@ async def test_backfill_noop_when_complete():
 
 @pytest.mark.asyncio
 async def test_runner_drops_orphan_tool_results_before_model_request():
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock()
     captured_messages: list[dict] = []
@@ -1363,9 +1363,9 @@ async def test_runner_drops_orphan_tool_results_before_model_request():
 @pytest.mark.asyncio
 async def test_backfill_repairs_model_context_without_shifting_save_turn_boundary(tmp_path):
     """Historical backfill should not duplicate old tail messages on persist."""
-    from nanobot.agent.loop import AgentLoop
-    from nanobot.bus.events import InboundMessage
-    from nanobot.bus.queue import MessageBus
+    from mokli.agent.loop import AgentLoop
+    from mokli.bus.events import InboundMessage
+    from mokli.bus.queue import MessageBus
 
     provider = MagicMock()
     provider.get_default_model.return_value = "test-model"
@@ -1445,7 +1445,7 @@ async def test_backfill_repairs_model_context_without_shifting_save_turn_boundar
 @pytest.mark.asyncio
 async def test_runner_backfill_only_mutates_model_context_not_returned_messages():
     """Runner should repair orphaned tool calls for the model without rewriting result.messages."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     provider = MagicMock()
     captured_messages: list[dict] = []
@@ -1576,7 +1576,7 @@ def test_snip_history_preserves_user_message_after_truncation(monkeypatch):
     messages = [
         {"role": "system", "content": "system"},
         {"role": "assistant", "content": "previous reply"},
-        {"role": "user", "content": ".nanobot的同目录"},
+        {"role": "user", "content": ".mokli的同目录"},
         {
             "role": "assistant",
             "content": None,
@@ -1603,19 +1603,19 @@ def test_snip_history_preserves_user_message_after_truncation(monkeypatch):
 
     # Make estimate_prompt_tokens_chain report above budget so _snip_history activates.
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_a, **_kw: (500, None),
     )
     # Make kept window small: only the last 2 messages fit the budget.
     token_sizes = {
         "system": 0,
         "previous reply": 200,
-        ".nanobot的同目录": 80,
+        ".mokli的同目录": 80,
         "tool output 1": 80,
         "tool output 2": 80,
     }
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda msg: token_sizes.get(str(msg.get("content")), 100),
     )
 
@@ -1660,11 +1660,11 @@ def test_snip_history_no_user_at_all_falls_back_gracefully(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_prompt_tokens_chain",
+        "mokli.agent.context_governance.estimate_prompt_tokens_chain",
         lambda *_a, **_kw: (500, None),
     )
     monkeypatch.setattr(
-        "nanobot.agent.context_governance.estimate_message_tokens",
+        "mokli.agent.context_governance.estimate_message_tokens",
         lambda msg: 100,
     )
 
@@ -1696,7 +1696,7 @@ def test_snip_history_no_user_at_all_falls_back_gracefully(monkeypatch):
 
 def test_drop_malformed_tool_calls_trims_response():
     """LLM response tool_calls with a missing/empty name are dropped in place."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     candidate_state = ProviderConversationState(
         kind="openai_responses",
@@ -1728,7 +1728,7 @@ def test_drop_malformed_tool_calls_trims_response():
 
 def test_drop_malformed_tool_calls_all_bad_disables_execution():
     """If every tool call is malformed, execution is disabled (no empty exec)."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     response = LLMResponse(
         content="some text",
@@ -1746,7 +1746,7 @@ def test_drop_malformed_tool_calls_all_bad_disables_execution():
 
 def test_drop_malformed_returns_tuple_no_calls():
     """No tool calls returns (0, False, current_finish_reason)."""
-    from nanobot.agent.runner import AgentRunner
+    from mokli.agent.runner import AgentRunner
 
     response = LLMResponse(content="hi", finish_reason="stop")
     dropped, all_dropped, orig = AgentRunner._drop_malformed_tool_calls(response)

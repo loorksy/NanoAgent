@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.outbound_events import RecoveryStateEvent, SessionUpdatedEvent
-from nanobot.bus.queue import MessageBus
-from nanobot.session.manager import Session, SessionManager
-from nanobot.session.recovery import (
+from mokli.bus.events import InboundMessage
+from mokli.bus.outbound_events import RecoveryStateEvent, SessionUpdatedEvent
+from mokli.bus.queue import MessageBus
+from mokli.session.manager import Session, SessionManager
+from mokli.session.recovery import (
     PENDING_FOLLOWUPS_KEY,
     PENDING_USER_TURN_KEY,
     RECOVERY_METADATA_KEY,
@@ -20,11 +20,11 @@ from nanobot.session.recovery import (
     pending_followups,
     record_pending_followup,
 )
-from nanobot.webui import session_list_index, transcript
+from mokli.surface import session_list_index, transcript
 
 
 def _persist(manager: SessionManager, session: Session) -> None:
-    session.metadata["webui"] = True
+    session.metadata["mokli"] = True
     manager.save(session)
 
 
@@ -59,7 +59,7 @@ async def test_stale_incomplete_transcript_waits_for_confirmation(tmp_path: Path
     session = sessions.get_or_create("websocket:chat")
     _persist(sessions, session)
     monkeypatch.setattr(
-        "nanobot.webui.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: True,
     )
 
@@ -92,7 +92,7 @@ async def test_materialized_interruption_can_continue_from_saved_context(
     )
     _persist(sessions, session)
     monkeypatch.setattr(
-        "nanobot.webui.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: True,
     )
 
@@ -121,18 +121,18 @@ async def test_transcript_only_interruption_is_discovered_without_materializing_
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    webui_dir = tmp_path / "webui"
-    webui_dir.mkdir()
-    monkeypatch.setattr(session_list_index, "get_webui_dir", lambda: webui_dir)
-    monkeypatch.setattr(transcript, "get_webui_dir", lambda: webui_dir)
+    mokli_dir = tmp_path / "mokli"
+    mokli_dir.mkdir()
+    monkeypatch.setattr(session_list_index, "get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr(transcript, "get_mokli_dir", lambda: mokli_dir)
     unfinished_key = "websocket:unfinished"
     completed_key = "websocket:completed"
-    (webui_dir / f"{SessionManager.safe_key(unfinished_key)}.jsonl").write_text(
+    (mokli_dir / f"{SessionManager.safe_key(unfinished_key)}.jsonl").write_text(
         '{"event":"user","chat_id":"unfinished","text":"keep going"}\n'
         '{"event":"message","chat_id":"unfinished","kind":"progress","text":"Working"}\n',
         encoding="utf-8",
     )
-    (webui_dir / f"{SessionManager.safe_key(completed_key)}.jsonl").write_text(
+    (mokli_dir / f"{SessionManager.safe_key(completed_key)}.jsonl").write_text(
         '{"event":"user","chat_id":"completed","text":"done"}\n'
         '{"event":"message","chat_id":"completed","text":"finished"}\n'
         '{"event":"turn_end","chat_id":"completed"}\n',
@@ -162,7 +162,7 @@ async def test_transcript_only_interruption_is_discovered_without_materializing_
 
 
 @pytest.mark.asyncio
-async def test_scan_loads_only_sessions_that_need_webui_recovery(
+async def test_scan_loads_only_sessions_that_need_mokli_recovery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -186,7 +186,7 @@ async def test_scan_loads_only_sessions_that_need_webui_recovery(
 
     monkeypatch.setattr(restarted, "get_or_create", tracked_get_or_create)
     monkeypatch.setattr(
-        "nanobot.webui.transcript.has_unfinished_transcript_tail",
+        "mokli.surface.transcript.has_unfinished_transcript_tail",
         lambda _key: False,
     )
 
@@ -208,7 +208,7 @@ async def test_live_turn_followup_survives_restart_until_it_is_committed(tmp_pat
             sender_id="user",
             chat_id="chat",
             content="also check the logs",
-            metadata={"webui": True},
+            metadata={"mokli": True},
         ),
     )
     assert followup_id is not None
@@ -228,7 +228,7 @@ async def test_live_turn_followup_survives_restart_until_it_is_committed(tmp_pat
 
 
 def test_followup_journal_keeps_every_uncommitted_message(tmp_path: Path) -> None:
-    """A live queue limit must never truncate durable WebUI follow-ups."""
+    """A live queue limit must never truncate durable Mokli follow-ups."""
     sessions = SessionManager(tmp_path)
     session = sessions.get_or_create("websocket:chat")
     followup_ids = [
@@ -239,7 +239,7 @@ def test_followup_journal_keeps_every_uncommitted_message(tmp_path: Path) -> Non
                 sender_id="user",
                 chat_id="chat",
                 content=f"follow-up-{index}",
-                metadata={"webui": True},
+                metadata={"mokli": True},
             ),
         )
         for index in range(21)
@@ -265,7 +265,7 @@ def test_requeued_followup_preserves_its_journal_id(tmp_path: Path) -> None:
             sender_id="user",
             chat_id="chat",
             content="also check the logs",
-            metadata={"webui": True},
+            metadata={"mokli": True},
         ),
     )
     assert original_id is not None
@@ -586,7 +586,7 @@ async def test_explicit_recovery_continue_queues_once(tmp_path: Path) -> None:
         {"chat_id": "chat", "recovery_id": state["recovery_id"]},
     )
     assert result["status"] == "resuming"
-    assert bus.inbound.get_nowait().metadata["_webui_recovery_id"] == state["recovery_id"]
+    assert bus.inbound.get_nowait().metadata["_mokli_recovery_id"] == state["recovery_id"]
 
 
 @pytest.mark.asyncio
@@ -677,7 +677,7 @@ async def test_recovery_action_rejects_stale_page_and_continues_current_state(
         {"chat_id": "chat", "recovery_id": "current"},
     )
     assert result["status"] == "resuming"
-    assert bus.inbound.get_nowait().metadata["_webui_recovery_id"] == "current"
+    assert bus.inbound.get_nowait().metadata["_mokli_recovery_id"] == "current"
 
 
 @pytest.mark.asyncio

@@ -2,18 +2,19 @@
 
 import pytest
 
-from nanobot.trading.recommendations.followup import finalize_live_plan_if_closed
-from nanobot.trading.recommendations.lifecycle import (
+from mokli.trading.recommendations.followup import finalize_live_plan_if_closed
+from mokli.trading.recommendations.lifecycle import (
+    close_plan_for_session,
     list_session_archive,
     prepare_for_new_recommendation,
     sync_session_live_plan,
 )
-from nanobot.trading.recommendations.store import (
+from mokli.trading.recommendations.store import (
     latest_live_recommendation,
     store_recommendation,
     update_recommendation_status,
 )
-from nanobot.trading.types import (
+from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
     Candle,
@@ -51,7 +52,7 @@ def _market() -> AgentMarketContext:
 
 
 def test_invalidated_plan_stops_blocking_new_rec(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     session_key = "websocket:invalidated-case"
     rec_id = store_recommendation(_sell_decision(), [], _market(), session_key=session_key)
     assert rec_id
@@ -68,7 +69,7 @@ def test_invalidated_plan_stops_blocking_new_rec(tmp_path, monkeypatch) -> None:
 
 
 def test_sync_archives_invalidated_row(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
     session_key = "websocket:archive-case"
     rec_id = store_recommendation(_sell_decision(), [], _market(), session_key=session_key)
     assert rec_id
@@ -81,13 +82,13 @@ def test_sync_archives_invalidated_row(tmp_path, monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_get_live_sync_clears_stale_waiting_row(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
     session_key = "websocket:tool-sync"
     rec_id = store_recommendation(_sell_decision(), [], _market(), session_key=session_key)
     assert rec_id
 
-    from nanobot.agent.tools.trading_chart import GetLiveRecommendationTool
+    from mokli.agent.tools.trading_chart import GetLiveRecommendationTool
 
     tool = GetLiveRecommendationTool(bus=None)
 
@@ -98,14 +99,25 @@ async def test_get_live_sync_clears_stale_waiting_row(tmp_path, monkeypatch) -> 
         symbol = "XAUUSD"
         tradeable = True
 
-    monkeypatch.setattr("nanobot.agent.tools.trading_chart.fetch_quote", lambda *_a, **_k: Q())
-    monkeypatch.setattr("nanobot.trading.recommendations.lifecycle.fetch_quote", lambda *_a, **_k: Q())
+    calls = {"resolve": 0, "direct": 0}
+
+    def _resolve(symbol: str = "XAUUSD", config: object | None = None):
+        del symbol, config
+        calls["resolve"] += 1
+        return Q(), "metaapi"
+
+    def _direct(*_args: object, **_kwargs: object) -> None:
+        calls["direct"] += 1
+        raise AssertionError("direct OANDA quote")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
     monkeypatch.setattr(
-        "nanobot.agent.tools.trading_chart.current_request_session_key",
+        "mokli.agent.tools.trading_chart.current_request_session_key",
         lambda: session_key,
     )
     monkeypatch.setattr(
-        "nanobot.agent.tools.trading_chart.load_trading_config",
+        "mokli.agent.tools.trading_chart.load_trading_config",
         lambda: type("C", (), {"oanda_configured": True})(),
     )
 
@@ -114,3 +126,68 @@ async def test_get_live_sync_clears_stale_waiting_row(tmp_path, monkeypatch) -> 
     payload = json.loads(await tool.execute())
     assert payload.get("has_live_plan") is False
     assert latest_live_recommendation(session_key) is None
+    assert calls == {"resolve": 1, "direct": 0}
+
+
+def test_prepare_new_reads_one_quote_for_a_live_plan(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    session_key = "websocket:prepare-once"
+    rec_id = store_recommendation(_sell_decision(), [], _market(), session_key=session_key)
+    assert rec_id
+    update_recommendation_status(rec_id, "waiting")
+
+    class Q:
+        mid = 4286.0
+
+    calls = {"resolve": 0, "direct": 0}
+
+    def _resolve(symbol: str = "XAUUSD", config: object | None = None):
+        del symbol, config
+        calls["resolve"] += 1
+        return Q(), "metaapi"
+
+    def _direct(*_args: object, **_kwargs: object) -> None:
+        calls["direct"] += 1
+        raise AssertionError("direct OANDA quote")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
+
+    prep = prepare_for_new_recommendation(session_key)
+    assert prep["action"] == "live_remains"
+    assert calls == {"resolve": 1, "direct": 0}
+
+    closed = close_plan_for_session(
+        session_key,
+        live_price=4286.0,
+        price_known=True,
+    )
+    assert closed["ok"] is True
+    assert calls == {"resolve": 1, "direct": 0}
+
+
+def test_prepare_new_does_not_fetch_when_the_quote_is_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    session_key = "websocket:prepare-missing"
+    rec_id = store_recommendation(_sell_decision(), [], _market(), session_key=session_key)
+    assert rec_id
+
+    calls = {"resolve": 0, "direct": 0}
+
+    def _resolve(symbol: str = "XAUUSD", config: object | None = None):
+        del symbol, config
+        calls["resolve"] += 1
+        return None, None
+
+    def _direct(*_args: object, **_kwargs: object) -> None:
+        calls["direct"] += 1
+        raise AssertionError("direct OANDA quote")
+
+    monkeypatch.setattr("mokli.trading.market_context.resolve_live_quote", _resolve)
+    monkeypatch.setattr("mokli.trading.oanda.fetch_quote", _direct)
+
+    prep = prepare_for_new_recommendation(session_key)
+    assert prep["action"] == "live_remains"
+    assert calls == {"resolve": 1, "direct": 0}

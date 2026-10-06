@@ -1,0 +1,131 @@
+"""Structured, instructive error payloads returned by trading tools.
+
+A trading tool is always registered. When it cannot run in the current state it
+returns ``{"ok": false, "reason_key": ...}`` so the agent can explain the block
+and pick the next tool, instead of the tool silently not existing.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from mokli.agent.tools.base import ToolResult
+
+REASON_LIVE_PLAN_ACTIVE = "trading.live_plan_active"
+REASON_PLAN_CLOSE_FAILED = "trading.plan_close_failed"
+REASON_MARKET_FEED_UNCONFIGURED = "trading.market_feed_unconfigured"
+REASON_NO_QUOTE = "trading.no_live_quote"
+REASON_NO_SESSION = "trading.no_chat_session"
+REASON_PRESET_REQUIRED = "trading.team_preset_required"
+REASON_POLICY_VIOLATION = "trading.policy_violation"
+REASON_ANALYSIS_FAILED = "trading.analysis_failed"
+REASON_TEAM_FAILED = "trading.team_failed"
+REASON_NO_RESULT = "trading.no_result"
+REASON_UNKNOWN_ACTION = "trading.unknown_action"
+
+_DECISION_ATTEMPT_TOOLS = frozenset({
+    "run_trading_kernel",
+    "analyze_gold",
+    "run_trading_team",
+})
+
+
+def cached_decision_result(tool_name: str, params: Any) -> ToolResult | None:
+    """Return this turn's failed analysis without starting the work again.
+
+    A stored success stays with the tool, which may still open a chart.
+    Re-evaluation and an explicit replacement run again.
+    """
+    if tool_name not in _DECISION_ATTEMPT_TOOLS:
+        return None
+    if isinstance(params, dict) and (params.get("reevaluate") or params.get("force_new_plan")):
+        return None
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None or turn.decision_wire or not turn.decision_error:
+        return None
+    return ToolResult.error(turn.decision_error)
+
+
+def remember_decision_error(payload: ToolResult) -> ToolResult:
+    """Keep a failed analysis for this turn. A stored success is left as-is."""
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is not None and not turn.decision_wire:
+        turn.decision_error = str(payload)
+    return payload
+
+
+def model_json(payload: Any) -> str:
+    """JSON the model reads. The keys and values stay; pretty-print spaces do not."""
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
+
+
+def tool_error(reason_key: str, *, instruction: str, **details: Any) -> ToolResult:
+    """Build an error ``ToolResult`` whose body is machine-readable JSON.
+
+    ``instruction`` tells the LLM what to do next; ``reason_key`` is the stable
+    key clients and the locale catalog use to render the operator-facing text.
+    """
+    payload: dict[str, Any] = {"ok": False, "reason_key": reason_key, **details}
+    payload["instruction"] = instruction
+    return ToolResult.error(model_json(payload))
+
+
+async def live_plan_block_if_any(
+    session_key: str | None,
+    *,
+    reevaluate: bool = False,
+    force_new_plan: bool = False,
+) -> ToolResult | None:
+    """Refuse a new plan before a team or evidence download starts.
+
+    A second call in the same turn returns the same refusal and does not
+    grade again. Re-evaluation and an explicit replacement still pass through.
+    """
+    if reevaluate or force_new_plan:
+        return None
+    from mokli.trading.recommendations.lifecycle import blocking_live_plan
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    cached = turn.live_plan_block if turn is not None else None
+    if cached:
+        return ToolResult.error(cached)
+    live = await blocking_live_plan(
+        session_key,
+        reevaluate=reevaluate,
+        force_new_plan=force_new_plan,
+    )
+    if not live:
+        return None
+    result = live_plan_active_error(live)
+    if turn is not None:
+        turn.live_plan_block = str(result)
+    return result
+
+
+def live_plan_active_error(live: dict[str, Any]) -> ToolResult:
+    """One live plan per conversation — returned instead of running the kernel."""
+    return tool_error(
+        REASON_LIVE_PLAN_ACTIVE,
+        instruction=(
+            "This conversation already has a live recommendation, so no second plan "
+            "was issued. Explain this to the operator. For status or price follow-ups "
+            "call get_live_recommendation; to archive it call manage_trading_plan "
+            "(action=close_plan); only when the operator explicitly confirms a "
+            "replacement, call analyze_gold again with force_new_plan=true."
+        ),
+        live_plan={
+            "id": str(live.get("id") or ""),
+            "direction": str(live.get("direction") or "wait"),
+            "entry": live.get("entry"),
+            "stop_loss": live.get("stop_loss"),
+            "targets": list(live.get("targets") or []),
+            "status": live.get("status"),
+        },
+        next_tools=["get_live_recommendation", "manage_trading_plan"],
+    )

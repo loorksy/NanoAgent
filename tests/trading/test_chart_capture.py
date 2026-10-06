@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from nanobot.trading.agents.visual_capture import capture_visual_evidence
-from nanobot.trading.chart_capture import (
+from mokli.trading.agents.visual_capture import capture_visual_evidence
+from mokli.trading.chart_capture import (
     get_chart_capture_bridge,
     submit_chart_capture,
 )
@@ -13,14 +13,14 @@ from nanobot.trading.chart_capture import (
 async def test_chart_capture_bridge_roundtrip():
     bridge = get_chart_capture_bridge()
     capture_id = "cap-test-1"
-    bridge.begin(capture_id, session_key="webui:test")
+    bridge.begin(capture_id, session_key="mokli:test")
 
     async def submit_later() -> None:
         await asyncio.sleep(0.05)
         assert submit_chart_capture(
             capture_id,
             {"frames": [{"timeframe": "15m", "context": "stub"}]},
-            session_key="webui:test",
+            session_key="mokli:test",
         )
 
     waiter = asyncio.create_task(bridge.wait(capture_id, timeout=1.0))

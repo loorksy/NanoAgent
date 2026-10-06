@@ -19,17 +19,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.file_state import FileStateStore
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.command.builtin import cmd_new, register_builtin_commands
-from nanobot.command.router import CommandContext, CommandRouter
-from nanobot.config.schema import AgentDefaults, Config
-from nanobot.providers.base import GenerationSettings
-from nanobot.session.keys import UNIFIED_SESSION_KEY
-from nanobot.session.manager import SessionManager
-from nanobot.utils.llm_runtime import LLMRuntime
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.file_state import FileStateStore
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.command.builtin import cmd_new, register_builtin_commands
+from mokli.command.router import CommandContext, CommandRouter
+from mokli.config.schema import AgentDefaults, Config
+from mokli.providers.base import GenerationSettings
+from mokli.session.keys import UNIFIED_SESSION_KEY
+from mokli.session.manager import SessionManager
+from mokli.utils.llm_runtime import LLMRuntime
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -41,8 +41,8 @@ def _make_loop(tmp_path: Path, unified_session: bool = False) -> AgentLoop:
     provider = MagicMock()
     provider.get_default_model.return_value = "test-model"
 
-    with patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as mock_sub_mgr:
+    with patch("mokli.agent.loop.SessionManager"), \
+         patch("mokli.agent.loop.SubagentManager") as mock_sub_mgr:
         mock_sub_mgr.return_value.cancel_by_session = AsyncMock(return_value=0)
         loop = AgentLoop(
             bus=bus,
@@ -197,8 +197,8 @@ class TestUnifiedSessionConfig:
         assert config.agents.defaults.unified_session is True
 
     def test_onboard_generated_config_contains_unified_session(self, tmp_path: Path):
-        """save_config() writes 'unifiedSession' into config.json (simulates nanobot onboard)."""
-        from nanobot.config.loader import save_config
+        """save_config() writes 'unifiedSession' into config.json (simulates mokli onboard)."""
+        from mokli.config.loader import save_config
 
         config = Config()
         config_path = tmp_path / "config.json"
@@ -371,7 +371,7 @@ class TestStopCommandWithUnifiedSession:
     @pytest.mark.asyncio
     async def test_stop_command_finds_task_in_unified_mode(self, tmp_path: Path):
         """cmd_stop can cancel tasks when unified_session=True."""
-        from nanobot.command.builtin import cmd_stop
+        from mokli.command.builtin import cmd_stop
 
         loop = _make_loop(tmp_path, unified_session=True)
 
@@ -403,7 +403,7 @@ class TestStopCommandWithUnifiedSession:
     @pytest.mark.asyncio
     async def test_stop_command_uses_effective_key_without_session_override(self, tmp_path: Path):
         """Priority /stop must cancel the unified session even before dispatch rewrites the message."""
-        from nanobot.command.builtin import cmd_stop
+        from mokli.command.builtin import cmd_stop
 
         loop = _make_loop(tmp_path, unified_session=True)
 
@@ -428,7 +428,7 @@ class TestStopCommandWithUnifiedSession:
     @pytest.mark.asyncio
     async def test_stop_command_cross_channel_in_unified_mode(self, tmp_path: Path):
         """In unified mode, /stop from one channel cancels tasks from another channel."""
-        from nanobot.command.builtin import cmd_stop
+        from mokli.command.builtin import cmd_stop
 
         loop = _make_loop(tmp_path, unified_session=True)
 

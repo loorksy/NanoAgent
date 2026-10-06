@@ -1,12 +1,11 @@
-from nanobot.trading.agents.apply_model_decision import apply_model_decision
-from nanobot.trading.cards.artifacts import (
+from mokli.trading.agents.apply_model_decision import apply_model_decision
+from mokli.trading.cards.artifacts import (
     apply_result_artifacts,
     build_price_quote_artifacts,
     emit_trading_artifacts,
-    infer_operator_artifacts,
     parse_artifacts_requested,
 )
-from nanobot.trading.types import (
+from mokli.trading.types import (
     AgentFinalResult,
     AgentRecommendation,
     EvidenceSnapshot,
@@ -101,15 +100,6 @@ def test_chart_image_intent_forces_snapshot() -> None:
     )
     assert len(arts) == 1
     assert arts[0]["type"] == "chart_snapshot"
-
-
-def test_infer_price_query_artifacts() -> None:
-    assert infer_operator_artifacts("gold price", "price_query") == ["price_quote"]
-
-
-def test_infer_followup_status_artifacts() -> None:
-    picks = infer_operator_artifacts("ما حالة الخطة؟", "gold_analysis", followup=True)
-    assert picks == ["plan_status", "tracked_plan"]
 
 
 def test_build_price_quote_artifact() -> None:

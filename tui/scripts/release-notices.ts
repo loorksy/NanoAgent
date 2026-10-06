@@ -22,7 +22,7 @@ const nativePackagesByTarget: Record<string, string[]> = {
 const root = join(import.meta.dir, "..")
 const projectRoot = join(root, "..")
 const extension = target.startsWith("win32-") ? ".exe" : ""
-const asset = `nanobot-tui-${target}${extension}`
+const asset = `mokli-tui-${target}${extension}`
 const output = join(root, "dist", `${asset}.THIRD_PARTY_NOTICES.txt`)
 
 type PackageNotice = {
@@ -105,13 +105,13 @@ for (const name of nativePackagesByTarget[target] ?? []) {
   if (!packagedNames.has(name)) throw new Error(`target runtime package is missing: ${name}`)
 }
 const sections = [
-  "nanobot native TUI third-party notices",
+  "mokli native TUI third-party notices",
   "",
   `Target: ${target}`,
   "Runtime: Bun 1.3.13",
   "The release archive also contains SOURCE_OFFER.md, RELINKING.md, and the complete TUI application source.",
   "",
-  "===== nanobot project license =====",
+  "===== mokli project license =====",
   "",
   await readFile(join(projectRoot, "LICENSE"), "utf8"),
   "",

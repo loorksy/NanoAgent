@@ -3,15 +3,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import (
+from mokli.agent.loop import AgentLoop
+from mokli.bus.events import (
     INBOUND_META_RUNTIME_CONTROL,
     RUNTIME_CONTROL_SESSION_DISCARD,
     InboundMessage,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import GenerationSettings, LLMResponse
-from nanobot.session.keys import UNIFIED_SESSION_KEY
+from mokli.bus.queue import MessageBus
+from mokli.providers.base import GenerationSettings, LLMResponse
+from mokli.session.keys import UNIFIED_SESSION_KEY
 
 
 def _message(key: str, content: str) -> InboundMessage:
@@ -142,7 +142,7 @@ async def test_session_discard_control_cancels_active_turn(tmp_path, monkeypatch
     await loop.bus.publish_inbound(
         InboundMessage(
             channel="websocket",
-            sender_id="webui",
+            sender_id="mokli",
             chat_id="transient-cancelled",
             content="",
             metadata={

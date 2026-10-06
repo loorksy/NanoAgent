@@ -6,16 +6,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.context import TranscriptInput
-from nanobot.agent.hook import (
+from mokli.agent.context import TranscriptInput
+from mokli.agent.hook import (
     AgentHook,
     AgentHookContext,
     AgentRunHookContext,
     AgentTurnHookContext,
     CompositeHook,
 )
-from nanobot.agent.tools.context import RequestContext
-from nanobot.utils.progress_events import output_events
+from mokli.agent.tools.base import Tool
+from mokli.agent.tools.context import RequestContext
+from mokli.utils.progress_events import output_events
 
 
 def _ctx() -> AgentHookContext:
@@ -410,19 +411,30 @@ async def test_composite_can_wrap_another_composite():
 # ---------------------------------------------------------------------------
 
 
+class _ProbeTool(Tool):
+    """Minimal registered tool so tool-call bookkeeping runs the real path."""
+
+    name = "probe"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    description = "probe"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    parameters = {"type": "object", "properties": {}}  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+
+    async def execute(self, **kwargs):
+        return "ok"
+
+
 def _make_loop(tmp_path, hooks=None, hook_factories=None):
-    from nanobot.agent.loop import AgentLoop
-    from nanobot.bus.queue import MessageBus
+    from mokli.agent.loop import AgentLoop
+    from mokli.bus.queue import MessageBus
 
     bus = MessageBus()
     provider = MagicMock()
     provider.get_default_model.return_value = "test-model"
     provider.generation.max_tokens = 4096
 
-    with patch("nanobot.agent.loop.ContextBuilder"), \
-         patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as mock_sub_mgr, \
-         patch("nanobot.agent.loop.Consolidator"):
+    with patch("mokli.agent.loop.ContextBuilder"), \
+         patch("mokli.agent.loop.SessionManager"), \
+         patch("mokli.agent.loop.SubagentManager") as mock_sub_mgr, \
+         patch("mokli.agent.loop.Consolidator"):
         mock_sub_mgr.return_value.cancel_by_session = AsyncMock(return_value=0)
         loop = AgentLoop(
             bus=bus,
@@ -437,7 +449,7 @@ def _make_loop(tmp_path, hooks=None, hook_factories=None):
 @pytest.mark.asyncio
 async def test_agent_loop_extra_hook_receives_calls(tmp_path):
     """Extra hook passed to AgentLoop is called alongside core LoopHook."""
-    from nanobot.providers.base import LLMResponse
+    from mokli.providers.base import LLMResponse
 
     events: list[str] = []
 
@@ -475,7 +487,7 @@ async def test_agent_loop_extra_hook_receives_calls(tmp_path):
 @pytest.mark.asyncio
 async def test_agent_loop_turn_hook_factories_receive_context(tmp_path):
     """Turn-scoped hooks can be supplied externally and see turn-local context."""
-    from nanobot.providers.base import LLMResponse
+    from mokli.providers.base import LLMResponse
 
     captured: list[tuple[str, AgentTurnHookContext]] = []
     events: list[str] = []
@@ -541,7 +553,7 @@ async def test_agent_loop_turn_hook_factories_receive_context(tmp_path):
 @pytest.mark.asyncio
 async def test_agent_loop_extra_hook_error_isolation(tmp_path):
     """A faulty extra hook does not crash the agent loop."""
-    from nanobot.providers.base import LLMResponse
+    from mokli.providers.base import LLMResponse
 
     class BadHook(AgentHook):
         async def before_iteration(self, context):
@@ -564,12 +576,12 @@ async def test_agent_loop_extra_hook_error_isolation(tmp_path):
 @pytest.mark.asyncio
 async def test_agent_loop_extra_hooks_do_not_swallow_loop_hook_errors(tmp_path):
     """Extra hooks must not change the core LoopHook failure behavior."""
-    from nanobot.providers.base import LLMResponse, ToolCallRequest
+    from mokli.providers.base import LLMResponse, ToolCallRequest
 
     loop = _make_loop(tmp_path, hooks=[AgentHook()])
     loop.provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
         content="working",
-        tool_calls=[ToolCallRequest(id="c1", name="list_dir", arguments={"path": "."})],
+        tool_calls=[ToolCallRequest(id="c1", name="get_gold_quote", arguments={})],
         usage=None,
     ))
     loop.tools.get_definitions = MagicMock(return_value=[])
@@ -589,15 +601,15 @@ async def test_agent_loop_extra_hooks_do_not_swallow_loop_hook_errors(tmp_path):
 @pytest.mark.asyncio
 async def test_agent_loop_no_hooks_backward_compat(tmp_path):
     """Without hooks param, behavior is identical to before."""
-    from nanobot.providers.base import LLMResponse, ToolCallRequest
+    from mokli.providers.base import LLMResponse, ToolCallRequest
 
     loop = _make_loop(tmp_path)
     loop.provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(
         content="working",
-        tool_calls=[ToolCallRequest(id="c1", name="list_dir", arguments={"path": "."})],
+        tool_calls=[ToolCallRequest(id="c1", name="probe", arguments={})],
     ))
+    loop.tools.register(_ProbeTool())
     loop.tools.get_definitions = MagicMock(return_value=[])
-    loop.tools.execute = AsyncMock(return_value="ok")
     loop.max_iterations = 2
 
     result = await loop._run_agent_loop(
@@ -608,4 +620,4 @@ async def test_agent_loop_no_hooks_backward_compat(tmp_path):
         "I reached the maximum number of tool call iterations (2) "
         "without completing the task. You can try breaking the task into smaller steps."
     )
-    assert result.tools_used == ["list_dir", "list_dir"]
+    assert result.tools_used == ["probe", "probe"]

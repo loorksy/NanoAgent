@@ -17,7 +17,7 @@ async def test_ws_submit_auth(base_url: str, page_token: str) -> None:
     ws_url = f"{ws_url}/?token={page_token}&client_id=chart-host-test"
     request_id = str(uuid.uuid4())
     frame = {
-        "type": "webui_request",
+        "type": "mokli_request",
         "request_id": request_id,
         "action": "trading.chart_host_submit",
         "payload": {
@@ -30,7 +30,7 @@ async def test_ws_submit_auth(base_url: str, page_token: str) -> None:
         while True:
             raw = await asyncio.wait_for(socket.recv(), timeout=15)
             payload = json.loads(raw)
-            if payload.get("event") != "webui_response" or payload.get("request_id") != request_id:
+            if payload.get("event") != "mokli_response" or payload.get("request_id") != request_id:
                 continue
             error = payload.get("error") or {}
             status = error.get("status")
@@ -63,13 +63,13 @@ async def test_capture_roundtrip(base_url: str, page_token: str) -> None:
 
 
 async def main() -> None:
-    base_url = os.environ.get("CHART_HOST_APP_URL", "https://nanoagent.lork.cloud")
-    sys.path.insert(0, os.environ.get("NANOAGENT_ROOT", "/opt/nanoagent"))
-    from nanobot.trading.chart_host_token import mint_chart_host_page_token
+    base_url = os.environ.get("CHART_HOST_APP_URL", "https://mokli.lork.cloud")
+    sys.path.insert(0, os.environ.get("MOKLI_ROOT", "/opt/mokli"))
+    from mokli.trading.chart_host_token import mint_chart_host_page_token
 
     page_token = mint_chart_host_page_token(ttl_sec=600)
     if not page_token:
-        raise SystemExit("FAIL: could not mint chart-host page token (check NANOBOT_CHART_HOST_TOKEN)")
+        raise SystemExit("FAIL: could not mint chart-host page token (check MOKLI_CHART_HOST_TOKEN)")
     print(f"page_token minted ({len(page_token)} chars)")
     await test_ws_submit_auth(base_url, page_token)
     await test_capture_roundtrip(base_url, page_token)

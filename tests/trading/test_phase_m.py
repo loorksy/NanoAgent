@@ -1,10 +1,10 @@
 """Tests for Phase M state machine, alert dedup, and observability."""
 
-from nanobot.trading.recommendations.outcome_alerts import (
+from mokli.trading.recommendations.outcome_alerts import (
     OutcomeTransition,
     should_alert_transition,
 )
-from nanobot.trading.recommendations.state_machine import (
+from mokli.trading.recommendations.state_machine import (
     can_transition,
     is_closed_status,
     is_live_status,

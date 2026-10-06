@@ -2,10 +2,10 @@ import { afterEach, describe, expect, mock, test } from "bun:test"
 
 import { fetchSessionUsage } from "./protocol"
 
-const apiUrl = "http://nanobot.test"
+const apiUrl = "http://mokli.test"
 const apiToken = "usage-token"
 const chatId = "usage/chat"
-const threadPath = "/api/sessions/websocket%3Ausage%2Fchat/webui-thread?limit=120&direction=latest"
+const threadPath = "/api/sessions/websocket%3Ausage%2Fchat/mokli-thread?limit=120&direction=latest"
 const originalFetch = globalThis.fetch
 
 afterEach(() => { globalThis.fetch = originalFetch })

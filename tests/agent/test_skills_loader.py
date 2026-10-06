@@ -1,13 +1,14 @@
-"""Tests for nanobot.agent.skills.SkillsLoader."""
+"""Tests for mokli.agent.skills.SkillsLoader."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from nanobot.agent.skills import SkillsLoader
+from mokli.agent.skills import SkillsLoader
 
 
 def _write_skill(
@@ -17,12 +18,12 @@ def _write_skill(
     metadata_json: dict | None = None,
     body: str = "# Skill\n",
 ) -> Path:
-    """Create ``base / name / SKILL.md`` with optional nanobot metadata JSON."""
+    """Create ``base / name / SKILL.md`` with optional mokli metadata JSON."""
     skill_dir = base / name
     skill_dir.mkdir(parents=True)
     lines = ["---"]
     if metadata_json is not None:
-        payload = json.dumps({"nanobot": metadata_json}, separators=(",", ":"))
+        payload = json.dumps({"mokli": metadata_json}, separators=(",", ":"))
         lines.append(f'metadata: {payload}')
     lines.extend(["---", "", body])
     path = skill_dir / "SKILL.md"
@@ -133,17 +134,17 @@ def test_list_skills_filter_unavailable_excludes_unmet_bin_requirement(
     _write_skill(
         skills_root,
         "needs_bin",
-        metadata_json={"requires": {"bins": ["nanobot_test_fake_binary"]}},
+        metadata_json={"requires": {"bins": ["mokli_test_fake_binary"]}},
     )
     builtin = tmp_path / "builtin"
     builtin.mkdir()
 
     def fake_which(cmd: str) -> str | None:
-        if cmd == "nanobot_test_fake_binary":
+        if cmd == "mokli_test_fake_binary":
             return None
         return "/usr/bin/true"
 
-    monkeypatch.setattr("nanobot.agent.skills.shutil.which", fake_which)
+    monkeypatch.setattr("mokli.agent.skills.shutil.which", fake_which)
 
     loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
     assert loader.list_skills(filter_unavailable=True) == []
@@ -158,17 +159,17 @@ def test_list_skills_filter_unavailable_includes_when_bin_requirement_met(
     skill_path = _write_skill(
         skills_root,
         "has_bin",
-        metadata_json={"requires": {"bins": ["nanobot_test_fake_binary"]}},
+        metadata_json={"requires": {"bins": ["mokli_test_fake_binary"]}},
     )
     builtin = tmp_path / "builtin"
     builtin.mkdir()
 
     def fake_which(cmd: str) -> str | None:
-        if cmd == "nanobot_test_fake_binary":
-            return "/fake/nanobot_test_fake_binary"
+        if cmd == "mokli_test_fake_binary":
+            return "/fake/mokli_test_fake_binary"
         return None
 
-    monkeypatch.setattr("nanobot.agent.skills.shutil.which", fake_which)
+    monkeypatch.setattr("mokli.agent.skills.shutil.which", fake_which)
 
     loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
     entries = loader.list_skills(filter_unavailable=True)
@@ -186,12 +187,12 @@ def test_list_skills_filter_unavailable_false_keeps_unmet_requirements(
     skill_path = _write_skill(
         skills_root,
         "blocked",
-        metadata_json={"requires": {"bins": ["nanobot_test_fake_binary"]}},
+        metadata_json={"requires": {"bins": ["mokli_test_fake_binary"]}},
     )
     builtin = tmp_path / "builtin"
     builtin.mkdir()
 
-    monkeypatch.setattr("nanobot.agent.skills.shutil.which", lambda _cmd: None)
+    monkeypatch.setattr("mokli.agent.skills.shutil.which", lambda _cmd: None)
 
     loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
     entries = loader.list_skills(filter_unavailable=False)
@@ -209,12 +210,12 @@ def test_list_skills_filter_unavailable_excludes_unmet_env_requirement(
     _write_skill(
         skills_root,
         "needs_env",
-        metadata_json={"requires": {"env": ["NANOBOT_SKILLS_TEST_ENV_VAR"]}},
+        metadata_json={"requires": {"env": ["MOKLI_SKILLS_TEST_ENV_VAR"]}},
     )
     builtin = tmp_path / "builtin"
     builtin.mkdir()
 
-    monkeypatch.delenv("NANOBOT_SKILLS_TEST_ENV_VAR", raising=False)
+    monkeypatch.delenv("MOKLI_SKILLS_TEST_ENV_VAR", raising=False)
 
     loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
     assert loader.list_skills(filter_unavailable=True) == []
@@ -229,7 +230,7 @@ def test_list_skills_openclaw_metadata_parsed_for_requirements(
     skill_dir = skills_root / "openclaw_skill"
     skill_dir.mkdir(parents=True)
     skill_path = skill_dir / "SKILL.md"
-    oc_payload = json.dumps({"openclaw": {"requires": {"bins": ["nanobot_oc_bin"]}}}, separators=(",", ":"))
+    oc_payload = json.dumps({"openclaw": {"requires": {"bins": ["mokli_oc_bin"]}}}, separators=(",", ":"))
     skill_path.write_text(
         "\n".join(["---", f"metadata: {oc_payload}", "---", "", "# OC"]),
         encoding="utf-8",
@@ -237,14 +238,14 @@ def test_list_skills_openclaw_metadata_parsed_for_requirements(
     builtin = tmp_path / "builtin"
     builtin.mkdir()
 
-    monkeypatch.setattr("nanobot.agent.skills.shutil.which", lambda _cmd: None)
+    monkeypatch.setattr("mokli.agent.skills.shutil.which", lambda _cmd: None)
 
     loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
     assert loader.list_skills(filter_unavailable=True) == []
 
     monkeypatch.setattr(
-        "nanobot.agent.skills.shutil.which",
-        lambda cmd: "/x" if cmd == "nanobot_oc_bin" else None,
+        "mokli.agent.skills.shutil.which",
+        lambda cmd: "/x" if cmd == "mokli_oc_bin" else None,
     )
     entries = loader.list_skills(filter_unavailable=True)
     assert entries == [
@@ -336,25 +337,78 @@ def test_build_skills_summary_keeps_absolute_roots_for_selected_project(tmp_path
     assert str(project.resolve()) not in summary
 
 
-def test_bundled_update_setup_description_is_valid_yaml(tmp_path: Path) -> None:
-    metadata = SkillsLoader(tmp_path).get_skill_metadata("update-setup")
-
-    assert metadata is not None
-    assert metadata["description"].startswith("One-time setup wizard")
-    assert "Triggers:" in metadata["description"]
-
-
 def test_bundled_skills_use_agent_owned_paths(tmp_path: Path) -> None:
     loader = SkillsLoader(tmp_path)
     memory = loader.load_skill("memory")
-    update_setup = loader.load_skill("update-setup")
 
     assert memory is not None
-    assert "<history-log-path>" in memory
-    assert 'path="memory/history.jsonl"' not in memory
-    assert update_setup is not None
-    assert "<agent-workspace>/skills/update/SKILL.md" in update_setup
-    assert "Never substitute a project-relative" in update_setup
+    assert "search_sessions" in memory
+    assert "grep" not in memory
+    assert "history.jsonl" not in memory
+    import tiktoken
+
+    enc = tiktoken.get_encoding("cl100k_base")
+    replaced = (
+        (
+            "Search the exact `History log` path from the system prompt with `grep`; a project-relative\n"
+            "`memory/history.jsonl` may belong to a different workspace. The log is append-only JSONL,\n"
+            "with `cursor`, `timestamp`, and `content` per entry, and is not loaded into context.\n\n"
+            "Start broad searches with `output_mode=\"count\"`, then narrow by topic or date and request\n"
+            "matching content. Use `fixed_strings=true` for literal timestamps or JSON fragments.\n"
+            "Page long results with `head_limit` / `offset` and use `context_before` / `context_after`\n"
+            "when nearby entries matter.\n\n"
+            "Example (replace `<history-log-path>` with the path from the system prompt):\n"
+            '`grep(pattern="project-name", path="<history-log-path>", output_mode="content", '
+            "case_insensitive=true, head_limit=20)`",
+            "Search other conversations with `search_sessions`. Quote only the excerpts that tool returns. "
+            "The history file is not loaded into this prompt.",
+        ),
+        (
+            "Read the matching reference with `grep` (`output_mode=\"count\"` first) before loading a whole file:\n\n"
+            "- Technical and price action: [references/section-1-price-action.md](references/section-1-price-action.md)\n"
+            "- Playbook entry, retest, trendlines, candles: `mokli/skills/xauusd-playbook/references/` (`P-001` …)",
+            "The steps below are the guidance for this turn.",
+        ),
+        (
+            "## Encyclopedias (English, `grep` first)\n\n"
+            "Use `grep` with `output_mode=\"count\"` first, then read the matching ids (`P-056`, `N-035`, `C-016`).",
+            "## Encyclopedias\n\nUse the skill whose row matches the question. The steps in that skill are the guidance.",
+        ),
+        (
+            "Grep `P-NNN` (zero-padded) in `references/` rather than loading every section. "
+            "Prefer `grep`/`rg` for a single id or heading, then open only that file.\n\n"
+            "## References\n\n"
+            "- [references/playbook-001-025-entry.md](references/playbook-001-025-entry.md)\n"
+            "- [references/playbook-026-055-stops.md](references/playbook-026-055-stops.md)\n"
+            "- [references/playbook-056-080-retest.md](references/playbook-056-080-retest.md)\n"
+            "- [references/playbook-081-105-trendlines.md](references/playbook-081-105-trendlines.md)\n"
+            "- [references/playbook-106-135-gold-liquidity.md](references/playbook-106-135-gold-liquidity.md)\n"
+            "- [references/playbook-136-160-targets.md](references/playbook-136-160-targets.md)\n"
+            "- [references/playbook-161-180-candle-traps.md](references/playbook-161-180-candle-traps.md)\n"
+            "- [references/playbook-181-200-discipline.md](references/playbook-181-200-discipline.md)\n"
+            "- Execution, memory, alerts, security, and multi-tasking: sibling skills `mt5-execution`, "
+            "`memory-review`, `security-resilience`, `multi-tasking-scenarios`, plus `trading-proactive`",
+            "The steps below are the field guidance for this turn. Sibling skills cover execution, review, "
+            "and alerts: `mt5-execution`, `memory-review`, `security-resilience`, `multi-tasking-scenarios`, "
+            "and `trading-proactive`.",
+        ),
+    )
+    before = sum(len(enc.encode(old)) for old, _new in replaced)
+    after = sum(len(enc.encode(new)) for _old, new in replaced)
+    print(f"SKILL_GUIDANCE before={before} after={after}")
+    assert after < before
+    for name in ("memory", "technical-analysis", "gold-trading", "xauusd-playbook"):
+        body = loader.load_skill(name) or ""
+        assert "grep" not in body
+        assert "read_file" not in body
+
+
+def test_bundled_gold_skills_have_valid_frontmatter(tmp_path: Path) -> None:
+    loader = SkillsLoader(tmp_path)
+    for name in ("gold-trading", "risk-guardrails", "mt5-execution", "xauusd-playbook"):
+        metadata = loader.get_skill_metadata(name)
+        assert metadata is not None, name
+        assert metadata["description"].strip(), name
 
 
 def test_disabled_skills_excluded_from_get_always_skills(tmp_path: Path) -> None:
@@ -498,7 +552,7 @@ def test_get_skill_metadata_handles_yaml_types(tmp_path: Path) -> None:
     ws_skills.mkdir(parents=True)
     skill_dir = ws_skills / "typed"
     skill_dir.mkdir(parents=True)
-    payload = json.dumps({"nanobot": {"requires": {"bins": ["gh"]}, "always": True}}, separators=(",", ":"))
+    payload = json.dumps({"mokli": {"requires": {"bins": ["gh"]}, "always": True}}, separators=(",", ":"))
     skill_path = skill_dir / "SKILL.md"
     skill_path.write_text(
         "---\n"
@@ -560,3 +614,86 @@ def test_check_requirements_tolerates_null_requires_and_lists(tmp_path: Path) ->
         "missing_bins": [],
         "missing_env": [],
     }
+
+
+def test_skills_index_drops_paths_the_registry_cannot_open() -> None:
+    """Names and descriptions stay. Paths exist only so read_file can join them."""
+    import tiktoken
+
+    from mokli.utils.prompt_templates import render_template
+
+    loader = SkillsLoader(Path("/tmp/empty-ws"))
+    with_paths = loader.build_skills_summary(include_paths=True)
+    without_paths = loader.build_skills_summary(include_paths=False)
+    before_text = render_template(
+        "agent/skills_section.md",
+        skills_summary=with_paths,
+        skill_paths=True,
+    )
+    after_text = render_template(
+        "agent/skills_section.md",
+        skills_summary=without_paths,
+        skill_paths=False,
+    )
+    enc = tiktoken.get_encoding("cl100k_base")
+    before = len(enc.encode(before_text))
+    after = len(enc.encode(after_text))
+    print(f"SKILLS_INDEX before={before} after={after}")
+    assert after < before
+    assert "read_file" not in after_text
+    assert "SKILL.md" not in after_text
+    assert "risk-guardrails" in after_text
+    assert "Gold risk judgment" in after_text
+    assert "### Built-in skills" in after_text
+    assert "(`skills`)" not in after_text
+
+
+def test_prompt_build_reads_each_skill_file_once(tmp_path: Path) -> None:
+    """A second prompt must not open SKILL.md again when the file is unchanged."""
+    workspace = tmp_path / "ws"
+    root = workspace / "skills"
+    root.mkdir(parents=True)
+    for name in ("alpha", "beta", "gamma"):
+        _write_skill(root, name, metadata_json={"always": False}, body=f"# {name}\n")
+    builtin = tmp_path / "builtin"
+    builtin.mkdir()
+    loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
+    reads: list[str] = []
+    real = Path.read_text
+
+    def counting(self: Path, *args: object, **kwargs: object) -> str:
+        if self.name == "SKILL.md":
+            reads.append(str(self))
+        return real(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with patch.object(Path, "read_text", counting):
+        loader.get_always_skills()
+        loader.build_skills_summary()
+        first = len(reads)
+        loader.get_always_skills()
+        loader.build_skills_summary()
+        second = len(reads) - first
+    assert first == 3
+    assert second == 0
+
+
+def test_skill_cache_reloads_a_rewritten_file_and_a_new_directory(tmp_path: Path) -> None:
+    workspace = tmp_path / "ws"
+    root = workspace / "skills"
+    root.mkdir(parents=True)
+    path = root / "alpha" / "SKILL.md"
+    path.parent.mkdir()
+    path.write_text("---\ndescription: one\n---\n\n# Alpha\n", encoding="utf-8")
+    builtin = tmp_path / "builtin"
+    builtin.mkdir()
+    loader = SkillsLoader(workspace, builtin_skills_dir=builtin)
+    first = loader.get_skill_metadata("alpha")
+    assert first is not None
+    assert first.get("description") == "one"
+    path.write_text("---\ndescription: two longer\n---\n\n# Alpha\n", encoding="utf-8")
+    second = loader.get_skill_metadata("alpha")
+    assert second is not None
+    assert second.get("description") == "two longer"
+    _write_skill(root, "delta", body="# Delta")
+    names = {entry["name"] for entry in loader.list_skills(filter_unavailable=False)}
+    assert names == {"alpha", "delta"}

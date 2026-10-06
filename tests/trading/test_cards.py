@@ -1,5 +1,5 @@
-from nanobot.trading.cards.derive import derive_cards
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+from mokli.trading.cards.derive import derive_cards
+from mokli.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
 
 
 def test_derive_cards_decision_only():

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nanobot.gateway import (
+from mokli.gateway import (
     GatewayClientLease,
     GatewayInstance,
     GatewayRuntime,
@@ -20,8 +20,8 @@ from nanobot.gateway import (
     GatewayStatus,
     RuntimeResult,
 )
-from nanobot.gateway.runtime import monitor_gateway_clients
-from nanobot.process_runtime import process_is_running
+from mokli.gateway.runtime import monitor_gateway_clients
+from mokli.process_runtime import process_is_running
 
 
 class FakeProcess:
@@ -49,7 +49,7 @@ import sys
 import time
 from pathlib import Path
 
-from nanobot.gateway import (
+from mokli.gateway import (
     GatewayAlreadyRunningError,
     GatewayRuntime,
     GatewayRuntimePaths,
@@ -164,7 +164,7 @@ def test_paths_use_stable_instance_suffix_for_custom_selectors(tmp_path):
 
 
 def test_default_instance_preserves_released_gateway_paths() -> None:
-    config_path = Path.home() / ".nanobot" / "config.json"
+    config_path = Path.home() / ".mokli" / "config.json"
 
     instance = GatewayInstance.resolve(config_path=config_path)
 
@@ -222,7 +222,7 @@ def test_start_background_writes_state_and_child_command(tmp_path, monkeypatch):
     assert calls[0]["command"] == [
         "/python",
         "-m",
-        "nanobot",
+        "mokli",
         "gateway",
         "--foreground",
         "--port",
@@ -365,12 +365,12 @@ def test_stop_reaps_an_owned_child_without_consuming_the_shutdown_timeout(
     )
     monkeypatch.setattr(runtime, "_process_identity", lambda _pid: 12345)
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.getpgid",
+        "mokli.process_runtime.os.getpgid",
         lambda _pid: process.pid,
         raising=False,
     )
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.killpg",
+        "mokli.process_runtime.os.killpg",
         lambda _pgid, _signal: setattr(process, "returncode", -15),
         raising=False,
     )
@@ -494,17 +494,17 @@ def test_last_interactive_client_stops_an_on_demand_gateway(tmp_path, monkeypatc
 
     monkeypatch.setattr(runtime, "_stop", stop)
     tui = GatewayClientLease(runtime, kind="tui", pid=os.getpid(), token="tui")
-    webui = GatewayClientLease(runtime, kind="webui", pid=os.getpid(), token="webui")
+    mokli = GatewayClientLease(runtime, kind="mokli", pid=os.getpid(), token="mokli")
 
     tui.acquire()
     tui.mark_ephemeral()
-    webui.acquire()
+    mokli.acquire()
 
     assert tui.release() is False
     assert stopped == []
-    assert webui.release() is True
+    assert mokli.release() is True
     assert stopped == [20]
-    assert not webui.state_path.exists()
+    assert not mokli.state_path.exists()
 
 
 def test_last_client_can_leave_shutdown_to_the_gateway_monitor(tmp_path, monkeypatch):
@@ -546,7 +546,7 @@ def test_last_client_shutdown_preserves_a_replacement_lease(tmp_path, monkeypatc
 
     monkeypatch.setattr(runtime, "_stop", stop)
     original = GatewayClientLease(runtime, kind="tui", token="original")
-    replacement = GatewayClientLease(runtime, kind="webui", token="replacement")
+    replacement = GatewayClientLease(runtime, kind="mokli", token="replacement")
     original.acquire()
     original.mark_ephemeral()
 
@@ -581,7 +581,7 @@ def test_explicit_stop_clears_leases_before_accepting_a_replacement(
     replacement_acquired = threading.Event()
 
     stale = GatewayClientLease(runtime, kind="tui", token="stale")
-    replacement = GatewayClientLease(runtime, kind="webui", token="replacement")
+    replacement = GatewayClientLease(runtime, kind="mokli", token="replacement")
     stale.acquire()
     stale.mark_ephemeral()
 
@@ -660,7 +660,7 @@ def test_explicit_background_gateway_survives_the_last_client(tmp_path, monkeypa
         "_stop",
         lambda *, timeout_s: stopped.append(timeout_s),
     )
-    client = GatewayClientLease(runtime, kind="webui", pid=os.getpid())
+    client = GatewayClientLease(runtime, kind="mokli", pid=os.getpid())
 
     client.acquire()
     client.mark_ephemeral()
@@ -718,7 +718,7 @@ def test_lease_snapshot_keeps_a_legacy_localized_darwin_client(tmp_path, monkeyp
     identity = "42:二  8/18 02:17:54 2026"
     monkeypatch.setattr(runtime, "_is_pid_running", lambda _pid: True)
     monkeypatch.setattr(runtime, "_process_identity", lambda _pid: identity)
-    client = GatewayClientLease(runtime, kind="webui", pid=12345, token="client")
+    client = GatewayClientLease(runtime, kind="mokli", pid=12345, token="client")
 
     client.acquire()
     client.mark_ephemeral()
@@ -804,7 +804,7 @@ async def test_client_monitor_blocks_replacement_until_gateway_exit(tmp_path, mo
         poll_interval_s=0.001,
     ) is True
 
-    replacement = GatewayClientLease(runtime, kind="webui", token="replacement")
+    replacement = GatewayClientLease(runtime, kind="mokli", token="replacement")
     replacement_acquired = threading.Event()
     acquire_thread = threading.Thread(
         target=lambda: (replacement.acquire(), replacement_acquired.set())
@@ -873,11 +873,11 @@ def test_managed_background_hands_off_virtualenv_launcher_pid(tmp_path: Path) ->
 
 def test_windows_process_probe_never_sends_ctrl_c(monkeypatch):
     monkeypatch.setattr(
-        "nanobot.process_runtime._windows_process_identity",
+        "mokli.process_runtime._windows_process_identity",
         lambda pid: "created-at" if pid == 12345 else None,
     )
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.kill",
+        "mokli.process_runtime.os.kill",
         lambda *_args: pytest.fail("Windows process probes must not call os.kill(pid, 0)"),
     )
 
@@ -886,13 +886,13 @@ def test_windows_process_probe_never_sends_ctrl_c(monkeypatch):
 
 
 def test_windows_host_probe_stays_safe_when_target_platform_is_posix(monkeypatch):
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Windows")
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Windows")
     monkeypatch.setattr(
-        "nanobot.process_runtime._windows_process_identity",
+        "mokli.process_runtime._windows_process_identity",
         lambda pid: "created-at" if pid == 12345 else None,
     )
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.kill",
+        "mokli.process_runtime.os.kill",
         lambda *_args: pytest.fail("Windows process probes must not call os.kill(pid, 0)"),
     )
 
@@ -901,10 +901,10 @@ def test_windows_host_probe_stays_safe_when_target_platform_is_posix(monkeypatch
 
 
 def test_posix_process_probe_treats_a_zombie_as_stopped(monkeypatch):
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Darwin")
-    monkeypatch.setattr("nanobot.process_runtime.os.kill", lambda *_args: None)
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Darwin")
+    monkeypatch.setattr("mokli.process_runtime.os.kill", lambda *_args: None)
     monkeypatch.setattr(
-        "nanobot.process_runtime.subprocess.run",
+        "mokli.process_runtime.subprocess.run",
         lambda *_args, **_kwargs: SimpleNamespace(stdout="Z+"),
     )
 
@@ -913,13 +913,13 @@ def test_posix_process_probe_treats_a_zombie_as_stopped(monkeypatch):
 
 def test_windows_host_identity_stays_safe_when_target_platform_is_posix(tmp_path, monkeypatch):
     runtime = GatewayRuntime(paths=_paths(tmp_path), platform_name="Linux")
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Windows")
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Windows")
     monkeypatch.setattr(
-        "nanobot.process_runtime._windows_process_identity",
+        "mokli.process_runtime._windows_process_identity",
         lambda pid: "created-at" if pid == 12345 else None,
     )
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.getpgid",
+        "mokli.process_runtime.os.getpgid",
         lambda *_args: pytest.fail("Windows process identities must not use POSIX APIs"),
         raising=False,
     )
@@ -930,9 +930,9 @@ def test_windows_host_identity_stays_safe_when_target_platform_is_posix(tmp_path
 def test_windows_lease_prunes_a_reused_pid_by_creation_time(tmp_path, monkeypatch):
     runtime = GatewayRuntime(paths=_paths(tmp_path), platform_name="Windows")
     identity = "filetime:first-process"
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Windows")
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Windows")
     monkeypatch.setattr(
-        "nanobot.process_runtime._windows_process_identity",
+        "mokli.process_runtime._windows_process_identity",
         lambda _pid: identity,
     )
     client = GatewayClientLease(runtime, kind="tui", pid=12345, token="client")
@@ -1014,7 +1014,7 @@ def test_status_distinguishes_live_process_from_degraded_gateway_readiness(
     monkeypatch.setattr(runtime, "_is_pid_running", lambda _pid: True)
     monkeypatch.setattr(runtime, "_process_identity", lambda _pid: 42)
     monkeypatch.setattr(
-        "nanobot.gateway.runtime._gateway_health_ready",
+        "mokli.gateway.runtime._gateway_health_ready",
         lambda _host, _port: False,
     )
 
@@ -1056,8 +1056,8 @@ def test_posix_process_identity_includes_start_time_and_accepts_legacy_state(
     monkeypatch,
 ):
     runtime = GatewayRuntime(paths=_paths(tmp_path), platform_name="Linux")
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Linux")
-    monkeypatch.setattr("nanobot.process_runtime.os.getpgid", lambda _pid: 42, raising=False)
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Linux")
+    monkeypatch.setattr("mokli.process_runtime.os.getpgid", lambda _pid: 42, raising=False)
     monkeypatch.setattr(runtime, "_posix_process_started_at", lambda _pid: "987654")
 
     assert runtime.process_identity(12345) == "42:987654"
@@ -1074,10 +1074,10 @@ def test_darwin_process_identity_is_locale_independent(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("LANG", "zh_CN.UTF-8")
     monkeypatch.setenv("LC_ALL", "zh_CN.UTF-8")
-    monkeypatch.setattr("nanobot.process_runtime._platform_name", lambda: "Darwin")
+    monkeypatch.setattr("mokli.process_runtime._platform_name", lambda: "Darwin")
     started_at = int(time.mktime((2026, 8, 18, 2, 17, 54, -1, -1, -1)))
     monkeypatch.setattr(
-        "nanobot.process_runtime._darwin_process_birth",
+        "mokli.process_runtime._darwin_process_birth",
         lambda _pid: (42, started_at, 123456),
     )
 
@@ -1235,7 +1235,7 @@ def test_terminate_windows_targets_only_the_recorded_process_tree(tmp_path, monk
     )
 
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.kill",
+        "mokli.process_runtime.os.kill",
         lambda *_args: pytest.fail("Windows termination must not broadcast a console event"),
     )
 
@@ -1272,7 +1272,7 @@ def test_terminate_posix_tolerates_process_group_disappearing_before_sigkill(
     )
     waits = iter([False, True])
     monkeypatch.setattr(
-        "nanobot.process_runtime.os.getpgid",
+        "mokli.process_runtime.os.getpgid",
         lambda _pid: 1234,
         raising=False,
     )
@@ -1281,7 +1281,7 @@ def test_terminate_posix_tolerates_process_group_disappearing_before_sigkill(
         if sent_signal == signal.SIGKILL:
             raise PermissionError(1, "Operation not permitted")
 
-    monkeypatch.setattr("nanobot.process_runtime.os.killpg", fake_killpg, raising=False)
+    monkeypatch.setattr("mokli.process_runtime.os.killpg", fake_killpg, raising=False)
     monkeypatch.setattr(runtime, "_wait_for_exit", lambda *_args: next(waits))
 
     assert runtime._terminate_posix(1234, timeout_s=1) is True

@@ -13,7 +13,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 ENTER_ALT_SCREEN = "\x1b[?1049h"
 LEAVE_ALT_SCREEN = "\x1b[?1049l"
-RESUME_COMMAND = "Resume with: nanobot agent --session websocket:resume-chat"
+RESUME_COMMAND = "Resume with: mokli agent --session websocket:resume-chat"
 
 
 def _read(process: Any, timeout: float) -> str:
@@ -69,15 +69,15 @@ def main() -> int:
         raise SystemExit("bun is required")
     env = {
         **os.environ,
-        "NANOBOT_TUI_WS_URL": "ws://127.0.0.1:9/ws",
-        "NANOBOT_TUI_API_URL": "",
-        "NANOBOT_TUI_API_TOKEN": "",
-        "NANOBOT_TUI_CHAT_ID": "resume-chat",
-        "NANOBOT_TUI_MODEL": "test/model",
-        "NANOBOT_TUI_WORKSPACE": r"C:\nanobot-tui-conpty",
-        "NANOBOT_TUI_VERSION": "test",
-        "NANOBOT_TUI_ACCESS": "workspace access",
-        "NANOBOT_TUI_THEME": "dark",
+        "MOKLI_TUI_WS_URL": "ws://127.0.0.1:9/ws",
+        "MOKLI_TUI_API_URL": "",
+        "MOKLI_TUI_API_TOKEN": "",
+        "MOKLI_TUI_CHAT_ID": "resume-chat",
+        "MOKLI_TUI_MODEL": "test/model",
+        "MOKLI_TUI_WORKSPACE": r"C:\mokli-tui-conpty",
+        "MOKLI_TUI_VERSION": "test",
+        "MOKLI_TUI_ACCESS": "workspace access",
+        "MOKLI_TUI_THEME": "dark",
         # Headless ConPTY has no terminal emulator to answer optional OSC 66
         # width probes. Keep this smoke test focused on application behavior.
         "OPENTUI_FORCE_EXPLICIT_WIDTH": "false",

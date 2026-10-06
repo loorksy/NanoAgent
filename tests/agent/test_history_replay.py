@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import LLMResponse
-from nanobot.session.manager import Session
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.agent.loop import AgentLoop
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.providers.base import LLMResponse
+from mokli.session.manager import Session
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _make_loop(tmp_path: Path, context_window_tokens: int = 200_000) -> AgentLoop:
@@ -86,7 +86,7 @@ async def test_process_message_hands_complete_replay_to_runner(tmp_path: Path) -
 
 @pytest.mark.asyncio
 async def test_runner_checkpoint_keeps_current_user_as_replay_boundary(tmp_path: Path) -> None:
-    loop = _make_loop(tmp_path, context_window_tokens=8_000)
+    loop = _make_loop(tmp_path, context_window_tokens=10_000)
     loop.provider.chat_stream_with_retry = AsyncMock(
         return_value=LLMResponse(content="ok", tool_calls=[], usage=None)
     )

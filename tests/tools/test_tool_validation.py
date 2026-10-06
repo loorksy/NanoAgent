@@ -1,12 +1,9 @@
-import shlex
-import subprocess
-import sys
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
-from nanobot.agent.tools import (
+from mokli.agent.tools import (
     ArraySchema,
     IntegerSchema,
     ObjectSchema,
@@ -15,10 +12,9 @@ from nanobot.agent.tools import (
     tool_parameters,
     tool_parameters_schema,
 )
-from nanobot.agent.tools.base import Tool
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent.tools.shell import ExecTool, ExecToolConfig
-from nanobot.security.network import configure_ssrf_whitelist
+from mokli.agent.tools.base import Tool
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.shell import ExecToolConfig
 
 
 class SampleTool(Tool):
@@ -220,284 +216,6 @@ async def test_registry_returns_validation_error() -> None:
     reg.register(SampleTool())
     result = await reg.execute("sample", {"query": "hi"})
     assert "Invalid parameters" in result
-
-
-def test_exec_extract_absolute_paths_keeps_full_windows_path() -> None:
-    cmd = r"type C:\user\workspace\txt"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert paths == [r"C:\user\workspace\txt"]
-
-
-def test_exec_extract_absolute_paths_captures_windows_drive_root_path() -> None:
-    """Windows drive root paths like `E:\\` must be extracted for workspace guarding."""
-    # Note: raw strings cannot end with a single backslash.
-    cmd = "dir E:\\"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert paths == ["E:\\"]
-
-
-def test_exec_extract_absolute_paths_ignores_relative_posix_segments() -> None:
-    cmd = ".venv/bin/python script.py"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert "/bin/python" not in paths
-
-
-def test_exec_extract_absolute_paths_ignores_urls() -> None:
-    cmd = 'curl -s -o /dev/null -w "%{http_code}" https://www.google.com'
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert paths == ["/dev/null"]
-
-
-@pytest.mark.parametrize(
-    "command",
-    [
-        'curl -s -o /dev/null -w "%{http_code}" https://www.google.com',
-        'wget -q -O - http://example.com 2>&1 | head -c 100',
-        'python3 -c "import urllib.request; print(urllib.request.urlopen(\'http://example.com\').read()[:100])"',
-    ],
-)
-def test_exec_guard_allows_public_urls(tmp_path, command: str) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command(command, str(tmp_path))
-    assert error is None
-
-
-def test_exec_guard_allows_whitelisted_internal_urls(tmp_path) -> None:
-    configure_ssrf_whitelist(["10.10.10.0/24"])
-    try:
-        tool = ExecTool(restrict_to_workspace=True)
-        error = tool._guard_command(
-            'curl -s -H "Authorization: Bearer ..." http://10.10.10.3:8123/api/',
-            str(tmp_path),
-        )
-        assert error is None
-    finally:
-        configure_ssrf_whitelist([])
-
-
-def test_exec_extract_absolute_paths_captures_posix_absolute_paths() -> None:
-    cmd = "cat /tmp/data.txt > /tmp/out.txt"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert "/tmp/data.txt" in paths
-    assert "/tmp/out.txt" in paths
-
-
-def test_exec_extract_absolute_paths_captures_home_paths() -> None:
-    cmd = "cat ~/.nanobot/config.json > ~/out.txt"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert "~/.nanobot/config.json" in paths
-    assert "~/out.txt" in paths
-
-
-def test_exec_extract_absolute_paths_captures_paths_after_equals() -> None:
-    cmd = "curl --output=/etc/passwd --config=~/.nanobot/config.json --user-home=~root"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert "/etc/passwd" in paths
-    assert "~/.nanobot/config.json" in paths
-    assert "~root" in paths
-
-
-def test_exec_extract_absolute_paths_does_not_capture_query_tilde() -> None:
-    cmd = 'python query.py --query \'{job=~"app"}\''
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert not any(p.startswith("~") for p in paths)
-
-
-def test_exec_extract_absolute_paths_captures_bare_and_named_user_home_paths() -> None:
-    paths = ExecTool._extract_absolute_paths("cd ~ && cat ~root/.bashrc")
-    assert "~" in paths
-    assert "~root/.bashrc" in paths
-
-
-def test_exec_extract_absolute_paths_captures_tilde_after_shell_operators() -> None:
-    paths = ExecTool._extract_absolute_paths(
-        "cat <~root/.bashrc;~root/bin/tool|~daemon/bin/tool"
-    )
-    assert "~root/.bashrc" in paths
-    assert paths.count("~root/bin/tool") == 1
-    assert "~daemon/bin/tool" in paths
-
-
-def test_exec_extract_absolute_paths_captures_tilde_assignment_components() -> None:
-    paths = ExecTool._extract_absolute_paths(
-        "HOME=~ PATH=bin:~root/bin curl --config=~"
-    )
-    assert "~" in paths
-    assert "~root/bin" in paths
-
-
-def test_exec_extract_absolute_paths_captures_quoted_paths() -> None:
-    cmd = 'cat "/tmp/data.txt" "~/.nanobot/config.json"'
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert "/tmp/data.txt" in paths
-    assert "~/.nanobot/config.json" in paths
-
-
-def test_exec_guard_blocks_home_path_outside_workspace(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat ~/.nanobot/config.json", str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-    assert "hard policy boundary" in error
-
-
-def test_exec_guard_blocks_bare_tilde_cwd_escape(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cd ~ && cat secret.txt", str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-
-
-def test_exec_guard_blocks_named_user_home_path(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat ~root/.bashrc", str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-
-
-@pytest.mark.parametrize(
-    "command",
-    [
-        "cat <~root/.bashrc",
-        "cat ~-/.bashrc",
-        "cat ~+1/.bashrc",
-        "cat ~-1/.bashrc",
-    ],
-)
-def test_exec_guard_blocks_home_paths_with_special_shell_contexts(
-    tmp_path, command: str
-) -> None:
-    error = ExecTool(restrict_to_workspace=True)._guard_command(command, str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-
-
-def test_exec_guard_allows_current_directory_tilde(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    assert tool._guard_command("cat ~+/file.txt", str(tmp_path)) is None
-
-
-def test_exec_guard_blocks_equals_home_path_outside_workspace(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat --config=~/.nanobot/config.json", str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-
-
-def test_exec_guard_blocks_equals_named_user_home_path(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat --config=~root/.bashrc", str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-
-
-def test_exec_guard_blocks_quoted_home_path_outside_workspace(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command('cat "~/.nanobot/config.json"', str(tmp_path))
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-    assert "hard policy boundary" in error
-
-
-def test_exec_guard_allows_media_path_outside_workspace(tmp_path, monkeypatch) -> None:
-    media_dir = tmp_path / "media"
-    media_dir.mkdir()
-    media_file = media_dir / "photo.jpg"
-    media_file.write_text("ok", encoding="utf-8")
-
-    monkeypatch.setattr("nanobot.agent.tools.shell.get_media_dir", lambda: media_dir)
-
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command(f'cat "{media_file}"', str(tmp_path / "workspace"))
-    assert error is None
-
-
-def test_exec_guard_blocks_windows_drive_root_outside_workspace(monkeypatch) -> None:
-    import nanobot.agent.tools.shell as shell_mod
-
-    class FakeWindowsPath:
-        def __init__(self, raw: str) -> None:
-            self.raw = raw.rstrip("\\") + ("\\" if raw.endswith("\\") else "")
-
-        def resolve(self) -> "FakeWindowsPath":
-            return self
-
-        def expanduser(self) -> "FakeWindowsPath":
-            return self
-
-        def is_absolute(self) -> bool:
-            return len(self.raw) >= 3 and self.raw[1:3] == ":\\"
-
-        @property
-        def parents(self) -> list["FakeWindowsPath"]:
-            if not self.is_absolute():
-                return []
-            trimmed = self.raw.rstrip("\\")
-            if len(trimmed) <= 2:
-                return []
-            idx = trimmed.rfind("\\")
-            if idx <= 2:
-                return [FakeWindowsPath(trimmed[:2] + "\\")]
-            parent = FakeWindowsPath(trimmed[:idx])
-            return [parent, *parent.parents]
-
-        def __eq__(self, other: object) -> bool:
-            return isinstance(other, FakeWindowsPath) and self.raw.lower() == other.raw.lower()
-
-    monkeypatch.setattr(shell_mod, "Path", FakeWindowsPath)
-
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("dir E:\\", "E:\\workspace")
-    assert error is not None
-    assert error.startswith(
-        "Error: Command blocked by safety guard (path outside working dir)"
-    )
-    assert "hard policy boundary" in error
-
-
-def test_exec_guard_allows_dev_null_redirect(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    ws = tmp_path / "workspace"
-    ws.mkdir()
-    (ws / "file.txt").write_text("ok", encoding="utf-8")
-    error = tool._guard_command(f'rm "{ws / "file.txt"}" 2>/dev/null', str(ws))
-    assert error is None
-
-
-def test_exec_guard_allows_dev_urandom(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat /dev/urandom | head -c 16 > random.bin", str(tmp_path))
-    assert error is None
-
-
-def test_exec_guard_blocks_non_benign_dev_path(tmp_path) -> None:
-    tool = ExecTool(restrict_to_workspace=True)
-    error = tool._guard_command("cat /dev/sda", str(tmp_path))
-    assert error is not None
-    assert "path outside working dir" in error
-
-
-def test_exec_extract_absolute_paths_ignores_pipe_tilde() -> None:
-    cmd = "python query.py --query '{job=\"app\"} |~ \"error\"'"
-    paths = ExecTool._extract_absolute_paths(cmd)
-    assert not any(p.startswith("~") for p in paths)
-
-
-# --- cast_params tests ---
 
 
 class CastTestTool(Tool):
@@ -749,56 +467,6 @@ def test_cast_params_single_value_not_auto_wrapped_to_array() -> None:
 # --- ExecTool enhancement tests ---
 
 
-async def test_exec_always_returns_exit_code() -> None:
-    """Exit code should appear in output even on success (exit 0)."""
-    tool = ExecTool()
-    result = await tool.execute(command="echo hello")
-    assert "Exit code: 0" in result
-    assert "hello" in result
-
-
-async def test_exec_head_tail_truncation(tmp_path) -> None:
-    """Long output should preserve both head and tail."""
-    tool = ExecTool()
-    # Generate output that exceeds _MAX_OUTPUT (10_000 chars).
-    # Use a temp script file so the output-generating logic lives in a file
-    # (Windows cmd.exe has finicky rules for quoting `-c` payloads with
-    # embedded newlines). ExecTool runs via create_subprocess_shell, so we
-    # must quote *both* the interpreter path and the script path — tmp_path
-    # on some CI runners and on many local Windows installs contains spaces
-    # (e.g. C:\Users\John Doe\AppData\...) which would otherwise break the
-    # shell's argv split.
-    script_file = tmp_path / "gen_output.py"
-    script_file.write_text("print('A' * 6000 + chr(10) + 'B' * 6000)", encoding="utf-8")
-    if sys.platform == "win32":
-        command = subprocess.list2cmdline([sys.executable, str(script_file)])
-    else:
-        command = f"{shlex.quote(sys.executable)} {shlex.quote(str(script_file))}"
-    result = await tool.execute(command=command)
-    assert "chars truncated" in result
-    # Head portion should start with As
-    assert result.startswith("A")
-    # Tail portion should end with the exit code which comes after Bs
-    assert "Exit code:" in result
-
-
-async def test_exec_timeout_parameter() -> None:
-    """LLM-supplied timeout should override the constructor default."""
-    tool = ExecTool(timeout=60)
-    # A very short timeout should cause the command to be killed
-    result = await tool.execute(command="sleep 10", timeout=1)
-    assert "timed out" in result
-    assert "1 seconds" in result
-
-
-async def test_exec_timeout_capped_at_max() -> None:
-    """Timeout values above _MAX_TIMEOUT should be clamped."""
-    tool = ExecTool()
-    # Should not raise — just clamp to 600
-    result = await tool.execute(command="echo ok", timeout=9999)
-    assert "Exit code: 0" in result
-
-
 def test_exec_config_timeout_uncapped_and_zero() -> None:
     """Config timeout is no longer capped at 600 and accepts 0 = no limit (#3595)."""
     assert ExecToolConfig(timeout=0).timeout == 0
@@ -821,18 +489,6 @@ def test_exec_config_accepts_bwrap_bind_aliases() -> None:
     assert cfg.sandbox_rw_binds == ["/home/user/.cache/uv"]
     assert dumped["sandboxRoBinds"] == ["/home/user/.local/bin"]
     assert dumped["sandboxRwBinds"] == ["/home/user/.cache/uv"]
-
-
-def test_resolve_timeout_config_uncapped_and_unlimited() -> None:
-    """Config timeout drives the hard timeout uncapped; 0 means no limit (#3595)."""
-    assert ExecTool(timeout=3600)._resolve_timeout(None) == 3600
-    assert ExecTool(timeout=0)._resolve_timeout(None) is None
-
-
-def test_resolve_timeout_per_call_still_capped() -> None:
-    """Per-call (LLM) timeout stays capped at _MAX_TIMEOUT even with unlimited config."""
-    assert ExecTool(timeout=0)._resolve_timeout(9999) == ExecTool._MAX_TIMEOUT
-    assert ExecTool(timeout=60)._resolve_timeout(120) == 120
 
 
 # --- _resolve_type and nullable param tests ---

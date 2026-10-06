@@ -6,15 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.runner import AgentRunResult
-from nanobot.agent.subagent import SubagentManager, SubagentStatus
-from nanobot.agent.tools.filesystem import FileToolsConfig
-from nanobot.bus.queue import MessageBus
-from nanobot.config.schema import ToolsConfig
-from nanobot.llm_usage.context import llm_usage_source
-from nanobot.providers.base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
-from nanobot.security.workspace_access import build_workspace_scope
-from nanobot.utils.llm_runtime import LLMRuntime
+from mokli.agent.runner import AgentRunResult
+from mokli.agent.subagent import SubagentManager, SubagentStatus
+from mokli.agent.tools.filesystem import FileToolsConfig
+from mokli.bus.queue import MessageBus
+from mokli.config.schema import ToolsConfig
+from mokli.llm_usage.context import llm_usage_source
+from mokli.providers.base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
+from mokli.security.workspace_access import build_workspace_scope
+from mokli.utils.llm_runtime import LLMRuntime
 
 
 def _runtime(provider: LLMProvider) -> LLMRuntime:
@@ -33,32 +33,13 @@ async def test_subagent_uses_tool_loader():
         max_tool_result_chars=16_000,
     )
     tools = sm._build_tools()
-    assert tools.has("read_file")
-    assert tools.has("write_file")
+    assert tools.has("fetch_evidence")
+    assert tools.has("web_search")
+    assert tools.has("web_fetch")
     assert not tools.has("message")
     assert not tools.has("spawn")
-
-
-@pytest.mark.asyncio
-async def test_subagent_build_tools_isolates_file_read_state(tmp_path):
-    """Each spawned subagent needs a fresh file-state cache."""
-    (tmp_path / "note.txt").write_text("hello\n", encoding="utf-8")
-    provider = MagicMock(spec=LLMProvider)
-    provider.get_default_model.return_value = "test"
-    sm = SubagentManager(
-        workspace=tmp_path,
-        bus=MessageBus(),
-        max_tool_result_chars=16_000,
-    )
-
-    first_read = sm._build_tools().get("read_file")
-    second_read = sm._build_tools().get("read_file")
-
-    assert first_read is not second_read
-    assert (await first_read.execute(path="note.txt")).startswith("1| hello")
-    second_result = await second_read.execute(path="note.txt")
-    assert second_result.startswith("1| hello")
-    assert "File unchanged" not in second_result
+    # Generic file tools were removed from the gold agent.
+    assert not tools.has("read_file")
 
 
 def test_subagent_respects_file_tool_toggle(tmp_path):
@@ -102,13 +83,31 @@ def test_subagent_prompt_keeps_agent_paths_for_selected_project(tmp_path):
 
     prompt = manager._build_subagent_prompt(workspace=project)
 
-    assert "one root and relative SKILL.md paths" in prompt
-    assert "Join them when using `read_file`" in prompt
+    assert "The following skill descriptions are the full guidance for this turn." in prompt
+    assert "read_file" not in prompt
+    assert "SKILL.md" not in prompt
     assert str(project.resolve()) not in prompt
-    assert f"Nanobot's agent workspace: {agent_workspace.resolve()}" in prompt
+    assert f"Mokli's agent workspace: {agent_workspace.resolve()}" in prompt
     assert f"History log: {agent_workspace.resolve() / 'memory' / 'history.jsonl'}" in prompt
     assert "global-custom" in prompt
+    assert "global skill" in prompt
     assert "project-custom" not in prompt
+
+
+def test_subagent_prompt_keeps_skill_paths_when_read_file_is_registered(tmp_path):
+    skill = tmp_path / "skills" / "custom" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("---\ndescription: custom skill\n---\nCustom", encoding="utf-8")
+    manager = SubagentManager(
+        workspace=tmp_path,
+        bus=MessageBus(),
+        max_tool_result_chars=16_000,
+    )
+
+    prompt = manager._build_subagent_prompt(tool_names=["read_file"])
+
+    assert "Join them when using `read_file`" in prompt
+    assert "`custom/SKILL.md`" in prompt
 
 
 def test_subagent_prompt_uses_relative_paths_in_agent_workspace(tmp_path):
@@ -125,7 +124,10 @@ def test_subagent_prompt_uses_relative_paths_in_agent_workspace(tmp_path):
 
     assert str(tmp_path.resolve()) not in prompt
     assert "History log: memory/history.jsonl" in prompt
-    assert "### Workspace skills (`skills`)" in prompt
+    assert "### Workspace skills" in prompt
+    assert "(`skills`)" not in prompt
+    assert "custom/SKILL.md" not in prompt
+    assert "read_file" not in prompt
 
 
 @pytest.mark.asyncio
@@ -164,7 +166,11 @@ async def test_subagent_keeps_project_runtime_scope_with_agent_owned_tools(tmp_p
 
     spec = manager.runner.run.call_args.args[0]
     assert spec.workspace == project
-    assert spec.tools.get("read_file")._workspace == agent_workspace.resolve()
+    assert spec.tools.has("fetch_evidence")
+    assert not spec.tools.has("read_file")
+    system = spec.initial_messages[0]["content"]
+    assert "read_file" not in system
+    assert "The following skill descriptions are the full guidance for this turn." in system
 
 
 @pytest.mark.asyncio

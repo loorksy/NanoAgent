@@ -1,12 +1,12 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from nanobot.bus.events import OutboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.channels import manager as manager_module
-from nanobot.channels.base import BaseChannel
-from nanobot.channels.manager import ChannelManager
-from nanobot.config.schema import Config
+from mokli.bus.events import OutboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.channels import manager as manager_module
+from mokli.channels.base import BaseChannel
+from mokli.channels.manager import ChannelManager
+from mokli.config.schema import Config
 
 
 def make_manager():

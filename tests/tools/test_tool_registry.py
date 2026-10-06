@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock
 
-from nanobot.agent.tools.base import Tool, ToolResult
-from nanobot.agent.tools.filesystem import ReadFileTool
-from nanobot.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.base import Tool, ToolResult
+from mokli.agent.tools.registry import ToolRegistry, filter_tool_definitions
 
 
 class _FakeTool(Tool):
@@ -236,14 +235,17 @@ def test_prepare_call_other_tools_keep_generic_object_validation() -> None:
     )
 
 
-async def test_registry_rejects_unknown_builtin_tool_parameters(tmp_path) -> None:
-    (tmp_path / "sample.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+async def test_registry_rejects_unknown_builtin_tool_parameters() -> None:
     registry = ToolRegistry()
     registry.register(
-        ReadFileTool(
-            workspace=tmp_path,
-            allowed_dir=tmp_path,
-            restrict_to_workspace=True,
+        _FakeTool(
+            "read_file",
+            {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+                "additionalProperties": False,
+            },
         )
     )
 
@@ -254,7 +256,7 @@ async def test_registry_rejects_unknown_builtin_tool_parameters(tmp_path) -> Non
 
     assert "Invalid parameters" in result
     assert "unexpected parameter line_limit" in result
-    assert "one" not in result
+    assert "sample.txt" not in result
 
 
 async def test_registry_preserves_successful_exec_output_that_starts_with_error() -> None:
@@ -320,3 +322,12 @@ def test_unregister_invalidates_cache() -> None:
     second = registry.get_definitions()
     assert first is not second
     assert len(second) == 1
+
+
+def test_filter_tool_definitions_preserves_order() -> None:
+    registry = ToolRegistry()
+    for name in ("alpha", "beta", "gamma"):
+        registry.register(_FakeTool(name))
+    all_defs = registry.get_definitions()
+    filtered = filter_tool_definitions(all_defs, ["gamma", "alpha"])
+    assert _tool_names(filtered) == ["alpha", "gamma"]

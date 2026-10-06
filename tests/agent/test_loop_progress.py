@@ -6,13 +6,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.context import TranscriptInput
-from nanobot.agent.hooks import create_file_edit_activity_hook
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.context import current_request_context
-from nanobot.agent.tools.filesystem import WriteFileTool
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.outbound_events import (
+from mokli.agent.context import TranscriptInput
+from mokli.agent.hooks import create_file_edit_activity_hook
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.context import current_request_context
+from mokli.bus.events import InboundMessage
+from mokli.bus.outbound_events import (
     GoalStatusEvent,
     ProgressEvent,
     SessionUpdatedEvent,
@@ -21,15 +20,34 @@ from nanobot.bus.outbound_events import (
     StreamEndEvent,
     TurnEndEvent,
 )
-from nanobot.bus.queue import MessageBus
-from nanobot.providers.base import LLMResponse, ToolCallRequest
-from nanobot.providers.factory import ProviderSnapshot
-from nanobot.session.webui_turns import WebuiTurnCoordinator, WebuiTurnRoutePolicy
-from nanobot.utils.progress_events import output_events
-from nanobot.webui.metadata import (
+from mokli.bus.queue import MessageBus
+from mokli.providers.base import LLMResponse, ToolCallRequest
+from mokli.providers.factory import ProviderSnapshot
+from mokli.session.mokli_turns import MokliTurnCoordinator, MokliTurnRoutePolicy
+from mokli.utils.progress_events import output_events
+from mokli.surface.metadata import (
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
-    WEBUI_TURN_METADATA_KEY,
+    MOKLI_TURN_METADATA_KEY,
 )
+
+
+class _WriteFileTool:
+    """Minimal stand-in for the removed workspace write tool.
+
+    The file-edit activity hook only needs a tool named ``write_file`` that
+    mutates ``workspace / path`` so before/after snapshots can be diffed.
+    """
+
+    name = "write_file"
+
+    def __init__(self, workspace: Path) -> None:
+        self._workspace = workspace
+
+    async def execute(self, path: str, content: str, **kwargs: object) -> str:
+        target = (self._workspace / path).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return f"Wrote {len(content)} chars to {path}"
 
 
 def _make_loop(tmp_path: Path) -> AgentLoop:
@@ -45,9 +63,9 @@ def _make_loop(tmp_path: Path) -> AgentLoop:
     )
 
 
-def _attach_webui_runtime_events(loop: AgentLoop, bus: MessageBus) -> None:
-    loop.turn_delivery_factory.route_policy = WebuiTurnRoutePolicy(loop.sessions)
-    coordinator = WebuiTurnCoordinator(
+def _attach_mokli_runtime_events(loop: AgentLoop, bus: MessageBus) -> None:
+    loop.turn_delivery_factory.route_policy = MokliTurnRoutePolicy(loop.sessions)
+    coordinator = MokliTurnCoordinator(
         bus=bus,
         sessions=loop.sessions,
         schedule_background=lambda coro: loop.schedule_background(coro),
@@ -138,7 +156,7 @@ class TestToolEventProgress:
         ])
         loop.provider.chat_stream_with_retry = AsyncMock(side_effect=lambda *a, **kw: next(calls))
         loop.tools.get_definitions = MagicMock(return_value=[])
-        tool = WriteFileTool(workspace=tmp_path)
+        tool = _WriteFileTool(tmp_path)
         loop.tools.prepare_call = MagicMock(
             return_value=(tool, {"path": "foo.txt", "content": "new\nextra\n"}, None),
         )
@@ -222,7 +240,7 @@ class TestToolEventProgress:
             pass
 
         monkeypatch.setattr(
-            "nanobot.agent.hooks.file_edit_activity.prepare_file_edit_trackers",
+            "mokli.agent.hooks.file_edit_activity.prepare_file_edit_trackers",
             prepare_file_edit_trackers,
         )
 
@@ -373,8 +391,8 @@ class TestToolEventProgress:
         assert outbound.event.file_edit_events == edit_events
 
     @pytest.mark.asyncio
-    async def test_goal_turn_keeps_file_edit_progress_for_webui(self, tmp_path: Path) -> None:
-        """The /goal command rewrites the prompt but must not bypass WebUI file-edit progress."""
+    async def test_goal_turn_keeps_file_edit_progress_for_mokli(self, tmp_path: Path) -> None:
+        """The /goal command rewrites the prompt but must not bypass Mokli file-edit progress."""
         bus = MessageBus()
         provider = MagicMock()
         provider.get_default_model.return_value = "test-model"
@@ -409,7 +427,7 @@ class TestToolEventProgress:
             model="test-model",
             hook_factories=[create_file_edit_activity_hook],
         )
-        tool = WriteFileTool(workspace=tmp_path)
+        tool = _WriteFileTool(tmp_path)
         loop.tools.get_definitions = MagicMock(return_value=[
             {"type": "function", "function": {"name": "write_file"}},
         ])
@@ -503,7 +521,7 @@ class TestToolEventProgress:
         provider.chat_stream_with_retry = chat_stream_with_retry
         provider.chat_with_retry = AsyncMock()
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="openai-codex/gpt-5.5")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -556,7 +574,7 @@ class TestToolEventProgress:
         provider.chat_stream_with_retry = chat_stream_with_retry
         provider.chat_with_retry = AsyncMock()
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -600,7 +618,7 @@ class TestToolEventProgress:
         provider.chat_stream_with_retry = chat_stream_with_retry
         provider.chat_with_retry = AsyncMock()
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -641,7 +659,7 @@ class TestToolEventProgress:
 
         provider.chat_stream_with_retry = chat_stream_with_retry
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.max_iterations = 1
         loop.tools.get_definitions = MagicMock(return_value=[])
 
@@ -729,7 +747,7 @@ class TestToolEventProgress:
             workspace=tmp_path,
             model="openai-codex/gpt-5.5",
         )
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -754,7 +772,7 @@ class TestToolEventProgress:
         assert provider.chat_stream_with_retry.await_count == 3
 
     @pytest.mark.asyncio
-    async def test_independent_late_subagent_result_gets_complete_webui_turn(
+    async def test_independent_late_subagent_result_gets_complete_mokli_turn(
         self,
         tmp_path: Path,
     ) -> None:
@@ -788,7 +806,7 @@ class TestToolEventProgress:
             workspace=tmp_path,
             model="openai-codex/gpt-5.5",
         )
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
         loop.tools.prepare_call = MagicMock(return_value=(None, {}, None))
 
@@ -801,7 +819,7 @@ class TestToolEventProgress:
         session_key = "websocket:chat-a"
         session = loop.sessions.get_or_create(session_key)
         session.add_message("user", "Run this in the background")
-        session.metadata.update({"webui": True, "title": "Existing title"})
+        session.metadata.update({"mokli": True, "title": "Existing title"})
         loop.sessions.save(session)
         dispatch = asyncio.create_task(loop._dispatch(InboundMessage(
             channel="system",
@@ -879,7 +897,7 @@ class TestToolEventProgress:
         ]
         assert visible_events
         turn_ids = {
-            message.metadata.get(WEBUI_TURN_METADATA_KEY)
+            message.metadata.get(MOKLI_TURN_METADATA_KEY)
             for message in visible_events
         }
         assert len(turn_ids) == 1
@@ -894,13 +912,13 @@ class TestToolEventProgress:
         assert isinstance(owners.pop(), str)
         assert all(
             (message.channel, message.chat_id) == ("websocket", "chat-a")
-            and message.metadata.get("webui") is True
+            and message.metadata.get("mokli") is True
             and message.metadata.get("_wants_stream") is True
             and set(message.metadata) <= {
-                "webui",
+                "mokli",
                 "_wants_stream",
                 WEBSOCKET_TURN_OWNER_METADATA_KEY,
-                WEBUI_TURN_METADATA_KEY,
+                MOKLI_TURN_METADATA_KEY,
                 "latency_ms",
             }
             for message in visible_events
@@ -926,7 +944,7 @@ class TestToolEventProgress:
         provider.chat_stream_with_retry = chat_stream_with_retry
         provider.chat_with_retry = AsyncMock()
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="openai-codex/gpt-5.5")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -1024,7 +1042,7 @@ class TestToolEventProgress:
         provider.get_default_model.return_value = "test-model"
         provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Done", tool_calls=[]))
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await loop._dispatch(InboundMessage(
@@ -1057,7 +1075,7 @@ class TestToolEventProgress:
         provider = MagicMock()
         provider.get_default_model.return_value = "test-model"
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
 
         async def raise_from_turn(*_args, **_kwargs):
             raise RuntimeError("boom")
@@ -1088,7 +1106,7 @@ class TestToolEventProgress:
         assert outbound.index(turn_end_msgs[0]) < outbound.index(statuses[-1])
 
     @pytest.mark.asyncio
-    async def test_webui_title_generation_runs_after_turn_end(self, tmp_path: Path) -> None:
+    async def test_mokli_title_generation_runs_after_turn_end(self, tmp_path: Path) -> None:
         bus = MessageBus()
         provider = MagicMock()
         provider.get_default_model.return_value = "test-model"
@@ -1107,7 +1125,7 @@ class TestToolEventProgress:
 
         provider.chat_stream_with_retry = AsyncMock(side_effect=chat_stream_with_retry)
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         await asyncio.wait_for(loop._dispatch(InboundMessage(
@@ -1115,7 +1133,7 @@ class TestToolEventProgress:
             sender_id="u1",
             chat_id="chat1",
             content="say hello",
-            metadata={"webui": True},
+            metadata={"mokli": True},
         )), timeout=0.5)
 
         outbound: list = []
@@ -1145,7 +1163,7 @@ class TestToolEventProgress:
         assert provider.chat_stream_with_retry.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_webui_title_generation_uses_turn_model_snapshot(
+    async def test_mokli_title_generation_uses_turn_model_snapshot(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -1155,7 +1173,7 @@ class TestToolEventProgress:
         provider.get_default_model.return_value = "test-model"
         provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Done", tool_calls=[]))
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
 
         captured: dict[str, object] = {}
@@ -1165,7 +1183,7 @@ class TestToolEventProgress:
             return False
 
         monkeypatch.setattr(
-            "nanobot.session.webui_turns.maybe_generate_webui_title_after_turn",
+            "mokli.session.mokli_turns.maybe_generate_mokli_title_after_turn",
             fake_title_after_turn,
         )
         scheduled_title: list[object] = []
@@ -1184,7 +1202,7 @@ class TestToolEventProgress:
             sender_id="u1",
             chat_id="chat1",
             content="say hello",
-            metadata={"webui": True},
+            metadata={"mokli": True},
         ))
 
         assert len(scheduled_title) == 1
@@ -1203,25 +1221,25 @@ class TestToolEventProgress:
         assert captured["model"] == "test-model"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("metadata", [{}, {"webui": False}])
-    async def test_webui_title_requires_inbound_opt_in(
+    @pytest.mark.parametrize("metadata", [{}, {"mokli": False}])
+    async def test_mokli_title_requires_inbound_opt_in(
         self,
         tmp_path: Path,
         metadata: dict[str, object],
     ) -> None:
-        from nanobot.session.manager import SessionManager
-        from nanobot.session.webui_turns import maybe_generate_webui_title_after_turn
+        from mokli.session.manager import SessionManager
+        from mokli.session.mokli_turns import maybe_generate_mokli_title_after_turn
 
         sessions = SessionManager(tmp_path)
         session = sessions.get_or_create("websocket:chat1")
-        session.metadata["webui"] = True
+        session.metadata["mokli"] = True
         session.add_message("user", "say hello")
         session.add_message("assistant", "Hello")
         sessions.save(session)
         provider = MagicMock()
         provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Greeting"))
 
-        generated = await maybe_generate_webui_title_after_turn(
+        generated = await maybe_generate_mokli_title_after_turn(
             channel="websocket",
             chat_id="chat1",
             metadata=metadata,
@@ -1236,8 +1254,8 @@ class TestToolEventProgress:
         assert "title" not in session.metadata
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("metadata", [{}, {"webui": False}])
-    async def test_webui_turn_without_opt_in_does_not_schedule_title(
+    @pytest.mark.parametrize("metadata", [{}, {"mokli": False}])
+    async def test_mokli_turn_without_opt_in_does_not_schedule_title(
         self,
         tmp_path: Path,
         metadata: dict[str, object],
@@ -1247,10 +1265,10 @@ class TestToolEventProgress:
         provider.get_default_model.return_value = "test-model"
         provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Done"))
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
         loop.tools.get_definitions = MagicMock(return_value=[])
         session = loop.sessions.get_or_create("websocket:chat1")
-        session.metadata["webui"] = True
+        session.metadata["mokli"] = True
         loop.sessions.save(session)
         scheduled: list[object] = []
 
@@ -1274,7 +1292,7 @@ class TestToolEventProgress:
         assert "title" not in session.metadata
 
     @pytest.mark.asyncio
-    async def test_webui_command_turn_does_not_schedule_title_generation(
+    async def test_mokli_command_turn_does_not_schedule_title_generation(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -1284,13 +1302,13 @@ class TestToolEventProgress:
         provider.get_default_model.return_value = "test-model"
         provider.chat_stream_with_retry = AsyncMock(return_value=LLMResponse(content="Done", tool_calls=[]))
         loop = AgentLoop(bus=bus, provider=provider, workspace=tmp_path, model="test-model")
-        _attach_webui_runtime_events(loop, bus)
+        _attach_mokli_runtime_events(loop, bus)
 
         async def fake_title_after_turn(**_kwargs: object) -> bool:
             raise AssertionError("command-only turns should not generate titles")
 
         monkeypatch.setattr(
-            "nanobot.session.webui_turns.maybe_generate_webui_title_after_turn",
+            "mokli.session.mokli_turns.maybe_generate_mokli_title_after_turn",
             fake_title_after_turn,
         )
         scheduled: list[object] = []
@@ -1301,7 +1319,7 @@ class TestToolEventProgress:
             sender_id="u1",
             chat_id="chat1",
             content="/model",
-            metadata={"webui": True},
+            metadata={"mokli": True},
         ))
 
         assert scheduled == []

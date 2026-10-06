@@ -1,0 +1,13 @@
+{% extends "_layout.html" %}
+{% block body %}
+<p class="na-muted">{{ L('label.result.scorecard.period') }}: {{ p.period }}</p>
+<dl class="na-grid">
+  <div><dt>{{ L('label.result.scorecard.trades') }}</dt><dd>{{ p.trades | num }}</dd></div>
+  <div><dt>{{ L('label.result.scorecard.win_rate') }}</dt><dd>{{ p.win_rate | pct }}</dd></div>
+  <div><dt>{{ L('label.result.scorecard.expectancy') }}</dt><dd>{{ p.expectancy | num }}</dd></div>
+  <div><dt>{{ L('label.result.scorecard.max_dd') }}</dt><dd>{{ p.max_dd | num }}</dd></div>
+</dl>
+{% if p.notes_keys %}
+<ul>{% for n in p.notes_keys %}<li>{{ L(n) }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

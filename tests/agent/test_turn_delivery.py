@@ -2,18 +2,18 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.turn_delivery import TurnDeliveryFactory
-from nanobot.bus.events import InboundMessage, OutboundMessage
-from nanobot.bus.outbound_events import ContextCompactionEvent
-from nanobot.bus.queue import MessageBus
-from nanobot.bus.runtime_events import TurnCompleted
-from nanobot.events import RetryStatusEvent
-from nanobot.providers.base import LLMProvider, ProviderCallContext
-from nanobot.session.manager import SessionManager
-from nanobot.session.webui_turns import WebuiTurnRoutePolicy
-from nanobot.webui.metadata import (
+from mokli.agent.turn_delivery import TurnDeliveryFactory
+from mokli.bus.events import InboundMessage, OutboundMessage
+from mokli.bus.outbound_events import ContextCompactionEvent
+from mokli.bus.queue import MessageBus
+from mokli.bus.runtime_events import TurnCompleted
+from mokli.events import RetryStatusEvent
+from mokli.providers.base import LLMProvider, ProviderCallContext
+from mokli.session.manager import SessionManager
+from mokli.session.mokli_turns import MokliTurnRoutePolicy
+from mokli.surface.metadata import (
+    MOKLI_TURN_METADATA_KEY,
     WEBSOCKET_TURN_OWNER_METADATA_KEY,
-    WEBUI_TURN_METADATA_KEY,
 )
 
 
@@ -39,7 +39,7 @@ async def test_idle_compaction_uses_the_session_delivery_route(
     msg = InboundMessage(
         channel=channel, sender_id="user", chat_id=chat_id, content="hello",
         metadata={
-            "webui_turn_id": "turn-1", "sender_name": "User",
+            "mokli_turn_id": "turn-1", "sender_name": "User",
             "message_id": "received-1", "thread_id": "received-thread", **metadata,
         },
     )
@@ -99,7 +99,7 @@ async def test_retry_event_uses_scoped_channel_delivery() -> None:
         sender_id="user",
         chat_id="chat-a",
         content="hello",
-        metadata={WEBUI_TURN_METADATA_KEY: "turn-1"},
+        metadata={MOKLI_TURN_METADATA_KEY: "turn-1"},
     )
     delivery = TurnDeliveryFactory(bus).create(msg, msg.session_key)
 
@@ -116,7 +116,7 @@ async def test_retry_event_uses_scoped_channel_delivery() -> None:
     assert isinstance(outbound.event, RetryStatusEvent)
     assert outbound.event.error_kind == "connection"
     assert outbound.event.next_retry_at == 123.5
-    assert outbound.metadata[WEBUI_TURN_METADATA_KEY] == "turn-1"
+    assert outbound.metadata[MOKLI_TURN_METADATA_KEY] == "turn-1"
 
 
 @pytest.mark.asyncio
@@ -171,6 +171,33 @@ async def test_delivery_keeps_model_error_message_for_ordinary_channels() -> Non
     assert await bus.consume_outbound() is response
 
 
+@pytest.mark.asyncio
+async def test_agent_api_retry_reaches_the_bus_without_channel_text() -> None:
+    from mokli.agent_api.events import translate_runtime_event
+
+    bus = MessageBus()
+    seen: list[RetryStatusEvent] = []
+    bus.subscribe(seen.append)
+    msg = InboundMessage(
+        channel="agent_api",
+        sender_id="user",
+        chat_id="chat",
+        content="hello",
+    )
+    delivery = TurnDeliveryFactory(bus).create(msg, "agent_api:chat")
+    assert delivery.events.accepts(RetryStatusEvent)
+    await delivery.events.emit(RetryStatusEvent("waiting", 2, 4, "connection"))
+    assert bus.outbound.empty()
+    assert len(seen) == 1
+    assert seen[0].session_key == "agent_api:chat"
+    translated = translate_runtime_event(seen[0])
+    assert translated is not None
+    assert translated["kind"] == "retry"
+    assert translated["session"] == "chat"
+    assert translated["data"]["attempt"] == 2
+    assert translated["data"]["state"] == "waiting"
+
+
 @pytest.mark.parametrize("channel", ["telegram", "cli", "websocket"])
 async def test_background_retry_status_is_quiet(channel) -> None:
     factory = TurnDeliveryFactory(MessageBus())
@@ -189,20 +216,20 @@ async def test_retry_completion_is_isolated_between_turns_in_one_session() -> No
     factory = TurnDeliveryFactory(bus)
     deliveries = [factory.create(InboundMessage(
         channel="websocket", sender_id="user", chat_id="chat", content="",
-        metadata={WEBUI_TURN_METADATA_KEY: turn},
+        metadata={MOKLI_TURN_METADATA_KEY: turn},
     ), "websocket:chat") for turn in ("first", "second")]
     await deliveries[0].events.emit(RetryStatusEvent("exhausted", 4, 4, "connection"))
     for delivery in reversed(deliveries):
         delivery.record_stop_reason("error")
         await delivery.complete(None, publish_completion=True)
-    assert [(event.context.metadata[WEBUI_TURN_METADATA_KEY], event.failure_attempts)
+    assert [(event.context.metadata[MOKLI_TURN_METADATA_KEY], event.failure_attempts)
             for event in seen] == [("second", None), ("first", 4)]
 
 
 async def test_next_model_request_clears_exhaustion_within_the_same_turn() -> None:
     from unittest.mock import AsyncMock, patch
 
-    from nanobot.providers.base import LLMResponse
+    from mokli.providers.base import LLMResponse
 
     class Provider(LLMProvider):
         async def chat(self, **kwargs):
@@ -217,7 +244,7 @@ async def test_next_model_request_clears_exhaustion_within_the_same_turn() -> No
     msg = InboundMessage(channel="websocket", sender_id="user", chat_id="chat", content="")
     delivery = TurnDeliveryFactory(bus).create(msg, msg.session_key)
     await delivery.events.emit(RetryStatusEvent("exhausted", 4, 4, "connection"))
-    with patch("nanobot.providers.base.asyncio.sleep", new_callable=AsyncMock):
+    with patch("mokli.providers.base.asyncio.sleep", new_callable=AsyncMock):
         response = await Provider(provider_name="test").chat_stream_with_retry(
             [{"role": "user", "content": "continue"}],
             provider_context=ProviderCallContext(events=delivery.events),
@@ -231,7 +258,7 @@ async def test_next_model_request_clears_exhaustion_within_the_same_turn() -> No
 def test_websocket_lifecycles_get_distinct_internal_owners(tmp_path: Path) -> None:
     factory = TurnDeliveryFactory(
         MessageBus(),
-        route_policy=WebuiTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
+        route_policy=MokliTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
     )
     first_msg = InboundMessage(
         channel="websocket",
@@ -257,13 +284,13 @@ def test_websocket_lifecycles_get_distinct_internal_owners(tmp_path: Path) -> No
     assert first_owner != second_owner
     assert first_owner != "attacker-reused-owner"
     assert second_owner != "attacker-reused-owner"
-    assert WEBUI_TURN_METADATA_KEY not in first.lifecycle_message.metadata
+    assert MOKLI_TURN_METADATA_KEY not in first.lifecycle_message.metadata
     assert first_msg.metadata[WEBSOCKET_TURN_OWNER_METADATA_KEY] == first_owner
     assert second_msg.metadata[WEBSOCKET_TURN_OWNER_METADATA_KEY] == second_owner
 
 
 def test_websocket_lifecycle_reuses_registered_ingress_owner(tmp_path: Path) -> None:
-    from nanobot.session import webui_turns as wth
+    from mokli.session import mokli_turns as wth
 
     owner = wth.register_queued_websocket_turn_if_idle("chat-queued", "turn-queued")
     assert owner is not None
@@ -274,12 +301,12 @@ def test_websocket_lifecycle_reuses_registered_ingress_owner(tmp_path: Path) -> 
         content="queued",
         metadata={
             WEBSOCKET_TURN_OWNER_METADATA_KEY: owner,
-            WEBUI_TURN_METADATA_KEY: "turn-queued",
+            MOKLI_TURN_METADATA_KEY: "turn-queued",
         },
     )
     factory = TurnDeliveryFactory(
         MessageBus(),
-        route_policy=WebuiTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
+        route_policy=MokliTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
     )
 
     try:
@@ -291,16 +318,16 @@ def test_websocket_lifecycle_reuses_registered_ingress_owner(tmp_path: Path) -> 
         wth.clear_websocket_turn_if_current("chat-queued", owner)
 
 
-def test_internal_user_input_uses_the_persisted_webui_route(tmp_path: Path) -> None:
-    from nanobot.session import webui_turns as wth
+def test_internal_user_input_uses_the_persisted_mokli_route(tmp_path: Path) -> None:
+    from mokli.session import mokli_turns as wth
 
     sessions = SessionManager(tmp_path / "sessions")
     target = sessions.get_or_create("websocket:target")
-    target.metadata["webui"] = True
+    target.metadata["mokli"] = True
     sessions.save(target)
     factory = TurnDeliveryFactory(
         MessageBus(),
-        route_policy=WebuiTurnRoutePolicy(sessions),
+        route_policy=MokliTurnRoutePolicy(sessions),
     )
     msg = InboundMessage(
         channel="system",
@@ -326,18 +353,18 @@ async def test_same_chat_different_sessions_restore_previous_active_projection(
 ) -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from nanobot.session import webui_turns as wth
+    from mokli.session import mokli_turns as wth
 
     factory = TurnDeliveryFactory(
         MessageBus(),
-        route_policy=WebuiTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
+        route_policy=MokliTurnRoutePolicy(SessionManager(tmp_path / "sessions")),
     )
     first_msg = InboundMessage(
         channel="websocket",
         sender_id="user",
         chat_id="shared-chat",
         content="first",
-        metadata={WEBUI_TURN_METADATA_KEY: "turn-first"},
+        metadata={MOKLI_TURN_METADATA_KEY: "turn-first"},
         session_key_override="websocket:session-first",
     )
     second_msg = InboundMessage(
@@ -345,7 +372,7 @@ async def test_same_chat_different_sessions_restore_previous_active_projection(
         sender_id="user",
         chat_id="shared-chat",
         content="second",
-        metadata={WEBUI_TURN_METADATA_KEY: "turn-second"},
+        metadata={MOKLI_TURN_METADATA_KEY: "turn-second"},
         session_key_override="websocket:session-second",
     )
     first = factory.create(first_msg, first_msg.session_key)
@@ -384,11 +411,11 @@ async def test_same_chat_different_sessions_restore_previous_active_projection(
         wth._WEBSOCKET_TURN_OWNERS.pop("shared-chat", None)
 
 
-def test_late_subagent_route_requires_webui_owned_session(tmp_path: Path) -> None:
+def test_late_subagent_route_requires_mokli_owned_session(tmp_path: Path) -> None:
     sessions = SessionManager(tmp_path)
     factory = TurnDeliveryFactory(
         MessageBus(),
-        route_policy=WebuiTurnRoutePolicy(sessions),
+        route_policy=MokliTurnRoutePolicy(sessions),
     )
     session_key = "websocket:chat-a"
     msg = InboundMessage(
@@ -411,21 +438,21 @@ def test_late_subagent_route_requires_webui_owned_session(tmp_path: Path) -> Non
     assert hidden_route.publish_lifecycle is False
 
     session = sessions.get_or_create(session_key)
-    session.metadata["webui"] = True
+    session.metadata["mokli"] = True
     first_visible_route = factory.create(msg, session_key).route
     second_visible_route = factory.create(msg, session_key).route
 
     assert first_visible_route.publish_lifecycle is True
     assert set(first_visible_route.metadata) == {
-        "webui",
+        "mokli",
         "_wants_stream",
         WEBSOCKET_TURN_OWNER_METADATA_KEY,
-        WEBUI_TURN_METADATA_KEY,
+        MOKLI_TURN_METADATA_KEY,
     }
-    assert first_visible_route.metadata["webui"] is True
+    assert first_visible_route.metadata["mokli"] is True
     assert first_visible_route.metadata["_wants_stream"] is True
-    first_turn_id = first_visible_route.metadata[WEBUI_TURN_METADATA_KEY]
-    second_turn_id = second_visible_route.metadata[WEBUI_TURN_METADATA_KEY]
+    first_turn_id = first_visible_route.metadata[MOKLI_TURN_METADATA_KEY]
+    second_turn_id = second_visible_route.metadata[MOKLI_TURN_METADATA_KEY]
     assert first_turn_id.startswith("subagent:")
     assert second_turn_id.startswith("subagent:")
     assert first_turn_id != second_turn_id

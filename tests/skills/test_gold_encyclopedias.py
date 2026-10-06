@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from nanobot.agent.skills import SkillsLoader, parse_skill_metadata, valid_skill_metadata
+from mokli.agent.skills import SkillsLoader, parse_skill_metadata, valid_skill_metadata
 
-SKILLS_ROOT = Path("nanobot/skills")
+SKILLS_ROOT = Path("mokli/skills")
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _SECTION_CODE = re.compile(r"\bS[1-9](?:\.\d+)?\b")
 _GATE_WIRE_ID = re.compile(r"\bG(?:[1-9]|1[0-9]|20)\b")

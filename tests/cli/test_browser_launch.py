@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from nanobot.cli import desktop_target, webui_support
+from mokli.cli import desktop_target, mokli_support
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def macos_url_services(monkeypatch):
         return services
 
     monkeypatch.setattr(ctypes, "CDLL", load)
-    monkeypatch.setattr(webui_support.sys, "platform", "darwin")
+    monkeypatch.setattr(mokli_support.sys, "platform", "darwin")
     monkeypatch.setenv("BROWSER", "unsafe-browser %s")
     monkeypatch.setattr(
         subprocess, "run", lambda *_a, **_kw: pytest.fail("URL reached subprocess")
@@ -32,7 +32,7 @@ def macos_url_services(monkeypatch):
         subprocess, "Popen", lambda *_a, **_kw: pytest.fail("URL reached process argv")
     )
     monkeypatch.setattr(
-        webui_support.webbrowser, "open", lambda *_a, **_kw: pytest.fail("unsafe browser fallback")
+        mokli_support.webbrowser, "open", lambda *_a, **_kw: pytest.fail("unsafe browser fallback")
     )
     return foundation, services
 
@@ -45,7 +45,7 @@ def macos_url_services(monkeypatch):
 ])
 def test_macos_uses_os_url_events_without_process_arguments(macos_url_services, capsys, url):
     foundation, services = macos_url_services
-    assert webui_support._launch_browser(url) is True
+    assert mokli_support._launch_browser(url) is True
     encoded = url.encode("utf-8")
     foundation.CFURLCreateWithBytes.assert_called_once_with(
         None, encoded, len(encoded), 0x08000100, None
@@ -72,7 +72,7 @@ def test_macos_browser_failures_never_fall_back_or_log_url(
         services.LSOpenCFURLRef.side_effect = OSError(url)
     else:
         url += "\ud800"
-    assert webui_support._launch_browser(url) is False
+    assert mokli_support._launch_browser(url) is False
     assert capsys.readouterr() == ("", "")
     if failure in {"open", "exception"}:
         foundation.CFRelease.assert_called_once_with(123)
@@ -93,14 +93,14 @@ def test_desktop_handoff_uses_the_protected_shared_launcher(
         def request(self, operation):
             calls.append(operation)
             return desktop_target.DesktopReply(
-                "ready", frozenset({"webui"}), url if operation == "webui" else None,
+                "ready", frozenset({"mokli"}), url if operation == "mokli" else None,
             )
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
     monkeypatch.setattr(desktop_target, "discover_desktop_target", Target)
     monkeypatch.setattr(desktop_target, "_choose_target", lambda _: "desktop")
-    assert desktop_target.dispatch_bare_desktop_target(["webui"]) == exit_code
-    assert calls == ["status", "webui"]
+    assert desktop_target.dispatch_bare_desktop_target(["mokli"]) == exit_code
+    assert calls == ["status", "mokli"]
     assert foundation.CFURLCreateWithBytes.call_args.args[1] == url.encode()
     output = capsys.readouterr()
     assert "synthetic-only" not in output.out + output.err

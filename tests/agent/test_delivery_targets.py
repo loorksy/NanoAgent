@@ -1,6 +1,6 @@
 """Cross-channel delivery target resolution."""
 
-from nanobot.agent.delivery_targets import (
+from mokli.agent.delivery_targets import (
     default_telegram_chat_id,
     resolve_telegram_chat_id,
     telegram_chat_id_from_sender,
@@ -20,7 +20,7 @@ def test_resolve_telegram_chat_id_rejects_uuid() -> None:
 
 def test_default_telegram_chat_id_from_pairing(monkeypatch) -> None:
     monkeypatch.setattr(
-        "nanobot.agent.delivery_targets.get_approved",
+        "mokli.agent.delivery_targets.get_approved",
         lambda _channel: ["5969744996|aswadtr"],
     )
     assert default_telegram_chat_id() == "5969744996"

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.memory import _HISTORY_ENTRY_HARD_CAP, MemoryStore
+from mokli.agent.memory import _HISTORY_ENTRY_HARD_CAP, MemoryStore
 
 
 @pytest.fixture
@@ -264,7 +264,7 @@ class TestAppendHistoryHardCap:
         """Repeated oversized writes should warn only on the first occurrence."""
         records: list[str] = []
         monkeypatch.setattr(
-            "nanobot.agent.memory.logger.warning",
+            "mokli.agent.memory.logger.warning",
             lambda message, *args: records.append(message.format(*args)),
         )
         huge = "x" * (_HISTORY_ENTRY_HARD_CAP + 1)

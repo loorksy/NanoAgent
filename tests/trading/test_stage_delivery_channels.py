@@ -1,10 +1,10 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from nanobot.bus.events import OUTBOUND_META_AGENT_UI
-from nanobot.channels.telegram.trading_progress import TRADING_PROGRESS_META
-from nanobot.trading.stage_delivery import TradingStagePublisher
-from nanobot.trading.stage_events import emit_stage
+from mokli.bus.events import OUTBOUND_META_AGENT_UI
+from mokli.channels.telegram.trading_progress import TRADING_PROGRESS_META
+from mokli.trading.stage_delivery import TradingStagePublisher
+from mokli.trading.stage_events import emit_stage
 
 
 def test_publish_result_sends_telegram_html_card() -> None:

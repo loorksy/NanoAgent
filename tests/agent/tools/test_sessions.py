@@ -8,14 +8,14 @@ from datetime import datetime
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.loader import ToolLoader
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent.tools.sessions import ReadSessionTool, SearchSessionsTool
-from nanobot.runtime_context import RuntimeContextBlock, append_runtime_context
-from nanobot.session.manager import SessionManager
-from nanobot.session.session_handles import SessionHandleResolver
-from nanobot.webui.transcript import append_transcript_object
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.loader import ToolLoader
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.tools.sessions import ReadSessionTool, SearchSessionsTool
+from mokli.runtime_context import RuntimeContextBlock, append_runtime_context
+from mokli.session.manager import SessionManager
+from mokli.session.session_handles import SessionHandleResolver
+from mokli.surface.transcript import append_transcript_object
 
 
 def _save_session(
@@ -39,7 +39,7 @@ def _decode(value: str) -> dict[str, object]:
     return json.loads(str(value))
 
 
-def _webui_request(
+def _mokli_request(
     session_key: str = "websocket:current",
 ) -> AbstractContextManager[RequestContext]:
     return request_context(RequestContext(
@@ -79,13 +79,13 @@ def test_session_tools_do_not_own_runtime_context(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_search_sessions_reads_the_full_webui_transcript_after_compaction(
+async def test_search_sessions_reads_the_full_mokli_transcript_after_compaction(
     tmp_path,
     monkeypatch,
 ):
-    webui_dir = tmp_path / "webui"
-    monkeypatch.setattr("nanobot.webui.transcript.get_webui_dir", lambda: webui_dir)
-    monkeypatch.setattr("nanobot.webui.session_list_index.get_webui_dir", lambda: webui_dir)
+    mokli_dir = tmp_path / "mokli"
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,
@@ -98,7 +98,7 @@ async def test_search_sessions_reads_the_full_webui_transcript_after_compaction(
         "text": "decision only in the old transcript",
     })
 
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await SearchSessionsTool(manager).execute(query="old transcript"))
 
     assert [row["session_key"] for row in result["results"]] == ["websocket:history"]
@@ -109,9 +109,9 @@ async def test_search_sessions_reads_the_full_webui_transcript_after_compaction(
 
 @pytest.mark.asyncio
 async def test_search_sessions_has_no_hidden_content_scan_cutoff(tmp_path, monkeypatch):
-    webui_dir = tmp_path / "webui"
-    monkeypatch.setattr("nanobot.webui.transcript.get_webui_dir", lambda: webui_dir)
-    monkeypatch.setattr("nanobot.webui.session_list_index.get_webui_dir", lambda: webui_dir)
+    mokli_dir = tmp_path / "mokli"
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     for index in range(200):
         _save_session(
@@ -129,7 +129,7 @@ async def test_search_sessions_has_no_hidden_content_scan_cutoff(tmp_path, monke
         updated_at=datetime(2024, 1, 1),
     )
 
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await SearchSessionsTool(manager).execute(query="needle"))
 
     assert [row["session_key"] for row in result["results"]] == ["websocket:old-target"]
@@ -137,9 +137,9 @@ async def test_search_sessions_has_no_hidden_content_scan_cutoff(tmp_path, monke
 
 @pytest.mark.asyncio
 async def test_search_sessions_ranks_titles_before_message_matches(tmp_path, monkeypatch):
-    webui_dir = tmp_path / "webui"
-    monkeypatch.setattr("nanobot.webui.transcript.get_webui_dir", lambda: webui_dir)
-    monkeypatch.setattr("nanobot.webui.session_list_index.get_webui_dir", lambda: webui_dir)
+    mokli_dir = tmp_path / "mokli"
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,
@@ -162,7 +162,7 @@ async def test_search_sessions_ranks_titles_before_message_matches(tmp_path, mon
         updated_at=datetime(2025, 1, 1),
     )
 
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await SearchSessionsTool(manager).execute(query="pricing"))
 
     rows = result["results"]
@@ -192,7 +192,7 @@ async def test_session_tools_hide_private_and_non_conversation_messages(tmp_path
     )
     search = SearchSessionsTool(manager)
 
-    with _webui_request():
+    with _mokli_request():
         hidden = _decode(await search.execute(query="needle"))
         read = _decode(await ReadSessionTool(manager).execute(session_key="websocket:history"))
 
@@ -220,7 +220,7 @@ async def test_read_session_filters_by_query_and_returns_recent_matches(tmp_path
         ],
     )
 
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await ReadSessionTool(manager).execute(
             session_key="websocket:decisions",
             query="cloud",
@@ -252,7 +252,7 @@ async def test_read_session_accepts_unfiltered_query_forms(tmp_path, query):
     kwargs = {"session_key": "websocket:history"}
     if query is not None:
         kwargs["query"] = query
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await ReadSessionTool(manager).execute(**kwargs))
 
     assert result["query"] is None
@@ -265,7 +265,7 @@ async def test_read_session_accepts_unfiltered_query_forms(tmp_path, query):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("query", ["*", ".*"])
 async def test_read_session_rejects_match_all_patterns_with_retry_guidance(tmp_path, query):
-    with _webui_request():
+    with _mokli_request():
         result = await ReadSessionTool(SessionManager(tmp_path)).execute(
             session_key="websocket:history",
             query=query,
@@ -278,7 +278,7 @@ async def test_read_session_rejects_match_all_patterns_with_retry_guidance(tmp_p
 
 @pytest.mark.asyncio
 async def test_read_session_reports_invalid_requests(tmp_path):
-    with _webui_request():
+    with _mokli_request():
         missing = await ReadSessionTool(SessionManager(tmp_path)).execute(
             session_key="websocket:missing"
         )
@@ -340,7 +340,7 @@ async def test_read_session_accepts_a_persisted_session_handle(tmp_path):
     handle = SessionHandleResolver(manager).handle_for_session("slack:history")
     assert handle is not None
 
-    with _webui_request():
+    with _mokli_request():
         result = _decode(await ReadSessionTool(manager).execute(
             session_key=f"@{handle.name}",
         ))
@@ -352,9 +352,9 @@ async def test_read_session_accepts_a_persisted_session_handle(tmp_path):
 
 @pytest.mark.asyncio
 async def test_session_tools_work_without_request_context(tmp_path, monkeypatch):
-    webui_dir = tmp_path / "webui"
-    monkeypatch.setattr("nanobot.webui.transcript.get_webui_dir", lambda: webui_dir)
-    monkeypatch.setattr("nanobot.webui.session_list_index.get_webui_dir", lambda: webui_dir)
+    mokli_dir = tmp_path / "mokli"
+    monkeypatch.setattr("mokli.surface.transcript.get_mokli_dir", lambda: mokli_dir)
+    monkeypatch.setattr("mokli.surface.session_list_index.get_mokli_dir", lambda: mokli_dir)
     manager = SessionManager(tmp_path)
     _save_session(
         manager,

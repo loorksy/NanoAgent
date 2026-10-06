@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
-from nanobot.cron.types import CronJob, CronPayload, CronSchedule
-from nanobot.trading.cron import (
+from mokli.cron.types import CronJob, CronPayload, CronSchedule
+from mokli.trading.bots.coordinator import BotCycleResult
+from mokli.trading.cron import (
     GOLD_FOLLOWUP_JOB_ID,
     GOLD_NEWS_JOB_ID,
     GOLD_SCAN_JOB_ID,
+    TRADING_CRON_JOB_IDS,
     register_trading_cron_jobs,
+    run_cot_job,
+    run_event_monitor_job,
     run_gold_news_job,
+    run_gold_scan_job,
 )
-from nanobot.trading.types import EconomicEvent, NewsMacroResult
+from mokli.trading.types import EconomicEvent, NewsMacroResult
 
 
 class _FakeCron:
@@ -48,7 +54,7 @@ def test_register_trading_cron_jobs_enabled_registers_all() -> None:
 
     register_trading_cron_jobs(cron, enabled=True)
 
-    assert set(cron.jobs) == {GOLD_SCAN_JOB_ID, GOLD_NEWS_JOB_ID, GOLD_FOLLOWUP_JOB_ID}
+    assert set(cron.jobs) == set(TRADING_CRON_JOB_IDS)
 
 
 def test_run_gold_news_job_reads_economic_event_title(monkeypatch) -> None:
@@ -63,10 +69,66 @@ def test_run_gold_news_job_reads_economic_event_title(monkeypatch) -> None:
         reason="high-impact calendar",
     )
     monkeypatch.setattr(
-        "nanobot.trading.agents.news_macro.run_news_macro_agent",
+        "mokli.trading.agents.news_macro.run_news_macro_agent",
         lambda: news,
     )
 
     alert = asyncio.run(run_gold_news_job())
 
     assert alert == "Gold news watch: high — US CPI"
+
+
+def test_trading_cron_downloads_leave_the_event_loop_free(monkeypatch) -> None:
+    """Calendar, COT, news, and the gold scan wait on a worker, not the loop."""
+
+    def slow(result: object) -> object:
+        def _run() -> object:
+            time.sleep(0.2)
+            return result
+
+        return _run
+
+    news = NewsMacroResult(
+        news_risk="low",
+        bias_impact="mixed",
+        affected_currencies=["USD"],
+        upcoming_events=[],
+        trade_allowed=True,
+        reason="quiet",
+    )
+    monkeypatch.setattr(
+        "mokli.trading.agents.news_macro.run_news_macro_agent",
+        slow(news),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.news.forex_factory.fetch_upcoming_events",
+        slow([]),
+    )
+    monkeypatch.setattr(
+        "mokli.trading.intel.cot.load_gold_cot",
+        slow({"available": False, "notice_key": "cot.bias_neutral"}),
+    )
+    monkeypatch.setattr("mokli.trading.cron.run_bot_cycle", slow(BotCycleResult()))
+
+    async def _one(job) -> None:
+        order: list[str] = []
+
+        async def _mark() -> None:
+            await asyncio.sleep(0.05)
+            order.append("task")
+
+        started = time.perf_counter()
+        marker = asyncio.create_task(_mark())
+        await job()
+        await marker
+        order.append("job")
+        assert order == ["task", "job"]
+        assert time.perf_counter() - started < 0.35
+
+    async def _all() -> None:
+        await _one(run_gold_news_job)
+        await _one(run_event_monitor_job)
+        await _one(run_cot_job)
+        await _one(run_gold_scan_job)
+
+    asyncio.run(_all())

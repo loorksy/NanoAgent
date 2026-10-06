@@ -1,0 +1,467 @@
+"""Opaque conversation state for Responses API item replay."""
+
+from __future__ import annotations
+
+import json
+from copy import deepcopy
+from typing import Any, cast
+
+from loguru import logger
+
+from mokli.providers.base import LLMUsage, ProviderConversationState
+from mokli.providers.openai_responses.converters import convert_messages, split_tool_call_id
+
+RESPONSES_STATE_KIND = "openai_responses"
+RESPONSES_STATE_VERSION = 1
+_ITEMS_KEY = "items"
+_CONTEXT_TOKENS_KEY = "context_tokens"
+_COMPACTION_ITEM_TYPES = frozenset({
+    "compaction",
+    "compaction_summary",
+    "context_compaction",
+})
+
+
+def responses_state_matches(
+    state: ProviderConversationState,
+    *,
+    provider: str,
+    model: str,
+) -> bool:
+    """Return whether *state* belongs to this exact Responses endpoint/model."""
+    return (
+        state.kind == RESPONSES_STATE_KIND
+        and state.version == RESPONSES_STATE_VERSION
+        and state.provider == provider
+        and state.model == model
+        and _state_items(state) is not None
+    )
+
+
+def prepare_responses_input(
+    messages: list[dict[str, Any]],
+    *,
+    state: ProviderConversationState | None,
+    provider: str,
+    model: str,
+    preserve_reasoning: bool = False,
+) -> tuple[str, list[dict[str, Any]], bool]:
+    """Build a request from exact prior items plus only newly appended messages.
+
+    The full Chat transcript remains the source for the current instructions.
+    When no compatible state exists, it is converted normally as a safe
+    fallback.
+    """
+    instructions, fallback_items = convert_messages(
+        messages,
+        preserve_reasoning=preserve_reasoning,
+        include_item_ids=False,
+    )
+    if state is None or not responses_state_matches(
+        state,
+        provider=provider,
+        model=model,
+    ):
+        return instructions, fallback_items, False
+
+    prior_items = _state_items(state)
+    if prior_items is None:
+        return instructions, fallback_items, False
+
+    _, delta_items = convert_messages(
+        state.pending_messages,
+        preserve_reasoning=preserve_reasoning,
+        include_item_ids=False,
+    )
+    logger.debug(
+        "Replaying Responses state: prior_items={} pending_messages={}",
+        len(prior_items),
+        len(state.pending_messages),
+    )
+    replayed_items = deepcopy(prior_items)
+    for item in replayed_items:
+        if item.get("type") == "reasoning":
+            item.pop("status", None)
+    # The chat transcript is folded before this call. Stored items still hold
+    # the output from the round that produced it. Replace that payload when
+    # the prepared transcript already has a shorter copy for the same call.
+    _shrink_replayed_tool_payloads(replayed_items, messages)
+    _shrink_replayed_announcements(replayed_items, messages)
+    _shrink_replayed_user_context(replayed_items, messages)
+    return instructions, [*replayed_items, *delta_items], True
+
+
+def _tool_output_text(content: Any) -> str | None:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    parts: list[str] = []
+    for raw_block in cast(list[object], content):
+        if not isinstance(raw_block, dict):
+            return None
+        block = cast(dict[str, Any], raw_block)
+        if block.get("type") != "text":
+            return None
+        text = block.get("text")
+        if not isinstance(text, str):
+            return None
+        parts.append(text)
+    return "\n".join(parts)
+
+
+def _payload_chars(value: Any) -> int:
+    if isinstance(value, str):
+        return len(value)
+    return len(json.dumps(value, ensure_ascii=False))
+
+
+def _shrink_replayed_tool_payloads(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Use the prepared tool text when it is shorter than the stored item."""
+    outputs: dict[str, str] = {}
+    arguments: dict[str, str] = {}
+    for message in messages:
+        role = message.get("role")
+        if role == "tool":
+            text = _tool_output_text(message.get("content"))
+            if text is None:
+                continue
+            call_id, _item_id = split_tool_call_id(message.get("tool_call_id"))
+            outputs[call_id] = text
+            continue
+        if role != "assistant":
+            continue
+        for raw_call in cast(list[object], message.get("tool_calls") or []):
+            if not isinstance(raw_call, dict):
+                continue
+            call = cast(dict[str, Any], raw_call)
+            call_id, _item_id = split_tool_call_id(call.get("id"))
+            function = call.get("function")
+            if not isinstance(function, dict):
+                continue
+            raw_args = cast(dict[str, Any], function).get("arguments")
+            if isinstance(raw_args, str):
+                arguments[call_id] = raw_args
+            elif isinstance(raw_args, dict):
+                arguments[call_id] = json.dumps(raw_args, ensure_ascii=False)
+    for item in items:
+        kind = item.get("type")
+        call_id = str(item.get("call_id") or "")
+        if kind == "function_call_output":
+            replacement = outputs.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("output")):
+                item["output"] = replacement
+        elif kind == "function_call":
+            replacement = arguments.get(call_id)
+            if replacement is not None and len(replacement) < _payload_chars(item.get("arguments")):
+                item["arguments"] = replacement
+
+
+# Kept in step with ``context_governance`` announcement marks. A folded
+# reference starts with the second; the saved announcement starts with the first.
+_ANNOUNCE_PREFIX = "[Subagent "
+_ANNOUNCE_MARK = "[مرجع نتيجة وكيل سابق:"
+
+
+def _announcement_body(text: str) -> str | None:
+    if text.startswith(_ANNOUNCE_PREFIX) or text.startswith(_ANNOUNCE_MARK):
+        return text
+    return None
+
+
+def _prepared_announcement(message: dict[str, Any]) -> str | None:
+    if message.get("role") != "assistant":
+        return None
+    content = message.get("content")
+    if not isinstance(content, str):
+        return None
+    return _announcement_body(content)
+
+
+def _stored_announcement_text(content: Any) -> str | None:
+    """Return one announcement string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return _announcement_body(content)
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"output_text", "input_text", "text"}:
+        return None
+    text = block.get("text")
+    if not isinstance(text, str):
+        return None
+    return _announcement_body(text)
+
+
+def _stored_announcement(item: dict[str, Any]) -> str | None:
+    """Assistant message items and the user item from the follow-up turn."""
+    role = item.get("role")
+    kind = item.get("type")
+    if role == "assistant":
+        if kind != "message":
+            return None
+    elif role == "user":
+        if kind not in {None, "message"}:
+            return None
+    else:
+        return None
+    return _stored_announcement_text(item.get("content"))
+
+
+def _shrink_replayed_announcements(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared announcement onto the matching stored item.
+
+    The follow-up turn sends the announcement as the current user message, so
+    the stored item is a user item. The next question folds the saved
+    assistant copy. Alignment is by order, and only when both sides have the
+    same count. A normal answer is absent from both lists. An unread
+    announcement is still the full text on both sides, so the prepared copy
+    is not shorter and the stored item stays. A count mismatch leaves every
+    item unchanged.
+    """
+    prepared = [
+        text
+        for message in messages
+        if (text := _prepared_announcement(message)) is not None
+    ]
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        text = _stored_announcement(item)
+        if text is None:
+            continue
+        stored.append((item, text))
+    if len(prepared) != len(stored):
+        return
+    for (item, current), replacement in zip(stored, prepared, strict=True):
+        if len(replacement) >= len(current):
+            continue
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
+
+
+# Suffixes get_history removes before the next request. A stored user item
+# still holds the copy from the turn that produced it.
+_TURN_CONTEXT_HEADS = (
+    "[Runtime Context",
+    "[Active Skills",
+    "[Goal Runtime Guidance",
+)
+
+
+def _single_user_text(content: Any) -> str | None:
+    """One user string. Multi-block items stay untouched."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    if not isinstance(block, dict):
+        return None
+    if block.get("type") not in {"input_text", "text", "output_text"}:
+        return None
+    text = block.get("text")
+    return text if isinstance(text, str) else None
+
+
+def _stripped_turn_context(stored: str, prepared: str) -> bool:
+    if not prepared or len(prepared) >= len(stored) or not stored.startswith(prepared):
+        return False
+    tail = stored[len(prepared):].lstrip("\n")
+    return any(tail.startswith(head) for head in _TURN_CONTEXT_HEADS)
+
+
+def _shrink_replayed_user_context(
+    items: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+) -> None:
+    """Copy a shorter prepared user text when history already dropped the suffix.
+
+    Pairing is in order. An equal text stays. A shorter text replaces the
+    stored item only when the removed tail is turn-local context. Any other
+    difference stops the walk so a later item is not guessed. The new user
+    message is not in the stored items, so its fresh context stays on the delta.
+    """
+    prepared: list[str] = []
+    for message in messages:
+        if message.get("role") != "user":
+            continue
+        text = _single_user_text(message.get("content"))
+        if text is not None:
+            prepared.append(text)
+    stored: list[tuple[dict[str, Any], str]] = []
+    for item in items:
+        if item.get("role") != "user":
+            continue
+        if item.get("type") not in {None, "message"}:
+            return
+        text = _single_user_text(item.get("content"))
+        if text is None:
+            return
+        stored.append((item, text))
+    index = 0
+    for item, current in stored:
+        if index >= len(prepared):
+            return
+        replacement = prepared[index]
+        if replacement == current:
+            index += 1
+            continue
+        if not _stripped_turn_context(current, replacement):
+            return
+        content = item.get("content")
+        if isinstance(content, str):
+            item["content"] = replacement
+        elif isinstance(content, list):
+            cast(dict[str, Any], content[0])["text"] = replacement
+        index += 1
+
+
+def build_responses_state(
+    *,
+    provider: str,
+    model: str,
+    input_items: list[dict[str, Any]],
+    output_items: list[dict[str, Any]],
+    usage: LLMUsage | None = None,
+) -> ProviderConversationState:
+    """Create the canonical next state from request input and every output item."""
+    unpruned_items = [*input_items, *output_items]
+    items = _prune_before_latest_output_compaction(input_items, output_items)
+    if len(items) < len(unpruned_items):
+        logger.info(
+            "Installed Responses compaction: dropped_items={} retained_items={}",
+            len(unpruned_items) - len(items),
+            len(items),
+        )
+    payload: dict[str, Any] = {_ITEMS_KEY: deepcopy(items)}
+    context_tokens = _context_tokens_from_usage(usage)
+    if context_tokens > 0:
+        payload[_CONTEXT_TOKENS_KEY] = context_tokens
+    return ProviderConversationState(
+        kind=RESPONSES_STATE_KIND,
+        provider=provider,
+        model=model,
+        version=RESPONSES_STATE_VERSION,
+        payload=payload,
+    )
+
+
+def build_responses_compaction_state(
+    *,
+    provider: str,
+    model: str,
+    output_items: list[dict[str, Any]],
+) -> ProviderConversationState | None:
+    """Return the state at the latest native compaction output boundary."""
+    latest = None
+    for index, item in enumerate(output_items):
+        if item.get("type") in _COMPACTION_ITEM_TYPES:
+            latest = index
+    if latest is None:
+        return None
+    return ProviderConversationState(
+        kind=RESPONSES_STATE_KIND,
+        provider=provider,
+        model=model,
+        version=RESPONSES_STATE_VERSION,
+        payload={_ITEMS_KEY: [deepcopy(output_items[latest])]},
+    )
+
+
+def responses_state_items(
+    state: ProviderConversationState,
+) -> list[dict[str, Any]] | None:
+    """Return an isolated copy of canonical input items for tests/consumers."""
+    items = _state_items(state)
+    return deepcopy(items) if items is not None else None
+
+
+def responses_state_context_tokens(state: ProviderConversationState) -> int:
+    """Return the last server-reported active context size."""
+    value = state.payload.get(_CONTEXT_TOKENS_KEY)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return max(0, value)
+
+
+def resolve_compact_threshold(
+    context_window_tokens: int | None,
+    max_output_tokens: int,
+) -> int | None:
+    """Derive Codex-compatible 90% compaction headroom for a model window."""
+    if context_window_tokens is None or context_window_tokens <= 0:
+        return None
+    ninety_percent = max(1, context_window_tokens * 9 // 10)
+    output_headroom = max(1, context_window_tokens - max(1, max_output_tokens))
+    return min(ninety_percent, output_headroom)
+
+
+def is_compaction_compatibility_error(exc: Exception) -> bool:
+    """Recognize endpoints that reject native Responses compaction fields."""
+    if getattr(exc, "compaction_unsupported", False) is True:
+        return True
+    response = getattr(exc, "response", None)
+    status_code = getattr(exc, "status_code", None)
+    if status_code is None and response is not None:
+        status_code = getattr(response, "status_code", None)
+    body = (
+        getattr(exc, "body", None)
+        or getattr(exc, "doc", None)
+        or getattr(response, "text", None)
+        or str(exc)
+    )
+    text = str(body).lower()
+    has_compaction_marker = any(
+        marker in text
+        for marker in ("context_management", "compact_threshold", "compaction_trigger")
+    )
+    if not has_compaction_marker:
+        return False
+    return isinstance(exc, TypeError) or status_code in {400, 404, 422}
+
+
+def _prune_before_latest_output_compaction(
+    input_items: list[dict[str, Any]],
+    output_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Drop old input only when this response emits a new compaction item.
+
+    A canonical compacted input may intentionally retain messages before its
+    compaction item. Those messages must survive ordinary subsequent responses.
+    """
+    latest = None
+    for index, item in enumerate(output_items):
+        if item.get("type") in _COMPACTION_ITEM_TYPES:
+            latest = index
+    if latest is None:
+        return [*input_items, *output_items]
+    return output_items[latest:]
+
+
+def _context_tokens_from_usage(usage: LLMUsage | None) -> int:
+    return usage.total_tokens if usage is not None else 0
+
+
+def _state_items(
+    state: ProviderConversationState,
+) -> list[dict[str, Any]] | None:
+    raw_items = state.payload.get(_ITEMS_KEY)
+    if not isinstance(raw_items, list):
+        return None
+    items: list[dict[str, Any]] = []
+    for raw in cast(list[object], raw_items):
+        if not isinstance(raw, dict):
+            return None
+        items.append(cast(dict[str, Any], raw))
+    return items

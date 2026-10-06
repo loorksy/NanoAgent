@@ -1,13 +1,13 @@
-# How to Configure Web Search for a nanobot AI Agent
+# How to Configure Web Search for a mokli AI Agent
 
-nanobot includes built-in web search and web fetch tools. Search uses
+mokli includes built-in web search and web fetch tools. Search uses
 DuckDuckGo by default and can be configured for API-backed or self-hosted
 providers.
 
 ## What you will build
 
-- web tools enabled in nanobot
-- one search provider selected in the WebUI or `config.json`
+- web tools enabled in mokli
+- one search provider selected in the Mokli or `config.json`
 - optional web fetch settings for page reading
 
 ## When to use this
@@ -18,9 +18,9 @@ research, source discovery, or page fetching during a task.
 ## Install
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
-nanobot agent -m "Hello!"
+python -m pip install mokli-ai
+mokli onboard --wizard
+mokli agent -m "Hello!"
 ```
 
 Web tools are enabled by default. Configure them only when you want a specific
@@ -30,7 +30,7 @@ provider, API key, proxy, fetch behavior, or SSRF allowlist.
 
 For local interactive setup:
 
-1. Run `nanobot webui`.
+1. Run `mokli mokli`.
 2. Open **Settings → Web**.
 3. Enable web search, choose a provider, and enter its API key if required.
 4. Save and restart when prompted.
@@ -67,7 +67,7 @@ Or use an API-backed provider:
 ```
 
 Ask a question that requires current information and inspect the tool activity
-in the WebUI or logs.
+in the Mokli or logs.
 
 ## Production notes
 
@@ -95,8 +95,8 @@ in the WebUI or logs.
 - If fetch is blocked, inspect the target URL and SSRF whitelist.
 - If a proxy changes network behavior, verify `NO_PROXY` and proxy settings.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Configuration: Web Tools](../configuration.md#web-tools)
 - [Security](../configuration.md#security)
-- [WebUI](../webui.md)
+- [Mokli](../mokli.md)

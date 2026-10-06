@@ -12,9 +12,9 @@ This document records **honest product assessment**, **completed work**, and **n
 |-------|--------|
 | **A** | Product honesty: G5 backtest removed, G2/G3 strengthened, honest news macro, real AgentCards UI |
 | **B** | Real team subagents (debate/swarm via `run_team_role`) |
-| **C** | WebUI chart capture bridge, G4 visual state, outcome tracking + Performance UI |
+| **C** | Mokli chart capture bridge, G4 visual state, outcome tracking + Performance UI |
 | **D** | Outcome transition alerts (Telegram/WhatsApp cron), briefing live status, chart capture polish |
-| **E** | Telegram chart photo with recommendation caption, WhatsApp Arabic stage checklist, WebUI outcome banners, Inbox filters + paper labels, mobile sheet sync |
+| **E** | Telegram chart photo with recommendation caption, WhatsApp Arabic stage checklist, Mokli outcome banners, Inbox filters + paper labels, mobile sheet sync |
 
 **Tests:** `python3 -m pytest tests/trading/ -q` → 97 passed (at time of save).
 
@@ -26,7 +26,7 @@ This document records **honest product assessment**, **completed work**, and **n
 
 ### What works today
 
-- During **full analysis** from **WebUI** (with TradingView sidecar open), the backend may request `trading_chart_capture`, snapshots feed the synthesizer and G4, and **Telegram** may receive a **photo + HTML recommendation card** when snapshots exist.
+- During **full analysis** from **Mokli** (with TradingView sidecar open), the backend may request `trading_chart_capture`, snapshots feed the synthesizer and G4, and **Telegram** may receive a **photo + HTML recommendation card** when snapshots exist.
 - Outcome alerts (`in_trade`, `tp1`, `invalidated`) fire on status transitions (cron + API).
 
 ### What does **not** work yet
@@ -39,7 +39,7 @@ If the user asks only: **«أرسل لي صورة الشارت»** / **«screens
 
 ### Gap vs a general-purpose agent (e.g. Claude Agent)
 
-Nanobot gold mode today is a **structured recommendation system** (market data → specialists → synthesizer → G1–G20 → store), not an open-ended trading copilot that satisfies every trading-related intent.
+Mokli gold mode today is a **structured recommendation system** (market data → specialists → synthesizer → G1–G20 → store), not an open-ended trading copilot that satisfies every trading-related intent.
 
 Current tools: `get_gold_quote`, `analyze_gold`, `run_trading_team`.
 
@@ -53,15 +53,15 @@ Missing for «any user idea»: standalone chart export, on-demand reports, portf
 
 | Item | Description |
 |------|-------------|
-| **Tool** | `capture_gold_chart(interval?, timeframes?)` — open chart (WebUI), capture, return artifact path or send via `message` media |
+| **Tool** | `capture_gold_chart(interval?, timeframes?)` — open chart (Mokli), capture, return artifact path or send via `message` media |
 | **Intent** | Route `chart_image` / Arabic phrases («صورة الشارت», «سكرين شوت», …) with high confidence |
 | **Skill** | Update `gold-trading/SKILL.md`: never offer only a TradingView link when capture is available |
 | **Channels** | Telegram/WhatsApp: `send_photo` with captured frame even without full recommendation |
-| **WebUI** | Show image artifact inline in thread (reuse `nanobot/utils/artifacts.py` + message `media`) |
+| **Mokli** | Show image artifact inline in thread (reuse `mokli/utils/artifacts.py` + message `media`) |
 
 **Success:** User message «أرسل صورة شارت الذهب 15m» → agent calls tool → user receives image in chat (and optionally Telegram).
 
-**Implemented:** `capture_gold_chart` tool, `chart_image` intent + `chart_capture` turn mode, fast-path on WebUI, `capture_service.py`, session-bound bridge (Phase H security).
+**Implemented:** `capture_gold_chart` tool, `chart_image` intent + `chart_capture` turn mode, fast-path on Mokli, `capture_service.py`, session-bound bridge (Phase H security).
 
 ---
 
@@ -69,7 +69,7 @@ Missing for «any user idea»: standalone chart export, on-demand reports, portf
 
 ### Problem
 
-Today, `nanobot/trading/cards/derive.py` builds a **fixed ordered list** of card kinds (`decision`, `plan_levels`, `gate_checklist`, `visual_review`, …). WebUI renders them via static React components in `AgentCards.tsx`.
+Today, `mokli/trading/cards/derive.py` builds a **fixed ordered list** of card kinds (`decision`, `plan_levels`, `gate_checklist`, `visual_review`, …). Mokli renders them via static React components in `AgentCards.tsx`.
 
 This is **product-static**: every analysis looks the same, regardless of what the user asked or what matters for *this* turn.
 
@@ -95,9 +95,9 @@ Trading output should behave like **Artifacts** in a capable agent (Composer / C
 
 ### Implemented
 
-1. **`emit_trading_artifacts()`** in `nanobot/trading/cards/artifacts.py` — 1–4 artifacts per turn; **LLM picks** via synthesizer `artifactsRequested`, with deterministic fallback when empty/invalid. **Operator-intent inference** for price (`price_quote`) and follow-up (`plan_status`, `level_map`, `tracked_plan`) when synthesizer is not called.
+1. **`emit_trading_artifacts()`** in `mokli/trading/cards/artifacts.py` — 1–4 artifacts per turn; **LLM picks** via synthesizer `artifactsRequested`, with deterministic fallback when empty/invalid. **Operator-intent inference** for price (`price_quote`) and follow-up (`plan_status`, `level_map`, `tracked_plan`) when synthesizer is not called.
 2. **Wire:** `artifacts` on `result_to_wire` + `trading_artifacts` agent_ui kind.
-3. **WebUI:** `ArtifactRenderer.tsx` (preferred over full `AgentCards` deck when artifacts present).
+3. **Mokli:** `ArtifactRenderer.tsx` (preferred over full `AgentCards` deck when artifacts present).
 4. **`cards`** kept for backward compatibility; artifacts are primary.
 5. **Chart snapshot** artifact + Telegram photo via `capture_service` / existing card photo path.
 
@@ -122,7 +122,7 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 
 ### Implemented (docs + config)
 
-- Skill: `nanobot/skills/trading-proactive/SKILL.md`
+- Skill: `mokli/skills/trading-proactive/SKILL.md`
 - Config: `GatewayConfig.trading_cron.enabled` (default `false`)
 - `register_trading_cron_jobs(..., enabled=...)` removes jobs when disabled
 
@@ -130,7 +130,7 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 
 - Agent-initiated artifact bundles instead of plain text spam (ties to Phase G)
 
-**Done (Phase M):** Outcome-alert dedup across `waiting ↔ in_trade` oscillation — see `nanobot/trading/recommendations/state_machine.py`.
+**Done (Phase M):** Outcome-alert dedup across `waiting ↔ in_trade` oscillation — see `mokli/trading/recommendations/state_machine.py`.
 
 ---
 
@@ -147,6 +147,6 @@ Default system cron jobs (`gold_scan` every 30m, `gold_news` every 60m, `gold_re
 - Design spec: `docs/designs/gold-trading-agent.md`
 - Turn architecture (proposed unified loop; supersedes the 2026-09-13 hybrid-runtime planner claim): `docs/designs/lonora-hybrid-runtime.md`
 - Implementation audit: `docs/implementation/gold-agent-system-plan.md`
-- Card derivation (current): `nanobot/trading/cards/derive.py`
-- Artifact storage: `nanobot/utils/artifacts.py`
-- Chart capture bridge: `nanobot/trading/chart_capture.py`, `nanobot/trading/chart_photo.py`
+- Card derivation (current): `mokli/trading/cards/derive.py`
+- Artifact storage: `mokli/utils/artifacts.py`
+- Chart capture bridge: `mokli/trading/chart_capture.py`, `mokli/trading/chart_photo.py`

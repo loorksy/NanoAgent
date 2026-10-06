@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/vps_env.sh
+source "$ROOT/scripts/vps_env.sh"
 # shellcheck source=scripts/vps_ssh_target.sh
 source "$ROOT/scripts/vps_ssh_target.sh"
 SSH_TARGET="$(normalize_vps_ssh_target "${VPS:-}")"

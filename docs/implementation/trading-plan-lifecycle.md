@@ -28,14 +28,12 @@ Follow-up grading could show **invalidated** while SQLite still held a **live** 
 - `prepare_for_new_recommendation(session_key)` — called at start of `analyze_gold`.
 - Tools: `get_live_recommendation`, `manage_trading_plan`, `analyze_gold(force_new_plan=…)`.
 
-## Upstream nanobot (HKUDS)
+## Sync notes
 
-Remote: `nanobot-upstream` → https://github.com/HKUDS/nanobot
+Trading code in this tree includes `mokli/trading/`, the Lonora runtime, and the Mokli trading surfaces. Do not merge unrelated history wholesale. Safe sync process:
 
-This fork adds `nanobot/trading/`, Lonora runtime, WebUI trading surfaces, and heavily modified agent loop. **Do not merge upstream wholesale.** Safe sync process:
-
-1. `git fetch nanobot-upstream main`
-2. Compare paths outside `nanobot/trading/`, `webui/src/components/trading`, and fork-specific docs.
+1. `git fetch mokli-upstream main`
+2. Compare paths outside `mokli/trading/`, `mokli/src/components/trading`, and fork-specific docs.
 3. Cherry-pick or manual port security/ provider fixes only after tests pass.
 4. Re-run `pytest tests/trading/` and `uv run basedpyright` on touched modules.
 

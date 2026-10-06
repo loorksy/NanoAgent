@@ -1,21 +1,25 @@
 """Tests for auto compact (idle TTL) feature."""
 
 import asyncio
+import json
+import sys
+import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.command import CommandContext
-from nanobot.config.schema import AgentDefaults, Config
-from nanobot.events import NO_EVENTS
-from nanobot.providers.base import LLMResponse
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.command import CommandContext
+from mokli.config.schema import AgentDefaults, Config
+from mokli.events import NO_EVENTS
+from mokli.providers.base import LLMResponse
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 def _make_loop(
@@ -183,10 +187,20 @@ class TestSessionTTLConfig:
 class TestIdleScanThrottling:
     """Test scheduling of full idle-session scans."""
 
-    def test_configured_idle_scan_interval_throttles_checks(self, tmp_path, monkeypatch):
+    async def test_configured_idle_scan_interval_throttles_checks(self, tmp_path, monkeypatch):
         """The configured interval should reach the loop and gate session scans."""
         ticks = iter((1_000.0, 1_000.0, 1_009.999, 1_010.0))
-        monkeypatch.setattr("nanobot.agent.loop.time.monotonic", lambda: next(ticks))
+        real_monotonic = time.monotonic
+
+        def clock() -> float:
+            # loop.py binds the stdlib time module, so a bare patch also feeds
+            # the event loop. Only the idle-check reads should see the script.
+            caller = sys._getframe(1).f_code.co_filename
+            if caller.endswith("/mokli/agent/loop.py"):
+                return next(ticks)
+            return real_monotonic()
+
+        monkeypatch.setattr("mokli.agent.loop.time.monotonic", clock)
         config = Config.model_validate({
             "agents": {
                 "defaults": {
@@ -204,24 +218,143 @@ class TestIdleScanThrottling:
         )
         loop.auto_compact.check_expired = MagicMock()
 
-        loop._check_expired_sessions_if_due()
+        await loop._check_expired_sessions_if_due()
         loop.auto_compact.check_expired.assert_called_once()
-        loop._check_expired_sessions_if_due()
+        await loop._check_expired_sessions_if_due()
         loop.auto_compact.check_expired.assert_called_once()
-        loop._check_expired_sessions_if_due()
+        await loop._check_expired_sessions_if_due()
 
         assert loop.auto_compact.check_expired.call_count == 2
 
-    def test_zero_idle_scan_interval_checks_every_tick(self, tmp_path, monkeypatch):
+    async def test_zero_idle_scan_interval_checks_every_tick(self, tmp_path, monkeypatch):
         """An explicit zero should leave each idle tick eligible to scan."""
-        monkeypatch.setattr("nanobot.agent.loop.time.monotonic", lambda: 1_000.0)
+        monkeypatch.setattr("mokli.agent.loop.time.monotonic", lambda: 1_000.0)
         loop = _make_loop(tmp_path)
         loop.auto_compact.check_expired = MagicMock()
 
-        loop._check_expired_sessions_if_due()
-        loop._check_expired_sessions_if_due()
+        await loop._check_expired_sessions_if_due()
+        await loop._check_expired_sessions_if_due()
 
         assert loop.auto_compact.check_expired.call_count == 2
+
+    def test_idle_scan_reads_the_metadata_line_only(self, tmp_path, monkeypatch):
+        """Message lines are for the session list, not the idle clock."""
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        session = loop.sessions.get_or_create("cli:fat")
+        session.add_message("user", "x" * 80_000)
+        loop.sessions.save(session)
+        loads: list[int] = []
+        real_loads = json.loads
+
+        def counting(text: str, *args, **kwargs):
+            loads.append(len(text))
+            return real_loads(text, *args, **kwargs)
+
+        monkeypatch.setattr("mokli.session.manager.json.loads", counting)
+        clocks = loop.sessions.list_session_clocks()
+        clock_loads = len(loads)
+        clock_chars = sum(loads)
+        loads.clear()
+        rows = loop.sessions.list_sessions()
+        assert clocks == [(rows[0]["key"], rows[0]["updated_at"])]
+        assert clock_loads == 1
+        assert len(loads) == 2
+        assert sum(loads) > clock_chars + 80_000
+
+    async def test_idle_scan_leaves_the_event_loop_free(self, tmp_path, monkeypatch):
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        loop._next_idle_compact_check_at = 0
+        order: list[str] = []
+
+        def slow() -> list[tuple[str, str | None]]:
+            time.sleep(0.2)
+            order.append(
+                "main" if threading.current_thread() is threading.main_thread() else "worker"
+            )
+            return []
+
+        monkeypatch.setattr(loop.sessions, "list_session_clocks", slow)
+
+        async def tick() -> None:
+            await asyncio.sleep(0.05)
+            order.append("tick")
+
+        pending = asyncio.create_task(tick())
+        started = time.perf_counter()
+        await loop._check_expired_sessions_if_due()
+        await pending
+        assert order[0] == "tick"
+        assert "main" not in order
+        assert order.count("worker") == 1
+        assert time.perf_counter() - started < 0.35
+
+    async def test_idle_archive_read_leaves_the_event_loop_free(self, tmp_path, monkeypatch):
+        """An expired cold transcript is parsed off the event loop."""
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        loop._next_idle_compact_check_at = 0
+        session = loop.sessions.get_or_create("cli:fat")
+        session.add_message("user", "x" * 80_000)
+        session.updated_at = datetime.now() - timedelta(minutes=20)
+        loop.sessions.save(session)
+        loop.sessions.invalidate("cli:fat")
+        loop.consolidator.compact_idle_session = AsyncMock(return_value="")
+        order: list[str] = []
+        real_load = loop.sessions.load_unarchived_sessions
+
+        def slow(keys: list[str]):
+            time.sleep(0.2)
+            order.append(
+                "main" if threading.current_thread() is threading.main_thread() else "worker"
+            )
+            return real_load(keys)
+
+        monkeypatch.setattr(loop.sessions, "load_unarchived_sessions", slow)
+
+        async def tick() -> None:
+            await asyncio.sleep(0.05)
+            order.append("tick")
+
+        pending = asyncio.create_task(tick())
+        started = time.perf_counter()
+        await loop._check_expired_sessions_if_due()
+        await pending
+        assert order[0] == "tick"
+        assert "main" not in order
+        assert order.count("worker") == 1
+        assert time.perf_counter() - started < 0.35
+        assert "cli:fat" in loop.auto_compact._archiving
+        await _drain_background_tasks(loop)
+        await loop.aclose()
+
+    async def test_idle_archive_check_skips_a_clean_transcript(self, tmp_path, monkeypatch):
+        """A cold file with nothing to archive is not parsed again on the next tick."""
+        loop = _make_loop(tmp_path, session_ttl_minutes=15)
+        loop._next_idle_compact_check_at = 0
+        session = loop.sessions.get_or_create("cli:clean")
+        session.add_message("user", "x" * 80_000, _command=True)
+        session.updated_at = datetime.now() - timedelta(minutes=20)
+        loop.sessions.save(session)
+        loop.sessions.invalidate("cli:clean")
+        loop.consolidator.compact_idle_session = AsyncMock(return_value="")
+
+        await loop._check_expired_sessions_if_due()
+        loop.consolidator.compact_idle_session.assert_not_awaited()
+        loop.sessions.invalidate("cli:clean")
+        loop._next_idle_compact_check_at = 0
+
+        loads: list[int] = []
+        real_loads = json.loads
+
+        def counting(text: str, *args, **kwargs):
+            loads.append(len(text))
+            return real_loads(text, *args, **kwargs)
+
+        monkeypatch.setattr("mokli.session.manager.json.loads", counting)
+        await loop._check_expired_sessions_if_due()
+        assert loads
+        assert max(loads) < 80_000
+        loop.consolidator.compact_idle_session.assert_not_awaited()
+        await loop.aclose()
 
 
 class TestAgentLoopTTLParam:
@@ -489,7 +622,7 @@ class TestAutoCompactIdleDetection:
 
     @pytest.mark.asyncio
     async def test_shortcut_command_persisted_with_command_flag(self, tmp_path):
-        """Shortcut commands (e.g. /help) are persisted so WebUI can show them,
+        """Shortcut commands (e.g. /help) are persisted so Mokli can show them,
         but tagged with _command so they don't leak into LLM context."""
         loop = _make_loop(tmp_path)
         msg = InboundMessage(channel="cli", sender_id="user", chat_id="test", content="/help")

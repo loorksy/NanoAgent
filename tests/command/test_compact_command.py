@@ -6,16 +6,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.outbound_events import ContextCompactionEvent
-from nanobot.bus.queue import MessageBus
-from nanobot.bus.runtime_events import TurnCompleted
-from nanobot.command.builtin import cmd_stop
-from nanobot.command.router import CommandContext
-from nanobot.providers.base import GenerationSettings, LLMResponse, ProviderConversationState
-from nanobot.session.history_visibility import is_hidden_history_message
-from nanobot.session.summary import SUMMARY_CONTINUATION_TEXT
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.context import RequestContext
+from mokli.bus.events import InboundMessage
+from mokli.bus.outbound_events import ContextCompactionEvent
+from mokli.bus.queue import MessageBus
+from mokli.bus.runtime_events import TurnCompleted
+from mokli.command.builtin import cmd_stop
+from mokli.command.router import CommandContext
+from mokli.providers.base import GenerationSettings, LLMResponse, ProviderConversationState
+from mokli.session.history_visibility import is_hidden_history_message
+from mokli.session.summary import SUMMARY_CONTINUATION_TEXT
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ async def loop(tmp_path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("command", ["/compact", " /COMPACT@nanobot "])
+@pytest.mark.parametrize("command", ["/compact", " /COMPACT@mokli "])
 async def test_compact_emits_one_lifecycle_and_keeps_the_session(loop, command) -> None:
     bus = loop.bus
     session = loop.sessions.get_or_create("cli:test")
@@ -123,9 +124,15 @@ async def test_checkpoint_continues_through_reloaded_session(loop, trigger, summ
     loop.provider.chat_stream_with_retry.assert_awaited_once()
     sent = loop.provider.chat_stream_with_retry.call_args.kwargs["messages"]
     expected_summary = reloaded.metadata["_last_summary"] if summary != "(nothing)" else None
+    request = RequestContext(channel="cli", chat_id="checkpoint-resume", session_key=key)
     assert sent[0] == {
         "role": "system",
-        "content": loop.context.build_system_prompt(channel="cli", session_summary=expected_summary),
+        "content": loop.context.build_system_prompt(
+            channel="cli",
+            session_summary=expected_summary,
+            tool_names=list(loop.tools.tool_names),
+            facts=loop._collect_prompt_facts(request),
+        ),
     }
     assert [message["role"] for message in sent] == ["system", "user", "user"]
     assert sent[1] == {"role": "user", "content": SUMMARY_CONTINUATION_TEXT}
@@ -157,12 +164,12 @@ async def test_empty_compact_finishes_silently_and_does_not_schedule_idle_archiv
 
     await loop._dispatch(InboundMessage(
         channel="websocket", sender_id="user", chat_id="test", content="/compact",
-        metadata={"webui_turn_id": "compact-turn"},
+        metadata={"mokli_turn_id": "compact-turn"},
     ))
 
     assert loop.bus.outbound_size == 0
     assert len(completions) == 1
-    assert completions[0].context.metadata["webui_turn_id"] == "compact-turn"
+    assert completions[0].context.metadata["mokli_turn_id"] == "compact-turn"
     loop.sessions.invalidate(key)
     reloaded = loop.sessions.get_or_create(key)
     assert reloaded.messages == session.messages
@@ -181,7 +188,7 @@ async def test_empty_compact_finishes_silently_and_does_not_schedule_idle_archiv
 async def test_compact_during_active_turn_waits_for_the_session_lock(loop) -> None:
     key = "websocket:test"
     msg = InboundMessage(
-        channel="websocket", sender_id="user", chat_id="test", content="/COMPACT@nanobot",
+        channel="websocket", sender_id="user", chat_id="test", content="/COMPACT@mokli",
     )
     lock = loop._get_session_lock(key)
     async with lock:
@@ -207,7 +214,7 @@ async def test_stop_completes_a_compact_command_waiting_for_the_session_lock(loo
     key = "websocket:test"
     msg = InboundMessage(
         channel="websocket", sender_id="user", chat_id="test", content="/compact",
-        metadata={"webui_turn_id": "queued-compact"},
+        metadata={"mokli_turn_id": "queued-compact"},
     )
     completions = []
     loop.bus.subscribe(completions.append, TurnCompleted)
@@ -218,7 +225,7 @@ async def test_stop_completes_a_compact_command_waiting_for_the_session_lock(loo
         ))
     assert reply.content == "Stopped 1 task(s)."
     assert len(completions) == 1
-    assert completions[0].context.metadata["webui_turn_id"] == "queued-compact"
+    assert completions[0].context.metadata["mokli_turn_id"] == "queued-compact"
 
 
 @pytest.mark.asyncio
@@ -239,7 +246,7 @@ async def test_stop_finishes_inflight_compaction_as_cancelled(loop) -> None:
     loop.bus.subscribe(completions.append, TurnCompleted)
     msg = InboundMessage(
         channel="websocket", sender_id="user", chat_id="test", content="/compact",
-        metadata={"webui_turn_id": "compact-turn"},
+        metadata={"mokli_turn_id": "compact-turn"},
     )
     task = asyncio.create_task(loop._dispatch(msg))
     loop._track_active_task(key, task)
@@ -252,7 +259,7 @@ async def test_stop_finishes_inflight_compaction_as_cancelled(loop) -> None:
     assert reply.content == "Stopped 1 task(s)."
     assert task.cancelled()
     assert len(completions) == 1
-    assert completions[0].context.metadata["webui_turn_id"] == "compact-turn"
+    assert completions[0].context.metadata["mokli_turn_id"] == "compact-turn"
     events = [loop.bus.outbound.get_nowait().event for _ in range(loop.bus.outbound_size)]
     assert all(isinstance(event, ContextCompactionEvent) for event in events)
     assert [event.phase for event in events] == ["started", "cancelled"]

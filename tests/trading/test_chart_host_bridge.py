@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from nanobot.trading.chart_host_bridge import get_chart_host_bridge
+from mokli.trading.chart_host_bridge import get_chart_host_bridge
 
 
 @pytest.mark.asyncio

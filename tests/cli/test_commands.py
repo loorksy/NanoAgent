@@ -13,32 +13,32 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from typer.testing import CliRunner
 
-from nanobot.agent.memory import MemoryStore
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.agent.turn_delivery import TurnDeliveryFactory
-from nanobot.bus.events import InboundMessage, OutboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.cli import commands as cli_commands
-from nanobot.cli import gateway_runtime as cli_gateway_runtime
-from nanobot.cli import provider as provider_commands
-from nanobot.cli import terminal as cli_terminal
-from nanobot.cli import webui as cli_webui
-from nanobot.cli import webui_support as cli_webui_support
-from nanobot.cli.commands import app
-from nanobot.config.schema import Config
-from nanobot.cron.service import CronJobSkippedError
-from nanobot.cron.session_turns import CRON_DEFER_UNTIL_IDLE_META, CRON_TRIGGER_META
-from nanobot.cron.types import CronJob, CronPayload
-from nanobot.cron.webui_metadata import cron_proactive_delivery_metadata
-from nanobot.providers.factory import ProviderSnapshot, make_provider, provider_signature
-from nanobot.providers.openai_codex_provider import _strip_model_prefix
-from nanobot.providers.registry import find_by_name
-from nanobot.providers.unconfigured_provider import UnconfiguredProvider
-from nanobot.session.webui_turns import WebuiTurnRoutePolicy
-from nanobot.webui.dev import WebUIDevError
-from nanobot.webui.metadata import (
-    WEBUI_MESSAGE_SOURCE_METADATA_KEY,
-    WEBUI_TURN_METADATA_KEY,
+from mokli.agent.memory import MemoryStore
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.agent.turn_delivery import TurnDeliveryFactory
+from mokli.bus.events import InboundMessage, OutboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.cli import commands as cli_commands
+from mokli.cli import gateway_runtime as cli_gateway_runtime
+from mokli.cli import provider as provider_commands
+from mokli.cli import terminal as cli_terminal
+from mokli.cli import mokli as cli_mokli
+from mokli.cli import mokli_support as cli_mokli_support
+from mokli.cli.commands import app
+from mokli.config.schema import Config
+from mokli.cron.service import CronJobSkippedError
+from mokli.cron.session_turns import CRON_DEFER_UNTIL_IDLE_META, CRON_TRIGGER_META
+from mokli.cron.types import CronJob, CronPayload
+from mokli.cron.mokli_metadata import cron_proactive_delivery_metadata
+from mokli.providers.factory import ProviderSnapshot, make_provider, provider_signature
+from mokli.providers.openai_codex_provider import _strip_model_prefix
+from mokli.providers.registry import find_by_name
+from mokli.providers.unconfigured_provider import UnconfiguredProvider
+from mokli.session.mokli_turns import MokliTurnRoutePolicy
+from mokli.surface.dev import MokliDevError
+from mokli.surface.metadata import (
+    MOKLI_MESSAGE_SOURCE_METADATA_KEY,
+    MOKLI_TURN_METADATA_KEY,
 )
 
 runner = CliRunner()
@@ -50,8 +50,8 @@ def _without_rendered_line_breaks(output: str) -> str:
 
 def test_proactive_websocket_delivery_gets_fresh_turn_id() -> None:
     metadata = {
-        "webui": True,
-        WEBUI_TURN_METADATA_KEY: "turn-that-created-the-reminder",
+        "mokli": True,
+        MOKLI_TURN_METADATA_KEY: "turn-that-created-the-reminder",
         "workspace_scope": {"mode": "default"},
     }
 
@@ -62,11 +62,11 @@ def test_proactive_websocket_delivery_gets_fresh_turn_id() -> None:
         source_label="drink water",
     )
 
-    assert out["webui"] is True
+    assert out["mokli"] is True
     assert out["workspace_scope"] == {"mode": "default"}
-    assert out[WEBUI_TURN_METADATA_KEY].startswith("cron:drink-water:")
-    assert out[WEBUI_TURN_METADATA_KEY] != metadata[WEBUI_TURN_METADATA_KEY]
-    assert out[WEBUI_MESSAGE_SOURCE_METADATA_KEY] == {"kind": "cron", "label": "drink water"}
+    assert out[MOKLI_TURN_METADATA_KEY].startswith("cron:drink-water:")
+    assert out[MOKLI_TURN_METADATA_KEY] != metadata[MOKLI_TURN_METADATA_KEY]
+    assert out[MOKLI_MESSAGE_SOURCE_METADATA_KEY] == {"kind": "cron", "label": "drink water"}
 
 
 def _fake_provider():
@@ -200,11 +200,11 @@ def test_interactive_tty_mode_restores_line_input(monkeypatch) -> None:
         os.close(slave_fd)
 
 
-def test_webui_restores_tty_before_loading_config(monkeypatch, tmp_path: Path) -> None:
+def test_mokli_restores_tty_before_loading_config(monkeypatch, tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text("{}", encoding="utf-8")
     calls: list[str] = []
-    original_resolve = cli_webui._resolve_webui_config_path
+    original_resolve = cli_mokli._resolve_mokli_config_path
 
     monkeypatch.setattr(
         cli_terminal,
@@ -212,18 +212,18 @@ def test_webui_restores_tty_before_loading_config(monkeypatch, tmp_path: Path) -
         lambda: calls.append("tty"),
     )
     monkeypatch.setattr(
-        cli_webui,
-        "_resolve_webui_config_path",
+        cli_mokli,
+        "_resolve_mokli_config_path",
         lambda path: calls.append("config") or original_resolve(path),
     )
-    _patch_webui_provider_ready(monkeypatch)
-    monkeypatch.setattr(cli_webui, "sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr(cli_webui, "_gateway_health_ready", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(cli_webui, "_webui_endpoint_reachable", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(cli_webui, "_tcp_endpoint_reachable", lambda *_args, **_kwargs: False)
-    _patch_webui_managed_gateway(monkeypatch)
+    _patch_mokli_provider_ready(monkeypatch)
+    monkeypatch.setattr(cli_mokli, "sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr(cli_mokli, "_gateway_health_ready", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(cli_mokli, "_mokli_endpoint_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(cli_mokli, "_tcp_endpoint_reachable", lambda *_args, **_kwargs: False)
+    _patch_mokli_managed_gateway(monkeypatch)
 
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes", "--no-open"])
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes", "--no-open"])
 
     assert result.exit_code == 0
     assert calls[:2] == ["tty", "config"]
@@ -275,10 +275,10 @@ def test_commit_dream_changes_commits_real_edits(tmp_path) -> None:
 @pytest.fixture
 def mock_paths():
     """Mock config/workspace paths for test isolation."""
-    with patch("nanobot.config.loader.get_config_path") as mock_cp, \
-         patch("nanobot.config.loader.save_config") as mock_sc, \
-         patch("nanobot.config.loader.load_config") as mock_lc, \
-         patch("nanobot.cli.commands.get_workspace_path") as mock_ws:
+    with patch("mokli.config.loader.get_config_path") as mock_cp, \
+         patch("mokli.config.loader.save_config") as mock_sc, \
+         patch("mokli.config.loader.load_config") as mock_lc, \
+         patch("mokli.cli.commands.get_workspace_path") as mock_ws:
         base_dir = Path("./test_onboard_data")
         if base_dir.exists():
             shutil.rmtree(base_dir)
@@ -313,7 +313,7 @@ def test_onboard_fresh_install(mock_paths):
     assert result.exit_code == 0
     assert "Created config" in result.stdout
     assert "Created workspace" in result.stdout
-    assert "nanobot is ready" in result.stdout
+    assert "mokli is ready" in result.stdout
     assert config_file.exists()
     assert (workspace_dir / "AGENTS.md").exists()
     assert (workspace_dir / "memory" / "MEMORY.md").exists()
@@ -321,12 +321,12 @@ def test_onboard_fresh_install(mock_paths):
     assert mock_ws.call_args.args == (expected_workspace,)
 
 
-def test_onboard_recommends_webui(mock_paths):
-    """Default onboarding should recommend the guided WebUI launcher."""
+def test_onboard_recommends_mokli(mock_paths):
+    """Default onboarding should recommend the guided Mokli launcher."""
     result = runner.invoke(app, ["onboard"])
 
     assert result.exit_code == 0
-    assert "✓ nanobot is ready. Run: nanobot webui" in result.stdout
+    assert "✓ mokli is ready. Run: mokli mokli" in result.stdout
 
 
 def test_onboard_existing_config_refresh(mock_paths):
@@ -440,10 +440,10 @@ def test_status_uses_explicit_config_and_workspace(tmp_path: Path):
 def test_onboard_interactive_discard_does_not_save_or_create_workspace(mock_paths, monkeypatch):
     config_file, workspace_dir, _ = mock_paths
 
-    from nanobot.cli.onboard import OnboardResult
+    from mokli.cli.onboard import OnboardResult
 
     monkeypatch.setattr(
-        "nanobot.cli.onboard.run_onboard",
+        "mokli.cli.onboard.run_onboard",
         lambda initial_config: OnboardResult(config=initial_config, should_save=False),
     )
 
@@ -459,7 +459,7 @@ def test_onboard_uses_explicit_config_and_workspace_paths(tmp_path, monkeypatch)
     config_path = tmp_path / "instance" / "config.json"
     workspace_path = tmp_path / "workspace"
 
-    monkeypatch.setattr("nanobot.channels.registry.discover_all", lambda: {})
+    monkeypatch.setattr("mokli.channels.registry.discover_all", lambda: {})
 
     result = runner.invoke(
         app,
@@ -474,20 +474,20 @@ def test_onboard_uses_explicit_config_and_workspace_paths(tmp_path, monkeypatch)
     compact_output = stripped_output.replace("\n", "")
     resolved_config = str(config_path.resolve())
     assert resolved_config in compact_output
-    assert f'nanobot webui -c "{resolved_config}"' in result.stdout
+    assert f'mokli mokli -c "{resolved_config}"' in result.stdout
 
 
 def test_onboard_wizard_preserves_explicit_config_in_next_steps(tmp_path, monkeypatch):
     config_path = tmp_path / "instance" / "config.json"
     workspace_path = tmp_path / "workspace"
 
-    from nanobot.cli.onboard import OnboardResult
+    from mokli.cli.onboard import OnboardResult
 
     monkeypatch.setattr(
-        "nanobot.cli.onboard.run_onboard",
+        "mokli.cli.onboard.run_onboard",
         lambda initial_config: OnboardResult(config=initial_config, should_save=True),
     )
-    monkeypatch.setattr("nanobot.channels.registry.discover_all", lambda: {})
+    monkeypatch.setattr("mokli.channels.registry.discover_all", lambda: {})
 
     result = runner.invoke(
         app,
@@ -496,7 +496,7 @@ def test_onboard_wizard_preserves_explicit_config_in_next_steps(tmp_path, monkey
 
     assert result.exit_code == 0
     resolved_config = str(config_path.resolve())
-    assert f'nanobot webui -c "{resolved_config}"' in result.stdout
+    assert f'mokli mokli -c "{resolved_config}"' in result.stdout
 
 
 def test_config_matches_github_copilot_codex_with_hyphen_prefix():
@@ -534,7 +534,7 @@ def test_config_dump_excludes_oauth_provider_blocks():
 
 
 def test_plugins_list_uses_explicit_config(monkeypatch, tmp_path: Path):
-    from nanobot.channels.plugin import ChannelPlugin
+    from mokli.channels.plugin import ChannelPlugin
 
     config_path = tmp_path / "config.json"
     config_path.write_text(
@@ -547,7 +547,7 @@ def test_plugins_list_uses_explicit_config(monkeypatch, tmp_path: Path):
         runtime="example.runtime:ExampleChannel",
     )
     monkeypatch.setattr(
-        "nanobot.channels.registry.discover_plugins",
+        "mokli.channels.registry.discover_plugins",
         lambda enabled_names=None: (
             {"example": plugin}
             if enabled_names is None or "example" in enabled_names
@@ -555,7 +555,7 @@ def test_plugins_list_uses_explicit_config(monkeypatch, tmp_path: Path):
         ),
     )
     monkeypatch.setattr(
-        "nanobot.optional_features.optional_dependency_groups",
+        "mokli.optional_features.optional_dependency_groups",
         lambda: {},
     )
 
@@ -600,7 +600,7 @@ def test_provider_logout_xai_grok_removes_instance_credentials(tmp_path, monkeyp
     token_path.write_text("{}", encoding="utf-8")
     lock_path.write_text("", encoding="utf-8")
     monkeypatch.setattr(
-        "nanobot.providers.xai_oauth.get_xai_oauth_storage_path",
+        "mokli.providers.xai_oauth.get_xai_oauth_storage_path",
         lambda: token_path,
     )
 
@@ -612,7 +612,7 @@ def test_provider_logout_xai_grok_removes_instance_credentials(tmp_path, monkeyp
 
 
 def test_provider_logout_xai_grok_uses_explicit_config_path(tmp_path, monkeypatch):
-    from nanobot.config import loader
+    from mokli.config import loader
 
     default_config = tmp_path / "default" / "config.json"
     selected_config = tmp_path / "selected" / "config.json"
@@ -671,8 +671,8 @@ def test_provider_logout_paths_resolve_to_expected_files():
     from oauth_cli_kit.providers import OPENAI_CODEX_PROVIDER
     from oauth_cli_kit.storage import FileTokenStorage
 
-    from nanobot.providers.github_copilot_provider import get_storage
-    from nanobot.providers.xai_oauth import get_xai_oauth_storage_path
+    from mokli.providers.github_copilot_provider import get_storage
+    from mokli.providers.xai_oauth import get_xai_oauth_storage_path
 
     codex_storage = FileTokenStorage(token_filename=OPENAI_CODEX_PROVIDER.token_filename)
     codex_path = codex_storage.get_token_path()
@@ -705,8 +705,8 @@ def test_provider_login_openai_codex_handles_missing_oauth_symbol(monkeypatch):
 
     assert result.exit_code == 1
     assert (
-        "This nanobot installation is missing the required oauth-cli-kit package. "
-        "Reinstall or upgrade nanobot-ai using the same installation method."
+        "This mokli installation is missing the required oauth-cli-kit package. "
+        "Reinstall or upgrade mokli-ai using the same installation method."
     ) in re.sub(r"\s+", " ", result.stdout)
     assert result.exception is not None
 
@@ -838,7 +838,7 @@ def test_provider_login_model_implies_set_main_provider(tmp_path):
 def test_provider_login_openai_codex_passes_configured_proxy(monkeypatch):
     proxy = "http://127.0.0.1:23458"
     monkeypatch.setattr(
-        "nanobot.config.loader.load_config",
+        "mokli.config.loader.load_config",
         lambda: Config.model_validate({"providers": {"openaiCodex": {"proxy": proxy}}}),
     )
 
@@ -864,7 +864,7 @@ def test_provider_login_openai_codex_passes_configured_proxy(monkeypatch):
 
 
 def test_provider_login_openai_codex_uses_explicit_config_proxy(tmp_path, monkeypatch):
-    from nanobot.config import loader
+    from mokli.config import loader
 
     proxy = "http://127.0.0.1:23458"
     config_path = tmp_path / "config.json"
@@ -913,7 +913,7 @@ def test_provider_login_openai_codex_resolves_proxy_env_ref(monkeypatch):
     proxy = "http://127.0.0.1:23458"
     monkeypatch.setenv("CODEX_PROXY_FOR_TEST", proxy)
     monkeypatch.setattr(
-        "nanobot.config.loader.load_config",
+        "mokli.config.loader.load_config",
         lambda: Config.model_validate(
             {"providers": {"openaiCodex": {"proxy": "${CODEX_PROXY_FOR_TEST}"}}}
         ),
@@ -938,11 +938,11 @@ def test_provider_login_openai_codex_resolves_proxy_env_ref(monkeypatch):
 def test_provider_login_xai_grok_runs_browser_flow_with_configured_proxy(monkeypatch):
     proxy = "http://127.0.0.1:23458"
     monkeypatch.setattr(
-        "nanobot.config.loader.load_config",
+        "mokli.config.loader.load_config",
         lambda: Config.model_validate({"providers": {"xaiGrok": {"proxy": proxy}}}),
     )
     monkeypatch.setattr(
-        "nanobot.providers.xai_oauth.get_xai_oauth_token",
+        "mokli.providers.xai_oauth.get_xai_oauth_token",
         lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("not signed in")),
     )
     captured: dict[str, object] = {}
@@ -951,7 +951,7 @@ def test_provider_login_xai_grok_runs_browser_flow_with_configured_proxy(monkeyp
         captured.update(print_fn=print_fn, prompt_fn=prompt_fn, proxy=proxy)
         return SimpleNamespace(access="access-token", account_id="user@example.com")
 
-    monkeypatch.setattr("nanobot.providers.xai_oauth.login_xai_oauth", fake_login)
+    monkeypatch.setattr("mokli.providers.xai_oauth.login_xai_oauth", fake_login)
 
     result = runner.invoke(app, ["provider", "login", "xai-grok"])
 
@@ -1241,9 +1241,9 @@ def test_config_cloud_nemotron_is_not_hijacked_by_configured_ollama():
 
 
 def test_openai_compat_provider_passes_model_through():
-    from nanobot.providers.openai_compat_provider import OpenAICompatProvider
+    from mokli.providers.openai_compat_provider import OpenAICompatProvider
 
-    with patch("nanobot.providers.openai_compat_provider.AsyncOpenAI"):
+    with patch("mokli.providers.openai_compat_provider.AsyncOpenAI"):
         provider = OpenAICompatProvider(default_model="github-copilot/gpt-5.3-codex")
 
     assert provider.get_default_model() == "github-copilot/gpt-5.3-codex"
@@ -1298,9 +1298,9 @@ def test_provider_proxy_rejects_unsupported_backend():
 
 
 def test_github_copilot_provider_strips_prefixed_model_name():
-    from nanobot.providers.github_copilot_provider import GitHubCopilotProvider
+    from mokli.providers.github_copilot_provider import GitHubCopilotProvider
 
-    with patch("nanobot.providers.openai_compat_provider.AsyncOpenAI"):
+    with patch("mokli.providers.openai_compat_provider.AsyncOpenAI"):
         provider = GitHubCopilotProvider(default_model="github-copilot/gpt-5.1")
 
     kwargs = provider._build_kwargs(
@@ -1318,7 +1318,7 @@ def test_github_copilot_provider_strips_prefixed_model_name():
 
 @pytest.mark.asyncio
 async def test_github_copilot_provider_refreshes_client_api_key_before_chat():
-    from nanobot.providers.github_copilot_provider import GitHubCopilotProvider
+    from mokli.providers.github_copilot_provider import GitHubCopilotProvider
 
     mock_client = MagicMock()
     mock_client.api_key = "no-key"
@@ -1327,7 +1327,7 @@ async def test_github_copilot_provider_refreshes_client_api_key_before_chat():
         "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
     })
 
-    with patch("nanobot.providers.openai_compat_provider.AsyncOpenAI", return_value=mock_client):
+    with patch("mokli.providers.openai_compat_provider.AsyncOpenAI", return_value=mock_client):
         provider = GitHubCopilotProvider(default_model="github-copilot/gpt-4")
         await provider._ensure_client()
 
@@ -1368,7 +1368,7 @@ def test_make_provider_passes_extra_headers_to_custom_provider():
         }
     )
 
-    with patch("nanobot.providers.openai_compat_provider.AsyncOpenAI") as mock_async_openai:
+    with patch("mokli.providers.openai_compat_provider.AsyncOpenAI") as mock_async_openai:
         provider = make_provider(config)
         asyncio.run(provider._ensure_client())
 
@@ -1391,7 +1391,7 @@ def test_make_provider_treats_dynamic_custom_provider_as_direct():
         }
     )
 
-    with patch("nanobot.providers.openai_compat_provider.AsyncOpenAI") as mock_async_openai:
+    with patch("mokli.providers.openai_compat_provider.AsyncOpenAI") as mock_async_openai:
         provider = make_provider(config)
         asyncio.run(provider._ensure_client())
 
@@ -1544,14 +1544,14 @@ def mock_agent_runtime(tmp_path):
     config = Config()
     config.agents.defaults.workspace = str(tmp_path / "default-workspace")
 
-    with patch("nanobot.config.loader.load_config", return_value=config) as mock_load_config, \
-         patch("nanobot.config.loader.resolve_config_env_vars", side_effect=lambda c: c), \
-         patch("nanobot.cli.agent.sync_workspace_templates") as mock_sync_templates, \
-         patch("nanobot.providers.factory.make_provider", return_value=_fake_provider()), \
-         patch("nanobot.cli.terminal._print_agent_response") as mock_print_response, \
-         patch("nanobot.bus.queue.MessageBus"), \
-         patch("nanobot.cron.service.CronService"), \
-         patch("nanobot.cli.agent.AgentLoop.from_config") as mock_from_config:
+    with patch("mokli.config.loader.load_config", return_value=config) as mock_load_config, \
+         patch("mokli.config.loader.resolve_config_env_vars", side_effect=lambda c: c), \
+         patch("mokli.cli.agent.sync_workspace_templates") as mock_sync_templates, \
+         patch("mokli.providers.factory.make_provider", return_value=_fake_provider()), \
+         patch("mokli.cli.terminal._print_agent_response") as mock_print_response, \
+         patch("mokli.bus.queue.MessageBus"), \
+         patch("mokli.cron.service.CronService"), \
+         patch("mokli.cli.agent.AgentLoop.from_config") as mock_from_config:
         agent_loop = MagicMock()
         agent_loop.channels_config = None
         agent_loop.process_direct = AsyncMock(
@@ -1625,14 +1625,14 @@ def test_agent_config_sets_active_path(monkeypatch, tmp_path: Path) -> None:
     seen: dict[str, Path] = {}
 
     monkeypatch.setattr(
-        "nanobot.config.loader.set_config_path",
+        "mokli.config.loader.set_config_path",
         lambda path: seen.__setitem__("config_path", path),
     )
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.agent.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: _fake_provider())
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: object())
-    monkeypatch.setattr("nanobot.cron.service.CronService", lambda _store: object())
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.agent.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: _fake_provider())
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: object())
+    monkeypatch.setattr("mokli.cron.service.CronService", lambda _store: object())
 
     class _FakeAgentLoop:
         @classmethod
@@ -1647,8 +1647,8 @@ def test_agent_config_sets_active_path(monkeypatch, tmp_path: Path) -> None:
         async def aclose(self) -> None:
             return None
 
-    monkeypatch.setattr("nanobot.cli.agent.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("mokli.cli.agent.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
 
     result = runner.invoke(app, ["agent", "-m", "hello", "-c", str(config_file)])
 
@@ -1665,11 +1665,11 @@ def test_agent_uses_workspace_directory_for_cron_store(monkeypatch, tmp_path: Pa
     config.agents.defaults.workspace = str(tmp_path / "agent-workspace")
     seen: dict[str, Path] = {}
 
-    monkeypatch.setattr("nanobot.config.loader.set_config_path", lambda _path: None)
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.agent.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: _fake_provider())
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: object())
+    monkeypatch.setattr("mokli.config.loader.set_config_path", lambda _path: None)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.agent.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: _fake_provider())
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: object())
 
     class _FakeCron:
         def __init__(self, store_path: Path) -> None:
@@ -1688,9 +1688,9 @@ def test_agent_uses_workspace_directory_for_cron_store(monkeypatch, tmp_path: Pa
         async def aclose(self) -> None:
             return None
 
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCron)
-    monkeypatch.setattr("nanobot.cli.agent.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCron)
+    monkeypatch.setattr("mokli.cli.agent.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
 
     result = runner.invoke(app, ["agent", "-m", "hello", "-c", str(config_file)])
 
@@ -1714,12 +1714,12 @@ def test_agent_workspace_override_does_not_migrate_legacy_cron(
     config = Config()
     seen: dict[str, Path] = {}
 
-    monkeypatch.setattr("nanobot.config.loader.set_config_path", lambda _path: None)
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.agent.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: _fake_provider())
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: object())
-    monkeypatch.setattr("nanobot.config.paths.get_cron_dir", lambda: legacy_dir)
+    monkeypatch.setattr("mokli.config.loader.set_config_path", lambda _path: None)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.agent.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: _fake_provider())
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: object())
+    monkeypatch.setattr("mokli.config.paths.get_cron_dir", lambda: legacy_dir)
 
     class _FakeCron:
         def __init__(self, store_path: Path) -> None:
@@ -1738,9 +1738,9 @@ def test_agent_workspace_override_does_not_migrate_legacy_cron(
         async def aclose(self) -> None:
             return None
 
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCron)
-    monkeypatch.setattr("nanobot.cli.agent.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCron)
+    monkeypatch.setattr("mokli.cli.agent.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None)
 
     result = runner.invoke(
         app,
@@ -1770,12 +1770,12 @@ def test_agent_custom_config_workspace_does_not_migrate_legacy_cron(
     config.agents.defaults.workspace = str(custom_workspace)
     seen: dict[str, Path] = {}
 
-    monkeypatch.setattr("nanobot.config.loader.set_config_path", lambda _path: None)
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.agent.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: _fake_provider())
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: object())
-    monkeypatch.setattr("nanobot.config.paths.get_cron_dir", lambda: legacy_dir)
+    monkeypatch.setattr("mokli.config.loader.set_config_path", lambda _path: None)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.agent.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: _fake_provider())
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: object())
+    monkeypatch.setattr("mokli.config.paths.get_cron_dir", lambda: legacy_dir)
 
     class _FakeCron:
         def __init__(self, store_path: Path) -> None:
@@ -1794,10 +1794,10 @@ def test_agent_custom_config_workspace_does_not_migrate_legacy_cron(
         async def aclose(self) -> None:
             return None
 
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCron)
-    monkeypatch.setattr("nanobot.cli.agent.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCron)
+    monkeypatch.setattr("mokli.cli.agent.AgentLoop", _FakeAgentLoop)
     monkeypatch.setattr(
-        "nanobot.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None
+        "mokli.cli.terminal._print_agent_response", lambda *_args, **_kwargs: None
     )
 
     result = runner.invoke(app, ["agent", "-m", "hello", "-c", str(config_file)])
@@ -1853,20 +1853,20 @@ def test_agent_workspace_override_wins_over_config_workspace(mock_agent_runtime,
     ],
 )
 def test_heartbeat_has_active_tasks(content, expected):
-    from nanobot.cli.gateway_runtime import _heartbeat_has_active_tasks
+    from mokli.cli.gateway_runtime import _heartbeat_has_active_tasks
 
     assert _heartbeat_has_active_tasks(content) is expected
 
 
 def test_heartbeat_skips_bundled_template():
-    from nanobot.cli.gateway_runtime import _heartbeat_has_active_tasks
-    from nanobot.utils.helpers import load_bundled_template
+    from mokli.cli.gateway_runtime import _heartbeat_has_active_tasks
+    from mokli.utils.helpers import load_bundled_template
 
     assert _heartbeat_has_active_tasks(load_bundled_template("HEARTBEAT.md")) is False
 
 
-def test_heartbeat_target_skips_archived_webui_sessions():
-    from nanobot.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
+def test_heartbeat_target_skips_archived_mokli_sessions():
+    from mokli.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
 
     target = _pick_heartbeat_target_from_sessions(
         enabled_channels=["websocket"],
@@ -1881,8 +1881,8 @@ def test_heartbeat_target_skips_archived_webui_sessions():
 
 
 def test_heartbeat_target_uses_last_channel_for_unified_session():
-    from nanobot.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
-    from nanobot.session.keys import LAST_CHANNEL_METADATA_KEY, UNIFIED_SESSION_KEY
+    from mokli.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
+    from mokli.session.keys import LAST_CHANNEL_METADATA_KEY, UNIFIED_SESSION_KEY
 
     target = _pick_heartbeat_target_from_sessions(
         enabled_channels=["telegram", "discord"],
@@ -1903,8 +1903,8 @@ def test_heartbeat_target_uses_last_channel_for_unified_session():
     ],
 )
 def test_heartbeat_target_rejects_unroutable_unified_metadata(metadata):
-    from nanobot.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
-    from nanobot.session.keys import UNIFIED_SESSION_KEY
+    from mokli.cli.gateway_runtime import _pick_heartbeat_target_from_sessions
+    from mokli.session.keys import UNIFIED_SESSION_KEY
 
     target = _pick_heartbeat_target_from_sessions(
         enabled_channels=["discord"],
@@ -1936,29 +1936,29 @@ def _test_provider_snapshot(provider: object, config: Config) -> ProviderSnapsho
     )
 
 
-def _patch_webui_provider_ready(monkeypatch) -> None:
+def _patch_mokli_provider_ready(monkeypatch) -> None:
     monkeypatch.setattr(
-        "nanobot.providers.factory.validate_provider_setup",
+        "mokli.providers.factory.validate_provider_setup",
         lambda _config: None,
     )
 
 
 def _patch_gateway_ports_free(monkeypatch) -> None:
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", lambda *_a, **_kw: False)
-    monkeypatch.setattr("nanobot.cli.webui._tcp_endpoint_reachable", lambda *_a, **_kw: False)
-    monkeypatch.setattr("nanobot.cli.webui._webui_endpoint_reachable", lambda *_a, **_kw: False)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", lambda *_a, **_kw: False)
+    monkeypatch.setattr("mokli.cli.mokli._tcp_endpoint_reachable", lambda *_a, **_kw: False)
+    monkeypatch.setattr("mokli.cli.mokli._mokli_endpoint_reachable", lambda *_a, **_kw: False)
     monkeypatch.setattr(
-        "nanobot.cli.gateway_runtime._tcp_endpoint_reachable",
+        "mokli.cli.gateway_runtime._tcp_endpoint_reachable",
         lambda *_a, **_kw: False,
     )
     monkeypatch.setattr(
-        "nanobot.cli.gateway_runtime._webui_endpoint_reachable",
+        "mokli.cli.gateway_runtime._mokli_endpoint_reachable",
         lambda *_a, **_kw: False,
     )
 
 
 def _record_gateway_lease_release(monkeypatch, captured: dict[str, object]) -> None:
-    from nanobot.gateway import GatewayClientLease
+    from mokli.gateway import GatewayClientLease
 
     original_release = GatewayClientLease.release
 
@@ -1979,12 +1979,12 @@ def _record_gateway_lease_release(monkeypatch, captured: dict[str, object]) -> N
     monkeypatch.setattr(GatewayClientLease, "release", record_release)
 
 
-def _patch_webui_managed_gateway(
+def _patch_mokli_managed_gateway(
     monkeypatch,
     seen: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Run WebUI CLI tests against a managed gateway without spawning a process."""
-    from nanobot.gateway import GatewayStatus, RuntimeResult
+    """Run Mokli CLI tests against a managed gateway without spawning a process."""
+    from mokli.gateway import GatewayStatus, RuntimeResult
 
     captured = seen if seen is not None else {}
     _record_gateway_lease_release(monkeypatch, captured)
@@ -2009,9 +2009,9 @@ def _patch_webui_managed_gateway(
             return RuntimeResult(True, "gateway_started_background", status)
 
         def start_on_demand(self, options):
-            from nanobot.gateway import GatewayClientLease
+            from mokli.gateway import GatewayClientLease
 
-            GatewayClientLease(self, kind="test-webui").mark_ephemeral()
+            GatewayClientLease(self, kind="test-mokli").mark_ephemeral()
             return self.start_background(options)
 
         def status(self):
@@ -2024,13 +2024,13 @@ def _patch_webui_managed_gateway(
 
         _stop = stop
 
-    monkeypatch.setattr("nanobot.gateway.GatewayRuntime", _FakeRuntime)
+    monkeypatch.setattr("mokli.gateway.GatewayRuntime", _FakeRuntime)
     monkeypatch.setattr(
-        "nanobot.cli.webui._prepare_webui_bundle_for_gateway",
+        "mokli.cli.mokli._prepare_mokli_bundle_for_gateway",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui._attach_to_background_gateway",
+        "mokli.cli.mokli._attach_to_background_gateway",
         lambda runtime, **_kwargs: captured.__setitem__("attached_runtime", runtime),
     )
     return captured
@@ -2051,49 +2051,49 @@ def _patch_cli_command_runtime(
     provider_factory = make_provider or (lambda _config: _fake_provider())
 
     monkeypatch.setattr(
-        "nanobot.config.loader.set_config_path",
+        "mokli.config.loader.set_config_path",
         set_config_path or (lambda _path: None),
     )
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.config.loader.resolve_config_env_vars", lambda c: c)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.config.loader.resolve_config_env_vars", lambda c: c)
     monkeypatch.setattr(
-        "nanobot.cli.commands.sync_workspace_templates",
+        "mokli.cli.commands.sync_workspace_templates",
         sync_templates or (lambda _path: None),
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui.sync_workspace_templates",
+        "mokli.cli.mokli.sync_workspace_templates",
         sync_templates or (lambda _path: None),
     )
     monkeypatch.setattr(
-        "nanobot.cli.gateway_runtime.sync_workspace_templates",
+        "mokli.cli.gateway_runtime.sync_workspace_templates",
         sync_templates or (lambda _path: None),
     )
     monkeypatch.setattr(
-        "nanobot.providers.factory.make_provider",
+        "mokli.providers.factory.make_provider",
         provider_factory,
     )
     monkeypatch.setattr(
-        "nanobot.providers.factory.build_provider_snapshot",
+        "mokli.providers.factory.build_provider_snapshot",
         lambda _config: _test_provider_snapshot(provider_factory(_config), _config),
     )
     monkeypatch.setattr(
-        "nanobot.providers.factory.load_provider_snapshot",
+        "mokli.providers.factory.load_provider_snapshot",
         lambda _config_path=None: _test_provider_snapshot(provider_factory(config), config),
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._provider_setup_error",
+        "mokli.cli.mokli_support._provider_setup_error",
         lambda _config: None,
     )
     _patch_gateway_ports_free(monkeypatch)
 
     if message_bus is not None:
-        monkeypatch.setattr("nanobot.bus.queue.MessageBus", message_bus)
+        monkeypatch.setattr("mokli.bus.queue.MessageBus", message_bus)
     if session_manager is not None:
-        monkeypatch.setattr("nanobot.session.manager.SessionManager", session_manager)
+        monkeypatch.setattr("mokli.session.manager.SessionManager", session_manager)
     if cron_service is not None:
-        monkeypatch.setattr("nanobot.cron.service.CronService", cron_service)
+        monkeypatch.setattr("mokli.cron.service.CronService", cron_service)
     if get_cron_dir is not None:
-        monkeypatch.setattr("nanobot.config.paths.get_cron_dir", get_cron_dir)
+        monkeypatch.setattr("mokli.config.paths.get_cron_dir", get_cron_dir)
 
 
 def test_heartbeat_empty_response_is_not_evaluated(
@@ -2170,10 +2170,10 @@ def test_heartbeat_empty_response_is_not_evaluated(
         session_manager=_FakeSessionManager,
         cron_service=_FakeCron,
     )
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _FakeChannelManager)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.read_webui_sidebar_state", lambda: {})
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.evaluate_response", _unexpected_evaluator)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _FakeChannelManager)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.read_mokli_sidebar_state", lambda: {})
+    monkeypatch.setattr("mokli.cli.gateway_runtime.evaluate_response", _unexpected_evaluator)
 
     result = runner.invoke(app, ["gateway", "--config", str(config_file)])
 
@@ -2184,25 +2184,25 @@ def test_heartbeat_empty_response_is_not_evaluated(
     assert response is None
 
 
-def test_webui_yes_creates_config_and_enables_local_websocket(
+def test_mokli_yes_creates_config_and_enables_local_websocket(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
     config_file = tmp_path / "instance" / "config.json"
     workspace = tmp_path / "workspace"
     seen: dict[str, object] = {}
-    _patch_webui_provider_ready(monkeypatch)
+    _patch_mokli_provider_ready(monkeypatch)
     monkeypatch.setattr(
-        "nanobot.cli.webui.sync_workspace_templates",
+        "mokli.cli.mokli.sync_workspace_templates",
         lambda path: seen.__setitem__("templates", path),
     )
 
-    _patch_webui_managed_gateway(monkeypatch, seen)
+    _patch_mokli_managed_gateway(monkeypatch, seen)
 
     result = runner.invoke(
         app,
         [
-            "webui",
+            "mokli",
             "--config",
             str(config_file),
             "--workspace",
@@ -2239,7 +2239,7 @@ def test_webui_yes_creates_config_and_enables_local_websocket(
     assert "stop_timeout" not in seen
 
 
-def test_webui_background_points_to_the_single_persistent_gateway_command(
+def test_mokli_background_points_to_the_single_persistent_gateway_command(
     tmp_path: Path,
 ) -> None:
     config_file = tmp_path / "config.json"
@@ -2248,7 +2248,7 @@ def test_webui_background_points_to_the_single_persistent_gateway_command(
     result = runner.invoke(
         app,
         [
-            "webui",
+            "mokli",
             "--background",
             "--config",
             str(config_file),
@@ -2259,19 +2259,19 @@ def test_webui_background_points_to_the_single_persistent_gateway_command(
 
     assert result.exit_code == 1
     compact_output = _strip_ansi(result.stdout).replace("\n", " ")
-    assert "webui --background` no longer owns gateway lifecycle" in compact_output
-    assert "nanobot gateway --background --config" in compact_output
+    assert "mokli --background` no longer owns gateway lifecycle" in compact_output
+    assert "mokli gateway --background --config" in compact_output
     assert "--workspace" in compact_output
     assert not config_file.exists()
 
 
-def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) -> None:
+def test_mokli_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text("{}", encoding="utf-8")
     seen: dict[str, object] = {}
-    _patch_webui_provider_ready(monkeypatch)
+    _patch_mokli_provider_ready(monkeypatch)
     _patch_gateway_ports_free(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
 
     @contextmanager
     def fake_dev_server(**kwargs):
@@ -2287,14 +2287,14 @@ def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) 
         finally:
             seen["dev_running"] = False
 
-    monkeypatch.setattr("nanobot.cli.webui.run_webui_dev_server", fake_dev_server)
-    _patch_webui_managed_gateway(monkeypatch, seen)
+    monkeypatch.setattr("mokli.cli.mokli.run_mokli_dev_server", fake_dev_server)
+    _patch_mokli_managed_gateway(monkeypatch, seen)
     monkeypatch.setattr(
-        "nanobot.cli.webui._prepare_webui_bundle_for_gateway",
-        lambda *_args, **_kwargs: pytest.fail("dev mode must not inspect the bundled WebUI"),
+        "mokli.cli.mokli._prepare_mokli_bundle_for_gateway",
+        lambda *_args, **_kwargs: pytest.fail("dev mode must not inspect the bundled Mokli"),
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui._attach_to_background_gateway",
+        "mokli.cli.mokli._attach_to_background_gateway",
         lambda runtime, **kwargs: seen.update(
             attached_runtime=runtime,
             attach_kwargs=kwargs,
@@ -2302,14 +2302,14 @@ def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) 
         ),
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui._open_webui_browser",
+        "mokli.cli.mokli._mokli_ui_browser",
         lambda url: seen.__setitem__("opened_url", url),
     )
 
     result = runner.invoke(
         app,
         [
-            "webui",
+            "mokli",
             "--dev",
             "--config",
             str(config_file),
@@ -2335,12 +2335,12 @@ def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) 
     assert seen["dev_running"] is False
     assert seen["dev_running_at_release"] is False
     assert seen["lease_release_wait_for_stop"] is False
-    assert "WebUI dev: http://127.0.0.1:5173/#/?bootstrapSecret=<redacted>" in re.sub(
+    assert "Mokli dev: http://127.0.0.1:5173/#/?bootstrapSecret=<redacted>" in re.sub(
         r"\s+", " ", _strip_ansi(result.stdout)
     )
 
 
-def test_webui_dev_waits_for_external_gateway_via_health_endpoint(monkeypatch) -> None:
+def test_mokli_dev_waits_for_external_gateway_via_health_endpoint(monkeypatch) -> None:
     health_results = iter((True, False))
     health_calls: list[tuple[str, int]] = []
     sidecar_checks = 0
@@ -2349,9 +2349,9 @@ def test_webui_dev_waits_for_external_gateway_via_health_endpoint(monkeypatch) -
         health_calls.append((host, port))
         return next(health_results)
 
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", fake_health)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", fake_health)
     monkeypatch.setattr(
-        "nanobot.cli.webui._webui_endpoint_reachable",
+        "mokli.cli.mokli._mokli_endpoint_reachable",
         lambda _url: pytest.fail("must not probe the WebSocket endpoint while waiting"),
     )
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
@@ -2362,32 +2362,32 @@ def test_webui_dev_waits_for_external_gateway_via_health_endpoint(monkeypatch) -
 
     dev_server = MagicMock()
     dev_server.ensure_running.side_effect = ensure_sidecar_running
-    cli_webui._wait_with_existing_foreground_gateway("127.0.0.1", 18888, dev_server)
+    cli_mokli._wait_with_existing_foreground_gateway("127.0.0.1", 18888, dev_server)
 
     assert health_calls == [("127.0.0.1", 18888), ("127.0.0.1", 18888)]
     assert sidecar_checks == 2
 
 
-async def test_webui_dev_monitor_fails_when_sidecar_exits() -> None:
+async def test_mokli_dev_monitor_fails_when_sidecar_exits() -> None:
     dev_server = MagicMock()
-    dev_server.ensure_running.side_effect = WebUIDevError(
-        "WebUI development server exited unexpectedly (code 23)"
+    dev_server.ensure_running.side_effect = MokliDevError(
+        "Mokli development server exited unexpectedly (code 23)"
     )
 
-    with pytest.raises(WebUIDevError, match=r"exited unexpectedly \(code 23\)"):
-        await cli_gateway_runtime._watch_webui_dev_server(
+    with pytest.raises(MokliDevError, match=r"exited unexpectedly \(code 23\)"):
+        await cli_gateway_runtime._watch_mokli_dev_server(
             dev_server,
             asyncio.Event(),
             poll_interval_s=0,
         )
 
 
-async def test_webui_dev_monitor_ignores_an_expected_gateway_shutdown() -> None:
+async def test_mokli_dev_monitor_ignores_an_expected_gateway_shutdown() -> None:
     dev_server = MagicMock()
     shutdown_event = asyncio.Event()
     shutdown_event.set()
 
-    await cli_gateway_runtime._watch_webui_dev_server(
+    await cli_gateway_runtime._watch_mokli_dev_server(
         dev_server,
         shutdown_event,
         poll_interval_s=0,
@@ -2399,7 +2399,7 @@ async def test_webui_dev_monitor_ignores_an_expected_gateway_shutdown() -> None:
 def test_browser_readiness_accepts_http_auth_response(monkeypatch) -> None:
     def auth_required(*_args, **_kwargs):
         raise urllib.error.HTTPError(
-            "http://127.0.0.1:8765/webui/bootstrap",
+            "http://127.0.0.1:8765/mokli/bootstrap",
             401,
             "authentication required",
             hdrs=None,
@@ -2409,7 +2409,7 @@ def test_browser_readiness_accepts_http_auth_response(monkeypatch) -> None:
     monkeypatch.setattr("urllib.request.urlopen", auth_required)
 
     assert cli_gateway_runtime._http_endpoint_responding(
-        "http://127.0.0.1:8765/webui/bootstrap"
+        "http://127.0.0.1:8765/mokli/bootstrap"
     ) is True
 
 
@@ -2420,36 +2420,36 @@ def test_browser_readiness_rejects_connection_error(monkeypatch) -> None:
     monkeypatch.setattr("urllib.request.urlopen", unavailable)
 
     assert cli_gateway_runtime._http_endpoint_responding(
-        "http://127.0.0.1:8765/webui/bootstrap"
+        "http://127.0.0.1:8765/mokli/bootstrap"
     ) is False
 
 
 @pytest.mark.parametrize("resume_args", [[], ["--yes"]])
-def test_webui_resumes_first_run_without_provider_setup(
+def test_mokli_resumes_first_run_without_provider_setup(
     monkeypatch, tmp_path: Path, resume_args: list[str],
 ) -> None:
     config_file = tmp_path / "config.json"
     seen: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._provider_setup_error",
+        "mokli.cli.mokli_support._provider_setup_error",
         lambda _config: "No API key configured for provider 'custom'.",
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui._provider_setup_error",
+        "mokli.cli.mokli._provider_setup_error",
         lambda _config: "No API key configured for provider 'custom'.",
     )
     _patch_gateway_ports_free(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
-    _patch_webui_managed_gateway(monkeypatch, seen)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
+    _patch_mokli_managed_gateway(monkeypatch, seen)
 
-    args = ["webui", "--config", str(config_file), "--workspace", str(tmp_path / "workspace")]
+    args = ["mokli", "--config", str(config_file), "--workspace", str(tmp_path / "workspace")]
     result = runner.invoke(app, [*args, "--yes", "--no-open"])
 
     assert result.exit_code == 0
     assert config_file.exists()
     assert seen["start_options"].config_path == str(config_file.resolve(strict=False))
-    assert "Configure a provider and model in WebUI Settings → Models." in result.stdout
+    assert "Configure a provider and model in Mokli Settings → Models." in result.stdout
 
     saved_config = json.loads(config_file.read_text(encoding="utf-8"))
     seen.clear()
@@ -2457,19 +2457,19 @@ def test_webui_resumes_first_run_without_provider_setup(
 
     assert resumed.exit_code == 0, resumed.stdout
     assert seen["start_options"].config_path == str(config_file.resolve(strict=False))
-    assert "Configure a provider and model in WebUI Settings → Models." in resumed.stdout
+    assert "Configure a provider and model in Mokli Settings → Models." in resumed.stdout
     assert "Quick Start" not in resumed.stdout
     assert json.loads(config_file.read_text(encoding="utf-8")) == saved_config
     assert saved_config["channels"]["websocket"]["host"] == "127.0.0.1"
     assert saved_config["channels"]["websocket"]["tokenIssueSecret"]
 
 
-def test_webui_missing_runtime_env_fails_before_starting_gateway(
+def test_mokli_missing_runtime_env_fails_before_starting_gateway(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
     config_file = tmp_path / "config.json"
-    missing_env = "NANOBOT_TEST_MISSING_WEBUI_SECRET"
+    missing_env = "MOKLI_TEST_MISSING_MOKLI_SECRET"
     monkeypatch.delenv(missing_env, raising=False)
     config_file.write_text(
         json.dumps({
@@ -2489,17 +2489,17 @@ def test_webui_missing_runtime_env_fails_before_starting_gateway(
         }),
         encoding="utf-8",
     )
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes", "--no-open"])
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes", "--no-open"])
 
     assert result.exit_code == 1
     assert missing_env in result.stdout
-    assert "nanobot status --config" in result.stdout
+    assert "mokli status --config" in result.stdout
     assert config_file.name in result.stdout
     assert "Traceback" not in result.stdout
     assert f"${{{missing_env}}}" in config_file.read_text(encoding="utf-8")
 
 
-def test_webui_yes_opens_settings_for_incomplete_custom_model_setup(
+def test_mokli_yes_opens_settings_for_incomplete_custom_model_setup(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -2522,9 +2522,9 @@ def test_webui_yes_opens_settings_for_incomplete_custom_model_setup(
     )
 
     _patch_gateway_ports_free(monkeypatch)
-    seen = _patch_webui_managed_gateway(monkeypatch)
+    seen = _patch_mokli_managed_gateway(monkeypatch)
     result = runner.invoke(app, [
-        "webui", "--config", str(config_file), "--workspace", str(tmp_path / "workspace"),
+        "mokli", "--config", str(config_file), "--workspace", str(tmp_path / "workspace"),
         "--yes", "--no-open",
     ])
 
@@ -2537,16 +2537,16 @@ def test_webui_yes_opens_settings_for_incomplete_custom_model_setup(
     assert saved["providers"]["custom"]["displayName"] == "Custom"
 
 
-def test_open_webui_browser_redacts_bootstrap_secret(monkeypatch, capsys) -> None:
+def test_mokli_ui_browser_redacts_bootstrap_secret(monkeypatch, capsys) -> None:
     opened: list[str] = []
     url = "http://127.0.0.1:8765/#/?bootstrapSecret=super-secret"
     monkeypatch.setattr(
-        cli_webui_support,
+        cli_mokli_support,
         "_launch_browser",
         lambda value: opened.append(value) or True,
     )
 
-    cli_webui_support._open_webui_browser(url, wait=False)
+    cli_mokli_support._mokli_ui_browser(url, wait=False)
 
     assert opened == [url]
     output = _strip_ansi(capsys.readouterr().out)
@@ -2554,10 +2554,10 @@ def test_open_webui_browser_redacts_bootstrap_secret(monkeypatch, capsys) -> Non
     assert "super-secret" not in output
 
 
-def test_open_webui_browser_reports_launch_failure(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(cli_webui_support, "_launch_browser", lambda _value: False)
+def test_mokli_ui_browser_reports_launch_failure(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(cli_mokli_support, "_launch_browser", lambda _value: False)
 
-    cli_webui_support._open_webui_browser("http://127.0.0.1:8765/", wait=False)
+    cli_mokli_support._mokli_ui_browser("http://127.0.0.1:8765/", wait=False)
 
     assert "Could not open browser; visit http://127.0.0.1:8765/" in _strip_ansi(
         capsys.readouterr().out
@@ -2566,49 +2566,49 @@ def test_open_webui_browser_reports_launch_failure(monkeypatch, capsys) -> None:
 
 def test_launch_browser_uses_macos_url_services(monkeypatch) -> None:
     seen: list[str] = []
-    monkeypatch.setattr(cli_webui_support.sys, "platform", "darwin")
+    monkeypatch.setattr(cli_mokli_support.sys, "platform", "darwin")
     monkeypatch.setattr(
-        cli_webui_support,
+        cli_mokli_support,
         "_launch_macos_browser",
         lambda url: seen.append(url) or True,
     )
 
-    assert cli_webui_support._launch_browser("http://127.0.0.1:8765/") is True
+    assert cli_mokli_support._launch_browser("http://127.0.0.1:8765/") is True
     assert seen == ["http://127.0.0.1:8765/"]
 
 
 def test_launch_browser_uses_default_browser_off_macos(monkeypatch) -> None:
     opened: list[tuple[str, int, bool]] = []
-    monkeypatch.setattr(cli_webui_support.sys, "platform", "linux")
+    monkeypatch.setattr(cli_mokli_support.sys, "platform", "linux")
     monkeypatch.setattr(
-        cli_webui_support.webbrowser,
+        cli_mokli_support.webbrowser,
         "open",
         lambda url, *, new, autoraise: opened.append((url, new, autoraise)) or True,
     )
 
-    assert cli_webui_support._launch_browser("http://127.0.0.1:8765/") is True
+    assert cli_mokli_support._launch_browser("http://127.0.0.1:8765/") is True
     assert opened == [("http://127.0.0.1:8765/", 2, True)]
 
 
-def test_webui_foreground_attaches_to_existing_managed_gateway(monkeypatch, tmp_path: Path) -> None:
+def test_mokli_foreground_attaches_to_existing_managed_gateway(monkeypatch, tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text("{}")
     seen: dict[str, object] = {}
     _record_gateway_lease_release(monkeypatch, seen)
-    _patch_webui_provider_ready(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", lambda *_args, **_kwargs: True)
+    _patch_mokli_provider_ready(monkeypatch)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._gateway_health_ready",
+        "mokli.cli.mokli_support._gateway_health_ready",
         lambda *_args, **_kwargs: True,
     )
     monkeypatch.setattr(
-        "nanobot.cli.webui._prepare_webui_bundle_for_gateway",
+        "mokli.cli.mokli._prepare_mokli_bundle_for_gateway",
         lambda *_args, **_kwargs: None,
     )
-    monkeypatch.setattr("nanobot.cli.webui._webui_endpoint_reachable", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("mokli.cli.mokli._mokli_endpoint_reachable", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(
-        "nanobot.cli.webui._open_webui_browser",
+        "mokli.cli.mokli._mokli_ui_browser",
         lambda url, **kwargs: seen.update({"opened_url": url, "open_kwargs": kwargs}),
     )
     class _FakeRuntime:
@@ -2643,16 +2643,16 @@ def test_webui_foreground_attaches_to_existing_managed_gateway(monkeypatch, tmp_
                 status=SimpleNamespace(log_path=self.paths.log_path),
             )
 
-    monkeypatch.setattr("nanobot.gateway.GatewayRuntime", _FakeRuntime)
+    monkeypatch.setattr("mokli.gateway.GatewayRuntime", _FakeRuntime)
     monkeypatch.setattr(
-        "nanobot.cli.webui._attach_to_background_gateway",
+        "mokli.cli.mokli._attach_to_background_gateway",
         lambda runtime: seen.__setitem__("attached_runtime", runtime),
     )
 
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes"])
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes"])
 
     assert result.exit_code == 0
-    assert "Gateway is already running; attaching to the existing WebUI" in result.stdout
+    assert "Gateway is already running; attaching to the existing Mokli" in result.stdout
     assert isinstance(seen["attached_runtime"], _FakeRuntime)
     opened_url = seen["opened_url"]
     assert isinstance(opened_url, str)
@@ -2681,14 +2681,14 @@ def test_attach_to_background_gateway_detaches_on_ctrl_c(capsys, tmp_path: Path)
     def _interrupt(_seconds: float) -> None:
         raise KeyboardInterrupt
 
-    cli_webui_support._attach_to_background_gateway(_FakeRuntime(), sleep=_interrupt)
+    cli_mokli_support._attach_to_background_gateway(_FakeRuntime(), sleep=_interrupt)
 
     assert stopped is False
     output = capsys.readouterr().out
     rendered = " ".join(output.split())
     assert "Closing the browser does not stop channels or automations" in rendered
     assert "gateway stops only when the last local client exits" in rendered
-    assert "WebUI launcher detached" in rendered
+    assert "Mokli launcher detached" in rendered
 
 
 def test_attach_to_background_gateway_follows_only_new_logs(capsys, tmp_path: Path) -> None:
@@ -2709,7 +2709,7 @@ def test_attach_to_background_gateway_follows_only_new_logs(capsys, tmp_path: Pa
             return
         raise KeyboardInterrupt
 
-    cli_webui_support._attach_to_background_gateway(
+    cli_mokli_support._attach_to_background_gateway(
         _FakeRuntime(),
         sleep=_append_then_interrupt,
     )
@@ -2722,10 +2722,10 @@ def test_attach_to_background_gateway_follows_only_new_logs(capsys, tmp_path: Pa
 def test_read_new_gateway_logs_recovers_after_truncation(tmp_path: Path) -> None:
     log_path = tmp_path / "gateway.log"
     log_path.write_text("a much longer historical log line\n", encoding="utf-8")
-    cursor = cli_webui_support._start_gateway_log_cursor(log_path)
+    cursor = cli_mokli_support._start_gateway_log_cursor(log_path)
     log_path.write_text("fresh log\n", encoding="utf-8")
 
-    lines = cli_webui_support._read_new_gateway_logs(log_path, cursor)
+    lines = cli_mokli_support._read_new_gateway_logs(log_path, cursor)
 
     assert lines == ["fresh log"]
     assert cursor.offset == log_path.stat().st_size
@@ -2734,10 +2734,10 @@ def test_read_new_gateway_logs_recovers_after_truncation(tmp_path: Path) -> None
 def test_read_new_gateway_logs_detects_fast_rewrite_past_offset(tmp_path: Path) -> None:
     log_path = tmp_path / "gateway.log"
     log_path.write_text("historical log\n", encoding="utf-8")
-    cursor = cli_webui_support._start_gateway_log_cursor(log_path)
+    cursor = cli_mokli_support._start_gateway_log_cursor(log_path)
     log_path.write_text("first fresh log\nsecond fresh log\n", encoding="utf-8")
 
-    lines = cli_webui_support._read_new_gateway_logs(log_path, cursor)
+    lines = cli_mokli_support._read_new_gateway_logs(log_path, cursor)
 
     assert lines == ["first fresh log", "second fresh log"]
 
@@ -2745,22 +2745,22 @@ def test_read_new_gateway_logs_detects_fast_rewrite_past_offset(tmp_path: Path) 
 def test_read_new_gateway_logs_waits_for_complete_utf8_line(tmp_path: Path) -> None:
     log_path = tmp_path / "gateway.log"
     log_path.touch()
-    cursor = cli_webui_support._start_gateway_log_cursor(log_path)
+    cursor = cli_mokli_support._start_gateway_log_cursor(log_path)
     encoded = "模型 ready\n".encode()
     log_path.write_bytes(encoded[:2])
 
-    assert cli_webui_support._read_new_gateway_logs(log_path, cursor) == []
+    assert cli_mokli_support._read_new_gateway_logs(log_path, cursor) == []
 
     with log_path.open("ab") as handle:
         handle.write(encoded[2:])
 
-    assert cli_webui_support._read_new_gateway_logs(log_path, cursor) == ["模型 ready"]
+    assert cli_mokli_support._read_new_gateway_logs(log_path, cursor) == ["模型 ready"]
 
 
 def test_read_new_gateway_logs_tolerates_missing_file(tmp_path: Path) -> None:
     log_path = tmp_path / "missing.log"
-    cursor = cli_webui_support._start_gateway_log_cursor(log_path)
-    lines = cli_webui_support._read_new_gateway_logs(log_path, cursor)
+    cursor = cli_mokli_support._start_gateway_log_cursor(log_path)
+    lines = cli_mokli_support._read_new_gateway_logs(log_path, cursor)
 
     assert lines == []
     assert cursor.offset == 0
@@ -2775,25 +2775,25 @@ def test_attach_to_background_gateway_checks_owned_sidecar(tmp_path: Path) -> No
             return SimpleNamespace(running=True, log_path=log_path)
 
     def sidecar_exited() -> None:
-        raise WebUIDevError("WebUI development server exited unexpectedly (code 23)")
+        raise MokliDevError("Mokli development server exited unexpectedly (code 23)")
 
-    with pytest.raises(WebUIDevError, match=r"exited unexpectedly \(code 23\)"):
-        cli_webui_support._attach_to_background_gateway(
+    with pytest.raises(MokliDevError, match=r"exited unexpectedly \(code 23\)"):
+        cli_mokli_support._attach_to_background_gateway(
             _FakeRuntime(),
             poll_hook=sidecar_exited,
         )
 
 
-def test_webui_foreground_does_not_claim_unmanaged_gateway(monkeypatch, tmp_path: Path) -> None:
+def test_mokli_foreground_does_not_claim_unmanaged_gateway(monkeypatch, tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text("{}")
-    _patch_webui_provider_ready(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", lambda *_args: True)
-    monkeypatch.setattr("nanobot.cli.webui._webui_endpoint_reachable", lambda *_args: True)
-    monkeypatch.setattr("nanobot.cli.webui._open_webui_browser", lambda *_args, **_kwargs: None)
+    _patch_mokli_provider_ready(monkeypatch)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", lambda *_args: True)
+    monkeypatch.setattr("mokli.cli.mokli._mokli_endpoint_reachable", lambda *_args: True)
+    monkeypatch.setattr("mokli.cli.mokli._mokli_ui_browser", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
-        "nanobot.cli.webui._attach_to_background_gateway",
+        "mokli.cli.mokli._attach_to_background_gateway",
         lambda _runtime: pytest.fail("unmanaged gateway must not be attached"),
     )
 
@@ -2804,35 +2804,35 @@ def test_webui_foreground_does_not_claim_unmanaged_gateway(monkeypatch, tmp_path
         def status(self):
             return SimpleNamespace(running=False)
 
-    monkeypatch.setattr("nanobot.gateway.GatewayRuntime", _FakeRuntime)
+    monkeypatch.setattr("mokli.gateway.GatewayRuntime", _FakeRuntime)
 
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes"])
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes"])
 
     assert result.exit_code == 0
     assert "controlled by another foreground command" in result.stdout
 
 
-def test_webui_foreground_refuses_occupied_webui_port(monkeypatch, tmp_path: Path) -> None:
+def test_mokli_foreground_refuses_occupied_mokli_port(monkeypatch, tmp_path: Path) -> None:
     config_file = tmp_path / "config.json"
     config_file.write_text("{}")
-    _patch_webui_provider_ready(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", lambda *_args, **_kwargs: False)
+    _patch_mokli_provider_ready(monkeypatch)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", lambda *_args, **_kwargs: False)
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._gateway_health_ready",
+        "mokli.cli.mokli_support._gateway_health_ready",
         lambda *_args, **_kwargs: False,
     )
-    monkeypatch.setattr("nanobot.cli.webui._webui_endpoint_reachable", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr("nanobot.cli.webui._tcp_endpoint_reachable", lambda *_args, **_kwargs: False)
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes"])
+    monkeypatch.setattr("mokli.cli.mokli._mokli_endpoint_reachable", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("mokli.cli.mokli._tcp_endpoint_reachable", lambda *_args, **_kwargs: False)
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes"])
 
     assert result.exit_code == 1
-    assert "nanobot cannot start because one of its local ports is already in use" in result.stdout
+    assert "mokli cannot start because one of its local ports is already in use" in result.stdout
     assert "--port" in result.stdout
     assert "--gateway-port" in result.stdout
 
 
-def test_webui_foreground_reports_an_existing_gateway_without_leaking_secret(
+def test_mokli_foreground_reports_an_existing_gateway_without_leaking_secret(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -2841,16 +2841,16 @@ def test_webui_foreground_reports_an_existing_gateway_without_leaking_secret(
         '{"channels":{"websocket":{"tokenIssueSecret":"do-not-leak"}}}',
         encoding="utf-8",
     )
-    _patch_webui_provider_ready(monkeypatch)
-    monkeypatch.setattr("nanobot.cli.webui.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.cli.webui._gateway_health_ready", lambda *_args, **_kwargs: True)
+    _patch_mokli_provider_ready(monkeypatch)
+    monkeypatch.setattr("mokli.cli.mokli.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.cli.mokli._gateway_health_ready", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(
-        "nanobot.cli.webui_support._gateway_health_ready",
+        "mokli.cli.mokli_support._gateway_health_ready",
         lambda *_args, **_kwargs: True,
     )
-    monkeypatch.setattr("nanobot.cli.webui._webui_endpoint_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr("mokli.cli.mokli._mokli_endpoint_reachable", lambda *_args, **_kwargs: False)
 
-    result = runner.invoke(app, ["webui", "--config", str(config_file), "--yes"])
+    result = runner.invoke(app, ["mokli", "--config", str(config_file), "--yes"])
 
     assert result.exit_code == 1
     assert "gateway is already running for this local instance" in result.stdout
@@ -2901,8 +2901,8 @@ def _patch_serve_runtime(monkeypatch, config: Config, seen: dict[str, object]) -
         message_bus=MessageBus,
         session_manager=lambda _workspace: _EmptyGatewaySessionManager(),
     )
-    monkeypatch.setattr("nanobot.cli.commands.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.api.server.create_app", _fake_create_app)
+    monkeypatch.setattr("mokli.cli.commands.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.api.server.create_app", _fake_create_app)
     monkeypatch.setattr("aiohttp.web.run_app", _fake_run_app)
 
 
@@ -2990,21 +2990,21 @@ def test_gateway_unbound_agent_cron_is_skipped(
     bus.publish_outbound = AsyncMock()
     seen: dict[str, object] = {}
 
-    monkeypatch.setattr("nanobot.config.loader.set_config_path", lambda _path: None)
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: provider)
-    monkeypatch.setattr("nanobot.cli.webui_support._provider_setup_error", lambda _config: None)
+    monkeypatch.setattr("mokli.config.loader.set_config_path", lambda _path: None)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: provider)
+    monkeypatch.setattr("mokli.cli.mokli_support._provider_setup_error", lambda _config: None)
     _patch_gateway_ports_free(monkeypatch)
     monkeypatch.setattr(
-        "nanobot.providers.factory.build_provider_snapshot",
+        "mokli.providers.factory.build_provider_snapshot",
         lambda _config: _test_provider_snapshot(provider, _config),
     )
     monkeypatch.setattr(
-        "nanobot.providers.factory.load_provider_snapshot",
+        "mokli.providers.factory.load_provider_snapshot",
         lambda _config_path=None: _test_provider_snapshot(provider, config),
     )
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: bus)
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: bus)
 
     class _FakeSession:
         def __init__(self) -> None:
@@ -3025,7 +3025,7 @@ def test_gateway_unbound_agent_cron_is_skipped(
         def save(self, session: _FakeSession) -> None:
             seen["saved_session"] = session
 
-    monkeypatch.setattr("nanobot.session.manager.SessionManager", _FakeSessionManager)
+    monkeypatch.setattr("mokli.session.manager.SessionManager", _FakeSessionManager)
 
     class _FakeCron:
         def __init__(self, _store_path: Path) -> None:
@@ -3067,11 +3067,11 @@ def test_gateway_unbound_agent_cron_is_skipped(
     ) -> bool:
         raise AssertionError("unbound cron job must not be evaluated for delivery")
 
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCron)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _StopAfterCronSetup)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCron)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _StopAfterCronSetup)
     monkeypatch.setattr(
-        "nanobot.cli.gateway_runtime.evaluate_response",
+        "mokli.cli.gateway_runtime.evaluate_response",
         _capture_evaluate_response,
     )
 
@@ -3118,27 +3118,27 @@ def test_gateway_bound_cron_runs_as_session_turn(
     bus.publish_outbound = AsyncMock()
     seen: dict[str, object] = {"run_records": []}
 
-    monkeypatch.setattr("nanobot.config.loader.set_config_path", lambda _path: None)
-    monkeypatch.setattr("nanobot.config.loader.load_config", lambda _path=None: config)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.sync_workspace_templates", lambda _path: None)
-    monkeypatch.setattr("nanobot.providers.factory.make_provider", lambda _config: provider)
-    monkeypatch.setattr("nanobot.cli.webui_support._provider_setup_error", lambda _config: None)
+    monkeypatch.setattr("mokli.config.loader.set_config_path", lambda _path: None)
+    monkeypatch.setattr("mokli.config.loader.load_config", lambda _path=None: config)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.sync_workspace_templates", lambda _path: None)
+    monkeypatch.setattr("mokli.providers.factory.make_provider", lambda _config: provider)
+    monkeypatch.setattr("mokli.cli.mokli_support._provider_setup_error", lambda _config: None)
     _patch_gateway_ports_free(monkeypatch)
     monkeypatch.setattr(
-        "nanobot.providers.factory.build_provider_snapshot",
+        "mokli.providers.factory.build_provider_snapshot",
         lambda _config: _test_provider_snapshot(provider, _config),
     )
     monkeypatch.setattr(
-        "nanobot.providers.factory.load_provider_snapshot",
+        "mokli.providers.factory.load_provider_snapshot",
         lambda _config_path=None: _test_provider_snapshot(provider, config),
     )
-    monkeypatch.setattr("nanobot.bus.queue.MessageBus", lambda: bus)
+    monkeypatch.setattr("mokli.bus.queue.MessageBus", lambda: bus)
 
     class _FakeSessionManager:
         def __init__(self, _workspace: Path) -> None:
             pass
 
-    monkeypatch.setattr("nanobot.session.manager.SessionManager", _FakeSessionManager)
+    monkeypatch.setattr("mokli.session.manager.SessionManager", _FakeSessionManager)
 
     class _FakeCron:
         def __init__(self, _store_path: Path) -> None:
@@ -3183,10 +3183,10 @@ def test_gateway_bound_cron_runs_as_session_turn(
     async def _unexpected_evaluator(*_args, **_kwargs) -> bool:
         raise AssertionError("bound cron must not use legacy response evaluator")
 
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCron)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _StopAfterCronSetup)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.evaluate_response", _unexpected_evaluator)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCron)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _StopAfterCronSetup)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.evaluate_response", _unexpected_evaluator)
 
     result = runner.invoke(app, ["gateway", "--config", str(config_file)])
     assert isinstance(result.exception, _StopGatewayError)
@@ -3213,8 +3213,8 @@ def test_gateway_bound_cron_runs_as_session_turn(
     assert msg.sender_id == "cron"
     assert msg.session_key_override == "websocket:chat-1"
     assert "Cron job: Check repository health." in msg.content
-    assert msg.metadata["webui"] is True
-    assert msg.metadata[WEBUI_MESSAGE_SOURCE_METADATA_KEY] == {
+    assert msg.metadata["mokli"] is True
+    assert msg.metadata[MOKLI_MESSAGE_SOURCE_METADATA_KEY] == {
         "kind": "cron",
         "label": "Repo check",
     }
@@ -3417,10 +3417,10 @@ def test_gateway_local_trigger_queue_submits_agent_turns(
         seen["local_trigger_queue_kwargs"] = kwargs
         raise _StopGatewayError("stop")
 
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _FakeChannelManager)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _FakeChannelManager)
     monkeypatch.setattr(
-        "nanobot.triggers.local_runner.run_local_trigger_queue",
+        "mokli.triggers.local_runner.run_local_trigger_queue",
         _fake_run_local_trigger_queue,
     )
 
@@ -3445,8 +3445,23 @@ def test_gateway_local_trigger_queue_submits_agent_turns(
     turn_delivery_factory = agent_kwargs["turn_delivery_factory"]
     assert isinstance(turn_delivery_factory, TurnDeliveryFactory)
     assert turn_delivery_factory.bus is bus
-    assert seen["cron_reconciliation"] == ["remove:dream", "remove:heartbeat", "status"]
-    assert isinstance(turn_delivery_factory.route_policy, WebuiTurnRoutePolicy)
+    assert seen["cron_reconciliation"] == [
+        "remove:dream",
+        "remove:heartbeat",
+        "remove:gold_scan",
+        "remove:gold_news",
+        "remove:gold_rec_followup",
+        "remove:morning_briefing",
+        "remove:scorecard",
+        "remove:daily_wrap",
+        "remove:trade_management",
+        "remove:tradability_calibration",
+        "remove:event_monitor",
+        "remove:opportunity_scan",
+        "remove:cot_refresh",
+        "status",
+    ]
+    assert isinstance(turn_delivery_factory.route_policy, MokliTurnRoutePolicy)
     assert turn_delivery_factory.route_policy.sessions is agent.sessions
 
 
@@ -3526,7 +3541,7 @@ def test_gateway_custom_config_workspace_does_not_migrate_legacy_cron(
 
 def test_migrate_cron_store_moves_legacy_file(tmp_path: Path) -> None:
     """Legacy global jobs.json is moved into the workspace on first run."""
-    from nanobot.cli.runtime_config import _migrate_cron_store
+    from mokli.cli.runtime_config import _migrate_cron_store
 
     legacy_dir = tmp_path / "global" / "cron"
     legacy_dir.mkdir(parents=True)
@@ -3537,7 +3552,7 @@ def test_migrate_cron_store_moves_legacy_file(tmp_path: Path) -> None:
     config.agents.defaults.workspace = str(tmp_path / "workspace")
     workspace_cron = config.workspace_path / "cron" / "jobs.json"
 
-    with patch("nanobot.config.paths.get_cron_dir", return_value=legacy_dir):
+    with patch("mokli.config.paths.get_cron_dir", return_value=legacy_dir):
         _migrate_cron_store(config)
 
     assert workspace_cron.exists()
@@ -3547,7 +3562,7 @@ def test_migrate_cron_store_moves_legacy_file(tmp_path: Path) -> None:
 
 def test_migrate_cron_store_skips_when_workspace_file_exists(tmp_path: Path) -> None:
     """Migration does not overwrite an existing workspace cron store."""
-    from nanobot.cli.runtime_config import _migrate_cron_store
+    from mokli.cli.runtime_config import _migrate_cron_store
 
     legacy_dir = tmp_path / "global" / "cron"
     legacy_dir.mkdir(parents=True)
@@ -3559,7 +3574,7 @@ def test_migrate_cron_store_skips_when_workspace_file_exists(tmp_path: Path) -> 
     workspace_cron.parent.mkdir(parents=True)
     workspace_cron.write_text('{"new": true}')
 
-    with patch("nanobot.config.paths.get_cron_dir", return_value=legacy_dir):
+    with patch("mokli.config.paths.get_cron_dir", return_value=legacy_dir):
         _migrate_cron_store(config)
 
     assert workspace_cron.read_text() == '{"new": true}'
@@ -3714,9 +3729,9 @@ def test_gateway_health_endpoint_binds_and_serves_expected_responses(
         message_bus=MessageBus,
         session_manager=lambda _workspace: _EmptyGatewaySessionManager(),
     )
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _FakeChannelManager)
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCronService)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _FakeChannelManager)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCronService)
     monkeypatch.setattr("asyncio.start_server", _fake_start_server)
 
     result = runner.invoke(app, ["gateway", "--config", str(config_file)])
@@ -3925,10 +3940,10 @@ def test_gateway_agent_task_owns_initial_mcp_provider_close(
         message_bus=MessageBus,
         session_manager=lambda _workspace: _EmptyGatewaySessionManager(),
     )
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.MCPProvider", _FakeMCPProvider)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _FakeChannelManager)
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCronService)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.MCPProvider", _FakeMCPProvider)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _FakeChannelManager)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCronService)
     monkeypatch.setattr("asyncio.start_server", _fake_start_server)
 
     result = runner.invoke(app, ["gateway", "--config", str(config_file)])
@@ -4054,12 +4069,12 @@ def test_gateway_shutdown_event_exits_forever_runtime_tasks(
         message_bus=MessageBus,
         session_manager=lambda _workspace: _EmptyGatewaySessionManager(),
     )
-    monkeypatch.setattr("nanobot.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
-    monkeypatch.setattr("nanobot.channels.manager.ChannelManager", _FakeChannelManager)
-    monkeypatch.setattr("nanobot.cron.service.CronService", _FakeCronService)
+    monkeypatch.setattr("mokli.cli.gateway_runtime.AgentLoop", _FakeAgentLoop)
+    monkeypatch.setattr("mokli.channels.manager.ChannelManager", _FakeChannelManager)
+    monkeypatch.setattr("mokli.cron.service.CronService", _FakeCronService)
     monkeypatch.setattr("asyncio.start_server", _fake_start_server)
     monkeypatch.setattr(
-        "nanobot.cli.gateway_runtime._install_gateway_shutdown_handlers",
+        "mokli.cli.gateway_runtime._install_gateway_shutdown_handlers",
         _fake_install_shutdown_handlers,
     )
 
@@ -4110,7 +4125,7 @@ def test_trigger_cli_queues_message_in_workspace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from nanobot.triggers.local_store import LocalTriggerStore
+    from mokli.triggers.local_store import LocalTriggerStore
 
     config_file = _write_instance_config(tmp_path)
     config = Config()

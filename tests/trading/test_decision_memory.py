@@ -1,10 +1,10 @@
 
-from nanobot.trading.memory.decisions import (
+from mokli.trading.memory.decisions import (
     format_decisions_for_dream,
     list_recent_decisions,
     record_trade_decision,
 )
-from nanobot.trading.types import (
+from mokli.trading.types import (
     AgentMarketContext,
     AgentRecommendation,
     FinalDecisionResult,
@@ -15,7 +15,7 @@ from nanobot.trading.types import (
 def test_record_and_list_decisions(tmp_path, monkeypatch) -> None:
     path = tmp_path / "trading" / "trades.jsonl"
     monkeypatch.setattr(
-        "nanobot.trading.memory.decisions._TRADES_PATH",
+        "mokli.trading.memory.decisions._TRADES_PATH",
         path,
     )
     decision = FinalDecisionResult(

@@ -19,13 +19,13 @@
       "enabled": true,
       "host": "0.0.0.0",
       "port": 8765,
-      "tokenIssueSecret": "${NANOBOT_WEB_TOKEN}",
+      "tokenIssueSecret": "${MOKLI_WEB_TOKEN}",
       "websocketRequiresToken": true
     }
   },
   "tools": {
     "restrictToWorkspace": true,
-    "webuiAllowRemotePackageInstall": false,
+    "mokliAllowRemotePackageInstall": false,
     "my": {
       "allowSet": false
     }

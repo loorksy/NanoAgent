@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
 
-from nanobot.trading.agents.macro_drivers import (
+from mokli.trading.agents.macro_drivers import (
     DRIVER_DXY,
     DRIVER_GEOPOLITICAL,
     DRIVER_SEASONAL,
@@ -18,9 +19,7 @@ from nanobot.trading.agents.macro_drivers import (
     run_macro_drivers,
     select_drivers,
 )
-from nanobot.trading.result_wire import result_to_wire
-from nanobot.trading.teams.runtime import run_swarm
-from nanobot.trading.types import AgentFinalResult, AgentRecommendation, FinalDecisionResult
+from mokli.trading.teams.runtime import run_swarm
 
 
 def _friday_ts() -> float:
@@ -40,7 +39,7 @@ def test_select_skips_fresh_cache_unless_calendar_hits() -> None:
     assert DRIVER_GEOPOLITICAL in names
     assert DRIVER_DXY in names
 
-    from nanobot.trading.agents.macro_drivers import MacroVerdict
+    from mokli.trading.agents.macro_drivers import MacroVerdict
 
     cache[DRIVER_GEOPOLITICAL] = (
         now,
@@ -67,7 +66,7 @@ def test_select_skips_fresh_cache_unless_calendar_hits() -> None:
 
 def test_seasonal_dropped_from_default_set() -> None:
     reset_macro_cache_for_tests()
-    from nanobot.trading.agents.macro_drivers import _in_festival_window
+    from mokli.trading.agents.macro_drivers import _in_festival_window
 
     july = datetime(2026, 7, 8, 12, 0, tzinfo=UTC).timestamp()
     selected_july = select_drivers(events=[], now_ts=july, cache={})
@@ -125,6 +124,30 @@ async def test_verdict_source_is_outlet_url() -> None:
 
 
 @pytest.mark.asyncio
+async def test_macro_driver_searches_overlap() -> None:
+    reset_macro_cache_for_tests()
+    started = 0
+    release = asyncio.Event()
+
+    async def search(_query: str) -> str:
+        nonlocal started
+        started += 1
+        if started >= 2:
+            release.set()
+        await asyncio.wait_for(release.wait(), timeout=1)
+        return "Gold rises on weaker dollar and dovish FOMC"
+
+    verdicts = await run_macro_drivers(
+        search=search,
+        events=[],
+        now=_friday_ts,
+        cache={},
+    )
+    assert started >= 2
+    assert any(item.ran and item.bias == "bullish" for item in verdicts)
+
+
+@pytest.mark.asyncio
 async def test_run_macro_drivers_uses_injected_search() -> None:
     reset_macro_cache_for_tests()
     queries: list[str] = []
@@ -150,25 +173,8 @@ async def test_run_macro_drivers_uses_injected_search() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) -> None:
+async def test_run_swarm_returns_briefs_only(monkeypatch) -> None:
     reset_macro_cache_for_tests()
-    captured: dict[str, object] = {}
-
-    async def fake_chart_agent(**kwargs):
-        captured.update(kwargs)
-        return AgentFinalResult(
-            decision=FinalDecisionResult(
-                decision="wait",
-                confidence=0.0,
-                summary="stub",
-                key_reasons=[],
-                risk_warnings=[],
-                recommendation=AgentRecommendation(action="wait"),
-            ),
-            team_mode=str(kwargs.get("team_mode") or ""),
-            stages=[],
-        )
-
     async def search(query: str) -> str:
         return "DXY falling, gold ETF inflows, PBOC buying"
 
@@ -176,7 +182,7 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
         agent_id = str(kwargs.get("agent_id", "agent"))
         collector = kwargs.get("collector")
         if collector is not None:
-            from nanobot.trading.teams.subagent_runner import TeamAgentEvent
+            from mokli.trading.teams.subagent_runner import TeamAgentEvent
 
             collector.record(
                 TeamAgentEvent(
@@ -188,15 +194,11 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
             )
         return f"summary for {agent_id}"
 
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
     monkeypatch.setattr(
-        "nanobot.trading.teams.runtime.run_unified_chart_agent",
-        fake_chart_agent,
-    )
-    monkeypatch.setattr("nanobot.trading.teams.runtime.run_team_role", fake_team_role)
-    monkeypatch.setattr(
-        "nanobot.trading.teams.runtime.run_market_data_agent",
+        "mokli.trading.teams.runtime.run_market_data_agent",
         lambda *_a, **_k: __import__(
-            "nanobot.trading.types",
+            "mokli.trading.types",
             fromlist=["AgentMarketContext", "MarketSync"],
         ).AgentMarketContext(
             symbol="XAUUSD",
@@ -205,7 +207,7 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
             last_close=2650.0,
             atr=5.0,
             sync=__import__(
-                "nanobot.trading.types", fromlist=["MarketSync"]
+                "mokli.trading.types", fromlist=["MarketSync"]
             ).MarketSync(ok=True),
         ),
     )
@@ -215,15 +217,177 @@ async def test_run_swarm_feeds_briefing_and_keeps_unified_pipeline(monkeypatch) 
         macro_events=[],
         macro_now=_friday_ts,
     )
-    assert captured["team_mode"] == "swarm:gold_analysis_committee"
-    assert captured["team_briefing"]
-    assert "macroDrivers" in str(captured["team_briefing"])
-    final = swarm["final"]
-    assert final.macro_drivers
-    assert any(stage.get("stage") == "macro_drivers" for stage in final.stages)
-    wire = result_to_wire(final)
-    assert wire["macroDrivers"]
-    assert wire["teamMode"] == "swarm:gold_analysis_committee"
-    # YAML DAG still recorded; it does not replace the unified agent.
+    assert swarm["preset"] == "gold_analysis_committee"
+    assert swarm["team_briefing"]
+    assert "macroDrivers" in str(swarm["team_briefing"])
+    assert swarm["macro_drivers"]
+    assert any(stage.get("stage") == "macro_drivers" for stage in swarm["stages"])
+    # Teams only brief; BUY/SELL authority stays with the kernel's synthesizer.
+    assert swarm["final"] is None
     assert swarm["task_summaries"]
-    assert swarm["final"].team_agents
+    assert swarm["team_agents"]
+
+
+@pytest.mark.asyncio
+async def test_macro_searches_overlap_team_roles(monkeypatch) -> None:
+    """Macro searches do not read role summaries, so they start with the first role."""
+    reset_macro_cache_for_tests()
+    started: list[str] = []
+    release = asyncio.Event()
+
+    async def search(query: str) -> str:
+        del query
+        started.append("macro")
+        if "role" in started:
+            release.set()
+        await release.wait()
+        return "DXY falling, gold ETF inflows, PBOC buying"
+
+    async def fake_team_role(**kwargs: object) -> str:
+        started.append("role")
+        if "macro" in started:
+            release.set()
+        await release.wait()
+        agent_id = str(kwargs.get("agent_id", "agent"))
+        collector = kwargs.get("collector")
+        if collector is not None:
+            from mokli.trading.teams.subagent_runner import TeamAgentEvent
+
+            collector.record(
+                TeamAgentEvent(
+                    agent_id=agent_id,
+                    role=str(kwargs.get("role", "Agent")),
+                    status="done",
+                    summary=f"summary for {agent_id}",
+                )
+            )
+        return f"summary for {agent_id}"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.run_market_data_agent",
+        lambda *_a, **_k: __import__(
+            "mokli.trading.types",
+            fromlist=["AgentMarketContext", "MarketSync"],
+        ).AgentMarketContext(
+            symbol="XAUUSD",
+            interval="15m",
+            candles=[],
+            last_close=2650.0,
+            atr=5.0,
+            sync=__import__(
+                "mokli.trading.types", fromlist=["MarketSync"]
+            ).MarketSync(ok=True),
+        ),
+    )
+    swarm = await asyncio.wait_for(
+        run_swarm(
+            "gold_decision_review",
+            macro_search=search,
+            macro_events=[],
+            macro_now=_friday_ts,
+        ),
+        timeout=1,
+    )
+    assert "macro" in started
+    assert "role" in started
+    assert swarm["final"] is None
+    assert "macroDrivers" in str(swarm["team_briefing"])
+
+
+def _flat_market():
+    from mokli.trading.types import AgentMarketContext, MarketSync
+
+    return AgentMarketContext(
+        symbol="XAUUSD",
+        interval="15m",
+        candles=[],
+        last_close=2650.0,
+        atr=5.0,
+        sync=MarketSync(ok=True),
+    )
+
+
+@pytest.mark.asyncio
+async def test_macro_search_starts_with_the_market_download(monkeypatch) -> None:
+    """Driver searches do not read candles. They run while that download is in flight."""
+    import time
+
+    reset_macro_cache_for_tests()
+    marks: dict[str, float] = {}
+
+    def slow_market(*_args, **_kwargs):
+        marks["market_start"] = time.perf_counter()
+        time.sleep(0.2)
+        marks["market_end"] = time.perf_counter()
+        return _flat_market()
+
+    async def search(query: str) -> str:
+        del query
+        marks.setdefault("search_start", time.perf_counter())
+        await asyncio.sleep(0.2)
+        marks["search_end"] = time.perf_counter()
+        return "dollar firm"
+
+    async def fake_team_role(**_kwargs: object) -> str:
+        return "noted\nSTANCE: wait"
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", fake_team_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_market_data_agent", slow_market)
+    monkeypatch.setattr(
+        "mokli.trading.teams.runtime.build_agent_market_context",
+        lambda *_a, **_k: _flat_market(),
+    )
+
+    started = time.perf_counter()
+    review = await run_swarm(
+        "gold_decision_review",
+        macro_search=search,
+        macro_events=[],
+        macro_now=lambda: 1_700_000_000.0,
+    )
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    # Each side sleeps 200ms. Waiting for candles first was their sum.
+    print(f"MACRO_OVERLAP before_ms=400 after_ms={elapsed_ms}")
+    assert marks["search_start"] < marks["market_end"]
+    assert elapsed_ms < 350
+    assert review["macro_drivers"]
+    assert "macroDrivers" in review["team_briefing"]
+
+
+@pytest.mark.asyncio
+async def test_market_failure_cancels_the_macro_search(monkeypatch) -> None:
+    """A failed candle download does not leave the driver searches running."""
+    reset_macro_cache_for_tests()
+    state = {"started": 0, "finished": 0, "cancelled": 0}
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("feed down")
+
+    async def search(query: str) -> str:
+        del query
+        state["started"] += 1
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            state["cancelled"] += 1
+            raise
+        state["finished"] += 1
+        return "late"
+
+    async def unused_role(**_kwargs: object) -> str:
+        raise RuntimeError("unused")
+
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_team_role", unused_role)
+    monkeypatch.setattr("mokli.trading.teams.runtime.run_market_data_agent", boom)
+
+    with pytest.raises(RuntimeError, match="feed down"):
+        await run_swarm(
+            "gold_decision_review",
+            macro_search=search,
+            macro_events=[],
+            macro_now=lambda: 1_700_000_000.0,
+        )
+    assert state["started"] > 0
+    assert state["finished"] == 0
+    assert state["cancelled"] == state["started"]

@@ -1,4 +1,4 @@
-from nanobot.trading.stage_events import emit_stage, stage_label
+from mokli.trading.stage_events import emit_stage, stage_label
 
 
 def test_stage_label_arabic() -> None:

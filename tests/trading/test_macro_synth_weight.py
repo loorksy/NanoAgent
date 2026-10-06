@@ -10,23 +10,23 @@ import json
 
 import pytest
 
-from nanobot.trading.agents.apply_model_decision import (
+from mokli.trading.agents.apply_model_decision import (
     MACRO_CONFIDENCE_WEIGHT,
     apply_macro_confidence,
     apply_model_decision,
     macro_alignment_score,
     parse_macro_drivers,
 )
-from nanobot.trading.agents.macro_drivers import format_team_briefing
-from nanobot.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
-from nanobot.trading.orchestrator import run_unified_chart_agent
-from nanobot.trading.types import (
+from mokli.trading.agents.macro_drivers import format_team_briefing
+from mokli.trading.agents.synth_prompt import SYNTH_SYSTEM_PROMPT
+from mokli.trading.kernel import run_trading_kernel
+from mokli.trading.types import (
     EvidenceSnapshot,
 )
 
 
 def _driver(name: str, bias: str, strength: int) -> dict:
-    from nanobot.trading.agents.macro_drivers import MacroVerdict
+    from mokli.trading.agents.macro_drivers import MacroVerdict
 
     return MacroVerdict(
         driver=name,
@@ -131,8 +131,37 @@ def test_parse_and_alignment_helpers() -> None:
     assert macro_alignment_score("sell", drivers) == pytest.approx(1.0)
 
 
+def test_swarm_notes_keep_the_trailing_driver_vote() -> None:
+    """Role notes are not JSON. The driver line after them still votes."""
+    from mokli.trading.teams.runtime import _format_swarm_briefing
+
+    pure = _briefing("bearish")
+    notes = _format_swarm_briefing(
+        "gold_decision_review",
+        {"task-technical": "range\nSTANCE: wait", "task-macro": "yields up\nSTANCE: sell"},
+        pure,
+    )
+    assert not notes.strip().startswith("{")
+    parsed = json.loads(_fixed_model_json())
+    from_notes = apply_model_decision(
+        parsed, snapshot=_snapshot(notes), live_price=2400.0, atr=8.0, locale="en"
+    )
+    from_json = apply_model_decision(
+        parsed, snapshot=_snapshot(pure), live_price=2400.0, atr=8.0, locale="en"
+    )
+    assert parse_macro_drivers(_snapshot(notes)) == parse_macro_drivers(_snapshot(pure))
+    assert from_notes.confidence == pytest.approx(from_json.confidence)
+    assert from_notes.confidence == pytest.approx(apply_macro_confidence(0.60, -1.0))
+    prose_only = _format_swarm_briefing(
+        "gold_decision_review",
+        {"task-technical": "range\nSTANCE: wait"},
+        "",
+    )
+    assert parse_macro_drivers(_snapshot(prose_only)) == []
+
+
 def _install_specialist_stubs(monkeypatch) -> None:
-    from tests.trading.evidence_stubs import install_evidence_stubs
+    from evidence_stubs import install_evidence_stubs
 
     install_evidence_stubs(monkeypatch)
 
@@ -149,12 +178,12 @@ async def test_unified_agent_opposite_briefings_change_confidence(monkeypatch) -
         assert "macroDrivers" in blob
         return _fixed_model_json()
 
-    bull = await run_unified_chart_agent(
+    bull = await run_trading_kernel(
         store=False,
         team_briefing=_briefing("bullish"),
         complete=complete,
     )
-    bear = await run_unified_chart_agent(
+    bear = await run_trading_kernel(
         store=False,
         team_briefing=_briefing("bearish"),
         complete=complete,

@@ -1,0 +1,63 @@
+"""Lightweight Forex Factory calendar feed for gold macro agent."""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import urllib.request
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+_GOLD_CURRENCIES = frozenset({"USD", "XAU", "ALL"})
+
+
+def fetch_upcoming_events(limit: int = 12) -> list[dict[str, Any]]:
+    """Return upcoming high/medium impact events relevant to gold."""
+    if os.environ.get("FOREX_FACTORY_ENABLED", "").strip() not in {"1", "true", "yes"}:
+        return []
+    from mokli.trading.turn_session import current_turn_session
+
+    turn = current_turn_session()
+    if turn is None:
+        events = _download_upcoming_events(limit)
+        return [] if events is None else events
+    events = turn.load_calendar(limit, lambda: _download_upcoming_events(limit))
+    return [] if events is None else events
+
+
+def _download_upcoming_events(limit: int) -> list[dict[str, Any]] | None:
+    """Download the weekly calendar. None means the feed failed and may be retried."""
+    try:
+        with urllib.request.urlopen(_CALENDAR_URL, timeout=8) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        logger.warning("forex factory calendar unavailable", exc_info=True)
+        return None
+
+    events: list[dict[str, Any]] = []
+    if not isinstance(raw, list):
+        return events
+
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        currency = str(row.get("country", row.get("currency", ""))).upper()
+        if currency not in _GOLD_CURRENCIES and "USD" not in currency:
+            continue
+        impact = str(row.get("impact", "")).lower()
+        if impact not in {"high", "medium", "red", "orange"}:
+            continue
+        events.append(
+            {
+                "title": str(row.get("title", row.get("event", ""))),
+                "currency": currency,
+                "impact": impact,
+                "time": row.get("date", row.get("time", "")),
+            }
+        )
+        if len(events) >= limit:
+            break
+    return events

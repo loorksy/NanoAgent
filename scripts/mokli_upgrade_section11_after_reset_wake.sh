@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Cloud Agent / timer wake: resume §11 after OpenRouter daily reset (no long sleep).
+# Auto row 11 when quota+OANDA OK; rows 12–13 (UI/device) remain operator-driven.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BRANCH="${MOKLI_SECTION11_VPS_BRANCH:-cursor/section11-vps-rows-d9e1}"
+SECTION11_EVENTS="$ROOT/section11-events"
+SECTION11_RESULTS="$ROOT/section11-results-partial.json"
+
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_cloud_branch.sh" || true
+
+echo "== VPS pull ($BRANCH) =="
+bash "$ROOT/scripts/vps_pull_main.sh" "$BRANCH"
+
+echo "== VPS git vs Cloud (post-pull) =="
+bash "$ROOT/scripts/vps_section11_env_check.sh" 2>&1 \
+  | grep -E '^git_rev=|^git_branch=|HINT: VPS git_rev|HINT: VPS on branch' || true
+
+echo "== live quota probe =="
+probe_ok=0
+for attempt in 1 2 3 4 5; do
+  if bash "$ROOT/scripts/vps_section11_quota_probe.sh"; then
+    probe_ok=1
+    break
+  fi
+  reset_line=$(bash "$ROOT/scripts/mokli_upgrade_section11_wait_quota_reset.sh" 2>&1 || true)
+  reset_sec=$(printf '%s\n' "$reset_line" | sed -n 's/^seconds_until_reset=\([0-9]*\).*/\1/p' | head -1)
+  if [[ -n "${reset_sec:-}" && "$reset_sec" -gt 0 ]]; then
+    printf '%s\n' "$reset_line"
+    break
+  fi
+  if [[ "$attempt" -lt 5 ]]; then
+    echo "HINT: probe failed after daily reset (upstream 429?) — retry $attempt/5 in 120s" >&2
+    sleep 120
+  fi
+done
+if [[ "$probe_ok" -ne 1 ]]; then
+  echo "STILL_BLOCKED: add OpenRouter credits or export MOKLI_SECTION11_MODEL before §11 live rows" >&2
+  echo "HINT: OANDA — bash scripts/vps_section11_set_oanda_env.sh" >&2
+  exit 1
+fi
+
+echo "== OANDA (rows 10–11) =="
+if ! bash "$ROOT/scripts/vps_section11_env_check.sh" --require-oanda; then
+  echo "WARN: OANDA not configured — row 10/11 skip until vps_section11_set_oanda_env.sh" >&2
+fi
+
+echo "== partial reruns + sync =="
+bash "$ROOT/scripts/mokli_upgrade_section11_rerun_partials.sh"
+
+echo ""
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row11_paper.sh"; then
+  :
+else
+  echo "WARN: row 11 paper failed — rerun bash scripts/vps_section11_row11_paper.sh" >&2
+fi
+
+if bash "$ROOT/scripts/mokli_upgrade_section11_try_row12_pipe.sh"; then
+  :
+else
+  echo "WARN: row 12 pipe failed — rerun bash scripts/vps_section11_row12_pipe_turn.sh" >&2
+fi
+
+echo ""
+echo "== sync JSONL after row 11/12 (VPS → Cloud) =="
+bash "$ROOT/scripts/mokli_upgrade_section11_sync_from_vps.sh" --pull-vps \
+  "$SECTION11_EVENTS" "$SECTION11_RESULTS" 13
+
+echo ""
+echo "== operator unblock check =="
+if bash "$ROOT/scripts/mokli_upgrade_section11_operator_unblock.sh" --skip-probe; then
+  echo "READY for remaining_rows (11–13) then: mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json"
+else
+  echo "PARTIAL: reruns done but blockers remain (OANDA and/or rows 11–13 JSONL)" >&2
+  bash "$ROOT/scripts/mokli_upgrade_section11_blockers.sh" --skip-vps --require-through 13 \
+    "$SECTION11_EVENTS" "$SECTION11_RESULTS" 2>&1 || true
+  echo "== row 12 VPS pre-check (no LLM) =="
+  bash "$ROOT/scripts/vps_section11_row12_desktop.sh" || true
+  bash "$ROOT/scripts/mokli_upgrade_section11_remaining_rows.sh"
+  exit 1
+fi

@@ -6,20 +6,17 @@ import ast
 import re
 from pathlib import Path
 
-ROOT = Path("nanobot")
-WEB_RISK = Path("webui/src/components/trading/RiskParametersSettings.tsx")
+ROOT = Path("mokli")
 
 SCAN_DIRS = [
     ROOT / "trading" / "gates",
 ]
 SCAN_FILES = [
     ROOT / "trading" / "mt5_execution.py",
-    ROOT / "trading" / "mt5_metaapi.py",
+    ROOT / "trading" / "mt5_broker.py",
     ROOT / "trading" / "broker_result.py",
-    ROOT / "webui" / "trading_risk_api.py",
-    ROOT / "webui" / "trading_metaapi_api.py",
-    WEB_RISK,
-    Path("webui/src/components/trading/Mt5ConnectSettings.tsx"),
+    ROOT / "surface" / "trading_risk_api.py",
+    ROOT / "surface" / "trading_mt5_api.py",
 ]
 
 # Wire values and i18n keys are allowed; operator sentences are not.
@@ -56,7 +53,7 @@ def test_trading_user_strings_live_in_i18n() -> None:
                     continue
                 if _KEY_LIKE.match(text):
                     continue
-                if "http" in text or text.startswith("nanobot."):
+                if "http" in text or text.startswith("mokli."):
                     continue
                 looks_sentence = bool(re.search(r"[.!?]$", text)) or " must " in text.lower()
                 if not looks_sentence:

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from nanobot.agent.context import ContextBuilder
-from nanobot.runtime_context import RuntimeContextBlock
+from mokli.agent.context import ContextBuilder
+from mokli.runtime_context import RuntimeContextBlock
 
 
 class _FakeDatetime(real_datetime):
@@ -28,7 +28,7 @@ def _make_workspace(tmp_path: Path) -> Path:
 
 
 def test_bootstrap_files_are_backed_by_templates() -> None:
-    template_dir = pkg_files("nanobot") / "templates"
+    template_dir = pkg_files("mokli") / "templates"
 
     for filename in ContextBuilder.BOOTSTRAP_FILES:
         assert (template_dir / filename).is_file(), f"missing bootstrap template: {filename}"
@@ -67,7 +67,7 @@ def test_selected_project_path_follows_shared_cache_prefix(tmp_path) -> None:
     prefix_b = prompt_b[: prompt_b.index(marker)]
 
     assert prefix_a == prefix_b
-    assert "# Tool Usage Notes" in prefix_a
+    assert "# Tool contracts" in prefix_a
     assert str(project_a.resolve()) not in prefix_a
     assert str(project_b.resolve()) not in prefix_b
     assert prompt_a == builder.build_system_prompt(workspace=project_a)
@@ -110,24 +110,23 @@ def test_provider_context_appended_after_user_content(tmp_path) -> None:
 
 def test_execution_rules_in_system_prompt(tmp_path) -> None:
     """Execution rules should appear in the system prompt via the default templates."""
-    from nanobot.utils.helpers import sync_workspace_templates
+    from mokli.utils.helpers import sync_workspace_templates
 
     workspace = _make_workspace(tmp_path)
     sync_workspace_templates(workspace, silent=True)
     builder = ContextBuilder(workspace)
 
     prompt = builder.build_system_prompt()
-    assert "clear user request" in prompt
-    assert "multi-step tasks" in prompt
-    assert "read-only discovery before writes" in prompt
-    assert "verify the result" in prompt
+    assert "clear operator request as authorization" in prompt
+    assert "Prefer read-only tools before" in prompt
+    assert "Ask before destructive or irreversible actions" in prompt
 
 
 def test_execution_rules_reach_existing_workspace_soul(tmp_path) -> None:
     """An untouched legacy SOUL is upgraded in memory without overwriting the file."""
     workspace = _make_workspace(tmp_path)
     legacy_soul = (
-        pkg_files("nanobot") / "templates" / "legacy" / "SOUL.md"
+        pkg_files("mokli") / "templates" / "legacy" / "SOUL.md"
     ).read_text(encoding="utf-8")
     legacy_rule = "For multi-step tasks, outline the plan first and wait for user confirmation."
     soul_path = workspace / "SOUL.md"
@@ -135,25 +134,58 @@ def test_execution_rules_reach_existing_workspace_soul(tmp_path) -> None:
     builder = ContextBuilder(workspace)
 
     prompt = builder.build_system_prompt()
-    current_rule = "Treat a clear user request as authorization"
+    current_rule = "Treat a clear operator request as authorization"
 
     assert legacy_rule not in prompt
+    assert "I am mokli" not in prompt
     assert current_rule in prompt
     assert soul_path.read_text(encoding="utf-8") == legacy_soul
 
 
+def test_pre_single_persona_soul_is_upgraded_in_memory(tmp_path) -> None:
+    """The former default SOUL (second persona section) is replaced by the bundled one."""
+    workspace = _make_workspace(tmp_path)
+    old_soul = (
+        "# Soul\n\nI am mokli 🐈, a personal AI assistant.\n\n"
+        "## Core Principles\n\n- Solve by doing.\n\n"
+        "## Gold agent (when gold is the job)\n\n- Tone tracks the tape.\n"
+    )
+    soul_path = workspace / "SOUL.md"
+    soul_path.write_text(old_soul, encoding="utf-8")
+
+    prompt = ContextBuilder(workspace).build_system_prompt()
+
+    assert "I am mokli" not in prompt
+    assert "🐈" not in prompt
+    assert "I am Mokli." in prompt
+    assert soul_path.read_text(encoding="utf-8") == old_soul
+
+
+def test_customized_soul_is_kept_and_product_name_rendered(tmp_path) -> None:
+    workspace = _make_workspace(tmp_path)
+    (workspace / "SOUL.md").write_text(
+        "# Soul\n\nI am {product_name}, and I keep {custom} braces.\n", encoding="utf-8"
+    )
+    from mokli.agent.prompt.composer import PromptSettings
+
+    builder = ContextBuilder(workspace, prompt_settings=PromptSettings(product_name="GoldDesk"))
+    prompt = builder.build_system_prompt()
+
+    assert "I am GoldDesk, and I keep {custom} braces." in prompt
+
+
 def test_default_soul_template_keeps_execution_policy_in_tool_contract() -> None:
-    """SOUL owns personality while the always-injected contract owns execution policy."""
-    soul = (pkg_files("nanobot") / "templates" / "SOUL.md").read_text(encoding="utf-8")
-    contract = (
-        pkg_files("nanobot") / "templates" / "agent" / "tool_contract.md"
-    ).read_text(encoding="utf-8")
+    """SOUL owns voice while the always-injected layers own execution policy."""
+    from mokli.agent.prompt.composer import load_layer
+
+    soul = (pkg_files("mokli") / "templates" / "SOUL.md").read_text(encoding="utf-8")
+    contract = load_layer("40_tool_contracts.md")
+    behaviour = load_layer("60_behaviour.md")
 
     assert "## Execution Rules" not in soul
-    assert "clear user request" not in soul
-    assert "clear user request" in contract
-    assert "multi-step tasks" in contract
-    assert "irreversible action needs confirmation" in contract
+    assert "clear operator request" not in soul
+    assert "clear operator request as authorization" in contract
+    assert "destructive or irreversible actions" in behaviour
 
 
 def test_channel_format_hint_telegram(tmp_path) -> None:
@@ -208,10 +240,10 @@ def test_system_prompt_keeps_message_tool_out_of_current_chat_replies(tmp_path) 
 
     prompt = builder.build_system_prompt(channel="slack")
 
-    assert "Do not use the 'message' tool for normal replies in the current chat" in prompt
-    assert "When 'generate_image' creates images" in prompt
-    assert "call 'message' with the artifact paths in the 'media' parameter" in prompt
-    assert "Wait for the tool results, then answer once" in prompt
+    assert "never for normal replies here" in prompt
+    assert "| use it for normal replies in the current conversation |" in prompt
+    assert "sending files and images" in prompt
+    assert "call them first and answer once with their results" in prompt
 
 
 def test_memory_skill_is_lazy_loaded_from_skills_index(tmp_path) -> None:
@@ -228,7 +260,7 @@ def test_memory_skill_is_lazy_loaded_from_skills_index(tmp_path) -> None:
 
 
 def test_fresh_workspace_omits_default_prompt_scaffolding(tmp_path) -> None:
-    from nanobot.utils.helpers import sync_workspace_templates
+    from mokli.utils.helpers import sync_workspace_templates
 
     workspace = _make_workspace(tmp_path)
     sync_workspace_templates(workspace, silent=True)
@@ -239,13 +271,14 @@ def test_fresh_workspace_omits_default_prompt_scaffolding(tmp_path) -> None:
     assert "## USER.md" not in prompt
     assert "8281248569" not in prompt
     assert "(your name)" not in prompt
-    assert prompt.count("Do not use the 'message' tool for normal replies") == 1
+    assert prompt.count("never for normal replies here") == 1
+    assert prompt.count("# Tool contracts") == 1
 
 
 def test_template_memory_md_is_skipped(tmp_path) -> None:
     """MEMORY.md matching the bundled template should not inject the Memory section."""
     workspace = _make_workspace(tmp_path)
-    from nanobot.utils.helpers import sync_workspace_templates
+    from mokli.utils.helpers import sync_workspace_templates
     sync_workspace_templates(workspace, silent=True)
 
     builder = ContextBuilder(workspace)
@@ -253,13 +286,13 @@ def test_template_memory_md_is_skipped(tmp_path) -> None:
 
     # This block is produced only when populated long-term memory is injected.
     assert "# Memory\n\n## Long-term Memory" not in prompt
-    assert "This file is automatically updated by nanobot" not in prompt
+    assert "This file is automatically updated by mokli" not in prompt
 
 
 def test_customized_memory_md_is_injected(tmp_path, monkeypatch) -> None:
     """A Dream-populated MEMORY.md should be injected normally."""
     workspace = _make_workspace(tmp_path)
-    from nanobot.utils.helpers import sync_workspace_templates
+    from mokli.utils.helpers import sync_workspace_templates
     sync_workspace_templates(workspace, silent=True)
 
     (workspace / "memory" / "MEMORY.md").write_text(

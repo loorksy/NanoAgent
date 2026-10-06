@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "scenarios",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["primary"],
+  "properties": {
+    "primary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direction", "trigger", "invalidation"],
+      "properties": {
+        "direction": {"type": "string", "enum": ["buy", "sell", "wait"]},
+        "trigger": {"type": "string"},
+        "invalidation": {"type": "string"},
+        "probability": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "alternate": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["direction", "trigger", "invalidation"],
+      "properties": {
+        "direction": {"type": "string", "enum": ["buy", "sell", "wait"]},
+        "trigger": {"type": "string"},
+        "invalidation": {"type": "string"},
+        "probability": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "active": {"type": ["string", "null"], "enum": ["primary", "alternate", null]}
+  }
+}

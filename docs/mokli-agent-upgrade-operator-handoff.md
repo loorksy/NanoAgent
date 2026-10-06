@@ -1,0 +1,227 @@
+# تسليم ترقية Mokli — للمشغّل (بعد Cloud Agent)
+
+**After OpenRouter reset (English checklist):** `docs/section11-post-reset-runbook.md`
+
+**أثناء حجب OpenRouter:** `bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10` قد يخرج **0** (حزمة JSONL 1–10 سليمة) بينما **`closure_errors=5`** typ. عند `@13` (rows **5/10** reruns + **11–13**) — متوقع حتى quota `in>0` وOANDA وصفوف **11–13** حية. سكربتات الحالة (`cloud_status`، `completion_status`، `blockers`، `validate`) **لا** تحذف JSONL صف 5؛ التنظيف قبل turn حي فقط (`vps_section11_row5_subagents.sh`). معاينة: **`live_rerun_rows=5 10`**.
+
+## قائمة إغلاق الإنتاج (§11)
+
+1. نشر الفرع على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (`PULL_OK` بعد `:18791` + Agent API `:8766`؛ يُصلح ملكية `section11-events/`). **بعد كل push من Cloud Agent** أعد `vps_pull_main.sh` أو `bash scripts/mokli_upgrade_section11_check_wake.sh --sync-vps-rev` (pull+restart **فقط** عند `vps_rev≠cloud_agent_rev`) حتى `check_wake` يظهر revs متطابقة. **لا** تشغّل `vps_pull_main.sh` بدون فرع قبل دمج PR — الافتراضي `main` يزيل سكربتات §11؛ `vps_section11_env_check.sh` يطبع `git_branch=` وHINT إن كان الفرع خاطئاً. عند خطأ Permission denied قديم: `bash scripts/vps_section11_fix_events_ownership.sh`. إن **`git push`** من Cloud Agent فشل: `bash scripts/vps_section11_scp_branch_scripts.sh` (13 ملف §11 حرجة → `/opt/nanoagent/scripts/`) ثم أعد `vps_pull_main.sh` عندما يعود origin.
+2. OpenRouter credits + `OANDA_*`: `bash scripts/vps_section11_set_oanda_env.sh` (optional paid model on **this shell** before row scripts: `export MOKLI_SECTION11_MODEL=openai/gpt-4o-mini` — forwarded over SSH; see `docs/section11-vps-env.example`). If `vps_section11_env_check.sh` shows `oanda_env_file=present` but `oanda_configured=no`, the VPS `.env` exists without `OANDA_*` keys — merge credentials with `set_oanda_env.sh`, do not recreate `.env` from scratch.
+3. جاهزية: `bash scripts/vps_section11_quota_status.sh` (cached؛ بلا نداء LLM؛ عند 429 يطبع **≈وقت إعادة تعيين OpenRouter** من `X-RateLimit-Reset` في `quota-probe.jsonl`) ثم `bash scripts/vps_section11_env_check.sh --require-quota --require-oanda` (exit 0؛ يطبع أيضاً `mokli_ui_http` و`mokli_pipe_show_diagnostics` لصف 12). أو دفعة واحدة (probe حي + env + blockers @13): `bash scripts/mokli_upgrade_section11_operator_unblock.sh` (exit 0 = جاهز لـ `close.sh --apply`). مع مزامنة git أولاً: `bash scripts/mokli_upgrade_section11_operator_unblock.sh --pull-vps` (= `sync_cloud_branch` + **`check_wake --sync-vps-rev`**؛ ليس `vps_pull_main` إلزامياً). عند quota محجوب: `bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe` (بلا نداء LLM إضافي)
+4. إعادة الصفوف الجزئية + P0: `bash scripts/mokli_upgrade_section11_rerun_partials.sh` — أو بعد reset OpenRouter: `bash scripts/mokli_upgrade_section11_after_reset_wake.sh` (= **`vps_pull_main`** + probe + reruns + **`try_row11_paper`** عند quota+OANDA؛ **بدون** انتظار طويل). **سلسلة كاملة (مؤقت Cloud Agent):** `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota` (sync-vps-rev ثم `after_reset_wake`؛ ينتظر reset إن لزم؛ أثناء الحجب: `--dry-run` بلا LLM). بديل: `bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps` (= sync-vps-rev + wait + probe + `rerun_partials` + **`try_row11_paper`**)
+5. صفوف 11–13 (UI/جهاز): `bash scripts/mokli_upgrade_section11_remaining_rows.sh` (دليل + **`blockers_summary`** للحزمة المحلية؛ نفّذ أوامر الصف 11/12/13؛ صف 12 عبر Mokli UI pipe، صف 13 JSONL جهاز/SDK)
+6. املأ `section11-results.json`؛ `bash scripts/mokli_upgrade_section11_sync_from_vps.sh --pull-vps` ( **`--pull-vps` هنا = `vps_pull_main` كامل** ثم scp JSONL؛ يكتب `p0-interim-summary.txt` + **P0 local estimate** `--compare` بلا LLM)
+7. بوابة: بعد خطوة 6 استخدم `bash scripts/mokli_upgrade_section11_blockers.sh` (exit 0). أو دفعة واحدة (سحب + env + artifacts): `bash scripts/mokli_upgrade_section11_production_gate.sh --pull-vps` (نفس **`vps_pull_main`** عبر `sync_from_vps --pull-vps`)
+   - تحقق محلي للصفوف 1–10 فقط: `bash scripts/mokli_upgrade_section11_blockers.sh --skip-vps --require-through 10` (يسمح بـ PARTIAL في JSON)
+   - إغلاق 1–13: validate يرفض PARTIAL؛ **`01-no-tools-after-p0.jsonl` مع `in>0`**؛ **3–10** بجودة JSONL؛ **11** paper/`run_state`؛ **12** structured/decision + `in>0`؛ **13** أحداث tool/status/structured (ليس diagnostic فقط) — `remaining_rows.sh` (معاينة: `close.sh --allow-partial` بدون `--apply`)
+   - معاينة جدول §11 للصفوف 1–10: `bash scripts/mokli_upgrade_section11_close.sh --results section11-results-partial.json --require-through 10 --allow-partial` (dry-run patch؛ يتجاهل مفاتيح 11–14 الفارغة في JSON)
+   - أثناء حجب @13: مزامنة التقرير للصفوف 1–10 (يحافظ على **baseline + after-P0** في §2.1 وصف 1): `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 10 --results section11-results-partial.json` (**بدون** `--allow-partial`؛ لا يُعتبر إغلاق إنتاج)
+8. تحديث التقرير: `bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json` (إن غاب `section11-results.json` يُستخدم `section11-results-partial.json` تلقائياً؛ بعد `--apply` @13 يُنسَخ الجزئي → `section11-results.json`). صف 9: عمود «الأرقام» يضم `session-summary` عند تعدد diagnostics؛ يحدّث §2.1 و**P0 live delta** عند `01-no-tools-after-p0.jsonl` مع `in>0`.
+9. بوابة التقرير: تُشغَّل تلقائياً داخل `close --apply --require-through 13` على `docs/mokli-agent-upgrade-report.md`؛ للتحقق اليدوي: `pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q`. اختياري قبل الدمج: `bash scripts/mokli_upgrade_aggregate_pytest.sh`
+
+**بعد `after_reset_wake` / `timer_wake`:** إن فشل `close @13` أو `operator_unblock`، اقرأ **`blockers_summary`** (يُطبع تلقائياً) ثم نفّذ `remaining_rows.sh` لصفوف **11–13** قبل إعادة `close --apply`.
+
+## الفرع
+
+- **الإنتاج:** `main` (دمج PR ترقية الوكيل + تغذية OANDA/MetaAPI — راجع `git log -1` على `origin/main`)
+- فرع التطوير السابق: `cursor/agent-runtime-efficiency-d9e1` → دُمج في `cursor/broker-market-feed-d9e1` ثم `main`
+
+### أسرار Cloud Agent (نشر من الوكيل)
+
+```bash
+bash scripts/cloud_agent_vps_secrets_check.sh
+```
+
+- المطلوب في البيئة: **`VPS`** (أو `user@host`) و **`VPSPASS`**. الأسماء `vps` / `password` تُعرَض إلى `VPS` / `VPSPASS` عبر `scripts/vps_env.sh`.
+- إذا ظهر `CLOUD_AGENT_INJECTED_SECRET_NAMES=password,vps` لكن الفحص يفشل، الأسرار **مسجّلة ولم تُحقَن** في shell هذا التشغيل — احفظها باسم `VPS`/`VPSPASS` و**ابدأ تشغيل وكيل جديد**، أو صدّرها يدوياً قبل `deploy-mokli-vps.sh`.
+
+### نشر سريع بعد الدمج
+
+**مفتاح SSH (بدون VPS/VPSPASS):** إذا كان `~/.ssh/config` يعرّف المضيف (مثلاً `hostinger-vps`):
+
+```bash
+export MOKLI_SSH_HOST=hostinger-vps MOKLI_INSTALL_DIR=/opt/nanoagent MOKLI_GATEWAY_SERVICE=nanoagent-gateway
+bash scripts/vps_ssh.sh 'cd /opt/nanoagent && git rev-parse --short HEAD'   # one-shot remote (key auth)
+bash scripts/vps_pull_main.sh   # git pull main + pip + restart (بدون nginx)
+# قبل دمج PR §11: bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1
+# (أو: MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh)
+bash scripts/mokli_upgrade_section11_production_gate.sh  # env + pull + blockers @13 (live quota)
+bash scripts/mokli_upgrade_section11_production_gate.sh --skip-quota --skip-oanda --skip-pull --require-through 10  # pack 1–10 while quota blocked
+bash scripts/mokli_upgrade_section11_blockers.sh  # quota+OANDA + validate 13 (no pull); exit 0 = ready to close
+bash scripts/mokli_upgrade_section11_status.sh   # exit 0 عند validate+quota OK (require-through افتراضي 13)
+bash scripts/mokli_upgrade_section11_status.sh --skip-quota --require-through 10  # صفوف 1–10 فقط
+bash scripts/mokli_upgrade_section11_cloud_status.sh   # افتراضي @13؛ partial10_ok/partial10_gate + closure_errors=N عند الحجب
+bash scripts/mokli_upgrade_section11_cloud_status.sh --require-through 10  # exit 0 بعد sync إن كانت JSONL 1–10 سليمة (quota قد يبقى BLOCKED)
+bash scripts/mokli_upgrade_section11_completion_status.sh   # @13 + partial10 gate + closure_errors (no live LLM)
+bash scripts/mokli_upgrade_section11_operator_unblock.sh --skip-probe   # env + blockers @13 + partial10 (no LLM probe)
+bash scripts/local_section11_row12_smoke.sh      # UI+API+pipe محلياً بلا LLM (قبل محادثة صف 12)
+# أو bash scripts/deploy-mokli-vps.sh مع MOKLI_INSTALL_DIR=… عند الحاجة لمسار /opt/mokli الكامل
+```
+
+**سطور ملخص قابلة للمسح (بدون LLM):** عند الحجب ابحث في stderr/stdout عن:
+
+| سطر | سكربت |
+| --- | --- |
+| `blockers_summary:` | `blockers.sh` — `env_ok`, `validate_ok`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset` |
+| `cloud_agent_rev` / `vps_rev` | `check_wake.sh` — when they differ: `bash scripts/mokli_upgrade_section11_check_wake.sh --sync-vps-rev` (or `vps_pull_main.sh`) before live §11 rows |
+| `close_summary:` | `close.sh` — `closure_errors`, `allow_partial_closure_errors` (preview count when strict fail), `live_rerun_rows`, `allow_partial` |
+| `completion_status:` | `completion_status.sh` — `cloud_agent_rev` / `vps_rev`, `artifact_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
+| `cloud_status:` | `cloud_status.sh` — `cloud_agent_rev` / `vps_rev`, `quota_ok`, `blockers_ok`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
+| `operator_unblock:` | `operator_unblock.sh` — `cloud_agent_rev` / `vps_rev`, `partial10_*`, `closure_errors`, `allow_partial_closure_errors`, `seconds_until_reset`, `wake_after_buffer_utc` |
+| `sync_summary:` | `sync_from_vps.sh` — `validate_ok`, `require`, `closure_errors` (P0 delta always refreshed; exit 0) |
+| `INCOMPLETE §11 status:` | `section11_status.sh` — `validate_ok`, `quota_ok`, `closure_errors`, `seconds_until_reset` |
+| `close_summary:` | `close.sh` — on validate failure: `closure_errors`, `seconds_until_reset`, `apply` |
+
+إغلاق الإنتاج = `closure_errors=0` على `blockers_summary` (أو validate) مع `quota_ok=1` وOANDA.
+
+**كلمة مرور SSH:**
+
+```bash
+export VPS='user@host' VPSPASS='…' MOKLI_BRANCH=main
+bash scripts/deploy-mokli-vps.sh
+# أو على /opt/mokli: git fetch origin main && git checkout main && git pull --ff-only
+# ثم pip install -e '.[trading-mt5]' && systemctl restart mokli-gateway
+```
+
+## ما اكتمل بدون VPS
+
+- `docs/mokli-agent-upgrade-audit.md` — تدقيق المرحلة 0
+- `docs/mokli-agent-upgrade-report.md` — §1–11.1 (جدول §11 **جزئي** من VPS؛ صفوف 11–13 + P0 after + إغلاق 13 للإنتاج)
+- `docs/mokli-settings-audit.md` — P2/P3 إعدادات
+- `docs/mokli-agent-upgrade-completion-audit.md` — بوابة إغلاق (ما ثبت vs §11 المعلق)
+- pytest: **2551** passed, 1 skipped (`bash scripts/mokli_upgrade_aggregate_pytest.sh`؛ 2026-10-02 @f1bbb8ea7)
+- سلسلة إغلاق §11 (بعد JSONL حي): `section11_validate` → `section11_batch` → `section11_patch_report` أو `section11_close.sh [--apply]`
+
+## فواتير المزود (VPS)
+
+- **Anthropic** (preset `claude-opus-5`): رصيد منخفض → صف §11 1 يفشل بلا `input_tokens`.
+- **OpenRouter** (`openrouter/auto`): رفض «API key is out of quota» (2026-10-01).
+- **§11 مؤقت (2026-10-01):** preset **`qwen3-8-27b-free`** على VPS — صف 1 حي: `in≈10934 out≈117 tools=0` (سياق كبير رغم سؤال قصير؛ P0 حي).
+- **تجاوز نموذج الجلسة (Agent API):** `MOKLI_SECTION11_MODEL=qwen/qwen3.8-27b:free bash scripts/vps_section11_agent_api_turn.sh …` — يجب أن يكون **معرّف نموذج** ضمن سلسلة `modelPreset`/`fallbackModels` (ليس اسم preset فقط). لتشغيل Anthropic غيّر `agents.defaults.modelPreset` في config ثم أعد تشغيل البوابة.
+- **حصة OpenRouter (2026-10-01):** بعد 15 دورة §11 صف 9، التشخيص صار `in=0` ورسالة `free-models-per-day` — **أوقف صفوف 9–13** حتى credits أو preset مدفوع. فحص سريع: `bash scripts/vps_section11_quota_probe.sh` (exit 1 = محجوب؛ يطبع **≈إعادة التعيين اليومية** من `X-RateLimit-Reset`). **لا تكرّر probe** أثناء الحجب أكثر من اللازم — قد يُنتج `quota-probe.jsonl` بلا `diagnostic` (فقط `retry`/`rate_limit`); `quota_probe` يحافظ على النسخة المحلية السابقة إن كان السحب الجديد بلا diagnostic ولا `X-RateLimit-Reset`. وقت إعادة التعيين: `bash scripts/vps_section11_quota_status.sh --local-dir section11-events` بلا نداء LLM. انتظار تلقائي ثم probe: `bash scripts/mokli_upgrade_section11_wait_quota_reset.sh --wait` (بعد `sync_from_vps` لـ `quota-probe.jsonl`). **سلسلة بعد عودة الحصة:** `bash scripts/mokli_upgrade_section11_post_quota.sh --wait --pull-vps` (pull + wait + probe + `rerun_partials` + **`try_row11_paper`** عند quota+OANDA + sync؛ ثم `remaining_rows` و`close --apply`). **مؤقت Cloud Agent / استيقاظ طويل:** `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota` (ينتظر `X-RateLimit-Reset+buffer` إن كان probe محجوباً ثم `after_reset_wake` → … → `close --apply @13`). على **الخادم نفسه** (SSH إلى VPS): `cd /opt/nanoagent && bash scripts/vps_section11_quota_probe.sh` — يستخدم Agent API على `127.0.0.1:8766` بلا SSH متداخل. Cloud Agent قد يجدول متابعة تلقائية بعد ~`2026-10-02 00:00 UTC` إن بقي الحجب؛ **OANDA/credits** ما زالا يحتاجان المشغّل.
+- **صف 9 (جلسة طويلة):** `MOKLI_SSH_HOST=… bash scripts/vps_section11_long_session.sh 09-long-session.jsonl 15` ثم `python scripts/mokli_upgrade_diagnostic_extract.py --file …/09-long-session.jsonl --session-summary` (يُطبع `in_last_over_first` و`below_linear_15x`).
+- **سحب JSONL من VPS:** `bash scripts/mokli_upgrade_section11_sync_from_vps.sh` (pull + after_pull؛ validate **1–13** افتراضياً — `WARN` متوقع حتى صفوف 11–13 حية). مع checkout: `--pull-vps`. حزمة جزئية 1–10 فقط: `… sync_from_vps.sh ./section11-events ./section11-results-partial.json 10` (أو `blockers --require-through 10`). يدوياً: `vps_section11_pull_events.sh` ثم `after_pull.sh` (جدول §2.1 + **P0 live delta** عند `01-no-tools-after-p0.jsonl`).
+- **صف 13 CI (بدون جهاز):** `bash scripts/mokli_upgrade_section11_row13_ci.sh` — pipe projection + `mokli-sdk`؛ لا يغني عن JSONL حي على الهاتف.
+- **P0 تقدير بلا LLM:** `python scripts/mokli_upgrade_p0_turn_estimate.py --compare "مرحبا" "حلل الذهب"` — `final` / `system` / `tool_defs` / **`provider_tools`** (نفس `diagnostic.provider_tool_count`). على الدور الخفيف: chat + session tools عند التسجيل (محلي ≈3–7؛ VPS Agent API ≈7).
+- **PARTIAL reruns (quota OK):** `bash scripts/mokli_upgrade_section11_rerun_partials.sh` — only rows from `validate.py --print-live-rerun-rows` (مثلاً **`5 10`** حالياً؛ يتخطى row 1 after-P0 إن **`01-no-tools-after-p0.jsonl`** فيه `in>0`)، ثم pull + after_pull. معاينة: `bash scripts/mokli_upgrade_section11_completion_status.sh` → `live_rerun_rows=…`.
+- **P0 after live:** `bash scripts/vps_section11_row1_after_p0.sh` — يفحص quota ثم يعيد صف 1 (`01-no-tools-after-p0.jsonl`) ويطبع `delta_in`؛ خط الأساس `01-no-tools.jsonl` أو أفضل `01-*` (يستثني after-p0). أو يدوياً: `bash scripts/mokli_upgrade_p0_live_delta.sh …`. على الدور الخفيف: **`provider_tools=3`** (chat فقط) أو **≤7** إذا وُجدت أدوات الجلسة (`read_session`…) في التسجيل — Agent API على VPS يظهر **7**؛ ما زال ≪ 11+ trading/filesystem.
+- **جاهزية VPS:** `bash scripts/vps_section11_env_check.sh` — rev + API + OANDA + quota؛ `--require-quota` / `--require-oanda` قبل صفوف 11–10. **`blockers` / `operator_unblock`** يطبعان **`BLOCKERS_EXIT=`** / **`OPERATOR_UNBLOCK_EXIT=`** — لا تستخدم `| tail` عند فحص `$?` (استخدم `$?` مباشرة بعد الأمر). **`vps_section11_quota_probe.sh`** ينسخ `quota-probe.jsonl` إلى `./section11-events/` (`OK cached probe`) — للحالة المحلية: `bash scripts/vps_section11_quota_status.sh --local-dir section11-events` بلا نداء LLM.
+- للاختبار على OpenRouter: اجعل `modelPreset` = `null` — وإلا يبقى `claude-opus-5` عبر `FallbackProvider`.
+- بعد شحن Anthropic: أعد `modelPreset` = `claude-opus-5`. تشغيل صف: `MOKLI_SSH_HOST=… bash scripts/vps_section11_agent_api_turn.sh …`
+- **OANDA:** غير مهيأ على `/opt/nanoagent` — `get_gold_quote` → `market_feed_unconfigured`. إما `docs/section11-vps-env.example` يدوياً، أو من workstation (لا يطبع الأسرار): `OANDA_API_TOKEN=… OANDA_ACCOUNT_ID=… bash scripts/vps_section11_set_oanda_env.sh` ثم `bash scripts/vps_section11_env_check.sh --require-oanda`.
+- **صف 2 (2026-10-01):** prompt إنجليزي صريح للأداة → `tools=1` `rounds=2` `in≈25037` `out≈670`؛ أحداث `tool` started/failed + عرض «يفحص سعر الذهب…».
+- **صف 4 (2026-10-01):** `Analyze gold…` → `run_trading_kernel` + بطاقة `structured`/`decision` **`res_…`** (verdict wait، OANDA not configured)؛ `tools=2` `rounds=3` `in≈24924`.
+
+## قبل المحادثة الحية
+
+0. `bash scripts/mokli_upgrade_section11_init.sh` — ينشئ `section11-events/` و`section11-results.json` (من القالب إن لم يوجد) ويطبع **§11 progress** (متوقع أن يفشل validate حتى اكتمال المسارات الحية؛ الخروج 0).
+1. نشر فرع §11 على VPS: `bash scripts/vps_pull_main.sh cursor/section11-vps-rows-d9e1` (PR **#62** — **لا** `main` قبل merge) وتهيئة `~/.mokli/config.json` (مزود LLM، OANDA، MetaAPI حسب الإعداد).
+2. `bash scripts/mokli_upgrade_operator_smoke.sh` — preflight + dry-run §11 للصف 1 + **init smoke** (مجلد مؤقت) + `pytest tests/scripts/`؛ **لا يستدعي LLM** و**لا يملأ §11 للإنتاج**. بديل أدق للصف 1 فقط: `bash scripts/mokli_upgrade_section11_dry_run.sh`. preflight منفصل: `bash scripts/mokli_upgrade_preflight.sh`.
+3. في أنبوب Mokli: `SHOW_DIAGNOSTICS=true`.
+4. Mokli UI + Gateway + Agent API (محلياً: Vite `5173` → API `8766`).
+5. فحص جاهزية API: `curl http://127.0.0.1:5173/api/v2/health` أو `curl http://127.0.0.1:8766/api/v2/health`. منفذ `--port` على أمر `mokli gateway` (مثلاً `18791`) ليس مسار Agent API v2؛ طلب `/api/v2/health` عليه يعيد 404.
+
+## مسار Agent API (تسجيل JSONL بدون أنبوب UI)
+
+رمز Bearer (`nbat_…`) من إقران جهاز/عميل Gateway — **ليس** `nbat_test-bootstrap-token` من `tests/agent_api/conftest.py` (TestClient داخل pytest فقط؛ البوابة/Agent API الجاري يرفضه). قاعدة API: `http://127.0.0.1:8766/api/v2`.
+
+```bash
+BASE="http://127.0.0.1:8766/api/v2"
+TOKEN="nbat_REPLACE_ME"
+SID="$(curl -sf -X POST "$BASE/sessions" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"section11-01"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")"
+
+mkdir -p section11-events
+curl -sfN "$BASE/sessions/$SID/events?until_end=1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -o "section11-events/raw-01.sse" &
+curl -sf -X POST "$BASE/sessions/$SID/messages" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"مرحبا، ما اسمك؟"}'
+wait
+grep '^data: ' section11-events/raw-01.sse | sed 's/^data: //' > section11-events/01-no-tools.jsonl
+python scripts/mokli_upgrade_diagnostic_extract.py --file section11-events/01-no-tools.jsonl
+```
+
+كل سطر في `01-no-tools.jsonl` هو `GatewayEvent` (حقل `kind` و`data`). حدث `diagnostic` في `data` يطابق `TurnDiagnostics.to_dict()` — انظر `tests/fixtures/section11_turn_diagnostics_sample.jsonl`. Mokli UI + `mokli_pipe` يبقى مسار §11 للصفوف 12–13 (واجهة).
+
+## تسمية ملفات JSONL (للـ batch)
+
+| # | اسم ملف مقترح | مسار §11 |
+| --- | --- | --- |
+| 1 | `01-no-tools.jsonl` | تحية — `vps_section11_row1_greeting.sh`؛ بعد P0: `vps_section11_row1_after_p0.sh` |
+| 2 | `02-single-tool.jsonl` | سعر الذهب — `bash scripts/vps_section11_row2_single_tool.sh` |
+| 3 | `03-multi-tool.jsonl` | عدة أدوات — `bash scripts/vps_section11_row3_multi_tool.sh` (quota + get_gold_quote + list_dir) |
+| 4 | `04-gold-analysis.jsonl` | تحليل / شراء — `bash scripts/vps_section11_row4_gold_analysis.sh` |
+| 5 | `05-subagents-v2.jsonl` | spawn `wait=true` — `bash scripts/vps_section11_row5_subagents.sh` (يحذف `05-subagents.jsonl` القديم إن spawn أصاب 429 و`nested_rounds=0`) |
+| 6 | `06-tool-failure.jsonl` | فشل أداة — `bash scripts/vps_section11_row6_tool_failure.sh` |
+| 7 | `07-retry.jsonl` | إعادة محاولة — `bash scripts/vps_section11_row7_retry.sh` |
+| 8 | `08-fallback-provider.jsonl` | مزود بديل — `bash scripts/vps_section11_row8_fallback_provider.sh` (+ `modelPreset` على VPS) |
+| 9 | `09-long-session-v3.jsonl` | جلسة طويلة — `bash scripts/vps_section11_row9_long_session.sh` (quota + 15× `list_dir`؛ `--session-summary` للطي) |
+| 10 | `10-backtest.jsonl` | backtest — `bash scripts/vps_section11_row10_backtest.sh` (quota + OANDA) |
+| 11 | `11-paper.jsonl` | ورقي — `bash scripts/vps_section11_row11_paper.sh` (يفحص quota ثم Agent API) |
+| 12 | `12-desktop-ui.jsonl` | Mokli UI + Pipe — `bash scripts/vps_section11_row12_desktop.sh` ثم محادثة Pipe مع `SHOW_DIAGNOSTICS` |
+| 13 | `13-mobile.jsonl` | هاتف/SDK — `bash scripts/vps_section11_row13_mobile.sh` (SDK smoke + تعليمات الجهاز) |
+| 14 | `14-mt5-live.jsonl` | MT5 حي (اختياري) |
+
+**صفوف 11–13 (تسلسل):** `bash scripts/mokli_upgrade_section11_remaining_rows.sh` — دليل نصي فقط؛ نفّذ سكربتات الصفوف 11–13 أعلاه (لا يستبدل محادثة UI أو JSONL الجهاز).
+
+## بعد كل سينario من §11
+
+1. احفظ تيار الأحداث JSONL (سطر JSON لكل حدث gateway/pipe). شكل التشخيص المتوقع: `{"kind":"diagnostic","data":{…}}` كما في `TurnDiagnostics.to_dict()` — مثال في `tests/fixtures/section11_turn_diagnostics_sample.jsonl`.
+2. `python scripts/mokli_upgrade_diagnostic_extract.py --file events.jsonl` → سطر «الأرقام».
+3. بعد عدة سينarios: احفظ `01-….jsonl` … `13-….jsonl` في مجلد واحد. انسخ `docs/section11-results.example.json` إلى `section11-results.json` واملأ «النتيجة» لكل صف.  
+   `python scripts/mokli_upgrade_section11_batch.py --dir ./section11-events/ --results section11-results.json --markdown`  
+   → صفوف جاهزة للصق في §11 (النتيجة + الأرقام).
+4. لقطة شاشة لسطر/تفاصيل النشاط إن أمكن.
+
+## قبل تحديث §11 في التقرير
+
+```bash
+bash scripts/mokli_upgrade_section11_validate.sh \
+  --dir ./section11-events --results section11-results.json --require-through 13
+# أو دفعة واحدة (validate+batch+dry-run): bash scripts/mokli_upgrade_section11_close.sh
+# ثم: bash scripts/mokli_upgrade_section11_close.sh --apply --require-through 13 --results section11-results-partial.json
+```
+
+## بعد `section11_close.sh --apply`
+
+عند `--require-through 13` على `docs/mokli-agent-upgrade-report.md`، يشغّل `close` **بوابة التقرير** تلقائياً (`test_mokli_upgrade_report_section11_gate.py`). للتحقق اليدوي أو مسار تقرير آخر:
+
+```bash
+pytest tests/scripts/test_mokli_upgrade_report_section11_gate.py -q
+git diff docs/mokli-agent-upgrade-report.md   # commit التقرير + artifacts refs مع الفرع
+```
+
+يجب أن يمرّ gate (عنوان VPS + صفوف 1–13 مملوءة بلا `DRY-RUN`؛ الصف 14 اختياري).
+
+يجب أن يطبع `OK §11 artifacts` — يثبت وجود JSONL + diagnostic + «النتيجة» غير فارغة لكل صف مطلوب (لا يثبت صحة السلوك الحي). عند الفشل يطبع `validate` جدول **§11 progress** (ready / incomplete لكل صف). نصوص `DRY-RUN` من التجربة الجافة **تُرفض** عند `--require-through` ≥ 2. `docs/section11-results.example.json` **لا يمرّ** `--require-through 13` (قالب فقط). `patch_report` يشغّل validate تلقائياً ما لم تُمرّر `--skip-validate`. عند `--apply` وصفوف 1–`require-through` مكتملة، يُحدَّث عنوان §11 من «لم تُنفَّذ في Cloud Agent» إلى «تم التعبئة من تشغيل VPS» (المطابقة تتسامح مع اختلاف تركيب علامات «نُفِّذ» في Markdown).
+
+## Cloud Agent — مؤقت بعد reset OpenRouter
+
+على جلسة Cloud Agent نشطة: **tmux** `section11-timer-wake-wait` مع **`timer_wake --wait-quota`** (سجل `/opt/cursor/artifacts/timer_wake_wait_quota.log`)؛ **`check_wake.sh`** للمتابعة. **`timer_wake`** (غير dry-run) يأخذ **`flock`** على `/tmp/mokli_section11_timer_wake.lock` — تشغيل ثانٍ يطبع **`TIMER_WAKE_EXIT=2`** (مثلاً tmux + مؤقت MCP معاً). **احتياط:** مؤقت one-shot **`mokli-section11-after-openrouter-reset-backup`** (بعد reset إن مات tmux) — يفحص السجل ثم **`timer_wake`** بدون `--wait-quota` عند الحاجة. **لا يغني** عن OANDA وصفوف 11–13 (UI/جهاز). للتحقق: `list_subscriptions` (MCP) أو يدوياً: `bash scripts/mokli_upgrade_section11_timer_wake.sh --wait-quota`.
+
+## PR §11 (قبل الدمج في main)
+
+- فرع: `cursor/section11-vps-rows-d9e1` — [PR #62](https://github.com/loorksy/NanoAgent/pull/62)
+- على VPS حتى الدمج: `MOKLI_BRANCH=cursor/section11-vps-rows-d9e1 bash scripts/vps_pull_main.sh`
+- بعد الدمج: `MOKLI_BRANCH=main bash scripts/vps_pull_main.sh`
+
+## ما نرسله لجلسة لاحقة
+
+- ملف JSONL أو `--json` كامل من السكربت.
+- لقطة §11 مع عمودي «النتيجة» و«الأرقام» مملوءين.
+- أي `diagnostic` يظهر في واجهة المطور.
+
+## ما لا يُعتبر إغلاقاً
+
+- pytest وحده.
+- health على `8766` أو عبر Vite `5173` بدون محادثة مزود (مفاتيح LLM فارغة في Cloud Agent).
+- اختبار §11.1 (ارتباط CI) بدل الصفوف 1–13 الحية.
+- `section11_dry_run` أو `operator_smoke` أو `section11_close` على fixture/صف 1 فقط.
+- `patch_report --apply` قبل `validate --require-through 13` على artifacts حية كاملة.
+- `close --apply` على التقرير الرسمي مع artifacts ناقصة (يفشل validate ولا يعدّل `docs/mokli-agent-upgrade-report.md` — `test_close_apply_on_canonical_report_aborts_before_patch`).

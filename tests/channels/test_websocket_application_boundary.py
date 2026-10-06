@@ -5,22 +5,22 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from nanobot.channels.websocket import runtime
+from mokli.channels.websocket import runtime
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_RUNTIME_PATH = _REPOSITORY_ROOT / "nanobot" / "channels" / "websocket" / "runtime.py"
-_SESSION_IDENTITY_PATH = _REPOSITORY_ROOT / "nanobot" / "webui" / "session_identity.py"
+_RUNTIME_PATH = _REPOSITORY_ROOT / "mokli" / "channels" / "websocket" / "runtime.py"
+_SESSION_IDENTITY_PATH = _REPOSITORY_ROOT / "mokli" / "surface" / "session_identity.py"
 _FORBIDDEN_RUNTIME_IMPORTS = (
-    "nanobot.bus.outbound_events",
-    "nanobot.command",
-    "nanobot.runtime_context",
-    "nanobot.security.workspace_access",
-    "nanobot.session.goal_state",
-    "nanobot.webui.cli_apps_api",
-    "nanobot.webui.forking",
-    "nanobot.webui.mcp_presets_api",
-    "nanobot.webui.sidebar_state",
-    "nanobot.webui.transcription_ws",
+    "mokli.bus.outbound_events",
+    "mokli.command",
+    "mokli.runtime_context",
+    "mokli.security.workspace_access",
+    "mokli.session.goal_state",
+    "mokli.surface.cli_apps_api",
+    "mokli.surface.forking",
+    "mokli.surface.mcp_presets_api",
+    "mokli.surface.sidebar_state",
+    "mokli.surface.transcription_ws",
 )
 
 
@@ -78,15 +78,15 @@ def test_business_entrypoints_are_thin_transport_delegations() -> None:
     assert isinstance(statements[0].value, ast.Await)
 
 
-def test_persisted_webui_session_prefix_has_one_production_owner() -> None:
+def test_persisted_mokli_session_prefix_has_one_production_owner() -> None:
     owners = []
-    for path in (_REPOSITORY_ROOT / "nanobot").rglob("*.py"):
+    for path in (_REPOSITORY_ROOT / "mokli").rglob("*.py"):
         if "tests" in path.parts or path == _SESSION_IDENTITY_PATH:
             continue
         if "websocket:" in path.read_text(encoding="utf-8"):
             owners.append(path.relative_to(_REPOSITORY_ROOT).as_posix())
     assert owners == []
-    assert 'WEBUI_SESSION_STORAGE_PREFIX = "websocket:"' in _SESSION_IDENTITY_PATH.read_text(
+    assert 'MOKLI_SESSION_STORAGE_PREFIX = "websocket:"' in _SESSION_IDENTITY_PATH.read_text(
         encoding="utf-8"
     )
 

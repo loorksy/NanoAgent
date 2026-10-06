@@ -1,5 +1,5 @@
 graphify-out/
-webui/public/charting_library/
+mokli/public/charting_library/
 .git/
 node_modules/
 **/__pycache__/

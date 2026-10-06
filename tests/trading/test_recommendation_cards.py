@@ -1,4 +1,4 @@
-from nanobot.trading.cards.format import (
+from mokli.trading.cards.format import (
     compute_rr,
     format_price,
     render_telegram_card,

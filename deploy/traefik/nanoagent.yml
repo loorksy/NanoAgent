@@ -1,0 +1,14 @@
+http:
+  routers:
+    nanoagent:
+      rule: Host(`nanoagent.lork.cloud`)
+      entryPoints:
+        - websecure
+      service: nanoagent
+      tls:
+        certResolver: letsencrypt
+  services:
+    nanoagent:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:8080

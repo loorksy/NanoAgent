@@ -1,13 +1,13 @@
 """Deterministic S1 geometry detectors — FVG, CHoCH, Fibonacci, divergence."""
 
-from nanobot.trading.geometry.detectors import (
+from mokli.trading.geometry.detectors import (
     detect_divergence,
     detect_fair_value_gaps,
     detect_structure_events,
     fibonacci_retracement,
 )
-from nanobot.trading.geometry.snapshot import build_geometry_snapshot
-from nanobot.trading.types import Candle, StructureResult, Swing
+from mokli.trading.geometry.snapshot import build_geometry_snapshot
+from mokli.trading.types import Candle, StructureResult, Swing
 
 
 def _candle(time_ms: int, open_: float, high: float, low: float, close: float) -> Candle:

@@ -2,15 +2,15 @@
 
 import pytest
 
-from nanobot.agent.memory import MemoryStore
-from nanobot.config.schema import ModelPresetConfig
-from nanobot.providers.base import LLMResponse
-from nanobot.security.workspace_access import (
+from mokli.agent.memory import MemoryStore
+from mokli.config.schema import ModelPresetConfig
+from mokli.providers.base import LLMResponse
+from mokli.security.workspace_access import (
     bind_workspace_scope,
     default_workspace_scope,
     reset_workspace_scope,
 )
-from nanobot.utils.prompt_templates import render_template
+from mokli.utils.prompt_templates import render_template
 
 
 @pytest.fixture
@@ -201,80 +201,75 @@ class TestDreamRunCompletion:
 
 
 class TestDreamTools:
+    """Dream runs only get the restricted memory-file tools (read/edit/write on canonical files)."""
+
     def test_dream_tools_are_restricted_to_file_edits(self, store):
         tools = store.build_dream_tools()
 
-        assert set(tools.tool_names) == {
-            "apply_patch",
-            "edit_file",
-            "read_file",
-            "write_file",
-        }
+        assert set(tools.tool_names) == {"edit_file", "read_file", "write_file"}
 
     @pytest.mark.asyncio
     async def test_dream_can_edit_canonical_memory_files(self, store):
         tools = store.build_dream_tools()
 
         memory_result = await tools.execute(
-            "apply_patch",
+            "edit_file",
             {
-                "edits": [
-                    {
-                        "path": "memory/MEMORY.md",
-                        "action": "replace",
-                        "old_text": "Project X active",
-                        "new_text": "Project Y active",
-                    }
-                ]
+                "path": "memory/MEMORY.md",
+                "old_string": "Project X active",
+                "new_string": "Project Y active",
             },
         )
         soul_result = await tools.execute(
             "edit_file",
-            {
-                "path": "SOUL.md",
-                "old_text": "Helpful",
-                "new_text": "Precise",
-            },
+            {"path": str(store.soul_file), "old_string": "Helpful", "new_string": "Precise"},
         )
         user_result = await tools.execute(
             "write_file",
-            {
-                "path": "USER.md",
-                "content": "# User Profile\n\n- **Name**: Ada\n",
-            },
+            {"path": "USER.md", "content": "# User Profile\n\n- **Name**: Ada\n"},
         )
+        read_result = await tools.execute("read_file", {"path": "memory/MEMORY.md"})
 
-        assert "Patch applied" in memory_result
-        assert "Successfully edited" in soul_result
-        assert "Successfully wrote" in user_result
+        assert memory_result == "OK"
+        assert soul_result == "OK"
+        assert user_result == "OK"
+        assert "Project Y active" in read_result
         assert "Project Y active" in store.memory_file.read_text(encoding="utf-8")
         assert "Precise" in store.soul_file.read_text(encoding="utf-8")
         assert "**Name**: Ada" in store.user_file.read_text(encoding="utf-8")
 
     @pytest.mark.asyncio
-    async def test_dream_can_write_workspace_skills(self, store):
+    async def test_dream_edit_requires_existing_anchor(self, store):
+        tools = store.build_dream_tools()
+
+        result = await tools.execute(
+            "edit_file",
+            {"path": "memory/MEMORY.md", "old_string": "missing anchor", "new_string": "x"},
+        )
+
+        assert "old_string not found" in result
+        assert "Project X active" in store.memory_file.read_text(encoding="utf-8")
+
+    @pytest.mark.asyncio
+    async def test_dream_cannot_write_workspace_skills(self, store):
         tools = store.build_dream_tools()
         target = store.workspace / "skills" / "demo" / "SKILL.md"
 
         result = await tools.execute(
             "write_file",
-            {
-                "path": "skills/demo/SKILL.md",
-                "content": "---\nname: demo\ndescription: Demo skill.\n---\n\nUse when needed.\n",
-            },
+            {"path": "skills/demo/SKILL.md", "content": "---\nname: demo\n---\n"},
         )
 
-        assert "Successfully wrote" in result
-        assert target.read_text(encoding="utf-8").startswith("---\nname: demo")
+        assert "Path not allowed" in result
+        assert not target.exists()
 
     @pytest.mark.asyncio
-    async def test_dream_tools_keep_internal_write_scope_under_full_access(self, store):
+    async def test_dream_tools_ignore_wider_workspace_scope(self, store):
         tools = store.build_dream_tools()
         scope = default_workspace_scope(store.workspace, restrict_to_workspace=False)
         outside = store.workspace.parent / f"{store.workspace.name}-outside"
         outside.mkdir()
         outside_target = outside / "escape.txt"
-        skill_target = store.workspace / "skills" / "scoped" / "SKILL.md"
 
         token = bind_workspace_scope(scope)
         try:
@@ -282,25 +277,11 @@ class TestDreamTools:
                 "write_file",
                 {"path": str(outside_target), "content": "owned"},
             )
-            skill_result = await tools.execute(
-                "apply_patch",
-                {
-                    "edits": [
-                        {
-                            "path": "skills/scoped/SKILL.md",
-                            "action": "add",
-                            "new_text": "---\nname: scoped\n---\n",
-                        }
-                    ]
-                },
-            )
         finally:
             reset_workspace_scope(token)
 
-        assert "outside allowed directory" in outside_result
+        assert "Path not allowed" in outside_result
         assert not outside_target.exists()
-        assert "Patch applied" in skill_result
-        assert skill_target.read_text(encoding="utf-8").startswith("---\nname: scoped")
 
     @pytest.mark.asyncio
     async def test_dream_cannot_modify_memory_internal_files(self, store):
@@ -309,37 +290,23 @@ class TestDreamTools:
         store._dream_cursor_file.write_text("1", encoding="utf-8")
 
         history_result = await tools.execute(
-            "apply_patch",
-            {
-                "edits": [
-                    {
-                        "path": "memory/history.jsonl",
-                        "action": "replace",
-                        "old_text": "before",
-                        "new_text": "after",
-                    }
-                ]
-            },
+            "edit_file",
+            {"path": "memory/history.jsonl", "old_string": "before", "new_string": "after"},
         )
         cursor_result = await tools.execute(
             "edit_file",
-            {
-                "path": "memory/.dream_cursor",
-                "old_text": "1",
-                "new_text": "2",
-            },
+            {"path": "memory/.dream_cursor", "old_string": "1", "new_string": "2"},
         )
         history_write_result = await tools.execute(
             "write_file",
-            {
-                "path": "memory/history.jsonl",
-                "content": "after\n",
-            },
+            {"path": "memory/history.jsonl", "content": "after\n"},
         )
+        history_read_result = await tools.execute("read_file", {"path": "memory/history.jsonl"})
 
-        assert "outside allowed directory" in history_result
-        assert "outside allowed directory" in cursor_result
-        assert "outside allowed directory" in history_write_result
+        assert "Path not allowed" in history_result
+        assert "Path not allowed" in cursor_result
+        assert "Path not allowed" in history_write_result
+        assert "Path not allowed" in history_read_result
         assert store.history_file.read_text(encoding="utf-8") == "before\n"
         assert store._dream_cursor_file.read_text(encoding="utf-8") == "1"
 
@@ -350,27 +317,16 @@ class TestDreamTools:
         memory_child = store.memory_file / "evil.txt"
         user_child = store.user_file / "evil.txt"
         memory_result = await tools.execute(
-            "apply_patch",
-            {
-                "edits": [
-                    {
-                        "path": "memory/MEMORY.md/evil.txt",
-                        "action": "add",
-                        "new_text": "owned",
-                    }
-                ]
-            },
+            "write_file",
+            {"path": "memory/MEMORY.md/evil.txt", "content": "owned"},
         )
         user_result = await tools.execute(
             "write_file",
-            {
-                "path": "USER.md/evil.txt",
-                "content": "owned",
-            },
+            {"path": "USER.md/evil.txt", "content": "owned"},
         )
 
-        assert "outside allowed directory" in memory_result
-        assert "outside allowed directory" in user_result
+        assert "Path not allowed" in memory_result
+        assert "Path not allowed" in user_result
         assert not memory_child.exists()
         assert not user_child.exists()
 
@@ -383,9 +339,9 @@ class TestEphemeralDirect:
         """Factory fixture that builds a minimal AgentLoop with mocked deps."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from nanobot.agent.loop import AgentLoop
-        from nanobot.agent.memory import MemoryStore
-        from nanobot.bus.queue import MessageBus
+        from mokli.agent.loop import AgentLoop
+        from mokli.agent.memory import MemoryStore
+        from mokli.bus.queue import MessageBus
 
         store = MemoryStore(tmp_path)
         store.write_soul("# Soul")
@@ -401,9 +357,9 @@ class TestEphemeralDirect:
         )
 
         with (
-            patch("nanobot.agent.loop.SessionManager"),
-            patch("nanobot.agent.loop.SubagentManager") as mock_sub,
-            patch("nanobot.agent.loop.Consolidator"),
+            patch("mokli.agent.loop.SessionManager"),
+            patch("mokli.agent.loop.SubagentManager") as mock_sub,
+            patch("mokli.agent.loop.Consolidator"),
         ):
             mock_sub.return_value.cancel_by_session = AsyncMock(return_value=0)
             loop = AgentLoop(
@@ -510,7 +466,7 @@ class TestEphemeralDirect:
         """A soft tool error is model input, not a second run-level failure state."""
         from unittest.mock import AsyncMock
 
-        from nanobot.providers.base import ToolCallRequest
+        from mokli.providers.base import ToolCallRequest
 
         loop, store = _make_loop
         loop.provider.chat_stream_with_retry = AsyncMock(side_effect=[
@@ -549,8 +505,8 @@ class TestEphemeralDirect:
         """Dream must only see the batch selected by build_dream_prompt."""
         from unittest.mock import MagicMock
 
-        from nanobot.agent.loop import AgentLoop
-        from nanobot.bus.queue import MessageBus
+        from mokli.agent.loop import AgentLoop
+        from mokli.bus.queue import MessageBus
 
         store = MemoryStore(tmp_path)
         for i in range(60):
@@ -599,8 +555,8 @@ class TestEphemeralDirect:
         """Dream gets durable files from system context without losing its session record."""
         from unittest.mock import MagicMock
 
-        from nanobot.agent.loop import AgentLoop
-        from nanobot.bus.queue import MessageBus
+        from mokli.agent.loop import AgentLoop
+        from mokli.bus.queue import MessageBus
 
         markers = {
             "SOUL.md": "DREAM_SOUL_MARKER",
@@ -661,10 +617,10 @@ class TestEphemeralHooks:
         """Build an AgentLoop with a spy hook to verify hook firing behavior."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from nanobot.agent.hook import AgentHook
-        from nanobot.agent.loop import AgentLoop
-        from nanobot.bus.queue import MessageBus
-        from nanobot.providers.base import LLMResponse
+        from mokli.agent.hook import AgentHook
+        from mokli.agent.loop import AgentLoop
+        from mokli.bus.queue import MessageBus
+        from mokli.providers.base import LLMResponse
 
         bus = MessageBus()
         provider = MagicMock()
@@ -683,9 +639,9 @@ class TestEphemeralHooks:
         spy.after_iteration = AsyncMock()
 
         with (
-            patch("nanobot.agent.loop.SessionManager"),
-            patch("nanobot.agent.loop.SubagentManager") as mock_sub,
-            patch("nanobot.agent.loop.Consolidator"),
+            patch("mokli.agent.loop.SessionManager"),
+            patch("mokli.agent.loop.SubagentManager") as mock_sub,
+            patch("mokli.agent.loop.Consolidator"),
         ):
             mock_sub.return_value.cancel_by_session = AsyncMock(return_value=0)
             loop = AgentLoop(

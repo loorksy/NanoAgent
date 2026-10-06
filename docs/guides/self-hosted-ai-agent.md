@@ -1,14 +1,14 @@
-# How to Run a Self-Hosted AI Agent with nanobot
+# How to Run a Self-Hosted AI Agent with mokli
 
-This guide sets up nanobot as a self-hosted AI agent runtime on your own
-machine or server. The result is a gateway process that can serve the WebUI,
+This guide sets up mokli as a self-hosted AI agent runtime on your own
+machine or server. The result is a gateway process that can serve the Mokli,
 chat apps, automations, and API integrations.
 
 ## What you will build
 
-- a nanobot config and workspace under your control
+- a mokli config and workspace under your control
 - a model provider connected through `config.json`
-- a long-running `nanobot gateway`
+- a long-running `mokli gateway`
 - optional browser, chat app, and API access
 
 ## When to use this
@@ -20,9 +20,9 @@ the agent must keep running after one terminal command finishes.
 ## Install
 
 ```bash
-python -m pip install nanobot-ai
-nanobot onboard --wizard
-nanobot agent -m "Hello!"
+python -m pip install mokli-ai
+mokli onboard --wizard
+mokli agent -m "Hello!"
 ```
 
 Complete the CLI check before deploying the gateway. A deployment problem is
@@ -33,17 +33,17 @@ much easier to debug after the provider and model are known to work.
 For chat apps, automations, and WebSocket delivery, start the gateway:
 
 ```bash
-nanobot gateway
+mokli gateway
 ```
 
-For the browser surface, use the WebUI launcher instead. It can start and manage
+For the browser surface, use the Mokli launcher instead. It can start and manage
 the local gateway for you:
 
 ```bash
-nanobot webui
+mokli mokli
 ```
 
-Or connect a channel in `~/.nanobot/config.json`, then keep the same gateway
+Or connect a channel in `~/.mokli/config.json`, then keep the same gateway
 process running for messages.
 
 ## Production notes
@@ -68,13 +68,13 @@ process running for messages.
 
 ## Troubleshooting
 
-- Run `nanobot status` with the same `--config` and `--workspace` flags used by
+- Run `mokli status` with the same `--config` and `--workspace` flags used by
   the service.
-- Run `nanobot gateway --verbose` while debugging channel startup.
-- Check port conflicts if the WebUI, WebSocket channel, or API endpoint fails to
+- Run `mokli gateway --verbose` while debugging channel startup.
+- Check port conflicts if the Mokli, WebSocket channel, or API endpoint fails to
   bind.
 
-## Related nanobot docs
+## Related mokli docs
 
 - [Deployment](../deployment.md)
 - [Multiple Instances](../multiple-instances.md)

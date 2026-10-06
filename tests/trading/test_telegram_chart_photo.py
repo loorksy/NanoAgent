@@ -3,7 +3,7 @@ import base64
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-from nanobot.trading.stage_delivery import TradingStagePublisher
+from mokli.trading.stage_delivery import TradingStagePublisher
 
 
 def test_publish_result_attaches_telegram_chart_photo() -> None:

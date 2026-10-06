@@ -5,6 +5,11 @@ graphify-out/
 .assets
 .docs
 .env
+section11-events/
+section11-events-vps/
+/@13/
+section11-results.json
+section11-results-partial.json
 .web
 .orion
 
@@ -12,11 +17,14 @@ graphify-out/
 docs/superpowers/
 docs/plans/
 
-# webui (monorepo frontend)
-webui/node_modules/
-webui/dist/
-webui/coverage/
-webui/.vite/
+# mokli (monorepo frontend)
+mokli/node_modules/
+mokli-ui/node_modules/
+mokli-ui/.svelte-kit/
+mokli-ui/backend/data/
+mokli/dist/
+mokli/coverage/
+mokli/.vite/
 tui/node_modules/
 tui/dist/
 *.tsbuildinfo
@@ -79,7 +87,9 @@ Desktop.ini
 
 # Editors & IDEs (local workspace / user settings)
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/agents/
+!.cursor/agents/*.md
 .idea/
 .fleet/
 *.code-workspace
@@ -103,5 +113,10 @@ temp/
 exp/
 .playwright-mcp/
 bridge/node_modules/
-webui/.verify-*
+mokli/.verify-*
 .playwright-cli/
+
+# JS workspaces
+mobile/node_modules/
+packages/*/node_modules/
+mobile/.expo/

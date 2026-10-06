@@ -4,8 +4,8 @@ import uuid
 
 import pytest
 
-from nanobot.trading.recommendations import store
-from nanobot.trading.recommendations.supersede import (
+from mokli.trading.recommendations import store
+from mokli.trading.recommendations.supersede import (
     apply_supersede_transition,
     clear_supersede_pending,
     mark_supersede_pending,
@@ -43,8 +43,8 @@ def _seed_live(session_key: str, rec_id: str) -> None:
 
 @pytest.fixture()
 def isolated_store(tmp_path, monkeypatch):
-    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.trading.recommendations.store.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("mokli.trading.recommendations.store.get_data_dir", lambda: tmp_path)
     store._conn().close()
     yield
 

@@ -6,38 +6,38 @@ from datetime import UTC, datetime
 
 import pytest
 
-from nanobot.trading.gates.adr_gap import evaluate_adr_chase, evaluate_gap_chase, gap_points
-from nanobot.trading.gates.bad_tick import evaluate_bad_tick
-from nanobot.trading.gates.build_gates import GateInputs, build_gates
-from nanobot.trading.gates.chain import run_gate_chain
-from nanobot.trading.gates.cooldown_lock import evaluate_cooldown_lock
-from nanobot.trading.gates.drawdown_breaker import (
+from mokli.trading.gates.adr_gap import evaluate_adr_chase, evaluate_gap_chase, gap_points
+from mokli.trading.gates.bad_tick import evaluate_bad_tick
+from mokli.trading.gates.build_gates import GateInputs, build_gates
+from mokli.trading.gates.chain import run_gate_chain
+from mokli.trading.gates.cooldown_lock import evaluate_cooldown_lock
+from mokli.trading.gates.drawdown_breaker import (
     evaluate_drawdown_breaker,
     flatten_required_reason,
 )
-from nanobot.trading.gates.execution import collect_execution_checks, first_blocker
-from nanobot.trading.gates.margin_guard import evaluate_margin_guard
-from nanobot.trading.gates.max_positions import evaluate_max_positions, evaluate_no_martingale
-from nanobot.trading.gates.news_candle import evaluate_news_candle_shield, is_news_candle
-from nanobot.trading.gates.news_operational import evaluate_news_operational
-from nanobot.trading.gates.news_window import evaluate_news_window
-from nanobot.trading.gates.pending_ttl import evaluate_pending_ttl
-from nanobot.trading.gates.position_sizing import evaluate_position_sizing, lot_from_balance
-from nanobot.trading.gates.proposal_bracket import evaluate_confirm_slippage, evaluate_proposal_ttl
-from nanobot.trading.gates.risk_snapshot import RiskSnapshot
-from nanobot.trading.gates.rr_filter import evaluate_rr_filter, farthest_rr
-from nanobot.trading.gates.session_lock import evaluate_session_lock
-from nanobot.trading.gates.slippage_guard import evaluate_slippage_guard
-from nanobot.trading.gates.spread_guard import evaluate_spread_guard
-from nanobot.trading.gates.stale_quote import evaluate_stale_quote
-from nanobot.trading.gates.time_stop import evaluate_time_stop
-from nanobot.trading.gates.trade_management import (
+from mokli.trading.gates.execution import collect_execution_checks, first_blocker
+from mokli.trading.gates.margin_guard import evaluate_margin_guard
+from mokli.trading.gates.max_positions import evaluate_max_positions, evaluate_no_martingale
+from mokli.trading.gates.news_candle import evaluate_news_candle_shield, is_news_candle
+from mokli.trading.gates.news_operational import evaluate_news_operational
+from mokli.trading.gates.news_window import evaluate_news_window
+from mokli.trading.gates.pending_ttl import evaluate_pending_ttl
+from mokli.trading.gates.position_sizing import evaluate_position_sizing, lot_from_balance
+from mokli.trading.gates.proposal_bracket import evaluate_confirm_slippage, evaluate_proposal_ttl
+from mokli.trading.gates.risk_snapshot import RiskSnapshot
+from mokli.trading.gates.rr_filter import evaluate_rr_filter, farthest_rr
+from mokli.trading.gates.session_lock import evaluate_session_lock
+from mokli.trading.gates.slippage_guard import evaluate_slippage_guard
+from mokli.trading.gates.spread_guard import evaluate_spread_guard
+from mokli.trading.gates.stale_quote import evaluate_stale_quote
+from mokli.trading.gates.time_stop import evaluate_time_stop
+from mokli.trading.gates.trade_management import (
     overnight_stop,
     partial_close_fraction,
     should_move_to_breakeven,
     trailing_stop,
 )
-from nanobot.trading.policy import (
+from mokli.trading.policy import (
     BAD_TICK_POINTS,
     DAILY_DRAWDOWN_PCT,
     GOLD_POINT,
@@ -50,7 +50,7 @@ from nanobot.trading.policy import (
     SPREAD_MAX_POINTS,
     STALE_QUOTE_SECONDS,
 )
-from nanobot.trading.types import EconomicEvent, EntryPlan, VisualReview
+from mokli.trading.types import EconomicEvent, EntryPlan, VisualReview
 
 
 def _plan(rr: float = 2.5) -> EntryPlan:
@@ -158,6 +158,17 @@ def test_position_sizing_dual_check():
 def test_stale_quote():
     assert evaluate_stale_quote(RiskSnapshot(quote_age_seconds=STALE_QUOTE_SECONDS + 1)).status == "veto"
     assert evaluate_stale_quote(RiskSnapshot(quote_age_seconds=1)).status == "pass"
+
+
+def test_broker_quote_age_uses_the_broker_clock():
+    from mokli.trading.gates.stale_quote import broker_quote_age_seconds
+
+    now = 1_700_000_000.0
+    iso = datetime.fromtimestamp(now, tz=UTC).isoformat()
+    assert broker_quote_age_seconds(iso, now=now) == 0
+    assert broker_quote_age_seconds(now - 30, now=now) == 30
+    assert broker_quote_age_seconds(int((now - 30) * 1000), now=now) == 30
+    assert broker_quote_age_seconds(None, now=now) is None
 
 
 def test_pending_ttl_and_half_distance():
@@ -373,7 +384,7 @@ async def test_build_gates_includes_new_ids_and_rr_vetoes():
         stop_loss=2640.0,
         targets=[2660.0],
     )
-    from nanobot.trading.types import StructureResult
+    from mokli.trading.types import StructureResult
 
     structure = StructureResult(
         trend="uptrend",
@@ -403,3 +414,33 @@ async def test_build_gates_includes_new_ids_and_rr_vetoes():
     assert chain.allowed is False
     assert chain.vetoed_by is not None
     assert chain.vetoed_by.id == "G8"
+
+
+def test_reprice_merge_blocks_a_required_unavailable_gate() -> None:
+    from mokli.trading.gates.reprice_loop import _merge_gate_chains
+    from mokli.trading.types import GateChainResult, GateVerdict
+
+    merged = _merge_gate_chains(
+        GateChainResult(
+            verdicts=[GateVerdict(id="G6", name="geometry", status="pass")],
+            allowed=True,
+            confidence_delta=0,
+        ),
+        GateChainResult(
+            verdicts=[GateVerdict(id="G6", name="geometry", status="unavailable")],
+            allowed=False,
+            confidence_delta=0,
+        ),
+    )
+    assert merged.allowed is False
+
+
+def test_corrupt_runtime_state_locks_trading(tmp_path) -> None:
+    from mokli.trading.runtime_state import TradingRuntimeStore
+
+    path = tmp_path / "runtime_state.json"
+    path.write_text("{", encoding="utf-8")
+    store = TradingRuntimeStore(path)
+    snap = store.snapshot()
+    assert snap.kill_switch is True
+    assert snap.paused is True

@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from nanobot.agent.hook import AgentHook, AgentRunHookContext
-from nanobot.api.server import (
+from mokli.agent.hook import AgentHook, AgentRunHookContext
+from mokli.api.server import (
     API_CHAT_ID,
     API_SESSION_KEY,
     _chat_completion_response,
@@ -18,7 +18,7 @@ from nanobot.api.server import (
     create_app,
     handle_chat_completions,
 )
-from nanobot.providers.base import LLMUsage
+from mokli.providers.base import LLMUsage
 
 try:
     from aiohttp.test_utils import TestClient, TestServer
@@ -246,7 +246,7 @@ async def test_model_mismatch_returns_400() -> None:
     resp = await handle_chat_completions(request)
     assert resp.status == 400
     body = json.loads(resp.body)
-    assert "test-model" in body["error"]["message"]
+    assert "other-model" in body["error"]["message"]
 
 
 @pytest.mark.asyncio
@@ -487,7 +487,7 @@ async def test_multimodal_remote_image_url_returns_400(aiohttp_client, mock_agen
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
 @pytest.mark.asyncio
 async def test_empty_response_falls_back_without_retry(aiohttp_client) -> None:
-    from nanobot.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
+    from mokli.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
 
     call_count = 0
 
@@ -516,9 +516,9 @@ async def test_empty_response_falls_back_without_retry(aiohttp_client) -> None:
 @pytest.mark.asyncio
 async def test_process_direct_accepts_media() -> None:
     """process_direct should forward media paths to _process_message."""
-    from nanobot.agent.loop import AgentLoop
-    from nanobot.bus.queue import MessageBus
-    from nanobot.bus.runtime_events import RuntimeEventPublisher
+    from mokli.agent.loop import AgentLoop
+    from mokli.bus.queue import MessageBus
+    from mokli.bus.runtime_events import RuntimeEventPublisher
 
     loop = AgentLoop.__new__(AgentLoop)
     loop._session_locks = {}

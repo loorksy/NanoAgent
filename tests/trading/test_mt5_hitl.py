@@ -1,4 +1,4 @@
-"""HITL MetaAPI propose/confirm never auto-sends."""
+"""HITL MT5 propose/confirm never auto-sends."""
 
 from __future__ import annotations
 
@@ -6,16 +6,17 @@ from datetime import UTC, datetime
 
 import pytest
 
-from nanobot.trading.intel.tickets import TicketStore
-from nanobot.trading.mt5_execution import (
+from mokli.trading.intel.tickets import TicketStore
+from mokli.trading.mt5_broker import NullTransport, set_transport_for_tests
+from mokli.trading.mt5_execution import (
     mt5_close_position,
     mt5_confirm_order,
     mt5_get_account,
     mt5_modify_order,
     mt5_propose_order,
 )
-from nanobot.trading.mt5_metaapi import NullTransport, set_transport_for_tests
-from nanobot.trading.mt5_proposals import get_proposal_store
+from mokli.trading.mt5_proposals import get_proposal_store
+from mokli.trading.runtime_state import get_runtime_store
 
 SAFE_TS = datetime(2023, 11, 15, 12, 0, tzinfo=UTC).timestamp()
 
@@ -71,8 +72,9 @@ class RecordingTransport(NullTransport):
 def _transport(monkeypatch: pytest.MonkeyPatch):
     rec = RecordingTransport()
     set_transport_for_tests(rec)
-    monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)
-    monkeypatch.setattr("nanobot.trading.mt5_proposals.time.time", lambda: SAFE_TS)
+    get_runtime_store().update(paper_mode=False, kill_switch=False, paused=False)
+    monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: SAFE_TS)
+    monkeypatch.setattr("mokli.trading.mt5_proposals.time.time", lambda: SAFE_TS)
     yield rec
     set_transport_for_tests(None)
 
@@ -217,9 +219,9 @@ async def test_failed_send_does_not_mark_executed_or_open_ticket(
     rec = FailingSendTransport()
     set_transport_for_tests(rec)
     tickets = TicketStore(tmp_path / "tickets.sqlite")
-    monkeypatch.setattr("nanobot.trading.mt5_execution.TicketStore", lambda: tickets)
-    monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)
-    monkeypatch.setattr("nanobot.trading.mt5_proposals.time.time", lambda: SAFE_TS)
+    monkeypatch.setattr("mokli.trading.mt5_execution.TicketStore", lambda: tickets)
+    monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: SAFE_TS)
+    monkeypatch.setattr("mokli.trading.mt5_proposals.time.time", lambda: SAFE_TS)
     proposed = await mt5_propose_order(
         side="buy",
         entry=2650.0,
@@ -246,8 +248,8 @@ async def test_failed_modify_close_cancel_are_not_false_success(
 ):
     rec = FailingSendTransport()
     set_transport_for_tests(rec)
-    monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: SAFE_TS)
-    from nanobot.trading.mt5_execution import mt5_cancel_order
+    monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: SAFE_TS)
+    from mokli.trading.mt5_execution import mt5_cancel_order
 
     modified = await mt5_modify_order(position_id="ticket-1", stop=2642.0, confirm=True)
     assert modified["ok"] is False
@@ -278,7 +280,7 @@ async def test_expired_proposal_cannot_confirm(
     )
     pid = proposed["proposal"]["id"]
     later = SAFE_TS + 10_000
-    monkeypatch.setattr("nanobot.trading.mt5_execution.time.time", lambda: later)
+    monkeypatch.setattr("mokli.trading.mt5_execution.time.time", lambda: later)
     out = await mt5_confirm_order(proposal_id=pid, confirm=True)
     assert out["ok"] is False
     assert out["executed"] is False

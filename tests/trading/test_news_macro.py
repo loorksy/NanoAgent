@@ -1,4 +1,4 @@
-from nanobot.trading.agents.news_macro import news_provider_configured, run_news_macro_agent
+from mokli.trading.agents.news_macro import news_provider_configured, run_news_macro_agent
 
 
 def test_news_provider_requires_forex_factory_flag(monkeypatch) -> None:
@@ -18,7 +18,7 @@ def test_news_macro_unconfigured_returns_unknown(monkeypatch) -> None:
 def test_news_macro_live_empty_calendar(monkeypatch) -> None:
     monkeypatch.setenv("FOREX_FACTORY_ENABLED", "1")
     monkeypatch.setattr(
-        "nanobot.trading.agents.news_macro.fetch_upcoming_events",
+        "mokli.trading.agents.news_macro.fetch_upcoming_events",
         lambda: [],
     )
     result = run_news_macro_agent()

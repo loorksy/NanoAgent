@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import fields
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-from nanobot.agent.tools.base import Tool
-from nanobot.agent.tools.context import ToolContext
-from nanobot.agent.tools.loader import _SKIP_MODULES, ToolLoader
+from mokli.agent.tools.base import Tool
+from mokli.agent.tools.context import ToolContext
+from mokli.agent.tools.loader import _SKIP_MODULES, ToolLoader
 
 
 class _MinimalTool(Tool):
@@ -89,13 +88,16 @@ def test_discover_finds_concrete_tools():
     loader = ToolLoader()
     discovered = loader.discover()
     class_names = {cls.__name__ for cls in discovered}
-    assert "ApplyPatchTool" in class_names
-    assert "ExecTool" in class_names
-    assert "CliAppsTool" in class_names
     assert "MessageTool" in class_names
-    assert "MyTool" in class_names
     assert "SpawnTool" in class_names
-    assert "ExecSessionTool" in class_names
+    assert "CronTool" in class_names
+    assert "WebSearchTool" in class_names
+    assert "AnalyzeGoldTool" in class_names
+    assert "RunTradingKernelTool" in class_names
+    # Generic coding tools were removed from the gold agent.
+    assert "ExecTool" not in class_names
+    assert "ReadFileTool" not in class_names
+    assert "ApplyPatchTool" not in class_names
 
 
 def test_discover_excludes_abstract_and_mcp():
@@ -116,103 +118,11 @@ def test_discover_skips_private_classes():
         assert not cls.__name__.startswith("_")
 
 
-def test_loader_registers_exec_with_real_tools_config(tmp_path):
-    """Real config objects catch bad ctx.config attribute paths that mocks hide."""
-    from types import SimpleNamespace
-
-    from nanobot.agent.tools.registry import ToolRegistry
-    from nanobot.config.schema import ToolsConfig
-
-    ctx = ToolContext(
-        config=ToolsConfig(),
-        workspace=str(tmp_path),
-        bus=None,
-        subagent_manager=SimpleNamespace(
-            get_running_count=lambda: 0,
-            max_concurrent_subagents=4,
-        ),
-        cron_service=None,
-        timezone="UTC",
-    )
-    registry = ToolRegistry()
-    registered = ToolLoader().load(ctx, registry)
-
-    assert "exec" in registered
-    assert registry.has("exec")
-
-
-def test_loader_wires_shared_exec_session_manager(tmp_path):
-    from types import SimpleNamespace
-
-    from nanobot.agent.tools.exec_session import ExecSessionManager
-    from nanobot.agent.tools.registry import ToolRegistry
-    from nanobot.config.schema import ToolsConfig
-
-    manager = ExecSessionManager()
-    ctx = ToolContext(
-        config=ToolsConfig(),
-        workspace=str(tmp_path),
-        subagent_manager=SimpleNamespace(
-            get_running_count=lambda: 0,
-            max_concurrent_subagents=4,
-        ),
-        exec_session_manager=manager,
-        timezone="UTC",
-    )
-    registry = ToolRegistry()
-    ToolLoader().load(ctx, registry)
-
-    assert registry.get("exec")._session_manager is manager
-    assert registry.get("exec_session")._manager is manager
-    assert registry.get("write_stdin") is None
-    assert registry.get("list_exec_sessions")._manager is manager
-    definition_names = {
-        definition["function"]["name"]
-        for definition in registry.get_definitions()
-    }
-    assert "exec_session" in definition_names
-    assert "write_stdin" not in definition_names
-
-
-# --- Task 4: _FsTool.create() ---
-
-
-def test_fs_tool_create_builds_from_context():
-    from nanobot.agent.tools.filesystem import ReadFileTool
-    mock_config = MagicMock()
-    mock_config.restrict_to_workspace = False
-    mock_config.exec.sandbox = ""
-    ctx = ToolContext(config=mock_config, workspace="/tmp/test")
-    tool = ReadFileTool.create(ctx)
-    assert isinstance(tool, ReadFileTool)
-    assert tool._workspace == Path("/tmp/test")
-
-
-def test_fs_tool_create_respects_restrict_to_workspace():
-    from nanobot.agent.tools.filesystem import ReadFileTool
-    mock_config = MagicMock()
-    mock_config.restrict_to_workspace = True
-    mock_config.exec.sandbox = ""
-    ctx = ToolContext(config=mock_config, workspace="/tmp/test")
-    tool = ReadFileTool.create(ctx)
-    assert tool._allowed_dir == Path("/tmp/test")
-
-
-def test_fs_tool_create_respects_sandbox():
-    from nanobot.agent.tools.filesystem import ReadFileTool
-    mock_config = MagicMock()
-    mock_config.restrict_to_workspace = False
-    mock_config.exec.sandbox = "bwrap"
-    ctx = ToolContext(config=mock_config, workspace="/tmp/test")
-    tool = ReadFileTool.create(ctx)
-    assert tool._allowed_dir == Path("/tmp/test")
-
-
 # --- Task 5: MessageTool, SpawnTool, CronTool ---
 
 
 async def test_message_tool_create():
-    from nanobot.agent.tools.message import MessageTool
+    from mokli.agent.tools.message import MessageTool
     mock_bus = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", bus=mock_bus)
@@ -221,7 +131,7 @@ async def test_message_tool_create():
 
 
 def test_spawn_tool_create():
-    from nanobot.agent.tools.spawn import SpawnTool
+    from mokli.agent.tools.spawn import SpawnTool
     mock_mgr = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", subagent_manager=mock_mgr)
@@ -230,14 +140,14 @@ def test_spawn_tool_create():
 
 
 def test_cron_tool_enabled_without_service():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", cron_service=None)
     assert CronTool.enabled(ctx) is False
 
 
 def test_cron_tool_enabled_with_service():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_service = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(config=mock_config, workspace="/tmp", cron_service=mock_service)
@@ -245,7 +155,7 @@ def test_cron_tool_enabled_with_service():
 
 
 def test_cron_tool_create():
-    from nanobot.agent.tools.cron import CronTool
+    from mokli.agent.tools.cron import CronTool
     mock_service = MagicMock()
     mock_config = MagicMock()
     ctx = ToolContext(
@@ -256,45 +166,11 @@ def test_cron_tool_create():
     assert isinstance(tool, CronTool)
 
 
-# --- Task 6: ExecTool, WebTools, ImageGenerationTool ---
-
-
-def test_exec_tool_config_cls():
-    from nanobot.agent.tools.shell import ExecTool, ExecToolConfig
-    assert ExecTool.config_cls() is ExecToolConfig
-    assert ExecTool.config_key == "exec"
-
-
-def test_exec_tool_enabled():
-    from nanobot.agent.tools.shell import ExecTool
-    mock_config = MagicMock()
-    mock_config.exec.enable = True
-    ctx = ToolContext(config=mock_config, workspace="/tmp")
-    assert ExecTool.enabled(ctx) is True
-    mock_config.exec.enable = False
-    assert ExecTool.enabled(ctx) is False
-
-
-def test_exec_tool_create():
-    from nanobot.agent.tools.shell import ExecTool
-    mock_config = MagicMock()
-    mock_config.exec.enable = True
-    mock_config.exec.timeout = 120
-    mock_config.exec.sandbox = ""
-    mock_config.exec.path_prepend = "/venv/bin"
-    mock_config.exec.path_append = ""
-    mock_config.exec.allowed_env_keys = []
-    mock_config.exec.allow_patterns = []
-    mock_config.exec.deny_patterns = []
-    mock_config.restrict_to_workspace = False
-    ctx = ToolContext(config=mock_config, workspace="/tmp")
-    tool = ExecTool.create(ctx)
-    assert isinstance(tool, ExecTool)
-    assert tool.path_prepend == "/venv/bin"
+# --- Task 6: WebTools ---
 
 
 def test_web_tools_config_cls():
-    from nanobot.agent.tools.web import WebFetchTool, WebSearchTool, WebToolsConfig
+    from mokli.agent.tools.web import WebFetchTool, WebSearchTool, WebToolsConfig
     assert WebSearchTool.config_key == "web"
     assert WebSearchTool.config_cls() is WebToolsConfig
     assert WebFetchTool.config_key == "web"
@@ -302,7 +178,7 @@ def test_web_tools_config_cls():
 
 
 def test_web_tools_enabled():
-    from nanobot.agent.tools.web import WebSearchTool
+    from mokli.agent.tools.web import WebSearchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     ctx = ToolContext(config=mock_config, workspace="/tmp")
@@ -312,7 +188,7 @@ def test_web_tools_enabled():
 
 
 def test_web_search_tool_create():
-    from nanobot.agent.tools.web import WebSearchTool
+    from mokli.agent.tools.web import WebSearchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     mock_config.web.search = MagicMock()
@@ -324,7 +200,7 @@ def test_web_search_tool_create():
 
 
 def test_web_fetch_tool_create():
-    from nanobot.agent.tools.web import WebFetchTool
+    from mokli.agent.tools.web import WebFetchTool
     mock_config = MagicMock()
     mock_config.web.enable = True
     mock_config.web.fetch = MagicMock()
@@ -335,69 +211,11 @@ def test_web_fetch_tool_create():
     assert isinstance(tool, WebFetchTool)
 
 
-def test_image_gen_tool_config_cls():
-    from nanobot.agent.tools.image_generation import ImageGenerationTool, ImageGenerationToolConfig
-    assert ImageGenerationTool.config_key == "image_generation"
-    assert ImageGenerationTool.config_cls() is ImageGenerationToolConfig
-
-
-def test_image_gen_tool_enabled():
-    from nanobot.agent.tools.image_generation import ImageGenerationTool
-    mock_config = MagicMock()
-    mock_config.image_generation.enabled = True
-    ctx = ToolContext(config=mock_config, workspace="/tmp")
-    assert ImageGenerationTool.enabled(ctx) is True
-    mock_config.image_generation.enabled = False
-    assert ImageGenerationTool.enabled(ctx) is False
-
-
-def test_image_gen_tool_create():
-    from nanobot.agent.tools.image_generation import ImageGenerationTool
-    mock_config = MagicMock()
-    mock_config.image_generation = MagicMock()
-    ctx = ToolContext(
-        config=mock_config, workspace="/tmp",
-        image_generation_provider_configs={"openrouter": MagicMock()},
-    )
-    tool = ImageGenerationTool.create(ctx)
-    assert isinstance(tool, ImageGenerationTool)
-
-
-# --- Task 7: MyToolConfig + MCP wrappers ---
-
-
-def test_my_tool_config_cls():
-    from nanobot.agent.tools.self import MyTool, MyToolConfig
-    assert MyTool.config_key == "my"
-    assert MyTool.config_cls() is MyToolConfig
-
-
-def test_my_tool_enabled():
-    from nanobot.agent.tools.self import MyTool
-    mock_config = MagicMock()
-    mock_config.my.enable = True
-    ctx = ToolContext(
-        config=mock_config,
-        workspace="/tmp",
-        runtime_control=MagicMock(),
-    )
-    assert MyTool.enabled(ctx) is True
-    mock_config.my.enable = False
-    assert MyTool.enabled(ctx) is False
-
-
-def test_my_tool_requires_runtime_control():
-    from nanobot.agent.tools.self import MyTool
-
-    mock_config = MagicMock()
-    mock_config.my.enable = True
-    ctx = ToolContext(config=mock_config, workspace="/tmp")
-
-    assert MyTool.enabled(ctx) is False
+# --- Task 7: MCP wrappers ---
 
 
 def test_mcp_wrappers_not_discoverable():
-    from nanobot.agent.tools.mcp import MCPPromptWrapper, MCPResourceWrapper, MCPToolWrapper
+    from mokli.agent.tools.mcp import MCPPromptWrapper, MCPResourceWrapper, MCPToolWrapper
     assert MCPToolWrapper._plugin_discoverable is False
     assert MCPResourceWrapper._plugin_discoverable is False
     assert MCPPromptWrapper._plugin_discoverable is False
@@ -406,33 +224,15 @@ def test_mcp_wrappers_not_discoverable():
 # --- Task 10: Integration test ---
 
 
-def test_loader_registers_same_tools_as_old_hardcoded():
-    """Verify the loader produces the same tool set as the old _register_default_tools."""
-    from nanobot.agent.tools.loader import ToolLoader
-    from nanobot.agent.tools.registry import ToolRegistry
-
-    mock_config = MagicMock()
-    mock_config.exec.enable = True
-    mock_config.exec.timeout = 60
-    mock_config.exec.sandbox = ""
-    mock_config.exec.path_prepend = ""
-    mock_config.exec.path_append = ""
-    mock_config.exec.allowed_env_keys = []
-    mock_config.exec.allow_patterns = []
-    mock_config.exec.deny_patterns = []
-    mock_config.restrict_to_workspace = False
-    mock_config.web.enable = True
-    mock_config.web.search = MagicMock()
-    mock_config.web.fetch = MagicMock()
-    mock_config.web.proxy = None
-    mock_config.web.user_agent = None
-    mock_config.image_generation.enabled = False
-    mock_config.my.enable = True
-    mock_config.my.allow_set = False
+def test_loader_registers_gold_agent_tool_set(tmp_path):
+    """The loader wires the trading tool set; generic coding tools stay out."""
+    from mokli.agent.tools.loader import ToolLoader
+    from mokli.agent.tools.registry import ToolRegistry
+    from mokli.config.schema import ToolsConfig
 
     ctx = ToolContext(
-        config=mock_config,
-        workspace="/tmp",
+        config=ToolsConfig(),
+        workspace=str(tmp_path),
         bus=MagicMock(),
         subagent_manager=MagicMock(),
         cron_service=MagicMock(),
@@ -440,15 +240,14 @@ def test_loader_registers_same_tools_as_old_hardcoded():
         runtime_control=MagicMock(),
     )
     registry = ToolRegistry()
-    loader = ToolLoader()
-    registered = loader.load(ctx, registry)
+    registered = set(ToolLoader().load(ctx, registry))
 
     expected = {
-        "read_file", "write_file", "edit_file", "list_dir",
-        "find_files", "grep", "exec", "exec_session", "list_exec_sessions",
-        "web_search", "web_fetch",
-        "message", "spawn", "cron",
-        "my",
+        "analyze_gold", "get_gold_quote", "run_trading_kernel", "run_trading_team",
+        "manage_trading_plan", "get_live_recommendation", "get_gate_report",
+        "mt5_propose_order", "mt5_confirm_order", "mt5_cancel_order",
+        "message", "spawn", "cron", "web_search", "web_fetch",
     }
-    actual = set(registered)
-    assert expected <= actual, f"Missing tools: {expected - actual}"
+    assert expected <= registered, f"Missing tools: {expected - registered}"
+    removed = {"read_file", "write_file", "edit_file", "list_dir", "exec", "exec_session", "my"}
+    assert not (removed & registered), f"Removed tools still registered: {removed & registered}"

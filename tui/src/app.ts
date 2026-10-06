@@ -19,7 +19,7 @@ import {
 } from "@opentui/core"
 
 import {
-  NanobotClient,
+  MokliClient,
   connectionEndpoint,
   fetchAvailableSkills,
   fetchGatewayHealth,
@@ -189,7 +189,7 @@ const LIGHT: Palette = {
   cool: "#0F766E",
 }
 
-const COMPOSER_PLACEHOLDER = "Ask nanobot anything"
+const COMPOSER_PLACEHOLDER = "Ask mokli anything"
 const ACTIVE_COMPOSER_PLACEHOLDER = "Enter send now · Tab send next"
 const COMPACT_ACTIVE_COMPOSER_PLACEHOLDER = "Enter now · Tab next"
 const IMAGE_PLACEHOLDER_STYLE = "image.placeholder"
@@ -412,9 +412,9 @@ function connectionStatusText(
   if (status === "unavailable") {
     return info?.health === "degraded"
       ? "Still getting ready…"
-      : "Nanobot is taking longer to respond…"
+      : "Mokli is taking longer to respond…"
   }
-  if (status === "error") return "Nanobot unavailable · restart nanobot"
+  if (status === "error") return "Mokli unavailable · restart mokli"
   return "Session ended"
 }
 
@@ -444,6 +444,7 @@ interface RenderedRetryStatus extends RetryStatus {
 
 export function retryStatusLine(status: RenderedRetryStatus, nowMs = Date.now()): string {
   const label = retryFailureLabel(status.error_kind)
+  if (status.state === "cancelled") return "Retry cancelled"
   if (status.state === "exhausted") return `${label} · ending turn`
   if (status.state === "recovered") return "Connection restored"
   if (status.state === "cleared") return "Retry status cleared"
@@ -459,7 +460,7 @@ export function retryStatusLine(status: RenderedRetryStatus, nowMs = Date.now())
 
 export function sessionExitMessage(chatId: string): string {
   const sessionId = `websocket:${chatId}`
-  return `Resume with: nanobot agent --session ${sessionId}\n`
+  return `Resume with: mokli agent --session ${sessionId}\n`
 }
 
 async function copyWithSystemClipboard(text: string): Promise<void> {
@@ -481,7 +482,7 @@ async function copyWithSystemClipboard(text: string): Promise<void> {
   throw new Error("no clipboard provider available")
 }
 
-export class NanobotTui {
+export class MokliTui {
   private readonly renderer: CliRenderer
   private readonly transcript: Transcript
   private readonly commandMenu: CommandMenu
@@ -633,13 +634,13 @@ export class NanobotTui {
         onDismiss: () => void this.updateRecovery("dismiss"),
       },
     )
-    this.client = client || new NanobotClient({
+    this.client = client || new MokliClient({
       ...(options.resolveConnection ? {
         resolveConnection: options.resolveConnection,
         onConnection: (connection: GatewayConnection) => this.useGatewayConnection(connection.apiUrl, connection.apiToken),
         expectedGatewayId: options.desktopGatewayId,
         reconnect: false,
-        targetEndpoint: "Nanobot Desktop",
+        targetEndpoint: "Mokli Desktop",
       } : options.bootstrapUrl
         ? {
             resolveConnection: () => fetchGatewayConnection(
@@ -674,7 +675,7 @@ export class NanobotTui {
     // only colors occupied cells and turns long output into dark strips.
     this.renderer.setBackgroundColor(RGBA.defaultBackground())
     this.shell = new BoxRenderable(renderer, {
-      id: "nanobot-tui-footer",
+      id: "mokli-tui-footer",
       width: "100%",
       height: "100%",
       paddingLeft: 1,
@@ -706,7 +707,7 @@ export class NanobotTui {
       },
     })
     this.title = new BoxRenderable(renderer, {
-      id: "nanobot-tui-title",
+      id: "mokli-tui-title",
       width: "100%",
       height: 1,
       flexShrink: 0,
@@ -751,7 +752,7 @@ export class NanobotTui {
     this.title.add(this.runtimeControls.contextText)
     const composerSurface = this.composerSurface()
     this.composerFrame = new BoxRenderable(renderer, {
-      id: "nanobot-tui-composer-frame",
+      id: "mokli-tui-composer-frame",
       width: "100%",
       minHeight: 1,
       flexShrink: 0,
@@ -762,7 +763,7 @@ export class NanobotTui {
       backgroundColor: composerSurface,
     })
     this.composer = new TextareaRenderable(renderer, {
-      id: "nanobot-tui-composer",
+      id: "mokli-tui-composer",
       width: "100%",
       minHeight: 1,
       maxHeight: 8,
@@ -805,7 +806,7 @@ export class NanobotTui {
       },
     })
     this.status = new TextRenderable(renderer, {
-      id: "nanobot-tui-status",
+      id: "mokli-tui-status",
       content: "Getting ready…",
       fg: this.palette.muted,
       height: 1,
@@ -816,7 +817,7 @@ export class NanobotTui {
       selectable: false,
     })
     this.meta = new TextRenderable(renderer, {
-      id: "nanobot-tui-meta",
+      id: "mokli-tui-meta",
       content: "",
       fg: this.palette.faint,
       height: 1,
@@ -826,7 +827,7 @@ export class NanobotTui {
     })
 
     const statusRow = new BoxRenderable(renderer, {
-      id: "nanobot-tui-status-row",
+      id: "mokli-tui-status-row",
       width: "100%",
       height: 1,
       flexShrink: 0,
@@ -865,7 +866,7 @@ export class NanobotTui {
     this.transcript.header(options)
   }
 
-  static async create(options: AppOptions): Promise<NanobotTui> {
+  static async create(options: AppOptions): Promise<MokliTui> {
     configureOpenTuiEnvironment()
     const host = createTuiHost()
     const renderer = await createCliRenderer({
@@ -876,7 +877,7 @@ export class NanobotTui {
       externalOutputMode: "passthrough",
       consoleMode: "disabled",
     })
-    return NanobotTui.mount(renderer, options, undefined, undefined, host)
+    return MokliTui.mount(renderer, options, undefined, undefined, host)
   }
 
   static mount(
@@ -886,8 +887,8 @@ export class NanobotTui {
     treeSitterClient?: TreeSitterClient,
     host?: TuiHost,
     clipboardImageReader?: ClipboardImageReader,
-  ): NanobotTui {
-    return new NanobotTui(
+  ): MokliTui {
+    return new MokliTui(
       renderer,
       options,
       client,
@@ -1499,7 +1500,7 @@ export class NanobotTui {
     if (status === "error" && !info) return
     this.connectionMessage = connectionStatusText(status, info)
     if (this.options.desktopGatewayId && status === "error") {
-      this.connectionMessage = "Desktop disconnected or incompatible · exit and run nanobot to reconnect"
+      this.connectionMessage = "Desktop disconnected or incompatible · exit and run mokli to reconnect"
     }
     if (status === "connected") {
       this.ready = false

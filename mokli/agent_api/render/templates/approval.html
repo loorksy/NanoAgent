@@ -1,0 +1,9 @@
+{% extends "_layout.html" %}
+{% block body %}
+<p><span class="na-badge">{{ L('label.approval_type.' ~ p.type) }}</span>
+{% if p.status %}<span class="na-badge">{{ L('label.approval_status.' ~ p.status) }}</span>{% endif %}
+{% if p.permission_level %}<span class="na-badge">{{ L('label.permission.' ~ p.permission_level) }}</span>{% endif %}</p>
+<p><strong>{{ p.summary }}</strong></p>
+{% if p.expires_at %}<p class="na-muted">{{ L('label.result.approval.expires_at') }}: <time data-ts="{{ p.expires_at }}">{{ p.expires_at }}</time></p>{% endif %}
+<p data-approval-id="{{ p.approval_id }}">{% for a in p.actions %}<span class="na-badge" data-action="{{ a }}">{{ L('label.action.' ~ a) }}</span> {% endfor %}</p>
+{% endblock %}

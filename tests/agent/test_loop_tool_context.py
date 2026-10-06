@@ -5,20 +5,20 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.context import TranscriptInput
-from nanobot.agent.loop import AgentLoop
-from nanobot.agent.tools.context import (
+from mokli.agent.context import TranscriptInput
+from mokli.agent.loop import AgentLoop
+from mokli.agent.tools.context import (
     RequestContext,
     bind_request_context,
     current_request_context,
     reset_request_context,
 )
-from nanobot.agent.tools.registry import ToolRegistry
-from nanobot.bus.events import InboundMessage
-from nanobot.bus.queue import MessageBus
-from nanobot.config.schema import Config
-from nanobot.providers.base import LLMResponse, ToolCallRequest
-from nanobot.session.turn_continuation import INTERNAL_CONTINUATION_META
+from mokli.agent.tools.registry import ToolRegistry
+from mokli.bus.events import InboundMessage
+from mokli.bus.queue import MessageBus
+from mokli.config.schema import Config
+from mokli.providers.base import LLMResponse, ToolCallRequest
+from mokli.session.turn_continuation import INTERNAL_CONTINUATION_META
 
 
 class _ContextRecordingTool:
@@ -73,7 +73,7 @@ def test_loop_registers_default_tools_in_injected_registry(tmp_path: Path) -> No
     )
 
     assert loop.tools is registry
-    assert registry.has("read_file")
+    assert registry.has("analyze_gold")
 
 
 def _config_for_loop(tmp_path: Path) -> Config:
@@ -102,7 +102,7 @@ def test_loop_from_config_uses_caller_owned_registry(tmp_path: Path) -> None:
     )
 
     assert loop.tools is registry
-    assert loop.tools.has("read_file")
+    assert loop.tools.has("analyze_gold")
 
 
 @pytest.mark.asyncio

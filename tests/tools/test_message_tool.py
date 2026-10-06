@@ -2,10 +2,10 @@ import os
 
 import pytest
 
-from nanobot.agent.tools.context import RequestContext, request_context
-from nanobot.agent.tools.message import MessageTool
-from nanobot.bus.events import OutboundMessage
-from nanobot.config.paths import get_workspace_path
+from mokli.agent.tools.context import RequestContext, request_context
+from mokli.agent.tools.message import MessageTool
+from mokli.bus.events import OutboundMessage
+from mokli.config.paths import get_workspace_path
 
 
 @pytest.mark.asyncio
@@ -362,7 +362,7 @@ async def test_message_tool_resolves_telegram_uuid_to_pairing_chat_id(monkeypatc
         sent.append(msg)
 
     monkeypatch.setattr(
-        "nanobot.agent.delivery_targets.get_approved",
+        "mokli.agent.delivery_targets.get_approved",
         lambda _channel: ["5969744996|aswadtr"],
     )
     tool = MessageTool(send_callback=_send)
@@ -385,7 +385,7 @@ async def test_message_tool_resolves_telegram_uuid_to_pairing_chat_id(monkeypatc
 @pytest.mark.asyncio
 async def test_message_tool_rejects_telegram_without_resolvable_chat_id(monkeypatch) -> None:
     monkeypatch.setattr(
-        "nanobot.agent.delivery_targets.get_approved",
+        "mokli.agent.delivery_targets.get_approved",
         lambda _channel: [],
     )
     tool = MessageTool()

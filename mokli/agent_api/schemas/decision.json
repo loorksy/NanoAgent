@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "reasons", "gates_passed"],
+  "properties": {
+    "verdict": {"type": "string", "enum": ["buy", "sell", "wait"]},
+    "entry": {"type": ["number", "null"]},
+    "stop": {"type": ["number", "null"]},
+    "targets": {"type": "array", "items": {"type": "number"}},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "gates_passed": {"type": "array", "items": {"type": "string"}},
+    "permission_level": {"type": ["string", "null"], "enum": ["recommend", "propose", "execute", null]},
+    "plan_id": {"type": ["string", "null"]},
+    "summary": {"type": "string"},
+    "entry_zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "high"],
+      "properties": {
+        "low": {"type": "number"},
+        "high": {"type": "number"}
+      }
+    },
+    "risk_pct": {"type": "number"},
+    "rr": {"type": ["number", "null"]},
+    "net_rr": {"type": ["number", "null"]},
+    "agreement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stance", "agreeing", "votes"],
+      "properties": {
+        "stance": {"type": "string", "enum": ["buy", "sell", "wait"]},
+        "agreeing": {"type": "integer", "minimum": 0},
+        "votes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "invalidation": {"type": "string"},
+    "validity_candles": {"type": "integer"},
+    "data_sources": {"type": "array", "items": {"type": "string"}},
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "alternative": {"type": "string"}
+  }
+}

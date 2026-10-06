@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from nanobot.trading.intel.calendar_scraper import parse_calendar_json
-from nanobot.trading.intel.dtw_matcher import match_pattern
-from nanobot.trading.intel.intermarket import divergence_matrix, intermarket_snapshot
-from nanobot.trading.intel.local_sentiment import classify_sentiment
-from nanobot.trading.intel.postmortem import LossRecord, PostMortemLog, refuse_repeat_error
-from nanobot.trading.intel.regex_emergency import scan_emergency
-from nanobot.trading.intel.rss_aggregator import parse_feed_body, reset_seen_for_tests
-from nanobot.trading.intel.telegram_scraper import TelegramHeadlineSource
-from nanobot.trading.intel.tickets import TicketStore
-from nanobot.trading.intel.vector_playbook import VectorPlaybook
-from nanobot.trading.intel.vip_tracker import _impact
-from nanobot.trading.risk_state import RiskStateStore
+from mokli.trading.intel.calendar_scraper import parse_calendar_json
+from mokli.trading.intel.dtw_matcher import match_pattern
+from mokli.trading.intel.intermarket import divergence_matrix, intermarket_snapshot
+from mokli.trading.intel.local_sentiment import classify_sentiment
+from mokli.trading.intel.postmortem import LossRecord, PostMortemLog, refuse_repeat_error
+from mokli.trading.intel.regex_emergency import scan_emergency
+from mokli.trading.intel.rss_aggregator import parse_feed_body, reset_seen_for_tests
+from mokli.trading.intel.telegram_scraper import TelegramHeadlineSource
+from mokli.trading.intel.tickets import TicketStore
+from mokli.trading.intel.vector_playbook import VectorPlaybook
+from mokli.trading.intel.vip_tracker import _impact
+from mokli.trading.risk_state import RiskStateStore
 
 
 def test_regex_emergency_war_and_lock(tmp_path, monkeypatch):
     store = RiskStateStore(tmp_path / "risk.json")
-    monkeypatch.setattr("nanobot.trading.intel.regex_emergency.get_risk_store", lambda: store)
+    monkeypatch.setattr("mokli.trading.intel.regex_emergency.get_risk_store", lambda: store)
     hit = scan_emergency("Missile strike on a major city", apply_lock=True)
     assert hit.matched is True
     assert hit.freeze is True

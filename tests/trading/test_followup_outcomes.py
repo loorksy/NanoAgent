@@ -1,4 +1,4 @@
-from nanobot.trading.recommendations.followup import (
+from mokli.trading.recommendations.followup import (
     CLOSED_OUTCOME_STATUSES,
     LIVE_OUTCOME_STATUSES,
     grade_live_recommendation,

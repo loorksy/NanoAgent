@@ -1,9 +1,9 @@
 import pytest
 
-from nanobot.trading.gates.build_gates import GateInputs, build_gates
-from nanobot.trading.gates.chain import run_gate_chain
-from nanobot.trading.gates.entry_semantics import validate_entry_coherence
-from nanobot.trading.types import EntryPlan, VisualReview
+from mokli.trading.gates.build_gates import GateInputs, build_gates
+from mokli.trading.gates.chain import run_gate_chain
+from mokli.trading.gates.entry_semantics import validate_entry_coherence
+from mokli.trading.types import EntryPlan, VisualReview
 
 
 def test_validate_entry_coherence_buy():
@@ -56,7 +56,7 @@ async def test_g4_visual_state_penalties():
         stop_loss=2640.0,
         targets=[2660.0],
     )
-    from nanobot.trading.types import StructureResult
+    from mokli.trading.types import StructureResult
 
     structure = StructureResult(
         trend="bullish",

@@ -1,0 +1,15 @@
+{% extends "_layout.html" %}
+{% block body %}
+{% for name, s in [('primary', p.primary), ('alternate', p.alternate)] if s %}
+<div>
+  <p><span class="na-badge na-{{ s.direction }}">{{ L('label.decision.' ~ s.direction) }}</span>
+  <strong>{{ L('label.result.scenarios.' ~ name) }}</strong>
+  {% if p.active == name %}<span class="na-badge">{{ L('label.result.scenarios.active') }}</span>{% endif %}
+  {% if s.probability is not none %}<span class="na-muted">{{ s.probability | pct }}</span>{% endif %}</p>
+  <dl class="na-grid">
+    <div><dt>{{ L('label.result.scenarios.trigger') }}</dt><dd>{{ s.trigger }}</dd></div>
+    <div><dt>{{ L('label.result.scenarios.invalidation') }}</dt><dd>{{ s.invalidation }}</dd></div>
+  </dl>
+</div>
+{% endfor %}
+{% endblock %}

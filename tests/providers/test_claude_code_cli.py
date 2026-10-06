@@ -8,15 +8,15 @@ from typing import Any
 
 import pytest
 
-from nanobot.config.schema import Config
-from nanobot.providers.claude_code_cli import (
+from mokli.config.schema import Config
+from mokli.providers.claude_code_cli import (
     ClaudeCodeCliProvider,
     messages_to_prompt,
     parse_cli_json,
     reset_cli_semaphore_for_tests,
 )
-from nanobot.providers.factory import make_provider, validate_provider_setup
-from nanobot.providers.registry import find_by_name
+from mokli.providers.factory import make_provider, validate_provider_setup
+from mokli.providers.registry import find_by_name
 
 
 def test_registry_and_factory_do_not_require_api_key() -> None:

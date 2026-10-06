@@ -1,0 +1,191 @@
+"""Run gold trading swarm presets from the agent."""
+
+# pyright: reportIncompatibleMethodOverride=false
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Any
+
+from mokli.agent.tools.base import Tool, ToolResult, tool_parameters
+from mokli.agent.tools.context import ToolContext, current_request_context
+from mokli.agent.tools.schema import BooleanSchema, StringSchema, tool_parameters_schema
+from mokli.trading.result_wire import brief_for_model, result_to_wire
+from mokli.trading.stage_delivery import TradingStagePublisher
+from mokli.trading.teams.runtime import list_presets, run_swarm
+from mokli.trading.tool_delivery import should_publish_trading_ui
+from mokli.trading.tool_errors import (
+    cached_decision_result,
+    model_json,
+    remember_decision_error,
+)
+
+_TEAM_PARAMETERS = tool_parameters_schema(
+    preset=StringSchema(
+        "Swarm preset name",
+        enum=[
+            "gold_analysis_committee",
+            "gold_debate_desk",
+            "gold_decision_review",
+            "gold_news_war_room",
+            "gold_mtf_panel",
+        ],
+    ),
+    interval=StringSchema(
+        "Candle interval for final analysis (default 15m)",
+        enum=["1m", "5m", "15m", "30m", "1h", "4h", "1d"],
+    ),
+    present_ui=BooleanSchema(
+        description=(
+            "When true, open the chart panel and stream team cards. "
+            "Default false — return structured JSON for you to summarize in chat."
+        ),
+    ),
+    required=["preset"],
+)
+
+
+@tool_parameters(_TEAM_PARAMETERS)
+class RunTradingTeamTool(Tool):
+    """Execute a YAML-defined gold trading team preset."""
+
+    _scopes = {"core"}
+
+    def __init__(self, bus: Any, subagent_manager: Any | None) -> None:
+        self._bus = bus
+        self._subagent_manager = subagent_manager
+
+    @classmethod
+    def create(cls, ctx: ToolContext) -> Tool:
+        return cls(bus=ctx.bus, subagent_manager=ctx.subagent_manager)
+
+    @property
+    def name(self) -> str:
+        return "run_trading_team"
+
+    @property
+    def description(self) -> str:
+        available = ", ".join(list_presets()) or "gold_analysis_committee"
+        return (
+            "Run a gold trading team preset, then the kernel. "
+            f"Available presets: {available}. "
+            "gold_decision_review is technical, then macro and trend, then risk, "
+            "then one review when stances conflict. "
+            "The returned final object is the decision. "
+            "Do not call run_trading_kernel again in this turn. "
+            "A second preset in this turn returns the result already produced, "
+            "including a failure. "
+            "Set present_ui=true only when the operator wants the visual team/chart experience."
+        )
+
+    async def execute(
+        self,
+        preset: str,
+        interval: str = "15m",
+        present_ui: bool = False,
+        **kwargs: Any,
+    ) -> str:
+        ctx = current_request_context()
+        if ctx is None:
+            return ToolResult.error("run_trading_team requires an active chat session")
+        cached_failure = cached_decision_result(self.name, {})
+        if cached_failure is not None:
+            return cached_failure
+        from mokli.trading.tool_errors import live_plan_block_if_any
+
+        blocked = await live_plan_block_if_any(ctx.session_key)
+        if blocked is not None:
+            return blocked
+
+        from mokli.trading.locale import active_locale
+
+        channel = ctx.channel or ""
+        chat_id = ctx.chat_id or ""
+        locale = active_locale(ctx.original_user_text or "")
+        publish_ui = should_publish_trading_ui(present_ui)
+        publisher = TradingStagePublisher(
+            self._bus,
+            channel=channel,
+            chat_id=chat_id,
+            locale=locale,
+        )
+        if publish_ui:
+            await publisher.open_chart(interval)
+
+        preset_name = (preset or "").strip()
+        if not preset_name:
+            return ToolResult.error("preset is required.")
+
+        from mokli.trading.turn_session import current_turn_session
+
+        turn = current_turn_session()
+        if turn is not None and turn.decision_wire:
+            return model_json(
+                {"preset": preset_name, "final": json.loads(turn.decision_wire)},
+            )
+
+        from mokli.agent.tools.trading_kernel import (
+            cancel_synthesis_prefetch,
+            finish_synthesis_prefetch,
+            start_synthesis_prefetch,
+        )
+        from mokli.trading.kernel import run_trading_kernel
+        from mokli.trading.policy_guard import PolicyViolation
+        prefetch: asyncio.Task[None] | None = (
+            start_synthesis_prefetch(interval, turn) if turn is not None else None
+        )
+        try:
+            try:
+                from mokli.trading.teams.runtime import review_round_limit
+
+                swarm = await run_swarm(
+                    preset_name,
+                    subagent_manager=self._subagent_manager,
+                    publisher=publisher if publish_ui else None,
+                    interval=interval,
+                    emit=publisher.sync_emit if publish_ui else None,
+                    bus=self._bus,
+                    max_review_rounds=review_round_limit(),
+                )
+            except Exception as exc:
+                return remember_decision_error(
+                    ToolResult.error(f"Swarm preset failed: {exc}")
+                )
+
+            await finish_synthesis_prefetch(prefetch)
+            prefetch = None
+            final = await run_trading_kernel(
+                interval=interval,
+                team_mode=f"swarm:{preset_name}",
+                gather_missing=True,
+                team_briefing=swarm.get("team_briefing"),
+                present_ui=publish_ui,
+                emit=publisher.sync_emit if publish_ui else None,
+            )
+        except PolicyViolation as exc:
+            return remember_decision_error(ToolResult.error(str(exc.reason)))
+        except Exception as exc:
+            return remember_decision_error(
+                ToolResult.error(f"Swarm preset failed: {exc}")
+            )
+        finally:
+            await cancel_synthesis_prefetch(prefetch)
+        if final is None:
+            return remember_decision_error(
+                ToolResult.error("Swarm produced no final analysis")
+            )
+
+        wire = result_to_wire(final)
+        if publish_ui:
+            await publisher.publish_result(wire)
+        brief = brief_for_model(wire)
+        if turn is not None:
+            turn.decision_wire = model_json(brief)
+            turn.decision_error = None
+        return model_json(
+            {
+                "preset": preset_name,
+                "final": brief,
+            },
+        )

@@ -173,7 +173,7 @@ type OutboundEvent =
   | { type: "attach"; chat_id: string }
   | { type: "set_workspace_scope"; chat_id: string; workspace_scope: WorkspaceScopePayload }
   | {
-      type: "webui_request"
+      type: "mokli_request"
       request_id: string
       action: string
       payload: Record<string, unknown>
@@ -183,7 +183,7 @@ type OutboundEvent =
       chat_id: string
       content: string
       turn_id: string
-      webui: true
+      mokli: true
       workspace_scope?: WorkspaceScopePayload
       media?: OutboundMedia[]
       cli_apps?: Array<{ name: string }>
@@ -448,22 +448,22 @@ function isWorkspaceScope(value: unknown): value is WorkspaceScopePayload {
     && optional(value.restrict_to_workspace, "boolean")
 }
 
-interface WebUIResponseEvent {
-  event: "webui_response"
+interface MokliResponseEvent {
+  event: "mokli_response"
   request_id: string
   ok: boolean
   result?: unknown
   error?: { status: number; message: string }
 }
 
-function decodeWebUIResponse(value: unknown): WebUIResponseEvent | null | undefined {
-  if (!isRecord(value) || value.event !== "webui_response") return undefined
+function decodeMokliResponse(value: unknown): MokliResponseEvent | null | undefined {
+  if (!isRecord(value) || value.event !== "mokli_response") return undefined
   if (typeof value.request_id !== "string" || typeof value.ok !== "boolean") return null
-  if (value.ok) return value as unknown as WebUIResponseEvent
+  if (value.ok) return value as unknown as MokliResponseEvent
   return isRecord(value.error)
     && typeof value.error.status === "number"
     && typeof value.error.message === "string"
-    ? value as unknown as WebUIResponseEvent
+    ? value as unknown as MokliResponseEvent
     : null
 }
 
@@ -609,7 +609,7 @@ async function fetchThreadPage(
   const response = await fetchApi(
     apiUrl,
     apiToken,
-    `/api/sessions/${key}/webui-thread?${params}`,
+    `/api/sessions/${key}/mokli-thread?${params}`,
     reauthenticate,
     signal,
   )
@@ -618,7 +618,7 @@ async function fetchThreadPage(
   return await response.json() as ThreadPage
 }
 
-/** Same recent model-call samples and context boundary as the WebUI usage popover. */
+/** Same recent model-call samples and context boundary as the Mokli usage popover. */
 export async function fetchSessionUsage(
   apiUrl: string,
   apiToken: string,
@@ -809,7 +809,7 @@ export async function fetchAvailableSkills(
   reauthenticate?: ApiReauthenticator,
 ): Promise<SkillCandidate[]> {
   if (!apiUrl || !apiToken) return []
-  const response = await fetchApi(apiUrl, apiToken, "/api/webui/skills", reauthenticate)
+  const response = await fetchApi(apiUrl, apiToken, "/api/mokli/skills", reauthenticate)
   if (!response.ok) throw new Error(`skill request failed: HTTP ${response.status}`)
   const payload = await response.json() as { skills?: unknown[] }
   return (payload.skills || []).flatMap((value) => {
@@ -867,7 +867,7 @@ export async function fetchSessions(
   if (!apiUrl || !apiToken) return []
   const [response, sidebarResponse] = await Promise.all([
     fetchApi(apiUrl, apiToken, "/api/sessions", reauthenticate),
-    fetchApi(apiUrl, apiToken, "/api/webui/sidebar-state", reauthenticate).catch(() => null),
+    fetchApi(apiUrl, apiToken, "/api/mokli/sidebar-state", reauthenticate).catch(() => null),
   ])
   if (!response.ok) throw new Error(`session request failed: HTTP ${response.status}`)
   const payload = await response.json() as { sessions?: unknown[] }
@@ -1011,7 +1011,7 @@ export async function fetchGatewayConnection(
   clientId: string,
 ): Promise<GatewayConnection> {
   const response = await fetch(bootstrapUrl, {
-    headers: bootstrapSecret ? { "X-Nanobot-Auth": bootstrapSecret } : {},
+    headers: bootstrapSecret ? { "X-Mokli-Auth": bootstrapSecret } : {},
   })
   if (!response.ok) {
     const retryable = response.status === 408 || response.status === 429 || response.status >= 500
@@ -1138,7 +1138,7 @@ export function sanitizeConnectionFailure(error: unknown): string {
   return "connection failed"
 }
 
-export class NanobotClient {
+export class MokliClient {
   private identityVerified = false
   private handshakeTimer: ReturnType<typeof setTimeout> | null = null
   private socket: WebSocket | null = null
@@ -1290,7 +1290,7 @@ export class NanobotClient {
       chat_id: this.chatId,
       content,
       turn_id: turnId,
-      webui: true,
+      mokli: true,
       ...(this.workspaceScope ? { workspace_scope: this.workspaceScope } : {}),
       ...(options.userShell ? { user_shell: true } : {}),
       ...(options.media?.length ? { media: options.media } : {}),
@@ -1356,7 +1356,7 @@ export class NanobotClient {
     }
     const requestId = crypto.randomUUID()
     const frame = JSON.stringify({
-      type: "webui_request",
+      type: "mokli_request",
       request_id: requestId,
       action,
       payload,
@@ -1398,7 +1398,7 @@ export class NanobotClient {
       this.options.onStatus("error", "gateway sent invalid JSON")
       return
     }
-    const response = decodeWebUIResponse(value)
+    const response = decodeMokliResponse(value)
     if (!this.identityVerified) {
       // Matching metadata is insufficient: an invalid ready frame must not
       // unlock mutations or cancel the bounded compatibility handshake.

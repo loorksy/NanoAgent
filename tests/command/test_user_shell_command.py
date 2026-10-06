@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import INBOUND_META_USER_SHELL, InboundMessage, OutboundMessage
-from nanobot.command.builtin import cmd_user_shell
-from nanobot.command.router import CommandContext
+from mokli.agent.loop import AgentLoop
+from mokli.bus.events import INBOUND_META_USER_SHELL, InboundMessage, OutboundMessage
+from mokli.command.builtin import cmd_user_shell
+from mokli.command.router import CommandContext
 
 
 def _context(loop: MagicMock, *, trusted: bool, command: str = "pwd") -> CommandContext:
     metadata = {
-        "webui": True,
+        "mokli": True,
         **({INBOUND_META_USER_SHELL: True} if trusted else {}),
     }
     msg = InboundMessage(

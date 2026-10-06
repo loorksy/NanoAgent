@@ -3,15 +3,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from nanobot.agent.loop import AgentLoop
-from nanobot.bus.events import OutboundMessage
-from nanobot.bus.outbound_events import GoalStatusEvent
-from nanobot.bus.queue import MessageBus
-from nanobot.channels.websocket.runtime import WebSocketChannel
-from nanobot.providers.base import GenerationSettings, LLMResponse
-from nanobot.session import webui_turns as wth
-from nanobot.session.webui_turns import WebuiTurnCoordinator, WebuiTurnRoutePolicy
-from nanobot.webui.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
+from mokli.agent.loop import AgentLoop
+from mokli.bus.events import OutboundMessage
+from mokli.bus.outbound_events import GoalStatusEvent
+from mokli.bus.queue import MessageBus
+from mokli.channels.websocket.runtime import WebSocketChannel
+from mokli.providers.base import GenerationSettings, LLMResponse
+from mokli.session import mokli_turns as wth
+from mokli.session.mokli_turns import MokliTurnCoordinator, MokliTurnRoutePolicy
+from mokli.surface.metadata import WEBSOCKET_TURN_OWNER_METADATA_KEY
 
 
 def _make_loop(tmp_path):
@@ -29,12 +29,12 @@ def _make_loop(tmp_path):
         workspace=tmp_path,
         model="test-model",
     )
-    WebuiTurnCoordinator(
+    MokliTurnCoordinator(
         bus=bus,
         sessions=loop.sessions,
         schedule_background=lambda coro: loop.schedule_background(coro),
     ).subscribe()
-    loop.turn_delivery_factory.route_policy = WebuiTurnRoutePolicy(loop.sessions)
+    loop.turn_delivery_factory.route_policy = MokliTurnRoutePolicy(loop.sessions)
     loop.tools.get_definitions = MagicMock(return_value=[])
     return loop
 
@@ -124,7 +124,7 @@ async def test_process_direct_reuses_existing_session_lock(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_process_direct_applies_per_run_hooks(tmp_path) -> None:
-    from nanobot.agent.hook import AgentHook, AgentRunHookContext
+    from mokli.agent.hook import AgentHook, AgentRunHookContext
 
     loop = _make_loop(tmp_path)
     events: list[tuple[str, str | None]] = []
